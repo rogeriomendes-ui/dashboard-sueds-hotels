@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUEDS Hotels | Gestores</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Gestores</p>
+          <h1>SUEDS Hotels</h1>
+        </div>
+        <div class="topbar-controls">
+          <label class="month-control" for="monthSelect">
+            <span>Mês</span>
+            <select id="monthSelect"></select>
+          </label>
+          <label class="filter-control" for="daySelect">
+            <span>Dia</span>
+            <select id="daySelect"></select>
+          </label>
+          <label class="filter-control" for="hotelSelect">
+            <span>Hotel</span>
+            <select id="hotelSelect"></select>
+          </label>
+          <label class="filter-control" for="channelSelect">
+            <span>Canal</span>
+            <select id="channelSelect"></select>
+          </label>
+        </div>
+        <div class="status-strip">
+          <span class="live-dot"></span>
+          <span id="lastUpdate">Atualizando...</span>
+        </div>
+      </header>
+
+      <section class="hero-metrics">
+        <article class="metric-card primary">
+          <span id="salesTodayLabel">Vendas hoje</span>
+          <strong id="salesToday">R$ 0</strong>
+          <small id="reservationsToday">0 reservas hoje</small>
+        </article>
+        <article class="metric-card">
+          <span id="salesMonthLabel">Vendas no mês</span>
+          <strong id="salesMonth">R$ 0</strong>
+          <small id="ticketAverage">Ticket médio R$ 0</small>
+        </article>
+        <article class="metric-card">
+          <span>Recebido no mês</span>
+          <strong id="receivedMonth">R$ 0</strong>
+          <small>Confirmadas</small>
+        </article>
+        <article class="metric-card">
+          <span>A receber</span>
+          <strong id="remainingMonth">R$ 0</strong>
+          <small>No mês</small>
+        </article>
+      </section>
+
+      <section class="dashboard-grid manager-grid">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Equipe</p>
+              <h2>Ranking de vendedores</h2>
+            </div>
+          </div>
+          <div id="sellerRanking" class="ranking-list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Receita</p>
+              <h2>Por canal</h2>
+            </div>
+          </div>
+          <div id="channelBars" class="bar-list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Hotéis</p>
+              <h2>Vendas no mês</h2>
+            </div>
+          </div>
+          <div id="hotelTable" class="hotel-table"></div>
+        </article>
+      </section>
+
+      <section class="panel daily-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Calendário comercial</p>
+            <h2>Vendas por dia</h2>
+          </div>
+        </div>
+        <div class="daily-table">
+          <div class="daily-row daily-head">
+            <span>Data</span>
+            <span>Reservas</span>
+            <span>Venda</span>
+            <span>Recebido</span>
+            <span>A receber</span>
+          </div>
+          <div id="dailySales"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="gestores.js"></script>
+  </body>
+</html>

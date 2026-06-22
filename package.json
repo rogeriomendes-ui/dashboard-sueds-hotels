@@ -1,0 +1,13 @@
+{
+  "name": "dashboard-sueds-hotels",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check api/index.js && node --check gestores.js && node --check tv.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

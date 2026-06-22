@@ -1,0 +1,139 @@
+.tv-shell {
+  min-height: 100vh;
+}
+
+.seller-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.seller-card {
+  min-height: 384px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.seller-name {
+  margin: 0 0 12px;
+  font-size: clamp(22px, 2.4vw, 40px);
+}
+
+.seller-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.goal-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.goal-label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.reservations-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--muted);
+}
+
+.gauge {
+  position: relative;
+  width: min(100%, 260px);
+  min-height: 154px;
+  margin: 12px auto 6px;
+}
+
+.gauge svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.gauge path {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-width: 22;
+}
+
+.gauge-track {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+.gauge-progress {
+  stroke: var(--muted);
+}
+
+.gauge-green .gauge-progress {
+  stroke: var(--green);
+}
+
+.gauge-yellow .gauge-progress {
+  stroke: var(--yellow);
+}
+
+.gauge-red .gauge-progress {
+  stroke: var(--red);
+}
+
+.gauge-readout {
+  position: absolute;
+  right: 0;
+  bottom: 18px;
+  left: 0;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+}
+
+.gauge-readout span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.gauge-readout strong {
+  color: var(--text);
+  font-size: clamp(30px, 3.8vw, 54px);
+  line-height: 0.95;
+}
+
+.gauge-scale {
+  position: absolute;
+  right: 17px;
+  bottom: 0;
+  left: 17px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 1180px) {
+  .seller-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .seller-grid {
+    grid-template-columns: 1fr;
+  }
+}

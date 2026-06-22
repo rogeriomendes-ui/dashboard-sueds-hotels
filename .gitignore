@@ -1,0 +1,11 @@
+.env
+*.local
+*.key
+*service-account*.json
+dashboard-sueds-*.json
+node_modules/
+*.xlsx
+*.xls
+*.csv
+.agents/
+.codex/

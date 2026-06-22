@@ -1,0 +1,189 @@
+const money = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  maximumFractionDigits: 0
+});
+
+const number = new Intl.NumberFormat("pt-BR");
+const MONTHS = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
+const MONTH_LABELS = {
+  "2026-05": "MAIO",
+  "2026-06": "JUNHO",
+  "2026-07": "JULHO",
+  "2026-08": "AGOSTO",
+  "2026-09": "SETEMBRO",
+  "2026-10": "OUTUBRO",
+  "2026-11": "NOVEMBRO",
+  "2026-12": "DEZEMBRO"
+};
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function defaultMonth() {
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return MONTHS.includes(month) ? month : "2026-06";
+}
+
+function lastDayOfMonth(month) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Date(year, monthNumber, 0).getDate();
+}
+
+function dateForMonth(month) {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const day = month === currentMonth ? now.getDate() : lastDayOfMonth(month);
+  return `${month}-${String(day).padStart(2, "0")}`;
+}
+
+function setupMonthSelect() {
+  const select = byId("monthSelect");
+  select.innerHTML = MONTHS.map((month) => `<option value="${month}">${MONTH_LABELS[month]}</option>`).join("");
+  select.value = new URLSearchParams(window.location.search).get("month") || defaultMonth();
+  select.addEventListener("change", load);
+}
+
+function setupGlobalFilters() {
+  byId("daySelect").addEventListener("change", load);
+  byId("hotelSelect").addEventListener("change", load);
+  byId("channelSelect").addEventListener("change", load);
+}
+
+function pct(value) {
+  return value === null || value === undefined ? "Sem meta" : `${number.format(value)}%`;
+}
+
+function formatDate(value) {
+  const [year, month, day] = String(value).split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
+function bars(items) {
+  return items
+    .map((item) => `
+      <div class="performance-row">
+        <span class="row-label">${item.label}</span>
+        <strong>${number.format(item.reservations || 0)}</strong>
+        <strong>${money.format(item.value)}</strong>
+        <strong>${money.format(item.monthlyGoal || 0)}</strong>
+        <strong class="icm-value">${pct(item.monthlyGoalPct)}</strong>
+      </div>
+    `)
+    .join("");
+}
+
+function performanceTable(items, firstColumn) {
+  return `
+    <div class="performance-row performance-head">
+      <span>${firstColumn}</span>
+      <span>Reservas</span>
+      <span>Venda</span>
+      <span>Meta</span>
+      <span>ICM %</span>
+    </div>
+    ${bars(items)}
+  `;
+}
+
+function optionList(options, selected, allLabel) {
+  const values = options.includes(selected) || selected === "" ? options : [selected, ...options];
+  return [
+    `<option value="">${allLabel}</option>`,
+    ...values.map((item) => `<option value="${item}"${item === selected ? " selected" : ""}>${item}</option>`)
+  ].join("");
+}
+
+function renderGlobalFilters(filters) {
+  const daySelect = byId("daySelect");
+  const hotelSelect = byId("hotelSelect");
+  const channelSelect = byId("channelSelect");
+  daySelect.innerHTML = optionList(filters.days || [], filters.selectedDay || "", "Todos os dias").replace(
+    />(\d{4}-\d{2}-\d{2})</g,
+    (_, value) => `>${formatDate(value)}<`
+  );
+  hotelSelect.innerHTML = optionList(filters.hotels || [], filters.selectedHotel || "", "Todos os hotéis");
+  channelSelect.innerHTML = optionList(filters.channels || [], filters.selectedChannel || "", "Todos os canais");
+}
+
+function render(data) {
+  byId("lastUpdate").textContent = `Atualizado ${new Date(data.generatedAt).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit"
+  })}`;
+
+  const hasDayFilter = Boolean(data.filters?.selectedDay);
+  const hasGlobalFilter = hasDayFilter || Boolean(data.filters?.selectedHotel) || Boolean(data.filters?.selectedChannel);
+  byId("salesTodayLabel").textContent = hasDayFilter ? "Vendas no dia" : "Vendas hoje";
+  byId("salesMonthLabel").textContent = hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês";
+  byId("salesToday").textContent = money.format(data.summary.salesToday);
+  byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
+  byId("salesMonth").textContent = money.format(data.summary.salesMonth);
+  byId("ticketAverage").textContent = `Ticket médio ${money.format(data.summary.ticketAverageMonth)}`;
+  byId("receivedMonth").textContent = money.format(data.summary.receivedMonth);
+  byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
+  renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
+
+  byId("sellerRanking").innerHTML = `
+    <div class="seller-table-row seller-table-head">
+      <span>#</span>
+      <span>Responsável</span>
+      <span>Reservas</span>
+      <span>Venda</span>
+      <span>Meta</span>
+      <span>ICM %</span>
+    </div>
+    ${data.sellers
+      .map((seller, index) => `
+        <div class="seller-table-row">
+          <span class="rank-position">${index + 1}</span>
+          <span class="row-label">${seller.name}</span>
+          <strong>${number.format(seller.reservationsMonth)}</strong>
+          <strong>${money.format(seller.salesMonth)}</strong>
+          <strong>${money.format(seller.monthlyGoal || 0)}</strong>
+          <strong class="icm-value">${pct(seller.monthlyGoalPct)}</strong>
+        </div>
+      `)
+      .join("")}
+  `;
+
+  byId("channelBars").innerHTML = performanceTable(data.channels, "Canal");
+  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel");
+
+  byId("dailySales").innerHTML = data.dailySales
+    .map((day) => `
+      <div class="daily-row">
+        <span>${formatDate(day.date)}</span>
+        <span>${number.format(day.reservations)}</span>
+        <span>${money.format(day.sales)}</span>
+        <span>${money.format(day.received)}</span>
+        <span>${money.format(day.remaining)}</span>
+      </div>
+    `)
+    .join("");
+}
+
+async function load() {
+  const month = byId("monthSelect").value;
+  const params = new URLSearchParams({
+    date: dateForMonth(month),
+    month
+  });
+  const day = byId("daySelect").value;
+  const hotel = byId("hotelSelect").value;
+  const channel = byId("channelSelect").value;
+  if (day) params.set("day", day);
+  if (hotel) params.set("hotel", hotel);
+  if (channel) params.set("channel", channel);
+  const response = await fetch(`/api/dashboard/gestores?${params.toString()}`);
+  if (!response.ok) throw new Error("Falha ao carregar dados dos gestores");
+  render(await response.json());
+}
+
+setupMonthSelect();
+setupGlobalFilters();
+load();
+setInterval(load, 60000);
