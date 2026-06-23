@@ -77,3 +77,10 @@ npm run import:niara:carrinhos -- "C:\Users\roger\Downloads\reservas-perdidas.xl
 ```
 
 O importador usa o campo `ID` como chave, atualiza somente as colunas `A:Q` da aba `Recuperação de carrinhos` e preserva as colunas `R:U`, preenchidas pelo time durante a recuperacao.
+
+Opcao mais simples no Windows:
+
+1. Baixe o arquivo da Niara na pasta `Downloads`.
+2. Deixe o nome comecando por `reservas-perdidas`.
+3. Abra com duplo clique o arquivo `Importar carrinhos Niara.bat`.
+4. Confira a simulacao e confirme com `S` para aplicar.
