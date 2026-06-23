@@ -515,10 +515,10 @@ function statusFromPct(value) {
 
 const TV_SELLER_ORDER = [
   "Aline Nunes",
-  "Bete Gerente",
   "Emanoel Cesar",
   "Julia Reche",
   "Amanda Melgaco",
+  "Bete Gerente",
   "Site",
   "Operadoras",
   "OTAs",
