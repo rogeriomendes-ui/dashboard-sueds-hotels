@@ -60,17 +60,17 @@ function gaugeValue(value) {
   return value === null || value === undefined ? "--" : percent.format(value);
 }
 
-function monthlyGauge(seller) {
-  const value = gaugePct(seller.monthlyGoalPct);
+function goalGauge(label, value) {
+  const gaugeValuePct = gaugePct(value);
   return `
-    <div class="gauge ${gaugeClass(seller.monthlyGoalPct)}" aria-label="ICM do mês ${formatPct(seller.monthlyGoalPct)}">
+    <div class="gauge ${gaugeClass(value)}" aria-label="${label} ${formatPct(value)}">
       <svg viewBox="0 0 200 118" role="img">
         <path class="gauge-track" pathLength="150" d="M 18 100 A 82 82 0 0 1 182 100"></path>
-        <path class="gauge-progress" pathLength="150" stroke-dasharray="${value} 150" d="M 18 100 A 82 82 0 0 1 182 100"></path>
+        <path class="gauge-progress" pathLength="150" stroke-dasharray="${gaugeValuePct} 150" d="M 18 100 A 82 82 0 0 1 182 100"></path>
       </svg>
       <div class="gauge-readout">
-        <span>ICM mês</span>
-        <strong>${gaugeValue(seller.monthlyGoalPct)}</strong>
+        <span>${label}</span>
+        <strong>${gaugeValue(value)}</strong>
       </div>
       <div class="gauge-scale"><span>0</span><span>150</span></div>
     </div>
@@ -98,14 +98,9 @@ function render(data) {
           <span class="reservations-pill">${seller.reservationsToday} reservas hoje</span>
           <span class="reservations-pill">${seller.reservationsMonth} no mês</span>
         </div>
-        ${monthlyGauge(seller)}
-        <div class="goal-block">
-          <div class="goal-label"><span>Meta do dia</span><strong>${formatPct(seller.dailyGoalPct)}</strong></div>
-          <div class="track"><div class="fill" style="width: ${Math.min(seller.dailyGoalPct || 0, 100)}%"></div></div>
-        </div>
-        <div class="goal-block">
-          <div class="goal-label"><span>Meta do mês</span><strong>${formatPct(seller.monthlyGoalPct)}</strong></div>
-          <div class="track"><div class="fill" style="width: ${Math.min(seller.monthlyGoalPct || 0, 100)}%"></div></div>
+        <div class="gauge-pair">
+          ${goalGauge("Meta dia", seller.dailyGoalPct)}
+          ${goalGauge("Meta mês", seller.monthlyGoalPct)}
         </div>
       </article>
     `)
