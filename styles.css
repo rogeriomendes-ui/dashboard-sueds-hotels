@@ -1,7 +1,7 @@
 :root {
   --bg: #2c3e50;
   --panel: #ffffff;
-  --panel-soft: #edf1f4;
+  --panel-soft: #2c3e50;
   --text: #f5f7fb;
   --muted: #d7e0e8;
   --line: rgba(255, 255, 255, 0.18);
@@ -230,9 +230,10 @@ h2 {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  color: var(--muted);
+  color: #ffffff;
   background: var(--panel-soft);
   font-size: 13px;
+  font-weight: 700;
 }
 
 .gauge {
