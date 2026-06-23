@@ -87,9 +87,9 @@ function goalColumn(label, value, reservationText) {
 }
 
 function statusClass(seller) {
-  if (seller.dailyStatus === "meta_batida" || seller.monthlyStatus === "meta_batida") return "meta_batida";
-  if (seller.dailyStatus === "em_ritmo" || seller.monthlyStatus === "em_ritmo") return "em_ritmo";
-  if (seller.dailyStatus === "sem_meta" && seller.monthlyStatus === "sem_meta") return "sem_meta";
+  if (seller.dailyStatus === "meta_batida" || seller.mtdStatus === "meta_batida" || seller.monthlyStatus === "meta_batida") return "meta_batida";
+  if (seller.dailyStatus === "em_ritmo" || seller.mtdStatus === "em_ritmo" || seller.monthlyStatus === "em_ritmo") return "em_ritmo";
+  if (seller.dailyStatus === "sem_meta" && seller.mtdStatus === "sem_meta" && seller.monthlyStatus === "sem_meta") return "sem_meta";
   return "abaixo";
 }
 
@@ -103,9 +103,13 @@ function render(data) {
     .map((seller) => `
       <article class="seller-card ${statusClass(seller)}">
         <h2 class="seller-name">${seller.name}</h2>
-        <div class="gauge-pair">
+        <div class="gauge-layout">
           ${goalColumn("Meta dia", seller.dailyGoalPct, `${seller.reservationsToday} reservas hoje`)}
-          ${goalColumn("Meta mês", seller.monthlyGoalPct, `${seller.reservationsMonth} no mês`)}
+          ${goalColumn("ICM MTD", seller.mtdGoalPct, `${seller.reservationsMtd ?? seller.reservationsMonth} até hoje`)}
+          <div class="goal-column goal-column-month">
+            ${goalGauge("ICM mês", seller.monthlyGoalPct)}
+            <span class="reservations-pill">${seller.reservationsMonth} no mês</span>
+          </div>
         </div>
       </article>
     `)

@@ -342,6 +342,35 @@ function daysInMonth(month) {
   return new Date(year, monthNumber, 0).getDate();
 }
 
+function businessDaysInMonth(month) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  if (!year || !monthNumber) return 26;
+  const totalDays = daysInMonth(month);
+  let businessDays = 0;
+  for (let day = 1; day <= totalDays; day += 1) {
+    const date = new Date(Date.UTC(year, monthNumber - 1, day, 12));
+    if (date.getUTCDay() !== 0) businessDays += 1;
+  }
+  return businessDays || totalDays;
+}
+
+function businessDaysElapsed(month, key) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const selectedDay = Number(String(key || "").slice(8, 10));
+  if (!year || !monthNumber || !selectedDay) return businessDaysInMonth(month);
+  const limit = Math.min(selectedDay, daysInMonth(month));
+  let businessDays = 0;
+  for (let day = 1; day <= limit; day += 1) {
+    const date = new Date(Date.UTC(year, monthNumber - 1, day, 12));
+    if (date.getUTCDay() !== 0) businessDays += 1;
+  }
+  return businessDays;
+}
+
+function isOnOrBeforeDateKey(record, key) {
+  return record.dateKey && key && record.dateKey <= key;
+}
+
 const BETE_TEAM = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
 
@@ -362,6 +391,9 @@ function buildMetrics(records, goals, period = {}) {
   });
   const todayRecords = filteredRecords.filter((record) => record.dateKey === today);
   const selectedDayRecords = selectedDay ? filteredRecords : todayRecords;
+  const monthToDateRecords = filteredRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
+  const workdaysInMonth = businessDaysInMonth(month);
+  const workdaysElapsed = businessDaysElapsed(month, goalDate);
 
   const sellerNames = new Set([
     ...filteredRecords.map((record) => record.seller).filter(Boolean),
@@ -373,21 +405,28 @@ function buildMetrics(records, goals, period = {}) {
     .map((seller) => {
       const sellerRecords = recordsBySeller.get(seller) || [];
       const dayRecords = selectedDay ? sellerRecords : sellerRecords.filter((record) => record.dateKey === today);
+      const mtdRecords = sellerRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
       const goal = sellerGoal(goals, seller, month, goalDate);
       const dayRevenue = sum(dayRecords, (record) => record.total);
-      const monthRevenue = sum(sellerRecords, (record) => record.total);
-      const dailyGoal = goal?.date === goalDate ? goal.revenueGoal : (goal?.revenueGoal ? goal.revenueGoal / daysInMonth(month) : 0);
+      const mtdRevenue = sum(mtdRecords, (record) => record.total);
+      const monthRevenue = mtdRevenue;
       const monthlyGoal = goal?.revenueGoal || 0;
+      const dailyGoal = monthlyGoal ? monthlyGoal / workdaysInMonth : 0;
+      const mtdGoal = dailyGoal * workdaysElapsed;
 
       return {
         name: seller,
         salesToday: dayRevenue,
+        salesMtd: mtdRevenue,
         salesMonth: monthRevenue,
         reservationsToday: dayRecords.length,
+        reservationsMtd: mtdRecords.length,
         reservationsMonth: sellerRecords.length,
         dailyGoal,
+        mtdGoal,
         monthlyGoal,
         dailyGoalPct: pct(dayRevenue, dailyGoal),
+        mtdGoalPct: pct(mtdRevenue, mtdGoal),
         monthlyGoalPct: pct(monthRevenue, monthlyGoal)
       };
     })
@@ -397,14 +436,19 @@ function buildMetrics(records, goals, period = {}) {
   if (bete) {
     const teamSellers = sellers.filter((seller) => BETE_TEAM.includes(seller.name));
     const teamSalesToday = sum(teamSellers, (seller) => seller.salesToday);
+    const teamSalesMtd = sum(teamSellers, (seller) => seller.salesMtd);
     const teamSalesMonth = sum(teamSellers, (seller) => seller.salesMonth);
     const teamReservationsToday = sum(teamSellers, (seller) => seller.reservationsToday);
+    const teamReservationsMtd = sum(teamSellers, (seller) => seller.reservationsMtd);
     const teamReservationsMonth = sum(teamSellers, (seller) => seller.reservationsMonth);
     bete.salesToday = teamSalesToday;
+    bete.salesMtd = teamSalesMtd;
     bete.salesMonth = teamSalesMonth;
     bete.reservationsToday = teamReservationsToday;
+    bete.reservationsMtd = teamReservationsMtd;
     bete.reservationsMonth = teamReservationsMonth;
     bete.dailyGoalPct = pct(teamSalesToday, bete.dailyGoal);
+    bete.mtdGoalPct = pct(teamSalesMtd, bete.mtdGoal);
     bete.monthlyGoalPct = pct(teamSalesMonth, bete.monthlyGoal);
   }
 
@@ -477,6 +521,7 @@ function buildMetrics(records, goals, period = {}) {
     },
     summary: {
       salesToday: sum(selectedDayRecords, (record) => record.total),
+      salesMtd: sum(monthToDateRecords, (record) => record.total),
       salesMonth: sum(filteredRecords, (record) => record.total),
       receivedMonth: sum(filteredRecords, (record) => record.received),
       remainingMonth: sum(filteredRecords, (record) => record.remaining),
@@ -541,10 +586,13 @@ function buildTvPayload(metrics) {
       .map((seller) => ({
         name: seller.name,
         reservationsToday: seller.reservationsToday,
+        reservationsMtd: seller.reservationsMtd,
         reservationsMonth: seller.reservationsMonth,
         dailyGoalPct: seller.dailyGoalPct,
+        mtdGoalPct: seller.mtdGoalPct,
         monthlyGoalPct: seller.monthlyGoalPct,
         dailyStatus: statusFromPct(seller.dailyGoalPct),
+        mtdStatus: statusFromPct(seller.mtdGoalPct),
         monthlyStatus: statusFromPct(seller.monthlyGoalPct)
       }))
   };
