@@ -1,4 +1,4 @@
-const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const MONTHS = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
 const MONTH_LABELS = {
   "2026-05": "MAIO",
