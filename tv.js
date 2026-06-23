@@ -118,33 +118,32 @@ function countList(items, emptyText) {
     .join("");
 }
 
-function renderCartRecovery(items = []) {
-  byId("cartRecoveryGrid").innerHTML = items
-    .map((seller) => `
-      <article class="cart-card" aria-label="Recuperação de carrinhos de ${escapeHtml(seller.name)}">
-        <div class="cart-card-top">
-          <strong>${seller.contacted}</strong>
-          <span>carrinhos contatados</span>
+function renderCartRecoveryBlock(seller) {
+  if (!seller) return "";
+  return `
+    <section class="cart-card" aria-label="Recuperação de carrinhos de ${escapeHtml(seller.name)}">
+      <div class="cart-card-title">
+        <span>Recuperação de carrinhos</span>
+        <strong>${seller.contacted}</strong>
+      </div>
+      <div class="cart-kpis">
+        <div><strong>${seller.recovered}</strong><span>recuperados</span></div>
+        <div><strong>${seller.lost}</strong><span>perdidos</span></div>
+        <div><strong>${seller.pending}</strong><span>pendentes</span></div>
+        <div><strong>${formatCartPct(seller.recoveryPct)}</strong><span>taxa</span></div>
+      </div>
+      <div class="cart-detail">
+        <div>
+          <h4>Status</h4>
+          ${countList(seller.statusBreakdown, "Sem status")}
         </div>
-        <div class="cart-kpis">
-          <div><strong>${seller.recovered}</strong><span>recuperados</span></div>
-          <div><strong>${seller.lost}</strong><span>perdidos</span></div>
-          <div><strong>${seller.pending}</strong><span>pendentes</span></div>
-          <div><strong>${formatCartPct(seller.recoveryPct)}</strong><span>taxa</span></div>
+        <div>
+          <h4>Motivos de perda</h4>
+          ${countList(seller.lossReasons, "Sem perdas")}
         </div>
-        <div class="cart-detail">
-          <div>
-            <h4>Status</h4>
-            ${countList(seller.statusBreakdown, "Sem status")}
-          </div>
-          <div>
-            <h4>Motivos de perda</h4>
-            ${countList(seller.lossReasons, "Sem perdas")}
-          </div>
-        </div>
-      </article>
-    `)
-    .join("");
+      </div>
+    </section>
+  `;
 }
 
 function render(data) {
@@ -152,6 +151,8 @@ function render(data) {
     hour: "2-digit",
     minute: "2-digit"
   })}`;
+
+  const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [item.name, item]));
 
   byId("sellerGrid").innerHTML = data.sellers
     .map((seller) => `
@@ -165,11 +166,10 @@ function render(data) {
             <span class="reservations-pill">${seller.reservationsMonth} no mês</span>
           </div>
         </div>
+        ${renderCartRecoveryBlock(cartsBySeller.get(seller.name))}
       </article>
     `)
     .join("");
-
-  renderCartRecovery(data.cartRecovery);
 }
 
 async function load() {
