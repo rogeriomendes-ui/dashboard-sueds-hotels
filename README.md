@@ -60,7 +60,23 @@ Primeira versão publicada na Vercel.
 
 ## Importar carrinhos abandonados da Niara
 
-Fluxo semi-automatico recomendado:
+Fluxo recomendado via Google Sheets:
+
+1. Na Niara, filtre as reservas perdidas do periodo desejado.
+2. Exporte o arquivo `.xlsx`.
+3. No Google Sheets, abra a aba `Importar_Niara`.
+4. Importe ou cole nessa aba os dados exportados da Niara, mantendo os cabecalhos na primeira linha.
+5. No menu da planilha, clique em `SUEDS Dashboard` > `Importar carrinhos da aba Importar_Niara`.
+
+O script da planilha usa o campo `ID` como chave, atualiza somente as colunas `A:Q` da aba `Recuperação de carrinhos` e preserva as colunas `R:U`, preenchidas pelo time durante a recuperacao.
+
+Para instalar o menu na planilha:
+
+1. Abra `Extensoes` > `Apps Script`.
+2. Cole o conteudo de `google-apps-script/importar_carrinhos_niara.gs`.
+3. Salve e recarregue a planilha.
+
+Fluxo alternativo local:
 
 1. Na Niara, filtre as reservas perdidas do periodo desejado.
 2. Exporte o arquivo `.xlsx`.

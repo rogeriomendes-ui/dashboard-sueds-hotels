@@ -1,0 +1,20 @@
+Como instalar o importador na planilha Google Sheets
+
+1. Abra a planilha do Dashboard SUEDS.
+2. Clique em Extensoes > Apps Script.
+3. Apague qualquer codigo padrao que aparecer.
+4. Copie e cole todo o conteudo do arquivo:
+
+   google-apps-script/importar_carrinhos_niara.gs
+
+5. Salve o projeto.
+6. Recarregue a planilha.
+7. Use o menu SUEDS Dashboard > Importar carrinhos da aba Importar_Niara.
+
+Fluxo diario:
+
+1. Exporte o arquivo .xlsx da Niara.
+2. Importe ou cole os dados na aba Importar_Niara.
+3. Rode o menu SUEDS Dashboard > Importar carrinhos da aba Importar_Niara.
+
+O script atualiza A:Q da aba Recuperacao de carrinhos e preserva R:U.

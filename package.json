@@ -5,8 +5,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check api/health.js && node --check api/ping.js && node --check api/dashboard/gestores.js && node --check api/dashboard/tv.js && node --check gestores.js && node --check tv.js && node --check tools/import_niara_carrinhos_google.js",
-    "import:niara:carrinhos": "node tools/import_niara_carrinhos_google.js"
+    "check": "node --check server.js && node --check api/health.js && node --check api/ping.js && node --check api/dashboard/gestores.js && node --check api/dashboard/tv.js && node --check gestores.js && node --check tv.js && node --check tools/import_niara_carrinhos_google.js && node --check tools/setup_niara_import_sheet.js",
+    "import:niara:carrinhos": "node tools/import_niara_carrinhos_google.js",
+    "setup:niara:sheet": "node tools/setup_niara_import_sheet.js"
   },
   "engines": {
     "node": ">=18"
