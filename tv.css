@@ -90,15 +90,15 @@
 }
 
 .gauge-green .gauge-progress {
-  stroke: var(--green);
+  stroke: #7ee35f;
 }
 
 .gauge-yellow .gauge-progress {
-  stroke: #ff9f1c;
+  stroke: var(--yellow);
 }
 
-.gauge-gold .gauge-progress {
-  stroke: #d9a441;
+.gauge-dark-green .gauge-progress {
+  stroke: #168a4a;
 }
 
 .gauge-red .gauge-progress {

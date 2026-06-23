@@ -51,9 +51,9 @@ function gaugePct(value) {
 
 function gaugeClass(value) {
   if (value === null || value === undefined) return "gauge-sem-meta";
-  if (value >= 120) return "gauge-gold";
+  if (value >= 120) return "gauge-dark-green";
   if (value >= 100) return "gauge-green";
-  if (value >= 60) return "gauge-yellow";
+  if (value >= 70) return "gauge-yellow";
   return "gauge-red";
 }
 
