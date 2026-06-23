@@ -1,10 +1,13 @@
 :root {
-  --bg: #11110f;
-  --panel: #1b1d1b;
-  --panel-soft: #282b27;
+  --bg: #2c3e50;
+  --panel: #ddc6a6;
+  --panel-soft: #cdb78f;
   --text: #f5f7fb;
-  --muted: #96a3b3;
-  --line: rgba(255, 255, 255, 0.1);
+  --muted: #d7e0e8;
+  --line: rgba(255, 255, 255, 0.18);
+  --card-text: #203040;
+  --card-muted: #506274;
+  --card-line: rgba(44, 62, 80, 0.24);
   --green: #38d39f;
   --blue: #4aa3ff;
   --yellow: #ffd166;
@@ -87,7 +90,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.08);
   white-space: nowrap;
 }
 
@@ -115,7 +118,7 @@ h2 {
   height: 42px;
   border: 1px solid rgba(255, 209, 102, 0.5);
   border-radius: 6px;
-  color: var(--text);
+  color: var(--card-text);
   background: var(--panel);
   font: inherit;
   font-size: 22px;
@@ -144,6 +147,11 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+  --text: var(--card-text);
+  --muted: var(--card-muted);
+  --line: var(--card-line);
+  --cyan: #2c3e50;
+  color: var(--text);
 }
 
 .metric-card {
@@ -248,7 +256,7 @@ h2 {
 }
 
 .gauge-track {
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: rgba(44, 62, 80, 0.18);
 }
 
 .gauge-progress {
@@ -348,7 +356,7 @@ h2 {
   height: 30px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  color: var(--text);
+  color: var(--card-text);
   background: var(--panel);
   font: inherit;
   font-size: 13px;
