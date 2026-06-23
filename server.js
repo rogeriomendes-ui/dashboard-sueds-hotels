@@ -415,16 +415,19 @@ function buildCartRecoveryMetrics(carts, period = {}) {
   const today = period.date || todayKey();
   const month = period.month || today.slice(0, 7);
   const monthCarts = carts.filter((cart) => cart.monthKey === month);
-  const sellerOrder = TV_SELLER_ORDER.filter((seller) => BETE_TEAM.includes(seller));
 
-  return sellerOrder.map((seller) => {
+  function metricsForSeller(seller) {
     const sellerCarts = monthCarts.filter((cart) => comparableKey(cart.responsible) === comparableKey(seller));
+    return metricsFromCarts(seller, sellerCarts);
+  }
+
+  function metricsFromCarts(name, sellerCarts) {
     const contacted = sellerCarts.filter((cart) => cart.contacted);
     const recovered = contacted.filter((cart) => comparableKey(cart.status).includes("recuperado") && !comparableKey(cart.status).includes("nao recuperado"));
     const lost = contacted.filter((cart) => comparableKey(cart.status).includes("nao recuperado"));
 
     return {
-      name: seller,
+      name,
       contacted: contacted.length,
       recovered: recovered.length,
       lost: lost.length,
@@ -433,7 +436,17 @@ function buildCartRecoveryMetrics(carts, period = {}) {
       statusBreakdown: topCounts(contacted, (cart) => cart.status, 4),
       lossReasons: topCounts(lost, (cart) => cart.lossReason, 3)
     };
-  });
+  }
+
+  const teamMetrics = TV_SELLER_ORDER
+    .filter((seller) => BETE_TEAM.includes(seller))
+    .map(metricsForSeller);
+  const teamCarts = monthCarts.filter((cart) => BETE_TEAM.some((seller) => comparableKey(cart.responsible) === comparableKey(seller)));
+
+  return [
+    ...teamMetrics,
+    metricsFromCarts("Bete Gerente", teamCarts)
+  ];
 }
 
 function buildMetrics(records, goals, period = {}) {
