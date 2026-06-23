@@ -330,6 +330,19 @@ h2 {
   color: var(--green);
 }
 
+.panel-error {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  border-radius: 8px;
+  color: var(--red);
+  background: rgba(255, 107, 107, 0.08);
+  font-weight: 700;
+  text-align: center;
+}
+
 .hotel-row {
   grid-template-columns: minmax(116px, 1fr) 70px 94px;
 }

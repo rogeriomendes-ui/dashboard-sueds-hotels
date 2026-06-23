@@ -13,6 +13,7 @@ const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -58,6 +59,24 @@ function json(res, statusCode, payload) {
 
 function notFound(res) {
   json(res, 404, { error: "not_found" });
+}
+
+function forbidden(res) {
+  json(res, 401, { error: "unauthorized" });
+}
+
+function getHeader(req, name) {
+  const value = req.headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value || "";
+}
+
+function hasManagerAccess(req, url) {
+  if (!GESTORES_ACCESS_TOKEN) return true;
+  const provided = getHeader(req, "x-dashboard-token") || url.searchParams.get("access_token") || "";
+  if (!provided) return false;
+  const expectedBuffer = Buffer.from(GESTORES_ACCESS_TOKEN);
+  const providedBuffer = Buffer.from(provided);
+  return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
 function base64url(value) {
@@ -638,6 +657,7 @@ async function handleRequest(req, res) {
         ok: true,
         googleConfigured: Boolean(SHEET_ID && getServiceAccount()),
         supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
+        gestoresProtected: Boolean(GESTORES_ACCESS_TOKEN),
         cacheTtlSeconds: CACHE_TTL_MS / 1000
       });
     }
@@ -659,6 +679,7 @@ async function handleRequest(req, res) {
     }
 
     if (url.pathname === "/api/dashboard/gestores") {
+      if (!hasManagerAccess(req, url)) return forbidden(res);
       const metrics = await loadMetrics(periodFromUrl(url));
       return json(res, 200, buildManagerPayload(metrics));
     }

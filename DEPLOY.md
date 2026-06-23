@@ -19,6 +19,7 @@ GOOGLE_METAS_RANGE=Metas!A:H
 CACHE_TTL_SECONDS=60
 SUPABASE_URL=https://SEU-PROJETO.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=COLE_A_SERVICE_ROLE_KEY_AQUI
+GESTORES_ACCESS_TOKEN=COLE_UMA_SENHA_FORTE_AQUI
 ```
 
 Use `GOOGLE_SERVICE_ACCOUNT_JSON` na Vercel em vez de `GOOGLE_APPLICATION_CREDENTIALS`,
@@ -43,15 +44,15 @@ Nao coloque essa chave no frontend, no GitHub ou na planilha.
 4. Faca o primeiro deploy.
 5. Teste:
    - `/dashboard-tv.html`
-   - `/dashboard-gestores.html`
+- `/dashboard-gestores.html`
    - `/api/health`
    - `/api/dashboard/tv`
    - `/api/dashboard/gestores`
 
 ## Observacao sobre seguranca
 
-Na primeira versao, a API de gestores ainda fica acessivel por URL.
-Antes de divulgar amplamente, o proximo passo recomendado e adicionar uma camada simples de acesso:
+Na primeira versao, a rota de gestores deve usar `GESTORES_ACCESS_TOKEN`.
+Sem essa variavel, a API de gestores fica aberta.
 
 - TV: link sem valores de venda.
-- Gestores: login ou token protegido.
+- Gestores: senha/token simples salvo no navegador do gestor.

@@ -16,9 +16,26 @@ const MONTH_LABELS = {
   "2026-11": "NOVEMBRO",
   "2026-12": "DEZEMBRO"
 };
+const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
 
 function byId(id) {
   return document.getElementById(id);
+}
+
+function getStoredAccessToken() {
+  return localStorage.getItem(GESTORES_TOKEN_STORAGE_KEY) || "";
+}
+
+function askAccessToken() {
+  const token = window.prompt("Digite a senha de acesso da visão gestores:");
+  if (!token) return "";
+  const trimmed = token.trim();
+  localStorage.setItem(GESTORES_TOKEN_STORAGE_KEY, trimmed);
+  return trimmed;
+}
+
+function clearAccessToken() {
+  localStorage.removeItem(GESTORES_TOKEN_STORAGE_KEY);
 }
 
 function defaultMonth() {
@@ -178,12 +195,30 @@ async function load() {
   if (day) params.set("day", day);
   if (hotel) params.set("hotel", hotel);
   if (channel) params.set("channel", channel);
-  const response = await fetch(`/api/dashboard/gestores?${params.toString()}`);
+  let token = getStoredAccessToken();
+  if (!token) token = askAccessToken();
+  if (!token) throw new Error("Acesso aos gestores não informado");
+
+  let response = await fetch(`/api/dashboard/gestores?${params.toString()}`, {
+    headers: { "x-dashboard-token": token }
+  });
+
+  if (response.status === 401) {
+    clearAccessToken();
+    token = askAccessToken();
+    if (!token) throw new Error("Acesso aos gestores não autorizado");
+    response = await fetch(`/api/dashboard/gestores?${params.toString()}`, {
+      headers: { "x-dashboard-token": token }
+    });
+  }
+
   if (!response.ok) throw new Error("Falha ao carregar dados dos gestores");
   render(await response.json());
 }
 
 setupMonthSelect();
 setupGlobalFilters();
-load();
+load().catch((error) => {
+  byId("sellerRanking").innerHTML = `<div class="panel-error">${error.message}</div>`;
+});
 setInterval(load, 60000);
