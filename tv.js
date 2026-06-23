@@ -159,12 +159,12 @@ function render(data) {
       <article class="seller-card ${statusClass(seller)}">
         <h2 class="seller-name">${seller.name}</h2>
         <div class="gauge-layout">
-          ${goalColumn("Meta dia", seller.dailyGoalPct, `${seller.reservationsToday} reservas hoje`)}
-          ${goalColumn("ICM MTD", seller.mtdGoalPct, `${seller.reservationsMtd ?? seller.reservationsMonth} até hoje`)}
-          <div class="goal-column goal-column-month">
-            ${goalGauge("ICM mês", seller.monthlyGoalPct)}
-            <span class="reservations-pill">${seller.reservationsMonth} no mês</span>
+          <div class="goal-column goal-column-day">
+            ${goalGauge("Meta dia", seller.dailyGoalPct)}
+            <span class="reservations-pill">${seller.reservationsToday} reservas hoje</span>
           </div>
+          ${goalColumn("ICM MTD", seller.mtdGoalPct, `${seller.reservationsMtd ?? seller.reservationsMonth} até hoje`)}
+          ${goalColumn("ICM mês", seller.monthlyGoalPct, `${seller.reservationsMonth} no mês`)}
         </div>
         ${renderCartRecoveryBlock(cartsBySeller.get(seller.name))}
       </article>

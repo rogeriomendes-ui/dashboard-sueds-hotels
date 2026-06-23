@@ -9,7 +9,7 @@
 }
 
 .seller-card {
-  min-height: 612px;
+  min-height: 600px;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -52,9 +52,8 @@
   min-width: 0;
 }
 
-.goal-column-month {
+.goal-column-day {
   grid-column: 1 / -1;
-  margin-top: 2px;
 }
 
 .gauge {
@@ -64,8 +63,8 @@
   margin: 0 auto;
 }
 
-.goal-column-month .gauge {
-  width: min(72%, 168px);
+.goal-column-day .gauge {
+  width: min(62%, 168px);
 }
 
 .gauge svg {
