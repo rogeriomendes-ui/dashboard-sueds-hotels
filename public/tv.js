@@ -121,9 +121,8 @@ function countList(items, emptyText) {
 function renderCartRecovery(items = []) {
   byId("cartRecoveryGrid").innerHTML = items
     .map((seller) => `
-      <article class="cart-card">
+      <article class="cart-card" aria-label="Recuperação de carrinhos de ${escapeHtml(seller.name)}">
         <div class="cart-card-top">
-          <h3>${escapeHtml(seller.name)}</h3>
           <strong>${seller.contacted}</strong>
           <span>carrinhos contatados</span>
         </div>
