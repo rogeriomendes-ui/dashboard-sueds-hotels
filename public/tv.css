@@ -94,7 +94,7 @@
 }
 
 .gauge-yellow .gauge-progress {
-  stroke: var(--yellow);
+  stroke: #ff9f1c;
 }
 
 .gauge-gold .gauge-progress {
