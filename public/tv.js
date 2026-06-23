@@ -74,6 +74,15 @@ function formatCartPct(value) {
   return value === null || value === undefined ? "0%" : `${percent.format(value)}%`;
 }
 
+function formatLastUpdate(value) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
 function goalGauge(label, value) {
   const gaugeValuePct = gaugePct(value);
   return `
@@ -147,10 +156,7 @@ function renderCartRecoveryBlock(seller) {
 }
 
 function render(data) {
-  byId("lastUpdate").textContent = `Atualizado ${new Date(data.generatedAt).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit"
-  })}`;
+  byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
 
   const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [item.name, item]));
 

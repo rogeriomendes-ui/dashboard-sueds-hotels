@@ -73,6 +73,15 @@ function pct(value) {
   return value === null || value === undefined ? "Sem meta" : `${number.format(value)}%`;
 }
 
+function formatLastUpdate(value) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
 function gaugePct(value) {
   if (value === null || value === undefined) return 0;
   return Math.max(0, Math.min(value, 150));
@@ -160,10 +169,7 @@ function renderGlobalFilters(filters) {
 }
 
 function render(data) {
-  byId("lastUpdate").textContent = `Atualizado ${new Date(data.generatedAt).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit"
-  })}`;
+  byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
 
   const hasDayFilter = Boolean(data.filters?.selectedDay);
   const hasGlobalFilter = hasDayFilter || Boolean(data.filters?.selectedHotel) || Boolean(data.filters?.selectedChannel);
