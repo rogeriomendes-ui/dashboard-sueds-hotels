@@ -56,3 +56,4 @@ O backend lê `Base_Dashboard` e `Metas`, calcula os KPIs e expõe duas visões 
 
 - `/api/dashboard/gestores`: completa, com valores.
 - `/api/dashboard/tv`: restrita, sem valores de venda.
+Primeira versão publicada na Vercel.
