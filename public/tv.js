@@ -103,7 +103,7 @@ function goalColumn(label, value, reservationText) {
   return `
     <div class="goal-column">
       ${goalGauge(label, value)}
-      <span class="reservations-pill">${reservationText}</span>
+      ${reservationText ? `<span class="reservations-pill">${reservationText}</span>` : ""}
     </div>
   `;
 }
@@ -169,8 +169,9 @@ function render(data) {
             ${goalGauge("Meta dia", seller.dailyGoalPct)}
             <span class="reservations-pill">${seller.reservationsToday} reservas hoje</span>
           </div>
-          ${goalColumn("ICM MTD", seller.mtdGoalPct, `${seller.reservationsMtd ?? seller.reservationsMonth} até hoje`)}
-          ${goalColumn("ICM mês", seller.monthlyGoalPct, `${seller.reservationsMonth} no mês`)}
+          ${goalColumn("ICM MTD", seller.mtdGoalPct, "")}
+          ${goalColumn("ICM mês", seller.monthlyGoalPct, "")}
+          <span class="reservations-pill reservations-pill-month">${seller.reservationsMonth} no mês</span>
         </div>
         ${renderCartRecoveryBlock(cartsBySeller.get(seller.name))}
       </article>

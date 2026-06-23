@@ -63,6 +63,12 @@
   grid-column: 1 / -1;
 }
 
+.reservations-pill-month {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin-top: -2px;
+}
+
 .gauge {
   position: relative;
   width: min(100%, 138px);
