@@ -128,6 +128,20 @@
   line-height: 0.95;
 }
 
+.tv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tv-legend strong {
+  color: var(--text);
+}
+
 @media (max-width: 1180px) {
   .seller-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
