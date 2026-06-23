@@ -97,6 +97,10 @@
   stroke: var(--yellow);
 }
 
+.gauge-gold .gauge-progress {
+  stroke: #d9a441;
+}
+
 .gauge-red .gauge-progress {
   stroke: var(--red);
 }
@@ -120,7 +124,7 @@
 
 .gauge-readout strong {
   color: var(--text);
-  font-size: clamp(22px, 2vw, 34px);
+  font-size: clamp(18px, 1.55vw, 28px);
   line-height: 0.95;
 }
 
