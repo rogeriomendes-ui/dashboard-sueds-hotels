@@ -9,6 +9,7 @@ const PORT = Number(process.env.PORT || 3000);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
+const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -293,6 +294,34 @@ function normalizeGoal(item) {
   };
 }
 
+function isMeaningfulValue(value) {
+  const text = String(value || "").trim();
+  return text && comparableKey(text) !== "selecione";
+}
+
+function normalizeCartRecord(item) {
+  const abandonedAt = parseDate(item["Abandono (Data e Hora)"]);
+  const responsible = normalizeSellerName(item["Responsável"] || "");
+  const status = String(item.STATUS || "").trim();
+  const lossReason = String(item["MOTIVO DA PERDA"] || "").trim();
+  const alternateChoice = String(item["SE COMPROU OUTRO HOTEL OU DESTINO, QUAL?"] || "").trim();
+  const contactValues = [responsible, status, lossReason, alternateChoice];
+
+  return {
+    date: abandonedAt,
+    dateKey: abandonedAt ? dateKey(abandonedAt) : "",
+    monthKey: abandonedAt ? monthKey(abandonedAt) : "",
+    hotel: String(item.Hotel || "").trim(),
+    customer: String(item.Cliente || "").trim(),
+    value: parseNumber(item["Valor total (Com taxas)"]),
+    responsible,
+    status,
+    lossReason,
+    alternateChoice,
+    contacted: contactValues.some(isMeaningfulValue)
+  };
+}
+
 function sum(records, getter) {
   return records.reduce((total, record) => total + getter(record), 0);
 }
@@ -336,6 +365,14 @@ function sortLabels(labels) {
   return [...labels].filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
+function topCounts(records, getter, limit = 3) {
+  return [...groupBy(records, getter).entries()]
+    .filter(([label]) => isMeaningfulValue(label))
+    .map(([label, rows]) => ({ label, count: rows.length }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"))
+    .slice(0, limit);
+}
+
 function daysInMonth(month) {
   const [year, monthNumber] = month.split("-").map(Number);
   if (!year || !monthNumber) return 30;
@@ -373,6 +410,31 @@ function isOnOrBeforeDateKey(record, key) {
 
 const BETE_TEAM = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
+
+function buildCartRecoveryMetrics(carts, period = {}) {
+  const today = period.date || todayKey();
+  const month = period.month || today.slice(0, 7);
+  const monthCarts = carts.filter((cart) => cart.monthKey === month);
+  const sellerOrder = TV_SELLER_ORDER.filter((seller) => BETE_TEAM.includes(seller));
+
+  return sellerOrder.map((seller) => {
+    const sellerCarts = monthCarts.filter((cart) => comparableKey(cart.responsible) === comparableKey(seller));
+    const contacted = sellerCarts.filter((cart) => cart.contacted);
+    const recovered = contacted.filter((cart) => comparableKey(cart.status).includes("recuperado") && !comparableKey(cart.status).includes("nao recuperado"));
+    const lost = contacted.filter((cart) => comparableKey(cart.status).includes("nao recuperado"));
+
+    return {
+      name: seller,
+      contacted: contacted.length,
+      recovered: recovered.length,
+      lost: lost.length,
+      pending: Math.max(0, contacted.length - recovered.length - lost.length),
+      recoveryPct: pct(recovered.length, contacted.length),
+      statusBreakdown: topCounts(contacted, (cart) => cart.status, 4),
+      lossReasons: topCounts(lost, (cart) => cart.lossReason, 3)
+    };
+  });
+}
 
 function buildMetrics(records, goals, period = {}) {
   const today = period.date || todayKey();
@@ -594,7 +656,8 @@ function buildTvPayload(metrics) {
         dailyStatus: statusFromPct(seller.dailyGoalPct),
         mtdStatus: statusFromPct(seller.mtdGoalPct),
         monthlyStatus: statusFromPct(seller.monthlyGoalPct)
-      }))
+      })),
+    cartRecovery: metrics.cartRecovery || []
   };
 }
 
@@ -634,7 +697,17 @@ function demoDataset() {
     revenueGoal: [150000, 150000, 120000, 90000, 100000][index]
   }));
 
-  return { records, goals };
+  const carts = sellers.slice(0, 4).flatMap((seller, index) => [
+    {
+      monthKey: month,
+      responsible: seller,
+      status: index % 2 === 0 ? "Recuperado, comprou" : "Não recuperado",
+      lossReason: index % 2 === 0 ? "" : "Desistiu de viajar",
+      contacted: true
+    }
+  ]);
+
+  return { records, goals, carts };
 }
 
 async function loadDataset() {
@@ -644,28 +717,34 @@ async function loadDataset() {
 
   let records;
   let goals;
+  let carts;
 
   if (!SHEET_ID || !getServiceAccount()) {
     const demo = demoDataset();
     records = demo.records;
     goals = demo.goals;
+    carts = demo.carts;
   } else {
-    const [baseRows, goalRows] = await Promise.all([
+    const [baseRows, goalRows, cartRows] = await Promise.all([
       getSheetValues(BASE_RANGE),
-      getSheetValues(METAS_RANGE)
+      getSheetValues(METAS_RANGE),
+      getSheetValues(CARTS_RANGE)
     ]);
     records = rowsToObjects(baseRows).map(normalizeRecord);
     goals = rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal);
+    carts = rowsToObjects(cartRows, { keepAnyValue: true }).map(normalizeCartRecord);
   }
 
-  const payload = { records, goals, loadedAt: new Date().toISOString() };
+  const payload = { records, goals, carts, loadedAt: new Date().toISOString() };
   dataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
   return payload;
 }
 
 async function loadMetrics(period) {
   const dataset = await loadDataset();
-  return buildMetrics(dataset.records, dataset.goals, period);
+  const metrics = buildMetrics(dataset.records, dataset.goals, period);
+  metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
+  return metrics;
 }
 
 function periodFromUrl(url) {

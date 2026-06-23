@@ -61,6 +61,19 @@ function gaugeValue(value) {
   return value === null || value === undefined ? "--" : `${percent.format(value)}%`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatCartPct(value) {
+  return value === null || value === undefined ? "0%" : `${percent.format(value)}%`;
+}
+
 function goalGauge(label, value) {
   const gaugeValuePct = gaugePct(value);
   return `
@@ -93,6 +106,48 @@ function statusClass(seller) {
   return "abaixo";
 }
 
+function countList(items, emptyText) {
+  if (!items || !items.length) return `<span class="cart-empty">${emptyText}</span>`;
+  return items
+    .map((item) => `
+      <div class="cart-list-row">
+        <span>${escapeHtml(item.label)}</span>
+        <strong>${item.count}</strong>
+      </div>
+    `)
+    .join("");
+}
+
+function renderCartRecovery(items = []) {
+  byId("cartRecoveryGrid").innerHTML = items
+    .map((seller) => `
+      <article class="cart-card">
+        <div class="cart-card-top">
+          <h3>${escapeHtml(seller.name)}</h3>
+          <strong>${seller.contacted}</strong>
+          <span>carrinhos contatados</span>
+        </div>
+        <div class="cart-kpis">
+          <div><strong>${seller.recovered}</strong><span>recuperados</span></div>
+          <div><strong>${seller.lost}</strong><span>perdidos</span></div>
+          <div><strong>${seller.pending}</strong><span>pendentes</span></div>
+          <div><strong>${formatCartPct(seller.recoveryPct)}</strong><span>taxa</span></div>
+        </div>
+        <div class="cart-detail">
+          <div>
+            <h4>Status</h4>
+            ${countList(seller.statusBreakdown, "Sem status")}
+          </div>
+          <div>
+            <h4>Motivos de perda</h4>
+            ${countList(seller.lossReasons, "Sem perdas")}
+          </div>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
 function render(data) {
   byId("lastUpdate").textContent = `Atualizado ${new Date(data.generatedAt).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -114,6 +169,8 @@ function render(data) {
       </article>
     `)
     .join("");
+
+  renderCartRecovery(data.cartRecovery);
 }
 
 async function load() {
