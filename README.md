@@ -57,3 +57,23 @@ O backend lê `Base_Dashboard` e `Metas`, calcula os KPIs e expõe duas visões 
 - `/api/dashboard/gestores`: completa, com valores.
 - `/api/dashboard/tv`: restrita, sem valores de venda.
 Primeira versão publicada na Vercel.
+
+## Importar carrinhos abandonados da Niara
+
+Fluxo semi-automatico recomendado:
+
+1. Na Niara, filtre as reservas perdidas do periodo desejado.
+2. Exporte o arquivo `.xlsx`.
+3. Rode primeiro em modo simulacao:
+
+```powershell
+npm run import:niara:carrinhos -- "C:\Users\roger\Downloads\reservas-perdidas.xlsx"
+```
+
+4. Se o resumo estiver correto, aplique:
+
+```powershell
+npm run import:niara:carrinhos -- "C:\Users\roger\Downloads\reservas-perdidas.xlsx" --apply
+```
+
+O importador usa o campo `ID` como chave, atualiza somente as colunas `A:Q` da aba `Recuperação de carrinhos` e preserva as colunas `R:U`, preenchidas pelo time durante a recuperacao.
