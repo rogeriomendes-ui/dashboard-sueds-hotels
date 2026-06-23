@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUEDS Hotels | TV Vendas</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tv.css">
+  </head>
+  <body>
+    <main class="dashboard-shell tv-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Central de Vendas</p>
+          <h1>Meta da Equipe</h1>
+        </div>
+        <label class="month-control" for="monthSelect">
+          <span>Mês</span>
+          <select id="monthSelect"></select>
+        </label>
+        <div class="status-strip">
+          <span class="live-dot"></span>
+          <span id="lastUpdate">Atualizando...</span>
+        </div>
+      </header>
+
+      <section id="sellerGrid" class="seller-grid" aria-label="Cumprimento de metas por vendedor"></section>
+    </main>
+
+    <script src="tv.js"></script>
+  </body>
+</html>
