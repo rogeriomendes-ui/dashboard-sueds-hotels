@@ -343,6 +343,7 @@ function daysInMonth(month) {
 }
 
 const BETE_TEAM = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
+const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
 
 function buildMetrics(records, goals, period = {}) {
   const today = period.date || todayKey();
@@ -498,6 +499,7 @@ function buildManagerPayload(metrics) {
     summary: metrics.summary,
     filters: metrics.filters,
     sellers: metrics.sellers,
+    strategicChannels: metrics.sellers.filter((seller) => STRATEGIC_CHANNEL_SELLERS.includes(seller.name)),
     channels: metrics.channels,
     hotels: metrics.hotels,
     dailySales: metrics.dailySales
@@ -534,6 +536,7 @@ function buildTvPayload(metrics) {
     generatedAt: metrics.generatedAt,
     period: metrics.period,
     sellers: [...metrics.sellers]
+      .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
       .sort((a, b) => tvOrder(a.name) - tvOrder(b.name))
       .map((seller) => ({
         name: seller.name,

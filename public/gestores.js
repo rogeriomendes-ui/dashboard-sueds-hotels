@@ -73,6 +73,39 @@ function pct(value) {
   return value === null || value === undefined ? "Sem meta" : `${number.format(value)}%`;
 }
 
+function gaugePct(value) {
+  if (value === null || value === undefined) return 0;
+  return Math.max(0, Math.min(value, 150));
+}
+
+function gaugeClass(value) {
+  if (value === null || value === undefined) return "gauge-sem-meta";
+  if (value >= 100) return "gauge-green";
+  if (value >= 70) return "gauge-yellow";
+  return "gauge-red";
+}
+
+function gaugeValue(value) {
+  return value === null || value === undefined ? "--" : number.format(value);
+}
+
+function monthlyGauge(item) {
+  const value = gaugePct(item.monthlyGoalPct);
+  return `
+    <div class="gauge ${gaugeClass(item.monthlyGoalPct)}" aria-label="ICM do mês ${pct(item.monthlyGoalPct)}">
+      <svg viewBox="0 0 200 118" role="img">
+        <path class="gauge-track" pathLength="150" d="M 18 100 A 82 82 0 0 1 182 100"></path>
+        <path class="gauge-progress" pathLength="150" stroke-dasharray="${value} 150" d="M 18 100 A 82 82 0 0 1 182 100"></path>
+      </svg>
+      <div class="gauge-readout">
+        <span>ICM mês</span>
+        <strong>${gaugeValue(item.monthlyGoalPct)}</strong>
+      </div>
+      <div class="gauge-scale"><span>0</span><span>150</span></div>
+    </div>
+  `;
+}
+
 function formatDate(value) {
   const [year, month, day] = String(value).split("-");
   if (!year || !month || !day) return value;
@@ -143,6 +176,27 @@ function render(data) {
   byId("receivedMonth").textContent = money.format(data.summary.receivedMonth);
   byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
+
+  byId("strategicChannels").innerHTML = (data.strategicChannels || [])
+    .map((item) => `
+      <article class="strategic-card">
+        <h3>${item.name}</h3>
+        <div class="seller-pills">
+          <span class="reservations-pill">${number.format(item.reservationsToday)} reservas hoje</span>
+          <span class="reservations-pill">${number.format(item.reservationsMonth)} no mês</span>
+        </div>
+        ${monthlyGauge(item)}
+        <div class="goal-block">
+          <div class="goal-label"><span>Meta do dia</span><strong>${pct(item.dailyGoalPct)}</strong></div>
+          <div class="track"><div class="fill" style="width: ${Math.min(item.dailyGoalPct || 0, 100)}%"></div></div>
+        </div>
+        <div class="goal-block">
+          <div class="goal-label"><span>Meta do mês</span><strong>${pct(item.monthlyGoalPct)}</strong></div>
+          <div class="track"><div class="fill" style="width: ${Math.min(item.monthlyGoalPct || 0, 100)}%"></div></div>
+        </div>
+      </article>
+    `)
+    .join("");
 
   byId("sellerRanking").innerHTML = `
     <div class="seller-table-row seller-table-head">
