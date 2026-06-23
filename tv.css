@@ -128,18 +128,6 @@
   line-height: 0.95;
 }
 
-.gauge-scale {
-  position: absolute;
-  right: 12px;
-  bottom: 0;
-  left: 12px;
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 @media (max-width: 1180px) {
   .seller-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

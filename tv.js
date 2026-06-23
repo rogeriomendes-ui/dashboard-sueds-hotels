@@ -73,7 +73,6 @@ function goalGauge(label, value) {
         <span>${label}</span>
         <strong>${gaugeValue(value)}</strong>
       </div>
-      <div class="gauge-scale"><span>0</span><span>150</span></div>
     </div>
   `;
 }
