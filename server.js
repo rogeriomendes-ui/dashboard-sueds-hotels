@@ -273,7 +273,8 @@ function normalizeSellerName(value) {
     "AMANDA MELGACO": "Amanda Melgaco",
     "JULIA RECHE": "Julia Reche",
     "EMANOEL CESAR": "Emanoel Cesar",
-    "BETE GERENTE": "Bete Gerente",
+    "BETE GERENTE": "Equipe Sueds",
+    "EQUIPE SUEDS": "Equipe Sueds",
     "OPERADORAS": "Operadoras",
     "OTAS": "OTAs",
     "ROBO": "Robo"
@@ -408,7 +409,8 @@ function isOnOrBeforeDateKey(record, key) {
   return record.dateKey && key && record.dateKey <= key;
 }
 
-const BETE_TEAM = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
+const TEAM_CARD_NAME = "Equipe Sueds";
+const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
 
 function buildCartRecoveryMetrics(carts, period = {}) {
@@ -439,13 +441,13 @@ function buildCartRecoveryMetrics(carts, period = {}) {
   }
 
   const teamMetrics = TV_SELLER_ORDER
-    .filter((seller) => BETE_TEAM.includes(seller))
+    .filter((seller) => TEAM_SELLERS.includes(seller))
     .map(metricsForSeller);
-  const teamCarts = monthCarts.filter((cart) => BETE_TEAM.some((seller) => comparableKey(cart.responsible) === comparableKey(seller)));
+  const teamCarts = monthCarts.filter((cart) => TEAM_SELLERS.some((seller) => comparableKey(cart.responsible) === comparableKey(seller)));
 
   return [
     ...teamMetrics,
-    metricsFromCarts("Bete Gerente", teamCarts)
+    metricsFromCarts(TEAM_CARD_NAME, teamCarts)
   ];
 }
 
@@ -507,24 +509,24 @@ function buildMetrics(records, goals, period = {}) {
     })
     .sort((a, b) => b.salesMonth - a.salesMonth);
 
-  const bete = sellers.find((seller) => seller.name === "Bete Gerente");
-  if (bete) {
-    const teamSellers = sellers.filter((seller) => BETE_TEAM.includes(seller.name));
+  const teamCard = sellers.find((seller) => seller.name === TEAM_CARD_NAME);
+  if (teamCard) {
+    const teamSellers = sellers.filter((seller) => TEAM_SELLERS.includes(seller.name));
     const teamSalesToday = sum(teamSellers, (seller) => seller.salesToday);
     const teamSalesMtd = sum(teamSellers, (seller) => seller.salesMtd);
     const teamSalesMonth = sum(teamSellers, (seller) => seller.salesMonth);
     const teamReservationsToday = sum(teamSellers, (seller) => seller.reservationsToday);
     const teamReservationsMtd = sum(teamSellers, (seller) => seller.reservationsMtd);
     const teamReservationsMonth = sum(teamSellers, (seller) => seller.reservationsMonth);
-    bete.salesToday = teamSalesToday;
-    bete.salesMtd = teamSalesMtd;
-    bete.salesMonth = teamSalesMonth;
-    bete.reservationsToday = teamReservationsToday;
-    bete.reservationsMtd = teamReservationsMtd;
-    bete.reservationsMonth = teamReservationsMonth;
-    bete.dailyGoalPct = pct(teamSalesToday, bete.dailyGoal);
-    bete.mtdGoalPct = pct(teamSalesMtd, bete.mtdGoal);
-    bete.monthlyGoalPct = pct(teamSalesMonth, bete.monthlyGoal);
+    teamCard.salesToday = teamSalesToday;
+    teamCard.salesMtd = teamSalesMtd;
+    teamCard.salesMonth = teamSalesMonth;
+    teamCard.reservationsToday = teamReservationsToday;
+    teamCard.reservationsMtd = teamReservationsMtd;
+    teamCard.reservationsMonth = teamReservationsMonth;
+    teamCard.dailyGoalPct = pct(teamSalesToday, teamCard.dailyGoal);
+    teamCard.mtdGoalPct = pct(teamSalesMtd, teamCard.mtdGoal);
+    teamCard.monthlyGoalPct = pct(teamSalesMonth, teamCard.monthlyGoal);
   }
 
   sellers = sellers.sort((a, b) => b.salesMonth - a.salesMonth);
@@ -638,7 +640,7 @@ const TV_SELLER_ORDER = [
   "Emanoel Cesar",
   "Julia Reche",
   "Amanda Melgaco",
-  "Bete Gerente",
+  TEAM_CARD_NAME,
   "Site",
   "Operadoras",
   "OTAs",
