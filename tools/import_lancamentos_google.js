@@ -1,6 +1,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const inputArg = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
@@ -17,6 +18,8 @@ loadEnvFile(path.join(ROOT, ".env"));
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const RANGE = "Lancamento_Vendas!A2:T501";
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const PYTHON = process.env.PYTHON_EXE
+  || "C:\\Users\\roger\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -130,8 +133,12 @@ async function batchUpdate(data) {
 }
 
 function parseMoney(value) {
+  if (typeof value === "number") return value;
   if (!value) return 0;
-  const normalized = String(value).replace(/[R$\s.]/g, "").replace(",", ".");
+  const text = String(value).trim();
+  const normalized = text.includes(",")
+    ? text.replace(/[R$\s.]/g, "").replace(",", ".")
+    : text.replace(/[R$\s]/g, "");
   const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
 }
@@ -191,9 +198,53 @@ function makeKey(record) {
 
 function parseInput(text) {
   const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  return parseRows(lines.slice(1).map((line) => line.split("\t")));
+}
+
+function readWorkbookRows(filePath) {
+  if (!fs.existsSync(PYTHON)) throw new Error(`Python nao encontrado: ${PYTHON}`);
+  const code = String.raw`
+import json
+import sys
+from datetime import date, datetime
+from openpyxl import load_workbook
+
+def fmt(value):
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y")
+    if isinstance(value, date):
+        return value.strftime("%d/%m/%Y")
+    return value
+
+ws = load_workbook(sys.argv[1], data_only=True).active
+rows = []
+for row in ws.iter_rows(values_only=True):
+    rows.append([fmt(value) for value in row])
+print(json.dumps(rows, ensure_ascii=False))
+`;
+  const result = spawnSync(PYTHON, ["-c", code, filePath], {
+    encoding: "utf8",
+    env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+    maxBuffer: 20 * 1024 * 1024
+  });
+  if (result.status !== 0) throw new Error(`Falha ao ler Excel: ${result.stderr || result.stdout}`);
+  return JSON.parse(result.stdout);
+}
+
+function readInputRecords(filePath) {
+  if (/\.xlsx$/i.test(filePath)) {
+    const rows = readWorkbookRows(filePath);
+    return parseRows(rows.slice(1));
+  }
+  return parseInput(fs.readFileSync(filePath, "utf8"));
+}
+
+function parseRows(rows) {
   const records = [];
-  lines.slice(1).forEach((line, index) => {
-    const columns = line.split("\t");
+  rows.forEach((rawColumns, index) => {
+    const columns = rawColumns.map((value) => (typeof value === "number" ? value : String(value ?? "").trim()));
     if (columns.length < 11) return;
     const [
       codigo,
@@ -208,7 +259,7 @@ function parseInput(text) {
       aReceber,
       formaPagamento,
       vendedor
-    ] = columns.map((value) => value.trim());
+    ] = columns;
 
     if (!dataVenda || !hotel || !cliente) return;
     records.push({
@@ -264,8 +315,7 @@ function firstEmptyRows(rows, count) {
 }
 
 async function main() {
-  const input = fs.readFileSync(INPUT_FILE, "utf8");
-  const parsed = parseInput(input);
+  const parsed = readInputRecords(INPUT_FILE);
   const current = (await sheetsRequest("GET", RANGE)).values || [];
   const keys = existingKeys(current);
   const pending = parsed.filter((record) => !keys.has(makeKey(record)));
