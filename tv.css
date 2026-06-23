@@ -25,29 +25,31 @@
   white-space: nowrap;
 }
 
-.seller-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 30px;
-}
-
 .reservations-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 30px;
   padding: 0 8px;
   border-radius: 999px;
   background: var(--panel-soft);
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .gauge-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 20px;
+}
+
+.goal-column {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .gauge {

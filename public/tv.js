@@ -77,6 +77,15 @@ function goalGauge(label, value) {
   `;
 }
 
+function goalColumn(label, value, reservationText) {
+  return `
+    <div class="goal-column">
+      ${goalGauge(label, value)}
+      <span class="reservations-pill">${reservationText}</span>
+    </div>
+  `;
+}
+
 function statusClass(seller) {
   if (seller.dailyStatus === "meta_batida" || seller.monthlyStatus === "meta_batida") return "meta_batida";
   if (seller.dailyStatus === "em_ritmo" || seller.monthlyStatus === "em_ritmo") return "em_ritmo";
@@ -94,13 +103,9 @@ function render(data) {
     .map((seller) => `
       <article class="seller-card ${statusClass(seller)}">
         <h2 class="seller-name">${seller.name}</h2>
-        <div class="seller-pills">
-          <span class="reservations-pill">${seller.reservationsToday} reservas hoje</span>
-          <span class="reservations-pill">${seller.reservationsMonth} no mês</span>
-        </div>
         <div class="gauge-pair">
-          ${goalGauge("Meta dia", seller.dailyGoalPct)}
-          ${goalGauge("Meta mês", seller.monthlyGoalPct)}
+          ${goalColumn("Meta dia", seller.dailyGoalPct, `${seller.reservationsToday} reservas hoje`)}
+          ${goalColumn("Meta mês", seller.monthlyGoalPct, `${seller.reservationsMonth} no mês`)}
         </div>
       </article>
     `)
