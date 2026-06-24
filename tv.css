@@ -100,6 +100,7 @@
 .analytics-property-title {
   display: inline-flex;
   align-self: center;
+  justify-self: center;
   margin: 0;
   color: var(--card-text);
   font-size: 11px;
@@ -109,17 +110,19 @@
 
 .analytics-property-card {
   display: grid;
-  grid-template-columns: 36px max-content;
-  gap: 6px;
+  grid-template-columns: 46px max-content;
+  gap: 10px;
   align-items: center;
+  justify-content: center;
 }
 
 .analytics-mini-grid {
   display: grid;
   grid-template-columns: repeat(2, max-content);
   gap: 9px;
-  justify-content: start;
+  justify-content: center;
   align-items: center;
+  text-align: center;
 }
 
 .analytics-mini-grid strong {
