@@ -9,12 +9,21 @@ Como instalar o importador na planilha Google Sheets
 
 5. Salve o projeto.
 6. Recarregue a planilha.
-7. Use o menu SUEDS Dashboard > Importar carrinhos da aba Importar_Niara.
+7. Use o menu SUEDS Dashboard.
 
-Fluxo diario:
+Fluxo diario Niara:
 
 1. Exporte o arquivo .xlsx da Niara.
 2. Importe ou cole os dados na aba Importar_Niara.
 3. Rode o menu SUEDS Dashboard > Importar carrinhos da aba Importar_Niara.
 
 O script atualiza A:Q da aba Recuperacao de carrinhos e preserva R:U.
+
+Fluxo diario Asksuite:
+
+1. Exporte o arquivo .xlsx por atendente do Asksuite.
+2. Importe ou cole os dados na aba Importar_Asksuite.
+3. Rode o menu SUEDS Dashboard > Importar Asksuite da aba Importar_Asksuite.
+4. Informe a data do relatorio no formato AAAA-MM-DD.
+
+O script atualiza a aba Asksuite_Atendimentos usando Data + Atendente como chave.

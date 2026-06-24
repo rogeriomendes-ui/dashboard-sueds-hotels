@@ -103,6 +103,24 @@ Opcao mais simples no Windows:
 
 ## Importar resumo de atendimentos do Asksuite
 
+Fluxo recomendado via Google Sheets:
+
+1. No Asksuite, exporte o relatorio por atendente em `.xlsx`.
+2. No Google Sheets, abra a aba `Importar_Asksuite`.
+3. Importe ou cole nessa aba os dados exportados do Asksuite, mantendo os cabecalhos na primeira linha.
+4. No menu da planilha, clique em `SUEDS Dashboard` > `Importar Asksuite da aba Importar_Asksuite`.
+5. Informe a data do relatorio no formato `AAAA-MM-DD`.
+
+O script da planilha cria/atualiza a aba `Asksuite_Atendimentos`, usa `Data + Atendente` como chave e ignora atendentes que nao fazem parte dos quatro vendedores do painel.
+
+Para instalar ou atualizar o menu na planilha:
+
+1. Abra `Extensoes` > `Apps Script`.
+2. Cole o conteudo de `google-apps-script/importar_carrinhos_niara.gs`.
+3. Salve e recarregue a planilha.
+
+Fluxo alternativo local:
+
 1. No Asksuite, exporte o relatorio por atendente em `.xlsx`.
 2. Deixe o nome original com a data, por exemplo `por_atendente_23_06_2026_2135.xlsx`.
 3. Rode primeiro em modo simulacao:
