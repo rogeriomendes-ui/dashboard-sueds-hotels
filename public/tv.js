@@ -174,16 +174,12 @@ function renderAsksuiteBlock(seller) {
   `;
 }
 
-function firstLabel(items, fallback = "--") {
-  return items?.[0]?.label || fallback;
-}
-
 function analyticsPropertyCard(property, fallbackLabel) {
   const data = property || {};
   const realtime = data.realtime || {};
   return `
     <article class="analytics-card analytics-property-card">
-      <span class="analytics-property-title">${escapeHtml(data.label || fallbackLabel)}</span>
+      <span class="analytics-property-title">${escapeHtml(fallbackLabel)} clientes online últimos:</span>
       <div class="analytics-mini-grid">
         <div>
           <small>30 min</small>
@@ -193,14 +189,6 @@ function analyticsPropertyCard(property, fallbackLabel) {
           <small>5 min</small>
           <strong>${integer.format(realtime.activeUsers5m || 0)}</strong>
         </div>
-        <div class="analytics-wide-mini">
-          <small>Página</small>
-          <strong>${escapeHtml(firstLabel(realtime.topPages))}</strong>
-        </div>
-        <div class="analytics-wide-mini">
-          <small>Origem</small>
-          <strong>${escapeHtml(firstLabel(realtime.topSources))}</strong>
-        </div>
       </div>
     </article>
   `;
@@ -208,8 +196,8 @@ function analyticsPropertyCard(property, fallbackLabel) {
 
 function renderAnalytics(analytics) {
   byId("analyticsStrip").innerHTML = `
-    ${analyticsPropertyCard(analytics?.site, "Site institucional")}
-    ${analyticsPropertyCard(analytics?.omnibees, "Motor Omnibees")}
+    ${analyticsPropertyCard(analytics?.site, "Site Sueds")}
+    ${analyticsPropertyCard(analytics?.omnibees, "Omnibees")}
   `;
 }
 
