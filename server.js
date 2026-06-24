@@ -16,6 +16,7 @@ const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
+const GA4_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_PROPERTY_ID || "";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -27,8 +28,9 @@ const MIME_TYPES = {
   ".ico": "image/x-icon"
 };
 
-let tokenCache = { accessToken: "", expiresAt: 0 };
+const tokenCache = new Map();
 let dataCache = { expiresAt: 0, payload: null };
+let analyticsCache = { expiresAt: 0, payload: null };
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -106,9 +108,10 @@ function getServiceAccount() {
   return { client_email: clientEmail, private_key: privateKey };
 }
 
-async function getAccessToken() {
-  if (tokenCache.accessToken && Date.now() < tokenCache.expiresAt - 30000) {
-    return tokenCache.accessToken;
+async function getAccessToken(scope = "https://www.googleapis.com/auth/spreadsheets.readonly") {
+  const cached = tokenCache.get(scope);
+  if (cached?.accessToken && Date.now() < cached.expiresAt - 30000) {
+    return cached.accessToken;
   }
 
   const account = getServiceAccount();
@@ -120,7 +123,7 @@ async function getAccessToken() {
   const header = { alg: "RS256", typ: "JWT" };
   const claim = {
     iss: account.client_email,
-    scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
+    scope,
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
     iat: now
@@ -150,15 +153,15 @@ async function getAccessToken() {
   }
 
   const payload = await response.json();
-  tokenCache = {
+  tokenCache.set(scope, {
     accessToken: payload.access_token,
     expiresAt: Date.now() + Number(payload.expires_in || 3600) * 1000
-  };
-  return tokenCache.accessToken;
+  });
+  return payload.access_token;
 }
 
 async function getSheetValues(range) {
-  const token = await getAccessToken();
+  const token = await getAccessToken("https://www.googleapis.com/auth/spreadsheets.readonly");
   const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`);
   url.searchParams.set("majorDimension", "ROWS");
   url.searchParams.set("valueRenderOption", "UNFORMATTED_VALUE");
@@ -175,6 +178,181 @@ async function getSheetValues(range) {
 
   const payload = await response.json();
   return payload.values || [];
+}
+
+async function googleAnalyticsRequest(method, body) {
+  if (!GA4_PROPERTY_ID) throw new Error("GOOGLE_ANALYTICS_PROPERTY_ID is not configured");
+
+  const token = await getAccessToken("https://www.googleapis.com/auth/analytics.readonly");
+  const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${GA4_PROPERTY_ID}:${method}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Analytics request failed: ${response.status} ${text}`);
+  }
+
+  return response.json();
+}
+
+function metricValue(row, index = 0) {
+  const value = row?.metricValues?.[index]?.value || "0";
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function dimensionValue(row, index = 0) {
+  return String(row?.dimensionValues?.[index]?.value || "").trim();
+}
+
+async function getRealtimeActiveUsers(startMinutesAgo, endMinutesAgo = 0) {
+  const payload = await googleAnalyticsRequest("runRealtimeReport", {
+    metrics: [{ name: "activeUsers" }],
+    minuteRanges: [{ startMinutesAgo, endMinutesAgo }]
+  });
+  return metricValue(payload.rows?.[0]);
+}
+
+async function getRealtimeTopDimension(dimensionNames, limit = 4) {
+  let lastError = null;
+  for (const dimensionName of dimensionNames) {
+    try {
+      const payload = await googleAnalyticsRequest("runRealtimeReport", {
+        dimensions: [{ name: dimensionName }],
+        metrics: [{ name: "activeUsers" }],
+        limit: String(limit),
+        orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }]
+      });
+      return (payload.rows || [])
+        .map((row) => ({ label: dimensionValue(row), activeUsers: metricValue(row) }))
+        .filter((row) => row.label)
+        .slice(0, limit);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  return [];
+}
+
+async function getAnalyticsMonthSummary(period = {}) {
+  const today = period.date || todayKey();
+  const month = period.month || today.slice(0, 7);
+  const startDate = `${month}-01`;
+  const endDate = today.slice(0, 7) === month ? today : `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+  const payload = await googleAnalyticsRequest("runReport", {
+    dateRanges: [{ startDate, endDate }],
+    metrics: [
+      { name: "activeUsers" },
+      { name: "sessions" },
+      { name: "screenPageViews" }
+    ]
+  });
+  const row = payload.rows?.[0];
+  return {
+    startDate,
+    endDate,
+    activeUsers: metricValue(row, 0),
+    sessions: metricValue(row, 1),
+    pageViews: metricValue(row, 2)
+  };
+}
+
+async function getAnalyticsTopDimension(method, dimensionNames, period = {}, limit = 5) {
+  const today = period.date || todayKey();
+  const month = period.month || today.slice(0, 7);
+  const startDate = `${month}-01`;
+  const endDate = today.slice(0, 7) === month ? today : `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+  let lastError = null;
+
+  for (const dimensionName of dimensionNames) {
+    try {
+      const payload = await googleAnalyticsRequest(method, {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: dimensionName }],
+        metrics: [{ name: "activeUsers" }],
+        limit: String(limit),
+        orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }]
+      });
+      return (payload.rows || [])
+        .map((row) => ({ label: dimensionValue(row), activeUsers: metricValue(row) }))
+        .filter((row) => row.label)
+        .slice(0, limit);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  return [];
+}
+
+async function loadAnalyticsMetrics(period = {}) {
+  const cacheKey = JSON.stringify({
+    property: GA4_PROPERTY_ID,
+    date: period.date || "",
+    month: period.month || ""
+  });
+
+  if (analyticsCache.payload?.cacheKey === cacheKey && Date.now() < analyticsCache.expiresAt) {
+    return analyticsCache.payload.data;
+  }
+
+  if (!GA4_PROPERTY_ID || !getServiceAccount()) {
+    return {
+      configured: false,
+      realtime: { activeUsers30m: 0, activeUsers5m: 0, topPages: [], topSources: [] },
+      month: { activeUsers: 0, sessions: 0, pageViews: 0, topPages: [], topSources: [] }
+    };
+  }
+
+  try {
+    const [
+      activeUsers30m,
+      activeUsers5m,
+      realtimeTopPages,
+      monthSummary,
+      monthTopPages,
+      monthTopSources
+    ] = await Promise.all([
+      getRealtimeActiveUsers(29),
+      getRealtimeActiveUsers(4),
+      getRealtimeTopDimension(["unifiedPageScreen", "pageTitle", "unifiedScreenName"], 4),
+      getAnalyticsMonthSummary(period),
+      getAnalyticsTopDimension("runReport", ["pageTitle", "unifiedPageScreen"], period, 5),
+      getAnalyticsTopDimension("runReport", ["sessionSourceMedium", "firstUserSourceMedium"], period, 5)
+    ]);
+
+    const data = {
+      configured: true,
+      realtime: {
+        activeUsers30m,
+        activeUsers5m,
+        topPages: realtimeTopPages,
+        topSources: monthTopSources.slice(0, 4)
+      },
+      month: {
+        ...monthSummary,
+        topPages: monthTopPages,
+        topSources: monthTopSources
+      }
+    };
+    analyticsCache = { payload: { cacheKey, data }, expiresAt: Date.now() + CACHE_TTL_MS };
+    return data;
+  } catch (error) {
+    return {
+      configured: true,
+      error: error.message,
+      realtime: { activeUsers30m: 0, activeUsers5m: 0, topPages: [], topSources: [] },
+      month: { activeUsers: 0, sessions: 0, pageViews: 0, topPages: [], topSources: [] }
+    };
+  }
 }
 
 function rowsToObjects(rows, options = {}) {
@@ -684,7 +862,8 @@ function buildManagerPayload(metrics) {
     strategicChannels: metrics.sellers.filter((seller) => STRATEGIC_CHANNEL_SELLERS.includes(seller.name)),
     channels: metrics.channels,
     hotels: metrics.hotels,
-    dailySales: metrics.dailySales
+    dailySales: metrics.dailySales,
+    analytics: metrics.analytics || null
   };
 }
 
@@ -733,7 +912,8 @@ function buildTvPayload(metrics) {
         monthlyStatus: statusFromPct(seller.monthlyGoalPct)
       })),
     cartRecovery: metrics.cartRecovery || [],
-    asksuite: metrics.asksuite || []
+    asksuite: metrics.asksuite || [],
+    analytics: metrics.analytics || null
   };
 }
 
@@ -831,10 +1011,14 @@ async function loadDataset() {
 }
 
 async function loadMetrics(period) {
-  const dataset = await loadDataset();
+  const [dataset, analytics] = await Promise.all([
+    loadDataset(),
+    loadAnalyticsMetrics(period)
+  ]);
   const metrics = buildMetrics(dataset.records, dataset.goals, period);
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
   metrics.asksuite = buildAsksuiteMetrics(dataset.asksuite || [], period);
+  metrics.analytics = analytics;
   return metrics;
 }
 
@@ -877,6 +1061,7 @@ async function handleRequest(req, res) {
       return json(res, 200, {
         ok: true,
         googleConfigured: Boolean(SHEET_ID && getServiceAccount()),
+        analyticsConfigured: Boolean(GA4_PROPERTY_ID && getServiceAccount()),
         supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
         gestoresProtected: Boolean(GESTORES_ACCESS_TOKEN),
         cacheTtlSeconds: CACHE_TTL_MS / 1000

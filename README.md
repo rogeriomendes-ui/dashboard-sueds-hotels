@@ -58,6 +58,24 @@ O backend lê `Base_Dashboard` e `Metas`, calcula os KPIs e expõe duas visões 
 - `/api/dashboard/tv`: restrita, sem valores de venda.
 Primeira versão publicada na Vercel.
 
+## Conectar ao Google Analytics 4
+
+1. Ative a `Google Analytics Data API` no mesmo projeto Google Cloud da service account.
+2. No GA4, abra `Administrador` > `Gerenciamento de acesso à propriedade`.
+3. Adicione a service account como `Leitor`:
+
+```text
+dashboard-sueds@dashboard-sueds.iam.gserviceaccount.com
+```
+
+4. Configure a variável:
+
+```text
+GOOGLE_ANALYTICS_PROPERTY_ID=291327493
+```
+
+Na TV, o painel exibe usuários ativos em tempo real, página principal e origem principal, sem valores financeiros. Na visão gestores, exibe também usuários, sessões, visualizações e listas de páginas/origens do mês.
+
 ## Importar carrinhos abandonados da Niara
 
 Fluxo recomendado via Google Sheets:

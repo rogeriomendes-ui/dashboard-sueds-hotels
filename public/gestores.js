@@ -148,6 +148,64 @@ function performanceTable(items, firstColumn) {
   `;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function analyticsList(items, emptyText) {
+  if (!items || !items.length) return `<span class="analytics-empty">${emptyText}</span>`;
+  return items
+    .map((item) => `
+      <div class="analytics-list-row">
+        <span>${escapeHtml(item.label)}</span>
+        <strong>${number.format(item.activeUsers || 0)}</strong>
+      </div>
+    `)
+    .join("");
+}
+
+function renderAnalytics(data) {
+  const analytics = data.analytics || {};
+  const realtime = analytics.realtime || {};
+  const month = analytics.month || {};
+
+  byId("analyticsOverview").innerHTML = `
+    <article class="analytics-manager-card">
+      <span>Agora</span>
+      <strong>${number.format(realtime.activeUsers30m || 0)}</strong>
+      <small>ativos nos últimos 30 min</small>
+    </article>
+    <article class="analytics-manager-card">
+      <span>Últimos 5 min</span>
+      <strong>${number.format(realtime.activeUsers5m || 0)}</strong>
+      <small>ativos</small>
+    </article>
+    <article class="analytics-manager-card">
+      <span>Usuários no mês</span>
+      <strong>${number.format(month.activeUsers || 0)}</strong>
+      <small>${number.format(month.sessions || 0)} sessões</small>
+    </article>
+    <article class="analytics-manager-card">
+      <span>Visualizações</span>
+      <strong>${number.format(month.pageViews || 0)}</strong>
+      <small>páginas no mês</small>
+    </article>
+    <article class="analytics-manager-card list-card">
+      <span>Páginas em tempo real</span>
+      ${analyticsList(realtime.topPages, "Sem dados em tempo real")}
+    </article>
+    <article class="analytics-manager-card list-card">
+      <span>Origens no mês</span>
+      ${analyticsList(month.topSources, "Sem dados de origem")}
+    </article>
+  `;
+}
+
 function optionList(options, selected, allLabel) {
   const values = options.includes(selected) || selected === "" ? options : [selected, ...options];
   return [
@@ -170,6 +228,7 @@ function renderGlobalFilters(filters) {
 
 function render(data) {
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
+  renderAnalytics(data);
 
   const hasDayFilter = Boolean(data.filters?.selectedDay);
   const hasGlobalFilter = hasDayFilter || Boolean(data.filters?.selectedHotel) || Boolean(data.filters?.selectedChannel);

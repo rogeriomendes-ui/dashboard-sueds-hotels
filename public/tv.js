@@ -174,8 +174,39 @@ function renderAsksuiteBlock(seller) {
   `;
 }
 
+function firstLabel(items, fallback = "--") {
+  return items?.[0]?.label || fallback;
+}
+
+function renderAnalytics(analytics) {
+  const realtime = analytics?.realtime || {};
+  byId("analyticsStrip").innerHTML = `
+    <article class="analytics-card">
+      <span>Site agora</span>
+      <strong>${integer.format(realtime.activeUsers30m || 0)}</strong>
+      <small>ativos 30 min</small>
+    </article>
+    <article class="analytics-card">
+      <span>Últimos 5 min</span>
+      <strong>${integer.format(realtime.activeUsers5m || 0)}</strong>
+      <small>ativos</small>
+    </article>
+    <article class="analytics-card wide">
+      <span>Página principal</span>
+      <strong>${escapeHtml(firstLabel(realtime.topPages))}</strong>
+      <small>tempo real</small>
+    </article>
+    <article class="analytics-card wide">
+      <span>Origem principal</span>
+      <strong>${escapeHtml(firstLabel(realtime.topSources))}</strong>
+      <small>mês selecionado</small>
+    </article>
+  `;
+}
+
 function render(data) {
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
+  renderAnalytics(data.analytics);
 
   const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [item.name, item]));
   const asksuiteBySeller = new Map((data.asksuite || []).map((item) => [item.name, item]));

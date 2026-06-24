@@ -192,6 +192,79 @@ h2 {
   grid-template-columns: 1.15fr 0.95fr 0.95fr;
 }
 
+.analytics-panel {
+  min-height: auto;
+  margin-bottom: 14px;
+}
+
+.analytics-manager-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.analytics-manager-card {
+  min-width: 0;
+  min-height: 104px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(44, 62, 80, 0.06);
+}
+
+.analytics-manager-card span,
+.analytics-manager-card small {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.analytics-manager-card strong {
+  display: block;
+  margin: 8px 0;
+  color: var(--text);
+  font-size: clamp(28px, 3vw, 46px);
+  line-height: 1;
+}
+
+.analytics-manager-card.list-card {
+  grid-column: span 2;
+}
+
+.analytics-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 28px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.analytics-list-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analytics-list-row strong {
+  margin: 0;
+  color: var(--green);
+  font-size: 14px;
+}
+
+.analytics-empty {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .strategic-panel {
   min-height: auto;
   margin-bottom: 14px;
@@ -581,6 +654,7 @@ h2 {
 
 @media (max-width: 1180px) {
   .hero-metrics,
+  .analytics-manager-grid,
   .strategic-grid,
   .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -626,9 +700,14 @@ h2 {
   }
 
   .hero-metrics,
+  .analytics-manager-grid,
   .strategic-grid,
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .analytics-manager-card.list-card {
+    grid-column: span 1;
   }
 
   .metric-card,
