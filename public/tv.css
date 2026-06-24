@@ -38,7 +38,6 @@
   justify-content: flex-end;
   gap: 10px;
   flex: 0 0 auto;
-  margin-left: auto;
 }
 
 .tv-header-controls .month-control {
@@ -76,7 +75,7 @@
 
 .analytics-card {
   min-width: 0;
-  width: 320px;
+  width: 230px;
   min-height: 42px;
   padding: 7px 9px;
   border: 1px solid var(--card-line);
@@ -109,15 +108,15 @@
 
 .analytics-property-card {
   display: grid;
-  grid-template-columns: 54px max-content;
-  gap: 12px;
+  grid-template-columns: 42px max-content;
+  gap: 8px;
   align-items: center;
 }
 
 .analytics-mini-grid {
   display: grid;
   grid-template-columns: repeat(2, max-content);
-  gap: 18px;
+  gap: 12px;
   justify-content: start;
   align-items: center;
 }
