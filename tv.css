@@ -170,10 +170,14 @@
 }
 
 .asksuite-title strong {
+  overflow: hidden;
   color: var(--cyan);
-  font-size: clamp(20px, 1.7vw, 28px);
+  font-size: clamp(11px, 0.85vw, 14px);
   font-weight: 900;
-  line-height: 0.95;
+  line-height: 1;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .asksuite-kpis {
