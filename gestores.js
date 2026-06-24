@@ -169,40 +169,52 @@ function analyticsList(items, emptyText) {
     .join("");
 }
 
+function analyticsPropertySection(property, fallbackLabel) {
+  const data = property || {};
+  const realtime = data.realtime || {};
+  const month = data.month || {};
+  return `
+    <article class="analytics-property-panel">
+      <h3>${escapeHtml(data.label || fallbackLabel)}</h3>
+      <div class="analytics-manager-grid">
+        <div class="analytics-manager-card">
+          <span>Agora</span>
+          <strong>${number.format(realtime.activeUsers30m || 0)}</strong>
+          <small>ativos nos últimos 30 min</small>
+        </div>
+        <div class="analytics-manager-card">
+          <span>Últimos 5 min</span>
+          <strong>${number.format(realtime.activeUsers5m || 0)}</strong>
+          <small>ativos</small>
+        </div>
+        <div class="analytics-manager-card">
+          <span>Usuários no mês</span>
+          <strong>${number.format(month.activeUsers || 0)}</strong>
+          <small>${number.format(month.sessions || 0)} sessões</small>
+        </div>
+        <div class="analytics-manager-card">
+          <span>Visualizações</span>
+          <strong>${number.format(month.pageViews || 0)}</strong>
+          <small>páginas no mês</small>
+        </div>
+        <div class="analytics-manager-card list-card">
+          <span>Páginas em tempo real</span>
+          ${analyticsList(realtime.topPages, "Sem dados em tempo real")}
+        </div>
+        <div class="analytics-manager-card list-card">
+          <span>Origens no mês</span>
+          ${analyticsList(month.topSources, "Sem dados de origem")}
+        </div>
+      </div>
+    </article>
+  `;
+}
+
 function renderAnalytics(data) {
   const analytics = data.analytics || {};
-  const realtime = analytics.realtime || {};
-  const month = analytics.month || {};
-
   byId("analyticsOverview").innerHTML = `
-    <article class="analytics-manager-card">
-      <span>Agora</span>
-      <strong>${number.format(realtime.activeUsers30m || 0)}</strong>
-      <small>ativos nos últimos 30 min</small>
-    </article>
-    <article class="analytics-manager-card">
-      <span>Últimos 5 min</span>
-      <strong>${number.format(realtime.activeUsers5m || 0)}</strong>
-      <small>ativos</small>
-    </article>
-    <article class="analytics-manager-card">
-      <span>Usuários no mês</span>
-      <strong>${number.format(month.activeUsers || 0)}</strong>
-      <small>${number.format(month.sessions || 0)} sessões</small>
-    </article>
-    <article class="analytics-manager-card">
-      <span>Visualizações</span>
-      <strong>${number.format(month.pageViews || 0)}</strong>
-      <small>páginas no mês</small>
-    </article>
-    <article class="analytics-manager-card list-card">
-      <span>Páginas em tempo real</span>
-      ${analyticsList(realtime.topPages, "Sem dados em tempo real")}
-    </article>
-    <article class="analytics-manager-card list-card">
-      <span>Origens no mês</span>
-      ${analyticsList(month.topSources, "Sem dados de origem")}
-    </article>
+    ${analyticsPropertySection(analytics.site, "Site institucional")}
+    ${analyticsPropertySection(analytics.omnibees, "Motor Omnibees")}
   `;
 }
 

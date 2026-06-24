@@ -68,13 +68,15 @@ Primeira versão publicada na Vercel.
 dashboard-sueds@dashboard-sueds.iam.gserviceaccount.com
 ```
 
-4. Configure a variável:
+4. Configure as variáveis:
 
 ```text
 GOOGLE_ANALYTICS_PROPERTY_ID=291327493
+GOOGLE_ANALYTICS_SITE_PROPERTY_ID=291327493
+GOOGLE_ANALYTICS_OMNIBEES_PROPERTY_ID=390878878
 ```
 
-Na TV, o painel exibe usuários ativos em tempo real, página principal e origem principal, sem valores financeiros. Na visão gestores, exibe também usuários, sessões, visualizações e listas de páginas/origens do mês.
+Na TV, o painel exibe separadamente o site institucional e o motor Omnibees, com usuários ativos em tempo real, página principal e origem principal, sem valores financeiros. Na visão gestores, exibe também usuários, sessões, visualizações e listas de páginas/origens do mês para as duas propriedades.
 
 ## Importar carrinhos abandonados da Niara
 

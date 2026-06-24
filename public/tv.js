@@ -178,29 +178,38 @@ function firstLabel(items, fallback = "--") {
   return items?.[0]?.label || fallback;
 }
 
+function analyticsPropertyCard(property, fallbackLabel) {
+  const data = property || {};
+  const realtime = data.realtime || {};
+  return `
+    <article class="analytics-card analytics-property-card">
+      <span class="analytics-property-title">${escapeHtml(data.label || fallbackLabel)}</span>
+      <div class="analytics-mini-grid">
+        <div>
+          <small>30 min</small>
+          <strong>${integer.format(realtime.activeUsers30m || 0)}</strong>
+        </div>
+        <div>
+          <small>5 min</small>
+          <strong>${integer.format(realtime.activeUsers5m || 0)}</strong>
+        </div>
+        <div class="analytics-wide-mini">
+          <small>Página</small>
+          <strong>${escapeHtml(firstLabel(realtime.topPages))}</strong>
+        </div>
+        <div class="analytics-wide-mini">
+          <small>Origem</small>
+          <strong>${escapeHtml(firstLabel(realtime.topSources))}</strong>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
 function renderAnalytics(analytics) {
-  const realtime = analytics?.realtime || {};
   byId("analyticsStrip").innerHTML = `
-    <article class="analytics-card">
-      <span>Site agora</span>
-      <strong>${integer.format(realtime.activeUsers30m || 0)}</strong>
-      <small>ativos 30 min</small>
-    </article>
-    <article class="analytics-card">
-      <span>Últimos 5 min</span>
-      <strong>${integer.format(realtime.activeUsers5m || 0)}</strong>
-      <small>ativos</small>
-    </article>
-    <article class="analytics-card wide">
-      <span>Página principal</span>
-      <strong>${escapeHtml(firstLabel(realtime.topPages))}</strong>
-      <small>tempo real</small>
-    </article>
-    <article class="analytics-card wide">
-      <span>Origem principal</span>
-      <strong>${escapeHtml(firstLabel(realtime.topSources))}</strong>
-      <small>mês selecionado</small>
-    </article>
+    ${analyticsPropertyCard(analytics?.site, "Site institucional")}
+    ${analyticsPropertyCard(analytics?.omnibees, "Motor Omnibees")}
   `;
 }
 

@@ -16,7 +16,8 @@ const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
-const GA4_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_PROPERTY_ID || "";
+const GA4_SITE_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_SITE_PROPERTY_ID || process.env.GOOGLE_ANALYTICS_PROPERTY_ID || "";
+const GA4_OMNIBEES_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_OMNIBEES_PROPERTY_ID || "";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -180,11 +181,11 @@ async function getSheetValues(range) {
   return payload.values || [];
 }
 
-async function googleAnalyticsRequest(method, body) {
-  if (!GA4_PROPERTY_ID) throw new Error("GOOGLE_ANALYTICS_PROPERTY_ID is not configured");
+async function googleAnalyticsRequest(propertyId, method, body) {
+  if (!propertyId) throw new Error("Google Analytics property ID is not configured");
 
   const token = await getAccessToken("https://www.googleapis.com/auth/analytics.readonly");
-  const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${GA4_PROPERTY_ID}:${method}`, {
+  const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:${method}`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
@@ -211,19 +212,19 @@ function dimensionValue(row, index = 0) {
   return String(row?.dimensionValues?.[index]?.value || "").trim();
 }
 
-async function getRealtimeActiveUsers(startMinutesAgo, endMinutesAgo = 0) {
-  const payload = await googleAnalyticsRequest("runRealtimeReport", {
+async function getRealtimeActiveUsers(propertyId, startMinutesAgo, endMinutesAgo = 0) {
+  const payload = await googleAnalyticsRequest(propertyId, "runRealtimeReport", {
     metrics: [{ name: "activeUsers" }],
     minuteRanges: [{ startMinutesAgo, endMinutesAgo }]
   });
   return metricValue(payload.rows?.[0]);
 }
 
-async function getRealtimeTopDimension(dimensionNames, limit = 4) {
+async function getRealtimeTopDimension(propertyId, dimensionNames, limit = 4) {
   let lastError = null;
   for (const dimensionName of dimensionNames) {
     try {
-      const payload = await googleAnalyticsRequest("runRealtimeReport", {
+      const payload = await googleAnalyticsRequest(propertyId, "runRealtimeReport", {
         dimensions: [{ name: dimensionName }],
         metrics: [{ name: "activeUsers" }],
         limit: String(limit),
@@ -241,12 +242,12 @@ async function getRealtimeTopDimension(dimensionNames, limit = 4) {
   return [];
 }
 
-async function getAnalyticsMonthSummary(period = {}) {
+async function getAnalyticsMonthSummary(propertyId, period = {}) {
   const today = period.date || todayKey();
   const month = period.month || today.slice(0, 7);
   const startDate = `${month}-01`;
   const endDate = today.slice(0, 7) === month ? today : `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
-  const payload = await googleAnalyticsRequest("runReport", {
+  const payload = await googleAnalyticsRequest(propertyId, "runReport", {
     dateRanges: [{ startDate, endDate }],
     metrics: [
       { name: "activeUsers" },
@@ -264,7 +265,7 @@ async function getAnalyticsMonthSummary(period = {}) {
   };
 }
 
-async function getAnalyticsTopDimension(method, dimensionNames, period = {}, limit = 5) {
+async function getAnalyticsTopDimension(propertyId, method, dimensionNames, period = {}, limit = 5) {
   const today = period.date || todayKey();
   const month = period.month || today.slice(0, 7);
   const startDate = `${month}-01`;
@@ -273,7 +274,7 @@ async function getAnalyticsTopDimension(method, dimensionNames, period = {}, lim
 
   for (const dimensionName of dimensionNames) {
     try {
-      const payload = await googleAnalyticsRequest(method, {
+      const payload = await googleAnalyticsRequest(propertyId, method, {
         dateRanges: [{ startDate, endDate }],
         dimensions: [{ name: dimensionName }],
         metrics: [{ name: "activeUsers" }],
@@ -293,23 +294,19 @@ async function getAnalyticsTopDimension(method, dimensionNames, period = {}, lim
   return [];
 }
 
-async function loadAnalyticsMetrics(period = {}) {
-  const cacheKey = JSON.stringify({
-    property: GA4_PROPERTY_ID,
-    date: period.date || "",
-    month: period.month || ""
-  });
+function emptyAnalyticsProperty(label, propertyId = "") {
+  return {
+    label,
+    propertyId,
+    configured: false,
+    realtime: { activeUsers30m: 0, activeUsers5m: 0, topPages: [], topSources: [] },
+    month: { activeUsers: 0, sessions: 0, pageViews: 0, topPages: [], topSources: [] }
+  };
+}
 
-  if (analyticsCache.payload?.cacheKey === cacheKey && Date.now() < analyticsCache.expiresAt) {
-    return analyticsCache.payload.data;
-  }
-
-  if (!GA4_PROPERTY_ID || !getServiceAccount()) {
-    return {
-      configured: false,
-      realtime: { activeUsers30m: 0, activeUsers5m: 0, topPages: [], topSources: [] },
-      month: { activeUsers: 0, sessions: 0, pageViews: 0, topPages: [], topSources: [] }
-    };
+async function loadAnalyticsPropertyMetrics(propertyId, label, period = {}) {
+  if (!propertyId || !getServiceAccount()) {
+    return emptyAnalyticsProperty(label, propertyId);
   }
 
   try {
@@ -321,15 +318,17 @@ async function loadAnalyticsMetrics(period = {}) {
       monthTopPages,
       monthTopSources
     ] = await Promise.all([
-      getRealtimeActiveUsers(29),
-      getRealtimeActiveUsers(4),
-      getRealtimeTopDimension(["unifiedPageScreen", "pageTitle", "unifiedScreenName"], 4),
-      getAnalyticsMonthSummary(period),
-      getAnalyticsTopDimension("runReport", ["pageTitle", "unifiedPageScreen"], period, 5),
-      getAnalyticsTopDimension("runReport", ["sessionSourceMedium", "firstUserSourceMedium"], period, 5)
+      getRealtimeActiveUsers(propertyId, 29),
+      getRealtimeActiveUsers(propertyId, 4),
+      getRealtimeTopDimension(propertyId, ["unifiedPageScreen", "pageTitle", "unifiedScreenName"], 4),
+      getAnalyticsMonthSummary(propertyId, period),
+      getAnalyticsTopDimension(propertyId, "runReport", ["pageTitle", "unifiedPageScreen"], period, 5),
+      getAnalyticsTopDimension(propertyId, "runReport", ["sessionSourceMedium", "firstUserSourceMedium"], period, 5)
     ]);
 
-    const data = {
+    return {
+      label,
+      propertyId,
       configured: true,
       realtime: {
         activeUsers30m,
@@ -343,16 +342,41 @@ async function loadAnalyticsMetrics(period = {}) {
         topSources: monthTopSources
       }
     };
-    analyticsCache = { payload: { cacheKey, data }, expiresAt: Date.now() + CACHE_TTL_MS };
-    return data;
   } catch (error) {
     return {
+      ...emptyAnalyticsProperty(label, propertyId),
       configured: true,
-      error: error.message,
-      realtime: { activeUsers30m: 0, activeUsers5m: 0, topPages: [], topSources: [] },
-      month: { activeUsers: 0, sessions: 0, pageViews: 0, topPages: [], topSources: [] }
+      error: error.message
     };
   }
+}
+
+async function loadAnalyticsMetrics(period = {}) {
+  const cacheKey = JSON.stringify({
+    siteProperty: GA4_SITE_PROPERTY_ID,
+    omnibeesProperty: GA4_OMNIBEES_PROPERTY_ID,
+    date: period.date || "",
+    month: period.month || ""
+  });
+
+  if (analyticsCache.payload?.cacheKey === cacheKey && Date.now() < analyticsCache.expiresAt) {
+    return analyticsCache.payload.data;
+  }
+
+  const [site, omnibees] = await Promise.all([
+    loadAnalyticsPropertyMetrics(GA4_SITE_PROPERTY_ID, "Site institucional", period),
+    loadAnalyticsPropertyMetrics(GA4_OMNIBEES_PROPERTY_ID, "Motor Omnibees", period)
+  ]);
+
+  const data = {
+    configured: Boolean(site.configured || omnibees.configured),
+    site,
+    omnibees,
+    realtime: site.realtime,
+    month: site.month
+  };
+  analyticsCache = { payload: { cacheKey, data }, expiresAt: Date.now() + CACHE_TTL_MS };
+  return data;
 }
 
 function rowsToObjects(rows, options = {}) {
@@ -1061,7 +1085,9 @@ async function handleRequest(req, res) {
       return json(res, 200, {
         ok: true,
         googleConfigured: Boolean(SHEET_ID && getServiceAccount()),
-        analyticsConfigured: Boolean(GA4_PROPERTY_ID && getServiceAccount()),
+        analyticsConfigured: Boolean((GA4_SITE_PROPERTY_ID || GA4_OMNIBEES_PROPERTY_ID) && getServiceAccount()),
+        analyticsSiteConfigured: Boolean(GA4_SITE_PROPERTY_ID && getServiceAccount()),
+        analyticsOmnibeesConfigured: Boolean(GA4_OMNIBEES_PROPERTY_ID && getServiceAccount()),
         supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
         gestoresProtected: Boolean(GESTORES_ACCESS_TOKEN),
         cacheTtlSeconds: CACHE_TTL_MS / 1000

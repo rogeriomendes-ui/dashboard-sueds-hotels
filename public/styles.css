@@ -197,6 +197,24 @@ h2 {
   margin-bottom: 14px;
 }
 
+.analytics-overview,
+#analyticsOverview {
+  display: grid;
+  gap: 14px;
+}
+
+.analytics-property-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.analytics-property-panel h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+}
+
 .analytics-manager-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
