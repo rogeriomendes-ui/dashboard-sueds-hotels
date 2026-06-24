@@ -4,7 +4,7 @@
 
 .tv-shell .topbar {
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   min-height: 60px;
   margin-bottom: 14px;
 }
@@ -20,7 +20,7 @@
 .tv-online-group {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 6px;
   align-items: center;
   min-width: 0;
   flex: 1 1 auto;
@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   flex: 0 0 auto;
 }
 
@@ -75,9 +75,9 @@
 
 .analytics-card {
   min-width: 0;
-  width: 230px;
+  width: 180px;
   min-height: 42px;
-  padding: 7px 9px;
+  padding: 6px 8px;
   border: 1px solid var(--card-line);
   border-radius: 8px;
   background: var(--panel);
@@ -89,7 +89,7 @@
   display: block;
   overflow: hidden;
   color: var(--card-muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -101,22 +101,22 @@
   align-self: center;
   margin: 0;
   color: var(--card-text);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
   text-transform: none;
 }
 
 .analytics-property-card {
   display: grid;
-  grid-template-columns: 42px max-content;
-  gap: 8px;
+  grid-template-columns: 36px max-content;
+  gap: 6px;
   align-items: center;
 }
 
 .analytics-mini-grid {
   display: grid;
   grid-template-columns: repeat(2, max-content);
-  gap: 12px;
+  gap: 9px;
   justify-content: start;
   align-items: center;
 }
@@ -126,7 +126,7 @@
   overflow: hidden;
   margin: 2px 0;
   color: var(--card-text);
-  font-size: clamp(16px, 1.45vw, 24px);
+  font-size: clamp(15px, 1.3vw, 22px);
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
