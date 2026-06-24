@@ -10,6 +10,7 @@ const SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
+const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -202,6 +203,15 @@ function parseNumber(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function parseDecimalNumber(value) {
+  if (typeof value === "number") return value;
+  if (!value) return 0;
+  const text = String(value).replace(/[R$%\s]/g, "").trim();
+  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -320,6 +330,22 @@ function normalizeCartRecord(item) {
     lossReason,
     alternateChoice,
     contacted: contactValues.some(isMeaningfulValue)
+  };
+}
+
+function normalizeAsksuiteRecord(item) {
+  const parsedDate = parseDate(item.Data);
+  return {
+    date: parsedDate,
+    dateKey: parsedDate ? dateKey(parsedDate) : "",
+    monthKey: parsedDate ? monthKey(parsedDate) : "",
+    seller: normalizeSellerName(item.Atendente || ""),
+    attendances: parseDecimalNumber(item.Atendimentos),
+    chatConvPct: parseDecimalNumber(item["Conv Atendimento %"]),
+    opportunities: parseDecimalNumber(item.Oportunidades),
+    salesConvPct: parseDecimalNumber(item["Conv Vendas %"]),
+    sales: parseDecimalNumber(item.Vendas),
+    revenue: parseDecimalNumber(item.Receita)
   };
 }
 
@@ -448,6 +474,40 @@ function buildCartRecoveryMetrics(carts, period = {}) {
   return [
     ...teamMetrics,
     metricsFromCarts(TEAM_CARD_NAME, teamCarts)
+  ];
+}
+
+function buildAsksuiteMetrics(asksuite, period = {}) {
+  const today = period.date || todayKey();
+  const month = period.month || today.slice(0, 7);
+  const monthRows = asksuite.filter((row) => row.monthKey === month);
+
+  function metricsFromRows(name, rows) {
+    const attendances = sum(rows, (row) => row.attendances);
+    const opportunities = sum(rows, (row) => row.opportunities);
+    const sales = sum(rows, (row) => row.sales);
+    const revenue = sum(rows, (row) => row.revenue);
+
+    return {
+      name,
+      attendances,
+      opportunities,
+      sales,
+      revenue,
+      chatConvPct: pct(opportunities, attendances),
+      salesConvPct: pct(sales, opportunities)
+    };
+  }
+
+  const sellerMetrics = TEAM_SELLERS.map((seller) => {
+    const rows = monthRows.filter((row) => comparableKey(row.seller) === comparableKey(seller));
+    return metricsFromRows(seller, rows);
+  });
+  const teamRows = monthRows.filter((row) => TEAM_SELLERS.some((seller) => comparableKey(row.seller) === comparableKey(seller)));
+
+  return [
+    ...sellerMetrics,
+    metricsFromRows(TEAM_CARD_NAME, teamRows)
   ];
 }
 
@@ -672,7 +732,8 @@ function buildTvPayload(metrics) {
         mtdStatus: statusFromPct(seller.mtdGoalPct),
         monthlyStatus: statusFromPct(seller.monthlyGoalPct)
       })),
-    cartRecovery: metrics.cartRecovery || []
+    cartRecovery: metrics.cartRecovery || [],
+    asksuite: metrics.asksuite || []
   };
 }
 
@@ -722,7 +783,17 @@ function demoDataset() {
     }
   ]);
 
-  return { records, goals, carts };
+  const asksuite = sellers.slice(0, 4).map((seller, index) => ({
+    dateKey: today,
+    monthKey: month,
+    seller,
+    attendances: [249, 210, 269, 249][index],
+    opportunities: [130, 90, 131, 133][index],
+    sales: [15, 3, 1, 1][index],
+    revenue: [59085.03, 9310.61, 4010.22, 260][index]
+  }));
+
+  return { records, goals, carts, asksuite };
 }
 
 async function loadDataset() {
@@ -733,24 +804,28 @@ async function loadDataset() {
   let records;
   let goals;
   let carts;
+  let asksuite;
 
   if (!SHEET_ID || !getServiceAccount()) {
     const demo = demoDataset();
     records = demo.records;
     goals = demo.goals;
     carts = demo.carts;
+    asksuite = demo.asksuite || [];
   } else {
-    const [baseRows, goalRows, cartRows] = await Promise.all([
+    const [baseRows, goalRows, cartRows, asksuiteRows] = await Promise.all([
       getSheetValues(BASE_RANGE),
       getSheetValues(METAS_RANGE),
-      getSheetValues(CARTS_RANGE)
+      getSheetValues(CARTS_RANGE),
+      getSheetValues(ASKSUITE_RANGE)
     ]);
     records = rowsToObjects(baseRows).map(normalizeRecord);
     goals = rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal);
     carts = rowsToObjects(cartRows, { keepAnyValue: true }).map(normalizeCartRecord);
+    asksuite = rowsToObjects(asksuiteRows, { keepAnyValue: true }).map(normalizeAsksuiteRecord);
   }
 
-  const payload = { records, goals, carts, loadedAt: new Date().toISOString() };
+  const payload = { records, goals, carts, asksuite, loadedAt: new Date().toISOString() };
   dataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
   return payload;
 }
@@ -759,6 +834,7 @@ async function loadMetrics(period) {
   const dataset = await loadDataset();
   const metrics = buildMetrics(dataset.records, dataset.goals, period);
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
+  metrics.asksuite = buildAsksuiteMetrics(dataset.asksuite || [], period);
   return metrics;
 }
 

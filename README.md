@@ -100,3 +100,21 @@ Opcao mais simples no Windows:
 2. Deixe o nome comecando por `reservas-perdidas`.
 3. Abra com duplo clique o arquivo `Importar carrinhos Niara.bat`.
 4. Confira a simulacao e confirme com `S` para aplicar.
+
+## Importar resumo de atendimentos do Asksuite
+
+1. No Asksuite, exporte o relatorio por atendente em `.xlsx`.
+2. Deixe o nome original com a data, por exemplo `por_atendente_23_06_2026_2135.xlsx`.
+3. Rode primeiro em modo simulacao:
+
+```powershell
+npm run import:asksuite -- "C:\Users\roger\Downloads\por_atendente_23_06_2026_2135.xlsx"
+```
+
+4. Se o resumo estiver correto, aplique:
+
+```powershell
+npm run import:asksuite -- "C:\Users\roger\Downloads\por_atendente_23_06_2026_2135.xlsx" --apply
+```
+
+O importador cria/atualiza a aba `Asksuite_Atendimentos`, usa `Data + Atendente` como chave e ignora atendentes que nao fazem parte dos quatro vendedores do painel.

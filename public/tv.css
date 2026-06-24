@@ -9,7 +9,7 @@
 }
 
 .seller-card {
-  min-height: 600px;
+  min-height: 690px;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -145,6 +145,71 @@
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--line);
+}
+
+.asksuite-card {
+  min-width: 0;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.asksuite-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.asksuite-title span {
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.asksuite-title strong {
+  color: var(--cyan);
+  font-size: clamp(20px, 1.7vw, 28px);
+  font-weight: 900;
+  line-height: 0.95;
+}
+
+.asksuite-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.asksuite-kpis div {
+  min-width: 0;
+  padding: 8px 5px;
+  border-radius: 6px;
+  background: var(--panel-soft);
+  text-align: center;
+}
+
+.asksuite-kpis strong,
+.asksuite-kpis span {
+  display: block;
+}
+
+.asksuite-kpis strong {
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.asksuite-kpis span {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .cart-card-title {

@@ -1,4 +1,5 @@
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const MONTHS = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
 const MONTH_LABELS = {
   "2026-05": "MAIO",
@@ -155,10 +156,29 @@ function renderCartRecoveryBlock(seller) {
   `;
 }
 
+function renderAsksuiteBlock(seller) {
+  if (!seller) return "";
+  return `
+    <section class="asksuite-card" aria-label="Asksuite de ${escapeHtml(seller.name)}">
+      <div class="asksuite-title">
+        <span>Asksuite</span>
+        <strong>${formatCartPct(seller.salesConvPct)}</strong>
+      </div>
+      <div class="asksuite-kpis">
+        <div><strong>${integer.format(seller.attendances || 0)}</strong><span>atend.</span></div>
+        <div><strong>${integer.format(seller.opportunities || 0)}</strong><span>oport.</span></div>
+        <div><strong>${integer.format(seller.sales || 0)}</strong><span>vendas</span></div>
+        <div><strong>${formatCartPct(seller.chatConvPct)}</strong><span>conv. atend.</span></div>
+      </div>
+    </section>
+  `;
+}
+
 function render(data) {
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
 
   const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [item.name, item]));
+  const asksuiteBySeller = new Map((data.asksuite || []).map((item) => [item.name, item]));
 
   byId("sellerGrid").innerHTML = data.sellers
     .map((seller) => `
@@ -173,6 +193,7 @@ function render(data) {
           ${goalColumn("ICM mês", seller.monthlyGoalPct, "")}
           <span class="reservations-pill reservations-pill-month">${seller.reservationsMonth} no mês</span>
         </div>
+        ${renderAsksuiteBlock(asksuiteBySeller.get(seller.name))}
         ${renderCartRecoveryBlock(cartsBySeller.get(seller.name))}
       </article>
     `)
