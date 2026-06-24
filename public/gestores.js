@@ -176,7 +176,7 @@ function analyticsPropertySection(property, fallbackLabel) {
   return `
     <article class="analytics-property-panel">
       <h3>${escapeHtml(data.label || fallbackLabel)}</h3>
-      <div class="analytics-manager-grid">
+      <div class="analytics-kpi-grid">
         <div class="analytics-manager-card">
           <span>Agora</span>
           <strong>${number.format(realtime.activeUsers30m || 0)}</strong>
@@ -188,15 +188,17 @@ function analyticsPropertySection(property, fallbackLabel) {
           <small>ativos</small>
         </div>
         <div class="analytics-manager-card">
-          <span>Usuários no mês</span>
+          <span>Usuários</span>
           <strong>${number.format(month.activeUsers || 0)}</strong>
           <small>${number.format(month.sessions || 0)} sessões</small>
         </div>
         <div class="analytics-manager-card">
-          <span>Visualizações</span>
+          <span>Views</span>
           <strong>${number.format(month.pageViews || 0)}</strong>
           <small>páginas no mês</small>
         </div>
+      </div>
+      <div class="analytics-list-grid">
         <div class="analytics-manager-card list-card">
           <span>Páginas em tempo real</span>
           ${analyticsList(realtime.topPages, "Sem dados em tempo real")}

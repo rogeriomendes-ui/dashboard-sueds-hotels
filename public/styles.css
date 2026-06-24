@@ -194,12 +194,14 @@ h2 {
 
 .analytics-panel {
   min-height: auto;
+  margin-top: 14px;
   margin-bottom: 14px;
 }
 
 .analytics-overview,
 #analyticsOverview {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -221,10 +223,22 @@ h2 {
   gap: 10px;
 }
 
+.analytics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.analytics-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .analytics-manager-card {
   min-width: 0;
-  min-height: 104px;
-  padding: 14px;
+  min-height: 92px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(44, 62, 80, 0.06);
@@ -235,7 +249,7 @@ h2 {
   display: block;
   overflow: hidden;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -244,14 +258,14 @@ h2 {
 
 .analytics-manager-card strong {
   display: block;
-  margin: 8px 0;
+  margin: 7px 0;
   color: var(--text);
-  font-size: clamp(28px, 3vw, 46px);
+  font-size: clamp(24px, 2.4vw, 42px);
   line-height: 1;
 }
 
 .analytics-manager-card.list-card {
-  grid-column: span 2;
+  min-height: 168px;
 }
 
 .analytics-list-row {
@@ -672,7 +686,9 @@ h2 {
 
 @media (max-width: 1180px) {
   .hero-metrics,
+  #analyticsOverview,
   .analytics-manager-grid,
+  .analytics-kpi-grid,
   .strategic-grid,
   .dashboard-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -718,7 +734,10 @@ h2 {
   }
 
   .hero-metrics,
+  #analyticsOverview,
   .analytics-manager-grid,
+  .analytics-kpi-grid,
+  .analytics-list-grid,
   .strategic-grid,
   .dashboard-grid {
     grid-template-columns: 1fr;
