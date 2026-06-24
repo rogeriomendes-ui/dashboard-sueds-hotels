@@ -10,21 +10,25 @@
   <body>
     <main class="dashboard-shell tv-shell">
       <header class="topbar">
-        <div>
+        <div class="tv-title-block">
           <p class="eyebrow">Central de Vendas</p>
           <h1>Meta da Equipe</h1>
         </div>
-        <label class="month-control" for="monthSelect">
-          <span>Mês</span>
-          <select id="monthSelect"></select>
-        </label>
-        <div class="status-strip">
-          <span class="live-dot"></span>
-          <span id="lastUpdate">Atualizando...</span>
+        <div class="tv-online-group">
+          <strong>Clientes<br>online:</strong>
+          <section id="analyticsStrip" class="analytics-strip" aria-label="Google Analytics em tempo real"></section>
+        </div>
+        <div class="tv-header-controls">
+          <label class="month-control" for="monthSelect">
+            <span>Mês</span>
+            <select id="monthSelect"></select>
+          </label>
+          <div class="status-strip">
+            <span class="live-dot"></span>
+            <span id="lastUpdate">Atualizando...</span>
+          </div>
         </div>
       </header>
-
-      <section id="analyticsStrip" class="analytics-strip" aria-label="Google Analytics em tempo real"></section>
 
       <section id="sellerGrid" class="seller-grid" aria-label="Cumprimento de metas por vendedor"></section>
 

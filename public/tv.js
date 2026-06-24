@@ -179,7 +179,7 @@ function analyticsPropertyCard(property, fallbackLabel) {
   const realtime = data.realtime || {};
   return `
     <article class="analytics-card analytics-property-card">
-      <span class="analytics-property-title">${escapeHtml(fallbackLabel)} clientes online últimos:</span>
+      <span class="analytics-property-title">${escapeHtml(fallbackLabel)}</span>
       <div class="analytics-mini-grid">
         <div>
           <small>30 min</small>
@@ -196,8 +196,8 @@ function analyticsPropertyCard(property, fallbackLabel) {
 
 function renderAnalytics(analytics) {
   byId("analyticsStrip").innerHTML = `
-    ${analyticsPropertyCard(analytics?.site, "Site Sueds")}
-    ${analyticsPropertyCard(analytics?.omnibees, "Omnibees")}
+    ${analyticsPropertyCard(analytics?.site, "Sueds")}
+    ${analyticsPropertyCard(analytics?.omnibees, "Motor")}
   `;
 }
 
