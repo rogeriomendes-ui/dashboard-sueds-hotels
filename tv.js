@@ -1,6 +1,5 @@
 const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
-const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const MONTHS = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
 const MONTH_LABELS = {
   "2026-05": "MAIO",
@@ -74,10 +73,6 @@ function escapeHtml(value) {
 
 function formatCartPct(value) {
   return value === null || value === undefined ? "0%" : `${percent.format(value)}%`;
-}
-
-function formatCurrency(value) {
-  return currency.format(value || 0).replace(/\u00a0/g, " ");
 }
 
 function formatLastUpdate(value) {
@@ -167,7 +162,7 @@ function renderAsksuiteBlock(seller) {
     <section class="asksuite-card" aria-label="Asksuite de ${escapeHtml(seller.name)}">
       <div class="asksuite-title">
         <span>Asksuite</span>
-        <strong>Conversão ${formatCartPct(seller.salesConvPct)} = ${formatCurrency(seller.revenue)}</strong>
+        <strong>Conversão ${formatCartPct(seller.salesConvPct)}</strong>
       </div>
       <div class="asksuite-kpis">
         <div><strong>${integer.format(seller.attendances || 0)}</strong><span>atend.</span></div>
