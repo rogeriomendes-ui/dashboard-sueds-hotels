@@ -69,13 +69,14 @@
 
 .analytics-strip {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, max-content);
   gap: 6px;
   min-width: 0;
 }
 
 .analytics-card {
   min-width: 0;
+  width: 320px;
   min-height: 42px;
   padding: 7px 9px;
   border: 1px solid var(--card-line);
@@ -108,8 +109,8 @@
 
 .analytics-property-card {
   display: grid;
-  grid-template-columns: minmax(42px, 0.7fr) 1fr;
-  gap: 8px;
+  grid-template-columns: 54px max-content;
+  gap: 12px;
   align-items: center;
 }
 
@@ -117,7 +118,7 @@
   display: grid;
   grid-template-columns: repeat(2, max-content);
   gap: 18px;
-  justify-content: end;
+  justify-content: start;
   align-items: center;
 }
 
