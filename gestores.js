@@ -70,7 +70,7 @@ function setupGlobalFilters() {
 }
 
 function pct(value) {
-  return value === null || value === undefined ? "Sem meta" : `${number.format(value)}%`;
+  return value === null || value === undefined ? "Sem meta" : `${number.format(Math.round(value))}%`;
 }
 
 function formatLastUpdate(value) {
@@ -121,11 +121,23 @@ function formatDate(value) {
   return `${day}/${month}/${year}`;
 }
 
-function bars(items) {
+function displayLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text
+    .toLocaleLowerCase("pt-BR")
+    .replace(/(^|[\s(/-])([\p{L}])/gu, (_, prefix, char) => `${prefix}${char.toLocaleUpperCase("pt-BR")}`)
+    .replace(/\bSueds\b/g, "SUEDS")
+    .replace(/\bSite\b/g, "SITE")
+    .replace(/\bIcm\b/g, "ICM");
+}
+
+function bars(items, options = {}) {
+  const formatLabel = options.formatLabel || ((value) => value);
   return items
     .map((item) => `
       <div class="performance-row">
-        <span class="row-label">${item.label}</span>
+        <span class="row-label">${formatLabel(item.label)}</span>
         <strong>${number.format(item.reservations || 0)}</strong>
         <strong>${money.format(item.value)}</strong>
         <strong>${money.format(item.monthlyGoal || 0)}</strong>
@@ -135,7 +147,7 @@ function bars(items) {
     .join("");
 }
 
-function performanceTable(items, firstColumn) {
+function performanceTable(items, firstColumn, options = {}) {
   return `
     <div class="performance-row performance-head">
       <span>${firstColumn}</span>
@@ -144,7 +156,7 @@ function performanceTable(items, firstColumn) {
       <span>Meta</span>
       <span>ICM %</span>
     </div>
-    ${bars(items)}
+    ${bars(items, options)}
   `;
 }
 
@@ -313,8 +325,8 @@ function render(data) {
       .join("")}
   `;
 
-  byId("channelBars").innerHTML = performanceTable(data.channels, "Canal");
-  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel");
+  byId("channelBars").innerHTML = performanceTable(data.channels, "Canal", { formatLabel: displayLabel });
+  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel });
 
   byId("dailySales").innerHTML = data.dailySales
     .map((day) => `
