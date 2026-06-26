@@ -182,6 +182,8 @@ function analyticsPropertySection(property, fallbackLabel) {
   const month = data.month || {};
   const currentVisitors = month.totalUsers ?? month.activeUsers ?? 0;
   const previousVisitors = month.previousYear?.totalUsers || 0;
+  const currentSessions = month.sessions || 0;
+  const previousSessions = month.previousYear?.sessions || 0;
   return `
     <article class="analytics-property-panel">
       <h3>${escapeHtml(data.label || fallbackLabel)}</h3>
@@ -202,9 +204,9 @@ function analyticsPropertySection(property, fallbackLabel) {
           <small>AA ${number.format(previousVisitors)}${variationPct(currentVisitors, previousVisitors)}</small>
         </div>
         <div class="analytics-manager-card">
-          <span>Views</span>
-          <strong>${number.format(month.pageViews || 0)}</strong>
-          <small>páginas no mês</small>
+          <span>Sessões</span>
+          <strong>${number.format(currentSessions)}</strong>
+          <small>AA ${number.format(previousSessions)}${variationPct(currentSessions, previousSessions)}</small>
         </div>
       </div>
       <div class="analytics-list-grid">
