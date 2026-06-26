@@ -127,8 +127,6 @@ function displayLabel(value) {
   return text
     .toLocaleLowerCase("pt-BR")
     .replace(/(^|[\s(/-])([\p{L}])/gu, (_, prefix, char) => `${prefix}${char.toLocaleUpperCase("pt-BR")}`)
-    .replace(/\bSueds\b/g, "SUEDS")
-    .replace(/\bSite\b/g, "SITE")
     .replace(/\bIcm\b/g, "ICM");
 }
 
