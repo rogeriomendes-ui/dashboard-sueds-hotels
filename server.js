@@ -660,6 +660,28 @@ function isOnOrBeforeDateKey(record, key) {
 const TEAM_CARD_NAME = "Equipe Sueds";
 const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
+const OFFICIAL_SALES_CHANNELS = [
+  "SITE",
+  "CENTRAL DE RESERVAS",
+  "PARTICULAR (individual)",
+  "BALCÃO",
+  "AGÊNCIA (grupos)",
+  "RECEPÇÃO"
+];
+
+function normalizeOfficialSalesChannel(value, record = {}) {
+  if (comparableKey(record.seller) === comparableKey("Site")) return "SITE";
+
+  const key = comparableKey(value || record.channel || record.rawChannel);
+  if (!key || key === "selecione") return "";
+  if (key.includes("booking engine") || key === "site") return "SITE";
+  if (key.includes("central de reservas") || key.includes("whatsapp")) return "CENTRAL DE RESERVAS";
+  if (key.includes("particular")) return "PARTICULAR (individual)";
+  if (key.includes("balcao")) return "BALCÃO";
+  if (key.includes("agencia")) return "AGÊNCIA (grupos)";
+  if (key.includes("recepcao")) return "RECEPÇÃO";
+  return "";
+}
 
 function buildCartRecoveryMetrics(carts, period = {}) {
   const today = period.date || todayKey();
@@ -740,12 +762,13 @@ function buildMetrics(records, goals, period = {}) {
   const goalDate = selectedDay || today;
   const selectedHotel = period.hotel || "";
   const selectedChannel = period.channel || "";
+  const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record);
   const confirmed = records.filter((record) => record.status.toLowerCase() === "confirmada");
   const monthRecords = confirmed.filter((record) => record.monthKey === month);
   const filteredRecords = monthRecords.filter((record) => {
     const matchesDay = !selectedDay || record.dateKey === selectedDay;
     const matchesHotel = !selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel);
-    const matchesChannel = !selectedChannel || comparableKey(record.channel) === comparableKey(selectedChannel);
+    const matchesChannel = !selectedChannel || comparableKey(channelLabelForRecord(record)) === comparableKey(selectedChannel);
     return matchesDay && matchesHotel && matchesChannel;
   });
   const todayRecords = filteredRecords.filter((record) => record.dateKey === today);
@@ -813,18 +836,19 @@ function buildMetrics(records, goals, period = {}) {
 
   sellers = sellers.sort((a, b) => b.salesMonth - a.salesMonth);
 
-  const channelLabelForRecord = (record) => (comparableKey(record.seller) === comparableKey("Site") ? "Site" : record.channel);
-
   const channelLabels = new Set([
-    ...filteredRecords.map(channelLabelForRecord).filter(Boolean),
-    ...goals.filter((goal) => goal.month === month && goal.channel).map((goal) => goal.channel)
+    ...OFFICIAL_SALES_CHANNELS,
+    ...goals
+      .filter((goal) => goal.month === month && goal.channel)
+      .map((goal) => normalizeOfficialSalesChannel(goal.channel))
+      .filter(Boolean)
   ]);
 
   const recordsByChannel = groupBy(filteredRecords, channelLabelForRecord);
   const channels = [...channelLabels]
     .map((label) => {
       const rows = recordsByChannel.get(label) || [];
-      const goal = dimensionGoal(goals, "channel", label, month);
+      const goal = goals.find((item) => item.month === month && comparableKey(normalizeOfficialSalesChannel(item.channel)) === comparableKey(label));
       const value = sum(rows, (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
       return {
@@ -835,7 +859,7 @@ function buildMetrics(records, goals, period = {}) {
         monthlyGoalPct: pct(value, monthlyGoal)
       };
     })
-    .sort((a, b) => b.value - a.value);
+    .sort((a, b) => OFFICIAL_SALES_CHANNELS.indexOf(a.label) - OFFICIAL_SALES_CHANNELS.indexOf(b.label));
 
   const hotelLabels = new Set([
     ...filteredRecords.map((record) => record.hotel).filter(Boolean),
@@ -878,7 +902,7 @@ function buildMetrics(records, goals, period = {}) {
       selectedChannel,
       days: sortLabels(new Set(monthRecords.map((record) => record.dateKey))),
       hotels: sortLabels(new Set(monthRecords.map((record) => record.hotel))),
-      channels: sortLabels(new Set(monthRecords.map((record) => record.channel)))
+      channels: OFFICIAL_SALES_CHANNELS
     },
     summary: {
       salesToday: sum(selectedDayRecords, (record) => record.total),
