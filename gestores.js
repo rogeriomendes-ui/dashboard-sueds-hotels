@@ -169,10 +169,19 @@ function analyticsList(items, emptyText) {
     .join("");
 }
 
+function variationPct(current, previous) {
+  if (!previous) return "";
+  const value = Math.round(((current - previous) / previous) * 100);
+  const sign = value > 0 ? "+" : "";
+  return ` | ${sign}${number.format(value)}% vs AA`;
+}
+
 function analyticsPropertySection(property, fallbackLabel) {
   const data = property || {};
   const realtime = data.realtime || {};
   const month = data.month || {};
+  const currentVisitors = month.totalUsers ?? month.activeUsers ?? 0;
+  const previousVisitors = month.previousYear?.totalUsers || 0;
   return `
     <article class="analytics-property-panel">
       <h3>${escapeHtml(data.label || fallbackLabel)}</h3>
@@ -189,8 +198,8 @@ function analyticsPropertySection(property, fallbackLabel) {
         </div>
         <div class="analytics-manager-card">
           <span>Visitantes únicos</span>
-          <strong>${number.format(month.totalUsers ?? month.activeUsers ?? 0)}</strong>
-          <small>${number.format(month.sessions || 0)} sessões</small>
+          <strong>${number.format(currentVisitors)}</strong>
+          <small>AA ${number.format(previousVisitors)}${variationPct(currentVisitors, previousVisitors)}</small>
         </div>
         <div class="analytics-manager-card">
           <span>Views</span>

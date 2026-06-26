@@ -242,11 +242,15 @@ async function getRealtimeTopDimension(propertyId, dimensionNames, limit = 4) {
   return [];
 }
 
-async function getAnalyticsMonthSummary(propertyId, period = {}) {
-  const today = period.date || todayKey();
-  const month = period.month || today.slice(0, 7);
-  const startDate = `${month}-01`;
-  const endDate = today.slice(0, 7) === month ? today : `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+function shiftDateYear(value, deltaYears) {
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return value;
+  const targetYear = year + deltaYears;
+  const maxDay = new Date(targetYear, month, 0).getDate();
+  return `${targetYear}-${String(month).padStart(2, "0")}-${String(Math.min(day, maxDay)).padStart(2, "0")}`;
+}
+
+async function getAnalyticsSummaryForRange(propertyId, startDate, endDate) {
   const payload = await googleAnalyticsRequest(propertyId, "runReport", {
     dateRanges: [{ startDate, endDate }],
     metrics: [
@@ -265,6 +269,20 @@ async function getAnalyticsMonthSummary(propertyId, period = {}) {
     sessions: metricValue(row, 2),
     pageViews: metricValue(row, 3)
   };
+}
+
+async function getAnalyticsMonthSummary(propertyId, period = {}) {
+  const today = period.date || todayKey();
+  const month = period.month || today.slice(0, 7);
+  const startDate = `${month}-01`;
+  const endDate = today.slice(0, 7) === month ? today : `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+  const previousStartDate = shiftDateYear(startDate, -1);
+  const previousEndDate = shiftDateYear(endDate, -1);
+  const [current, previousYear] = await Promise.all([
+    getAnalyticsSummaryForRange(propertyId, startDate, endDate),
+    getAnalyticsSummaryForRange(propertyId, previousStartDate, previousEndDate)
+  ]);
+  return { ...current, previousYear };
 }
 
 async function getAnalyticsTopDimension(propertyId, method, dimensionNames, period = {}, limit = 5) {
