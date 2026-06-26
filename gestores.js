@@ -187,9 +187,9 @@ function analyticsPropertySection(property, fallbackLabel) {
       <h3>${escapeHtml(data.label || fallbackLabel)}</h3>
       <div class="analytics-kpi-grid">
         <div class="analytics-manager-card">
-          <span>Agora</span>
+          <span>Últimos 30 min</span>
           <strong>${number.format(realtime.activeUsers30m || 0)}</strong>
-          <small>ativos nos últimos 30 min</small>
+          <small>ativos</small>
         </div>
         <div class="analytics-manager-card">
           <span>Últimos 5 min</span>
