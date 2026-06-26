@@ -314,12 +314,39 @@ async function getAnalyticsTopDimension(propertyId, method, dimensionNames, peri
   return [];
 }
 
+async function getAnalyticsTodayTopDimension(propertyId, dimensionNames, period = {}, limit = 5) {
+  const today = period.date || todayKey();
+  let lastError = null;
+
+  for (const dimensionName of dimensionNames) {
+    try {
+      const payload = await googleAnalyticsRequest(propertyId, "runReport", {
+        dateRanges: [{ startDate: today, endDate: today }],
+        dimensions: [{ name: dimensionName }],
+        metrics: [{ name: "activeUsers" }],
+        limit: String(limit),
+        orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }]
+      });
+      return (payload.rows || [])
+        .map((row) => ({ label: dimensionValue(row), activeUsers: metricValue(row) }))
+        .filter((row) => row.label)
+        .slice(0, limit);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  return [];
+}
+
 function emptyAnalyticsProperty(label, propertyId = "") {
   return {
     label,
     propertyId,
     configured: false,
     realtime: { activeUsers30m: 0, activeUsers5m: 0, topPages: [], topSources: [] },
+    today: { topSources: [] },
     month: { activeUsers: 0, sessions: 0, pageViews: 0, topPages: [], topSources: [] }
   };
 }
@@ -334,16 +361,20 @@ async function loadAnalyticsPropertyMetrics(propertyId, label, period = {}) {
       activeUsers30m,
       activeUsers5m,
       realtimeTopPages,
+      realtimeTopSources,
       monthSummary,
       monthTopPages,
-      monthTopSources
+      monthTopSources,
+      todayTopSources
     ] = await Promise.all([
       getRealtimeActiveUsers(propertyId, 29),
       getRealtimeActiveUsers(propertyId, 4),
       getRealtimeTopDimension(propertyId, ["unifiedPageScreen", "pageTitle", "unifiedScreenName"], 4),
+      getRealtimeTopDimension(propertyId, ["sourceMedium", "firstUserSourceMedium", "source", "medium"], 5).catch(() => []),
       getAnalyticsMonthSummary(propertyId, period),
       getAnalyticsTopDimension(propertyId, "runReport", ["pageTitle", "unifiedPageScreen"], period, 5),
-      getAnalyticsTopDimension(propertyId, "runReport", ["sessionSourceMedium", "firstUserSourceMedium"], period, 5)
+      getAnalyticsTopDimension(propertyId, "runReport", ["sessionSourceMedium", "firstUserSourceMedium"], period, 5),
+      getAnalyticsTodayTopDimension(propertyId, ["sessionSourceMedium", "firstUserSourceMedium"], period, 5).catch(() => [])
     ]);
 
     return {
@@ -354,7 +385,10 @@ async function loadAnalyticsPropertyMetrics(propertyId, label, period = {}) {
         activeUsers30m,
         activeUsers5m,
         topPages: realtimeTopPages,
-        topSources: monthTopSources.slice(0, 4)
+        topSources: realtimeTopSources
+      },
+      today: {
+        topSources: todayTopSources.length ? todayTopSources : realtimeTopSources
       },
       month: {
         ...monthSummary,

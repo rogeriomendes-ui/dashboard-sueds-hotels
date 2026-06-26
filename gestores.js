@@ -189,6 +189,7 @@ function variationPct(current, previous) {
 function analyticsPropertySection(property, fallbackLabel) {
   const data = property || {};
   const realtime = data.realtime || {};
+  const today = data.today || {};
   const month = data.month || {};
   const currentVisitors = month.totalUsers ?? month.activeUsers ?? 0;
   const previousVisitors = month.previousYear?.totalUsers || 0;
@@ -221,8 +222,8 @@ function analyticsPropertySection(property, fallbackLabel) {
       </div>
       <div class="analytics-list-grid">
         <div class="analytics-manager-card list-card">
-          <span>Páginas em tempo real</span>
-          ${analyticsList(realtime.topPages, "Sem dados em tempo real")}
+          <span>Origens hoje</span>
+          ${analyticsList(today.topSources, "Sem dados de origem hoje")}
         </div>
         <div class="analytics-manager-card list-card">
           <span>Origens no mês</span>
