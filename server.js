@@ -813,12 +813,14 @@ function buildMetrics(records, goals, period = {}) {
 
   sellers = sellers.sort((a, b) => b.salesMonth - a.salesMonth);
 
+  const channelLabelForRecord = (record) => (comparableKey(record.seller) === comparableKey("Site") ? "Site" : record.channel);
+
   const channelLabels = new Set([
-    ...filteredRecords.map((record) => record.channel).filter(Boolean),
+    ...filteredRecords.map(channelLabelForRecord).filter(Boolean),
     ...goals.filter((goal) => goal.month === month && goal.channel).map((goal) => goal.channel)
   ]);
 
-  const recordsByChannel = groupBy(filteredRecords, (record) => record.channel);
+  const recordsByChannel = groupBy(filteredRecords, channelLabelForRecord);
   const channels = [...channelLabels]
     .map((label) => {
       const rows = recordsByChannel.get(label) || [];

@@ -286,6 +286,8 @@ function render(data) {
     `)
     .join("");
 
+  const rankingSellers = (data.sellers || []).filter((seller) => seller.name !== "Site");
+
   byId("sellerRanking").innerHTML = `
     <div class="seller-table-row seller-table-head">
       <span>#</span>
@@ -295,7 +297,7 @@ function render(data) {
       <span>Meta</span>
       <span>ICM %</span>
     </div>
-    ${data.sellers
+    ${rankingSellers
       .map((seller, index) => `
         <div class="seller-table-row">
           <span class="rank-position">${index + 1}</span>
