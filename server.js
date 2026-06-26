@@ -250,6 +250,7 @@ async function getAnalyticsMonthSummary(propertyId, period = {}) {
   const payload = await googleAnalyticsRequest(propertyId, "runReport", {
     dateRanges: [{ startDate, endDate }],
     metrics: [
+      { name: "totalUsers" },
       { name: "activeUsers" },
       { name: "sessions" },
       { name: "screenPageViews" }
@@ -259,9 +260,10 @@ async function getAnalyticsMonthSummary(propertyId, period = {}) {
   return {
     startDate,
     endDate,
-    activeUsers: metricValue(row, 0),
-    sessions: metricValue(row, 1),
-    pageViews: metricValue(row, 2)
+    totalUsers: metricValue(row, 0),
+    activeUsers: metricValue(row, 1),
+    sessions: metricValue(row, 2),
+    pageViews: metricValue(row, 3)
   };
 }
 

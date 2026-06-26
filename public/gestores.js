@@ -188,8 +188,8 @@ function analyticsPropertySection(property, fallbackLabel) {
           <small>ativos</small>
         </div>
         <div class="analytics-manager-card">
-          <span>Usuários</span>
-          <strong>${number.format(month.activeUsers || 0)}</strong>
+          <span>Visitantes únicos</span>
+          <strong>${number.format(month.totalUsers ?? month.activeUsers ?? 0)}</strong>
           <small>${number.format(month.sessions || 0)} sessões</small>
         </div>
         <div class="analytics-manager-card">
