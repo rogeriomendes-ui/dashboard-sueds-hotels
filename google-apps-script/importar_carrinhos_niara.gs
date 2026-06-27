@@ -2,6 +2,8 @@ const NIARA_IMPORT_SHEET = "Importar_Niara";
 const NIARA_TARGET_SHEET = "Recuperação de carrinhos";
 const ASKSUITE_IMPORT_SHEET = "Importar_Asksuite";
 const ASKSUITE_TARGET_SHEET = "Asksuite_Atendimentos";
+const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
+const TEAM_INPUT_BACKGROUND = "#d9eaf7";
 
 const NIARA_SOURCE_HEADERS = [
   "ID",
@@ -49,6 +51,8 @@ function onOpen() {
     .createMenu("SUEDS Dashboard")
     .addItem("Importar carrinhos da aba Importar_Niara", "importarCarrinhosNiara")
     .addItem("Importar Asksuite da aba Importar_Asksuite", "importarAsksuite")
+    .addSeparator()
+    .addItem("Proteger aba de carrinhos", "protegerAbaCarrinhos")
     .addToUi();
 }
 
@@ -116,6 +120,7 @@ function importarCarrinhosNiara() {
   });
 
   sortNiaraTargetByAbandonDate_(targetSheet);
+  protectNiaraTargetSheet_(targetSheet);
 
   ui.alert(
     "Importacao concluida.\n\n" +
@@ -123,6 +128,24 @@ function importarCarrinhosNiara() {
     `Atualizadas: ${updated}\n` +
     `Inseridas: ${inserted}\n\n` +
     "As colunas R:U foram preservadas."
+  );
+}
+
+function protegerAbaCarrinhos() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActive();
+  const targetSheet = spreadsheet.getSheetByName(NIARA_TARGET_SHEET);
+
+  if (!targetSheet) {
+    ui.alert(`Aba ${NIARA_TARGET_SHEET} nao encontrada.`);
+    return;
+  }
+
+  protectNiaraTargetSheet_(targetSheet);
+  ui.alert(
+    "Protecao aplicada.\n\n" +
+    "Apenas as colunas R, S, T e U ficaram liberadas para preenchimento do time.\n\n" +
+    "Observacao: Google Sheets nao usa senha em protecao de celulas; a senha SuedsGestores2026! fica como referencia operacional."
   );
 }
 
@@ -236,6 +259,23 @@ function importarAsksuite() {
 
 function ensureTargetHeaders_(sheet) {
   sheet.getRange(1, 1, 1, NIARA_TARGET_HEADERS.length).setValues([NIARA_TARGET_HEADERS]);
+}
+
+function protectNiaraTargetSheet_(sheet) {
+  const lastRow = Math.max(sheet.getMaxRows(), 1000);
+  const inputRange = sheet.getRange(2, 18, lastRow - 1, 4);
+
+  sheet.getRange(2, 18, lastRow - 1, 4).setBackground(TEAM_INPUT_BACKGROUND);
+  sheet.getRange(1, 18, 1, 4).setBackground("#9fc5e8").setFontWeight("bold");
+
+  sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET)
+    .filter((protection) => protection.getDescription() === SHEET_PROTECTION_NOTE)
+    .forEach((protection) => protection.remove());
+
+  const protection = sheet.protect();
+  protection.setDescription(SHEET_PROTECTION_NOTE);
+  protection.setWarningOnly(false);
+  protection.setUnprotectedRanges([inputRange]);
 }
 
 function sortNiaraTargetByAbandonDate_(sheet) {
