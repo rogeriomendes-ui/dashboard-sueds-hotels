@@ -152,58 +152,18 @@ async function batchUpdate(data) {
   return response.json();
 }
 
-async function getSpreadsheetMetadata() {
-  if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado.");
-  const token = await getAccessToken();
-  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`);
-  url.searchParams.set("fields", "sheets(properties(sheetId,title))");
-  const response = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` }
-  });
-  if (!response.ok) throw new Error(`Sheets metadata falhou: ${response.status} ${await response.text()}`);
-  return response.json();
-}
-
-async function spreadsheetBatchUpdate(requests) {
-  if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado.");
-  const token = await getAccessToken();
-  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`);
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ requests })
-  });
-  if (!response.ok) throw new Error(`Sheets spreadsheet batchUpdate falhou: ${response.status} ${await response.text()}`);
-  return response.json();
-}
-
-async function getSheetIdByName(sheetName) {
-  const metadata = await getSpreadsheetMetadata();
-  const sheet = (metadata.sheets || []).find((item) => item.properties?.title === sheetName);
-  if (!sheet) throw new Error(`Aba nao encontrada: ${sheetName}`);
-  return sheet.properties.sheetId;
-}
-
 async function sortTargetSheetByAbandonDate(rowCount) {
   if (rowCount <= 2) return;
-  const sheetId = await getSheetIdByName(SHEET_NAME);
-  await spreadsheetBatchUpdate([
-    {
-      sortRange: {
-        range: {
-          sheetId,
-          startRowIndex: 1,
-          endRowIndex: rowCount,
-          startColumnIndex: 0,
-          endColumnIndex: TARGET_HEADERS.length
-        },
-        sortSpecs: [{ dimensionIndex: 1, sortOrder: "ASCENDING" }]
-      }
-    }
-  ]);
+  const values = (await sheetsValues("GET", READ_RANGE)).values || [];
+  const bodyRows = values
+    .slice(1)
+    .map((row) => padRow(row, TARGET_HEADERS.length))
+    .filter((row) => row.some((cell) => normalizeText(cell)));
+
+  if (bodyRows.length <= 1) return;
+
+  bodyRows.sort((a, b) => parseNiaraDateTime(a[1]) - parseNiaraDateTime(b[1]));
+  await sheetsValues("PUT", `'${SHEET_NAME}'!A2:U${bodyRows.length + 1}`, { values: bodyRows });
 }
 
 function readNiaraWorkbook(filePath) {
@@ -293,6 +253,27 @@ function firstAppendRow(rows) {
 
 function padRow(row, length) {
   return [...row, ...Array(Math.max(0, length - row.length)).fill("")].slice(0, length);
+}
+
+function parseNiaraDateTime(value) {
+  if (typeof value === "number") {
+    return new Date(Date.UTC(1899, 11, 30 + value)).getTime();
+  }
+
+  const text = normalizeText(value);
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (br) {
+    return new Date(
+      Number(br[3]),
+      Number(br[2]) - 1,
+      Number(br[1]),
+      Number(br[4] || 0),
+      Number(br[5] || 0)
+    ).getTime();
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
 async function main() {

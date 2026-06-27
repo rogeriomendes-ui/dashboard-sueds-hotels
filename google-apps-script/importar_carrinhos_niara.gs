@@ -241,9 +241,31 @@ function ensureTargetHeaders_(sheet) {
 function sortNiaraTargetByAbandonDate_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 2) return;
-  sheet
-    .getRange(2, 1, lastRow - 1, NIARA_TARGET_HEADERS.length)
-    .sort({ column: 2, ascending: true });
+  const range = sheet.getRange(2, 1, lastRow - 1, NIARA_TARGET_HEADERS.length);
+  const rows = range.getValues();
+  rows.sort((a, b) => parseNiaraDateTime_(a[1]) - parseNiaraDateTime_(b[1]));
+  range.setValues(rows);
+}
+
+function parseNiaraDateTime_(value) {
+  if (Object.prototype.toString.call(value) === "[object Date]" && !isNaN(value.getTime())) {
+    return value.getTime();
+  }
+
+  const text = String(value || "").trim();
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (br) {
+    return new Date(
+      Number(br[3]),
+      Number(br[2]) - 1,
+      Number(br[1]),
+      Number(br[4] || 0),
+      Number(br[5] || 0)
+    ).getTime();
+  }
+
+  const parsed = new Date(text);
+  return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
 function ensureAsksuiteHeaders_(sheet) {
