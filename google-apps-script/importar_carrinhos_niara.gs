@@ -52,6 +52,7 @@ function onOpen() {
     .addItem("Importar carrinhos da aba Importar_Niara", "importarCarrinhosNiara")
     .addItem("Importar Asksuite da aba Importar_Asksuite", "importarAsksuite")
     .addSeparator()
+    .addItem("Ordenar carrinhos do mais antigo ao mais recente", "ordenarCarrinhosAntigoRecente")
     .addItem("Proteger aba de carrinhos", "protegerAbaCarrinhos")
     .addToUi();
 }
@@ -147,6 +148,20 @@ function protegerAbaCarrinhos() {
     "Apenas as colunas R, S, T e U ficaram liberadas para preenchimento do time.\n\n" +
     "Observacao: Google Sheets nao usa senha em protecao de celulas; a senha SuedsGestores2026! fica como referencia operacional."
   );
+}
+
+function ordenarCarrinhosAntigoRecente() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActive();
+  const targetSheet = spreadsheet.getSheetByName(NIARA_TARGET_SHEET);
+
+  if (!targetSheet) {
+    ui.alert(`Aba ${NIARA_TARGET_SHEET} nao encontrada.`);
+    return;
+  }
+
+  sortNiaraTargetByAbandonDate_(targetSheet);
+  ui.alert("Carrinhos ordenados do mais antigo para o mais recente.");
 }
 
 function importarAsksuite() {
