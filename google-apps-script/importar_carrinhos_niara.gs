@@ -115,6 +115,8 @@ function importarCarrinhosNiara() {
     else inserted += 1;
   });
 
+  sortNiaraTargetByAbandonDate_(targetSheet);
+
   ui.alert(
     "Importacao concluida.\n\n" +
     `Lidas: ${sourceRows.length}\n` +
@@ -234,6 +236,14 @@ function importarAsksuite() {
 
 function ensureTargetHeaders_(sheet) {
   sheet.getRange(1, 1, 1, NIARA_TARGET_HEADERS.length).setValues([NIARA_TARGET_HEADERS]);
+}
+
+function sortNiaraTargetByAbandonDate_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 2) return;
+  sheet
+    .getRange(2, 1, lastRow - 1, NIARA_TARGET_HEADERS.length)
+    .sort({ column: 2, ascending: true });
 }
 
 function ensureAsksuiteHeaders_(sheet) {

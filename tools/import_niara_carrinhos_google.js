@@ -152,6 +152,60 @@ async function batchUpdate(data) {
   return response.json();
 }
 
+async function getSpreadsheetMetadata() {
+  if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado.");
+  const token = await getAccessToken();
+  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`);
+  url.searchParams.set("fields", "sheets(properties(sheetId,title))");
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error(`Sheets metadata falhou: ${response.status} ${await response.text()}`);
+  return response.json();
+}
+
+async function spreadsheetBatchUpdate(requests) {
+  if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado.");
+  const token = await getAccessToken();
+  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ requests })
+  });
+  if (!response.ok) throw new Error(`Sheets spreadsheet batchUpdate falhou: ${response.status} ${await response.text()}`);
+  return response.json();
+}
+
+async function getSheetIdByName(sheetName) {
+  const metadata = await getSpreadsheetMetadata();
+  const sheet = (metadata.sheets || []).find((item) => item.properties?.title === sheetName);
+  if (!sheet) throw new Error(`Aba nao encontrada: ${sheetName}`);
+  return sheet.properties.sheetId;
+}
+
+async function sortTargetSheetByAbandonDate(rowCount) {
+  if (rowCount <= 2) return;
+  const sheetId = await getSheetIdByName(SHEET_NAME);
+  await spreadsheetBatchUpdate([
+    {
+      sortRange: {
+        range: {
+          sheetId,
+          startRowIndex: 1,
+          endRowIndex: rowCount,
+          startColumnIndex: 0,
+          endColumnIndex: TARGET_HEADERS.length
+        },
+        sortSpecs: [{ dimensionIndex: 1, sortOrder: "ASCENDING" }]
+      }
+    }
+  ]);
+}
+
 function readNiaraWorkbook(filePath) {
   if (!fs.existsSync(filePath)) throw new Error(`Arquivo nao encontrado: ${filePath}`);
   if (!fs.existsSync(PYTHON)) throw new Error(`Python nao encontrado: ${PYTHON}`);
@@ -290,7 +344,8 @@ async function main() {
   }
 
   const result = await batchUpdate(updates);
-  console.log(JSON.stringify({ ...summary, updatedCells: result.totalUpdatedCells || 0 }, null, 2));
+  await sortTargetSheetByAbandonDate(Math.max(appendRow - 1, currentRows.length));
+  console.log(JSON.stringify({ ...summary, updatedCells: result.totalUpdatedCells || 0, sortedBy: "B asc" }, null, 2));
 }
 
 main().catch((error) => {
