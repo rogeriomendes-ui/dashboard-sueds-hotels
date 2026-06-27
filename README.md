@@ -38,8 +38,10 @@ Depois abra:
 
 - TV vendas: `http://localhost:3000/dashboard-tv.html`
 - Gestores: `http://localhost:3000/dashboard-gestores.html`
+- TV operacional: `http://localhost:3000/dashboard-operacional-tv.html`
 - API TV: `http://localhost:3000/api/dashboard/tv`
 - API gestores: `http://localhost:3000/api/dashboard/gestores`
+- API TV operacional: `http://localhost:3000/api/operacional/tv`
 
 Sem credenciais do Google, o servidor roda com dados demo.
 
@@ -77,6 +79,39 @@ GOOGLE_ANALYTICS_OMNIBEES_PROPERTY_ID=390878878
 ```
 
 Na TV, o painel exibe separadamente o site institucional e o motor Omnibees, com usuários ativos em tempo real, página principal e origem principal, sem valores financeiros. Na visão gestores, exibe também usuários, sessões, visualizações e listas de páginas/origens do mês para as duas propriedades.
+
+## Conectar ao Google Ads
+
+1. Crie ou use uma conta de administrador Google Ads.
+2. Vincule a conta anunciante `730-040-1572 GRUPO SUEDS` nessa conta de administrador.
+3. Na conta administradora, abra a `Central de API` e copie o `Developer Token`.
+4. No Google Cloud, ative a `Google Ads API`.
+5. Em `APIs e servicos` > `Credenciais`, crie um `ID do cliente OAuth` do tipo `App para computador`.
+6. Configure no `.env`:
+
+```text
+GOOGLE_ADS_CUSTOMER_ID=7300401572
+GOOGLE_ADS_LOGIN_CUSTOMER_ID=4545711374
+GOOGLE_ADS_DEVELOPER_TOKEN=COLE_O_DEVELOPER_TOKEN_AQUI
+GOOGLE_ADS_CLIENT_ID=COLE_O_CLIENT_ID_OAUTH_AQUI
+GOOGLE_ADS_CLIENT_SECRET=COLE_O_CLIENT_SECRET_OAUTH_AQUI
+```
+
+7. Gere o refresh token:
+
+```powershell
+npm run googleads:token
+```
+
+Abra o link exibido no terminal, autorize com o usuario que acessa o Google Ads e copie o valor `GOOGLE_ADS_REFRESH_TOKEN` retornado para o `.env` local e para as variaveis de ambiente da Vercel.
+
+No Windows, se o `npm` nao estiver disponivel, use duplo clique no arquivo `Gerar token Google Ads.bat`.
+
+Se o navegador mostrar `127.0.0.1 refused to connect` depois da autorizacao, copie a URL inteira da barra do navegador e rode:
+
+```powershell
+& "C:\Users\roger\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe" tools\google_ads_oauth_token.js --url "COLE_A_URL_INTEIRA_AQUI"
+```
 
 ## Importar carrinhos abandonados da Niara
 
@@ -156,3 +191,41 @@ npm run import:asksuite -- "C:\Users\roger\Downloads\por_atendente_23_06_2026_21
 ```
 
 O importador cria/atualiza a aba `Asksuite_Atendimentos`, usa `Data + Atendente` como chave e ignora atendentes que nao fazem parte dos quatro vendedores do painel.
+
+## Dashboard operacional: opiniarios
+
+O dashboard operacional começa pelo fluxo de opiniarios em papel:
+
+1. Cada hotel fotografa o opiniario recebido na recepcao.
+2. A foto entra em uma pasta do Google Drive.
+3. Um Apps Script cria registros nas abas `Opinarios` e `Revisao_Opinarios`.
+4. A etapa de IA de visao preenche os campos estruturados e envia excecoes para revisao.
+5. O dashboard operacional usa a planilha como fonte para as visoes de gestores e TV.
+
+Arquivos de referencia:
+
+- `OPERACIONAL_OPINARIOS.md`: desenho do fluxo, abas e indicadores.
+- `google-apps-script/operacional_opinarios_drive.gs`: primeiro script para preparar abas e processar fotos novas do Drive.
+
+Para instalar:
+
+1. Crie a planilha `Dashboard Operacional SUEDS`.
+2. Abra `Extensoes` > `Apps Script`.
+3. Cole o conteudo de `google-apps-script/operacional_opinarios_drive.gs`.
+4. Salve e recarregue a planilha.
+5. No menu `SUEDS Operacional`, clique em `Preparar abas de opiniarios`.
+6. Confira a aba `Hoteis_Operacional`, que ja nasce com os 5 hoteis atuais e `Casas Sueds Arraial`.
+7. Na aba `Config_Operacional`, preencha `OPINARIOS_SOURCE_FOLDER_ID` com o ID da pasta do Drive onde entram as fotos.
+8. No menu `SUEDS Operacional`, clique em `Configurar OpenAI API Key` e cole a chave da OpenAI.
+9. Rode `Processar novas fotos do Drive` para testar.
+
+O script usa a OpenAI Responses API com entrada de imagem (`input_image`) em Base64 e resposta em JSON. A chave fica nas Propriedades do Script, nao na planilha.
+
+Para o dashboard operacional ler a planilha, configure:
+
+```text
+GOOGLE_OPERATIONAL_SHEET_ID=ID_DA_PLANILHA_DASHBOARD_OPERACIONAL_SUEDS
+GOOGLE_OPINIONS_RANGE=Opinarios!A:AG
+```
+
+A primeira TV operacional fica em `dashboard-operacional-tv.html` e mostra um card por hotel, quantidade de opiniarios, nota media final e medias por bloco: Geral, Alimentos, Atendimento, Apartamento e Servicos.

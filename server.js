@@ -11,6 +11,8 @@ const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
+const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
+const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AG";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -32,6 +34,7 @@ const MIME_TYPES = {
 const tokenCache = new Map();
 let dataCache = { expiresAt: 0, payload: null };
 let analyticsCache = { expiresAt: 0, payload: null };
+let operationalCache = { expiresAt: 0, payload: null };
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -161,9 +164,9 @@ async function getAccessToken(scope = "https://www.googleapis.com/auth/spreadshe
   return payload.access_token;
 }
 
-async function getSheetValues(range) {
+async function getSheetValues(range, sheetId = SHEET_ID) {
   const token = await getAccessToken("https://www.googleapis.com/auth/spreadsheets.readonly");
-  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`);
+  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`);
   url.searchParams.set("majorDimension", "ROWS");
   url.searchParams.set("valueRenderOption", "UNFORMATTED_VALUE");
   url.searchParams.set("dateTimeRenderOption", "FORMATTED_STRING");
@@ -449,6 +452,19 @@ function rowsToObjects(rows, options = {}) {
       }
       return item["Data Venda"] || item["Codigo Reserva"] || item["Valor Total"];
     });
+}
+
+function rowsToObjectsAny(rows) {
+  const [headers = [], ...body] = rows;
+  return body
+    .map((row) => {
+      const item = {};
+      headers.forEach((header, index) => {
+        if (header) item[String(header).trim()] = row[index] ?? "";
+      });
+      return item;
+    })
+    .filter((item) => Object.values(item).some((value) => value !== ""));
 }
 
 function parseNumber(value) {
@@ -1021,6 +1037,208 @@ function buildTvPayload(metrics) {
   };
 }
 
+const OPERATIONAL_RATING_FIELDS = [
+  { key: "generalImpression", header: "Impressao Geral", block: "Geral" },
+  { key: "apartmentLevel", header: "Nivel Apartamentos", block: "Geral" },
+  { key: "foodBreakfast", header: "Alimentos Cafe da Manha", block: "Alimentos" },
+  { key: "foodPoolBar", header: "Alimentos Bar da Piscina", block: "Alimentos" },
+  { key: "foodDinner", header: "Alimentos Jantar", block: "Alimentos" },
+  { key: "serviceBreakfast", header: "Atendimento Cafe da Manha", block: "Atendimento" },
+  { key: "servicePoolBar", header: "Atendimento Bar da Piscina", block: "Atendimento" },
+  { key: "serviceDinner", header: "Atendimento Jantar", block: "Atendimento" },
+  { key: "roomCleaning", header: "Apartamento Limpeza Diaria", block: "Apartamento" },
+  { key: "roomComfort", header: "Apartamento Conforto Geral", block: "Apartamento" },
+  { key: "roomEquipment", header: "Apartamento Equipamentos", block: "Apartamento" },
+  { key: "frontDesk", header: "Servicos Recepcao", block: "Serviços" },
+  { key: "generalService", header: "Servicos Atendimento", block: "Serviços" },
+  { key: "externalArea", header: "Servicos Area Externa", block: "Serviços" },
+  { key: "pool", header: "Servicos Piscina", block: "Serviços" }
+];
+
+const OPERATIONAL_BLOCKS = ["Geral", "Alimentos", "Atendimento", "Apartamento", "Serviços"];
+
+function ratingScore(value) {
+  const key = comparableKey(value);
+  if (!key) return null;
+  if (key === "excelente" || key === "otimo") return 100;
+  if (key === "muito bom") return 85;
+  if (key === "bom") return 70;
+  if (key === "regular") return 40;
+  return null;
+}
+
+function operationalStatus(score) {
+  if (score === null || score === undefined) return "sem_dados";
+  if (score >= 90) return "excelente";
+  if (score >= 75) return "bom";
+  if (score >= 60) return "atencao";
+  return "critico";
+}
+
+function average(values) {
+  const valid = values.filter((value) => Number.isFinite(value));
+  if (!valid.length) return null;
+  return Math.round(valid.reduce((sumValue, value) => sumValue + value, 0) / valid.length);
+}
+
+function normalizeOperationalOpinion(item) {
+  const processedAt = parseDate(item["Data Processamento"]);
+  const fieldScores = {};
+  OPERATIONAL_RATING_FIELDS.forEach((field) => {
+    fieldScores[field.key] = ratingScore(item[field.header]);
+  });
+
+  return {
+    fileId: String(item["ID Arquivo"] || "").trim(),
+    processedAt,
+    dateKey: processedAt ? dateKey(processedAt) : "",
+    monthKey: processedAt ? monthKey(processedAt) : "",
+    hotel: String(item.Hotel || "Nao identificado").trim() || "Nao identificado",
+    photoUrl: String(item["Link Foto"] || "").trim(),
+    guestName: String(item["Nome Hospede"] || "").trim(),
+    apartment: String(item.Apartamento || "").trim(),
+    highlights: String(item.Destaques || "").trim(),
+    issues: String(item["Problemas Identificados"] || "").trim(),
+    status: String(item.Status || "").trim(),
+    confidence: parseDecimalNumber(item["Confianca %"]),
+    fieldScores
+  };
+}
+
+function summarizeOperationalHotel(hotel, opinions) {
+  const blockScores = OPERATIONAL_BLOCKS.map((block) => {
+    const scores = [];
+    opinions.forEach((opinion) => {
+      OPERATIONAL_RATING_FIELDS
+        .filter((field) => field.block === block)
+        .forEach((field) => {
+          const score = opinion.fieldScores[field.key];
+          if (Number.isFinite(score)) scores.push(score);
+        });
+    });
+    const score = average(scores);
+    return {
+      label: block,
+      score,
+      answered: scores.length,
+      status: operationalStatus(score)
+    };
+  });
+
+  const allScores = [];
+  opinions.forEach((opinion) => {
+    Object.values(opinion.fieldScores).forEach((score) => {
+      if (Number.isFinite(score)) allScores.push(score);
+    });
+  });
+
+  const finalScore = average(allScores);
+  const recentHighlights = opinions
+    .map((opinion) => opinion.highlights)
+    .filter(Boolean)
+    .slice(-2);
+  const recentIssues = opinions
+    .map((opinion) => opinion.issues)
+    .filter(Boolean)
+    .slice(-2);
+
+  return {
+    hotel,
+    opinions: opinions.length,
+    answeredItems: allScores.length,
+    finalScore,
+    status: operationalStatus(finalScore),
+    blocks: blockScores,
+    highlights: recentHighlights,
+    issues: recentIssues
+  };
+}
+
+function demoOperationalOpinions() {
+  const today = new Date();
+  const demo = [
+    { hotel: "SUEDS CABRALIA", geral: 70, alimentos: 70, atendimento: 100, apartamento: 40, servicos: 70, highlights: "Ótimo atendimento.", issues: "Limpeza do apartamento precisa atenção." },
+    { hotel: "SUEDS CABRALIA", geral: 85, alimentos: 70, atendimento: 85, apartamento: 70, servicos: 70, highlights: "Funcionários atenciosos.", issues: "" },
+    { hotel: "SUEDS TRANCOSO", geral: 100, alimentos: 85, atendimento: 100, apartamento: 85, servicos: 100, highlights: "Equipe muito elogiada.", issues: "" },
+    { hotel: "SUEDS TRANCOSO", geral: 70, alimentos: 70, atendimento: 70, apartamento: 70, servicos: 70, highlights: "", issues: "Acompanhar manutenção preventiva." }
+  ];
+
+  return demo.map((item, index) => {
+    const blockValues = {
+      Geral: item.geral,
+      Alimentos: item.alimentos,
+      Atendimento: item.atendimento,
+      Apartamento: item.apartamento,
+      Serviços: item.servicos
+    };
+    const fieldScores = {};
+    OPERATIONAL_RATING_FIELDS.forEach((field) => {
+      fieldScores[field.key] = blockValues[field.block];
+    });
+    return {
+      fileId: `demo-${index + 1}`,
+      processedAt: today,
+      dateKey: dateKey(today),
+      monthKey: monthKey(today),
+      hotel: item.hotel,
+      photoUrl: "",
+      guestName: "",
+      apartment: "",
+      highlights: item.highlights,
+      issues: item.issues,
+      status: "Demo",
+      confidence: 80,
+      fieldScores
+    };
+  });
+}
+
+async function loadOperationalOpinions() {
+  if (operationalCache.payload && Date.now() < operationalCache.expiresAt) {
+    return operationalCache.payload;
+  }
+
+  let opinions;
+  if (!OPERATIONAL_SHEET_ID || !getServiceAccount()) {
+    opinions = demoOperationalOpinions();
+  } else {
+    const rows = await getSheetValues(OPINIONS_RANGE, OPERATIONAL_SHEET_ID);
+    opinions = rowsToObjectsAny(rows).map(normalizeOperationalOpinion);
+  }
+
+  operationalCache = { payload: opinions, expiresAt: Date.now() + CACHE_TTL_MS };
+  return opinions;
+}
+
+async function buildOperationalTvPayload(period = {}) {
+  const opinions = await loadOperationalOpinions();
+  const month = period.month || todayKey().slice(0, 7);
+  const monthOpinions = opinions.filter((opinion) => !opinion.monthKey || opinion.monthKey === month);
+  const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
+    .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
+    .sort((a, b) => b.opinions - a.opinions || a.hotel.localeCompare(b.hotel));
+
+  const allScores = [];
+  monthOpinions.forEach((opinion) => {
+    Object.values(opinion.fieldScores).forEach((score) => {
+      if (Number.isFinite(score)) allScores.push(score);
+    });
+  });
+
+  return {
+    audience: "tv-operacional",
+    generatedAt: new Date().toISOString(),
+    period: { month },
+    summary: {
+      opinions: monthOpinions.length,
+      hotels: hotels.length,
+      finalScore: average(allScores),
+      status: operationalStatus(average(allScores))
+    },
+    hotels
+  };
+}
+
 function demoDataset() {
   const today = todayKey();
   const month = today.slice(0, 7);
@@ -1168,6 +1386,7 @@ async function handleRequest(req, res) {
         analyticsConfigured: Boolean((GA4_SITE_PROPERTY_ID || GA4_OMNIBEES_PROPERTY_ID) && getServiceAccount()),
         analyticsSiteConfigured: Boolean(GA4_SITE_PROPERTY_ID && getServiceAccount()),
         analyticsOmnibeesConfigured: Boolean(GA4_OMNIBEES_PROPERTY_ID && getServiceAccount()),
+        operationalConfigured: Boolean((OPERATIONAL_SHEET_ID || SHEET_ID) && getServiceAccount()),
         supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
         gestoresProtected: Boolean(GESTORES_ACCESS_TOKEN),
         cacheTtlSeconds: CACHE_TTL_MS / 1000
@@ -1199,6 +1418,10 @@ async function handleRequest(req, res) {
     if (url.pathname === "/api/dashboard/tv") {
       const metrics = await loadMetrics(periodFromUrl(url));
       return json(res, 200, buildTvPayload(metrics));
+    }
+
+    if (url.pathname === "/api/operacional/tv") {
+      return json(res, 200, await buildOperationalTvPayload(periodFromUrl(url)));
     }
 
     return serveStatic(req, res);

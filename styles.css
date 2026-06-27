@@ -57,6 +57,28 @@ body {
   margin-left: auto;
 }
 
+.nav-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 58px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.nav-link-button:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--cyan);

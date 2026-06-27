@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUEDS Hotels | TV Operacional</title>
+    <link rel="stylesheet" href="operacional-tv.css">
+  </head>
+  <body>
+    <main class="operational-shell">
+      <header class="operational-topbar">
+        <div>
+          <p>Operacional</p>
+          <h1>Experiência dos Hóspedes</h1>
+        </div>
+        <section class="summary-strip" aria-label="Resumo operacional">
+          <div>
+            <span>Nota média</span>
+            <strong id="summaryScore">--%</strong>
+          </div>
+          <div>
+            <span>Opiniários</span>
+            <strong id="summaryOpinions">0</strong>
+          </div>
+          <div>
+            <span>Hotéis</span>
+            <strong id="summaryHotels">0</strong>
+          </div>
+        </section>
+        <div class="header-actions">
+          <a class="nav-link-button" href="dashboard-gestores.html">Gestores</a>
+          <label class="month-control" for="monthSelect">
+            <span>Mês</span>
+            <select id="monthSelect"></select>
+          </label>
+          <div class="status-pill">
+            <span></span>
+            <strong id="lastUpdate">Atualizando...</strong>
+          </div>
+        </div>
+      </header>
+
+      <section id="hotelGrid" class="hotel-grid" aria-label="Avaliações por hotel"></section>
+    </main>
+
+    <script src="operacional-tv.js"></script>
+  </body>
+</html>
