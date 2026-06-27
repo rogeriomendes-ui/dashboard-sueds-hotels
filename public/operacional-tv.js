@@ -81,12 +81,13 @@ function blockRow(block) {
 function hotelCard(hotel) {
   const score = cssScore(hotel.finalScore);
   const color = scoreColor(hotel.finalScore);
+  const hasData = (hotel.opinions || 0) > 0;
   return `
-    <article class="hotel-card">
+    <article class="hotel-card ${hasData ? "" : "hotel-card-empty"}">
       <div class="hotel-card-header">
         <div>
           <h2>${escapeHtml(hotel.hotel)}</h2>
-          <small>${integer.format(hotel.opinions || 0)} opiniários | ${integer.format(hotel.answeredItems || 0)} itens avaliados</small>
+          <small>${hasData ? `${integer.format(hotel.opinions || 0)} opiniários | ${integer.format(hotel.answeredItems || 0)} itens avaliados` : "Sem opiniários no mês"}</small>
         </div>
         <div class="score-badge" style="--score:${score}; --score-color:${color}">
           <strong>${formatScore(hotel.finalScore)}</strong>

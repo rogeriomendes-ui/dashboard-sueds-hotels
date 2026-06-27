@@ -158,6 +158,15 @@ body {
   color: var(--text);
 }
 
+.hotel-card-empty {
+  opacity: 0.74;
+}
+
+.hotel-card-empty .score-badge,
+.hotel-card-empty .bar {
+  filter: grayscale(1);
+}
+
 .hotel-card-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

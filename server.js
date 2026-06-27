@@ -1056,6 +1056,14 @@ const OPERATIONAL_RATING_FIELDS = [
 ];
 
 const OPERATIONAL_BLOCKS = ["Geral", "Alimentos", "Atendimento", "Apartamento", "Serviços"];
+const OPERATIONAL_HOTEL_ORDER = [
+  "SUEDS CABRALIA",
+  "SUEDS SEGUNDO SOL",
+  "SUEDS PLAZA",
+  "SUEDS PREMIUM",
+  "SUEDS TRANCOSO",
+  "CASAS SUEDS ARRAIAL"
+];
 
 function ratingScore(value) {
   const key = comparableKey(value);
@@ -1154,6 +1162,24 @@ function summarizeOperationalHotel(hotel, opinions) {
   };
 }
 
+function emptyOperationalHotel(hotel) {
+  return {
+    hotel,
+    opinions: 0,
+    answeredItems: 0,
+    finalScore: null,
+    status: "sem_dados",
+    blocks: OPERATIONAL_BLOCKS.map((block) => ({
+      label: block,
+      score: null,
+      answered: 0,
+      status: "sem_dados"
+    })),
+    highlights: [],
+    issues: []
+  };
+}
+
 function demoOperationalOpinions() {
   const today = new Date();
   const demo = [
@@ -1217,6 +1243,13 @@ async function buildOperationalTvPayload(period = {}) {
   const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
     .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
     .sort((a, b) => b.opinions - a.opinions || a.hotel.localeCompare(b.hotel));
+  const hotelsByName = new Map(hotels.map((hotel) => [comparableKey(hotel.hotel), hotel]));
+  const orderedHotels = OPERATIONAL_HOTEL_ORDER.map((hotel) => hotelsByName.get(comparableKey(hotel)) || emptyOperationalHotel(hotel));
+  hotels.forEach((hotel) => {
+    if (!OPERATIONAL_HOTEL_ORDER.some((name) => comparableKey(name) === comparableKey(hotel.hotel))) {
+      orderedHotels.push(hotel);
+    }
+  });
 
   const allScores = [];
   monthOpinions.forEach((opinion) => {
@@ -1231,11 +1264,12 @@ async function buildOperationalTvPayload(period = {}) {
     period: { month },
     summary: {
       opinions: monthOpinions.length,
-      hotels: hotels.length,
+      hotels: orderedHotels.length,
+      evaluatedHotels: hotels.filter((hotel) => hotel.opinions > 0).length,
       finalScore: average(allScores),
       status: operationalStatus(average(allScores))
     },
-    hotels
+    hotels: orderedHotels
   };
 }
 
