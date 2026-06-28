@@ -38,9 +38,11 @@ Depois abra:
 
 - TV vendas: `http://localhost:3000/dashboard-tv.html`
 - Gestores: `http://localhost:3000/dashboard-gestores.html`
+- Inteligência de Mercado: `http://localhost:3000/dashboard-inteligencia-mercado.html`
 - TV operacional: `http://localhost:3000/dashboard-operacional-tv.html`
 - API TV: `http://localhost:3000/api/dashboard/tv`
 - API gestores: `http://localhost:3000/api/dashboard/gestores`
+- API inteligência de mercado: `http://localhost:3000/api/inteligencia/mercado`
 - API TV operacional: `http://localhost:3000/api/operacional/tv`
 
 Sem credenciais do Google, o servidor roda com dados demo.

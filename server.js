@@ -1273,6 +1273,268 @@ async function buildOperationalTvPayload(period = {}) {
   };
 }
 
+function marketComparable(value) {
+  return String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function marketGroupBy(rows, keyFn) {
+  const map = new Map();
+  rows.forEach((row) => {
+    const key = keyFn(row);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+  });
+  return map;
+}
+
+function marketSum(rows, key) {
+  return rows.reduce((total, row) => total + Number(row[key] || 0), 0);
+}
+
+function marketPct(part, total) {
+  return total ? (part / total) * 100 : 0;
+}
+
+function marketSafeDiv(part, total) {
+  return total ? part / total : 0;
+}
+
+function marketRound(value, digits = 1) {
+  const factor = 10 ** digits;
+  return Math.round(Number(value || 0) * factor) / factor;
+}
+
+function marketDateRangeForMonth(month) {
+  const safeMonth = /^\d{4}-\d{2}$/.test(month || "") ? month : todayKey().slice(0, 7);
+  return {
+    month: safeMonth,
+    startDate: `${safeMonth}-01`,
+    endDate: `${safeMonth}-${String(daysInMonth(safeMonth)).padStart(2, "0")}`
+  };
+}
+
+function demoMarketRows(month) {
+  const rows = [
+    ["BA", "73", "SUEDS Segundo Sol", "Central de Reservas", "Google Search Institucional", "Google Ads", "Pesquisa", "Mobile", 1380, 610, 192, 124, 446320, 18200, 0],
+    ["BA", "73", "SUEDS Cabralia", "Site", "Stories Junho Porto Seguro", "Meta Ads", "Social", "Mobile", 980, 410, 132, 87, 241120, 0, 8900],
+    ["BA", "71", "SUEDS Plaza", "Central de Reservas", "Google Search Marca", "Google Ads", "Pesquisa", "Desktop", 520, 240, 77, 51, 142800, 7450, 0],
+    ["MG", "31", "SUEDS Premium", "Central de Reservas", "Google Search Destinos", "Google Ads", "Pesquisa", "Mobile", 460, 198, 48, 31, 98220, 6900, 0],
+    ["SP", "11", "SUEDS Segundo Sol", "Site", "Remarketing Motor", "Meta Ads", "Remarketing", "Mobile", 430, 160, 39, 24, 75600, 0, 5200],
+    ["RJ", "21", "SUEDS Cabralia", "Particular (Individual)", "Google Performance Max", "Google Ads", "Performance", "Mobile", 390, 136, 31, 19, 66950, 5850, 0],
+    ["ES", "27", "SUEDS Trancoso", "Central de Reservas", "Meta Praia Verão", "Meta Ads", "Social", "Mobile", 270, 92, 20, 11, 41200, 0, 2900],
+    ["GO", "62", "SUEDS Plaza", "Recepção", "Google Search Regional", "Google Ads", "Pesquisa", "Mobile", 210, 76, 15, 8, 25800, 2600, 0],
+    ["DF", "61", "SUEDS Premium", "Agência (Grupos)", "Campanha Grupos Julho", "Meta Ads", "Social", "Desktop", 185, 82, 12, 7, 39100, 0, 2100],
+    ["PE", "81", "SUEDS Trancoso", "Central de Reservas", "Google Search Nordeste", "Google Ads", "Pesquisa", "Mobile", 160, 62, 10, 5, 17900, 1800, 0]
+  ];
+
+  return rows.map((row, index) => ({
+    id: index + 1,
+    month,
+    state: row[0],
+    ddd: row[1],
+    hotel: row[2],
+    channel: row[3],
+    campaign: row[4],
+    source: row[5],
+    origin: row[6],
+    device: row[7],
+    dialogues: row[8],
+    quotes: row[9],
+    reservations: row[10],
+    sales: row[11],
+    revenue: row[12],
+    googleSpend: row[13],
+    metaSpend: row[14]
+  }));
+}
+
+function demoCompetitivenessRows(month) {
+  const base = marketDateRangeForMonth(month).startDate;
+  return [
+    { date: base, hotel: "SUEDS Segundo Sol", suedsPrice: 820, competitorAvg: 910, minCompetitor: 790, rank: 2, demand: "Alta", opportunity: "Alta demanda com preço competitivo", suggestion: "Testar aumento de 6% nas datas de fim de semana." },
+    { date: base, hotel: "SUEDS Cabralia", suedsPrice: 640, competitorAvg: 615, minCompetitor: 570, rank: 4, demand: "Média", opportunity: "Preço acima da média em janela sensível", suggestion: "Revisar tarifa ou reforçar diferenciais no anúncio." },
+    { date: base, hotel: "SUEDS Plaza", suedsPrice: 590, competitorAvg: 650, minCompetitor: 560, rank: 2, demand: "Alta", opportunity: "Boa posição para captar demanda regional", suggestion: "Manter tarifa e impulsionar canais de melhor ROAS." },
+    { date: base, hotel: "SUEDS Premium", suedsPrice: 720, competitorAvg: 705, minCompetitor: 650, rank: 3, demand: "Média", opportunity: "Concorrência próxima", suggestion: "Monitorar ocupação antes de elevar preço." },
+    { date: base, hotel: "SUEDS Trancoso", suedsPrice: 980, competitorAvg: 1120, minCompetitor: 930, rank: 2, demand: "Alta", opportunity: "Espaço para captura de margem", suggestion: "Subir 8% em datas de alta procura." },
+    { date: base, hotel: "Casas Sueds Arraial", suedsPrice: 1250, competitorAvg: 1190, minCompetitor: 1080, rank: 5, demand: "Planejada", opportunity: "Hotel em fase inicial de leitura", suggestion: "Acompanhar primeiras reservas antes de ajuste agressivo." }
+  ].map((row) => ({
+    ...row,
+    diffPct: marketPct(row.suedsPrice - row.competitorAvg, row.competitorAvg)
+  }));
+}
+
+function filterMarketRows(rows, filters) {
+  return rows.filter((row) => {
+    return (!filters.hotel || marketComparable(row.hotel) === marketComparable(filters.hotel))
+      && (!filters.state || marketComparable(row.state) === marketComparable(filters.state))
+      && (!filters.ddd || marketComparable(row.ddd) === marketComparable(filters.ddd))
+      && (!filters.channel || marketComparable(row.channel) === marketComparable(filters.channel))
+      && (!filters.campaign || marketComparable(row.campaign) === marketComparable(filters.campaign))
+      && (!filters.origin || marketComparable(row.origin) === marketComparable(filters.origin))
+      && (!filters.device || marketComparable(row.device) === marketComparable(filters.device));
+  });
+}
+
+function summarizeMarketGroup(label, rows) {
+  const dialogues = marketSum(rows, "dialogues");
+  const reservations = marketSum(rows, "reservations");
+  const sales = marketSum(rows, "sales");
+  const revenue = marketSum(rows, "revenue");
+  const spend = marketSum(rows, "googleSpend") + marketSum(rows, "metaSpend");
+  return {
+    label,
+    dialogues,
+    quotes: marketSum(rows, "quotes"),
+    reservations,
+    sales,
+    revenue,
+    spend,
+    conversion: marketRound(marketPct(sales, dialogues)),
+    reservationConversion: marketRound(marketPct(reservations, dialogues)),
+    ticketAverage: marketRound(marketSafeDiv(revenue, sales), 2),
+    costPerDialogue: marketRound(marketSafeDiv(spend, dialogues), 2),
+    costPerReservation: marketRound(marketSafeDiv(spend, reservations), 2),
+    costPerSale: marketRound(marketSafeDiv(spend, sales), 2),
+    roas: marketRound(marketSafeDiv(revenue, spend), 2),
+    opportunityIndex: Math.round(dialogues * (1 - marketSafeDiv(sales, dialogues)))
+  };
+}
+
+function rankedMarketGroups(rows, key, limit = 10) {
+  return [...marketGroupBy(rows, (row) => row[key] || "Nao informado").entries()]
+    .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
+    .sort((a, b) => b.opportunityIndex - a.opportunityIndex || b.dialogues - a.dialogues)
+    .slice(0, limit);
+}
+
+function selectValues(rows, key) {
+  return [...new Set(rows.map((row) => row[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+}
+
+function buildMarketIntelligencePayload(filters = {}) {
+  const { month } = marketDateRangeForMonth(filters.month);
+  const sourceRows = demoMarketRows(month);
+  const rows = filterMarketRows(sourceRows, filters);
+  const summary = summarizeMarketGroup("Total", rows);
+  const googleSpend = marketSum(rows, "googleSpend");
+  const metaSpend = marketSum(rows, "metaSpend");
+  const byState = rankedMarketGroups(rows, "state", 27);
+  const byDdd = rankedMarketGroups(rows, "ddd", 30);
+  const byHotel = rankedMarketGroups(rows, "hotel", 12);
+  const byChannel = rankedMarketGroups(rows, "channel", 12);
+  const byCampaign = rankedMarketGroups(rows, "campaign", 12);
+  const byOrigin = rankedMarketGroups(rows, "origin", 12);
+  const byStateDdd = [...marketGroupBy(rows, (row) => `${row.state} / ${row.ddd}`).entries()]
+    .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
+    .sort((a, b) => b.dialogues - a.dialogues);
+  const competitiveness = demoCompetitivenessRows(month)
+    .filter((row) => !filters.hotel || marketComparable(row.hotel) === marketComparable(filters.hotel));
+
+  return {
+    audience: "gestores-inteligencia-mercado",
+    generatedAt: new Date().toISOString(),
+    period: { month },
+    filters: {
+      selected: filters,
+      hotels: selectValues(sourceRows, "hotel"),
+      states: selectValues(sourceRows, "state"),
+      ddds: selectValues(sourceRows, "ddd"),
+      channels: selectValues(sourceRows, "channel"),
+      campaigns: selectValues(sourceRows, "campaign"),
+      origins: selectValues(sourceRows, "origin"),
+      devices: selectValues(sourceRows, "device")
+    },
+    summary: {
+      dialogues: summary.dialogues,
+      reservations: summary.reservations,
+      sales: summary.sales,
+      revenue: summary.revenue,
+      dialogueToSaleConversion: summary.conversion,
+      mediaSpend: googleSpend + metaSpend,
+      googleSpend,
+      metaSpend,
+      costPerDialogue: summary.costPerDialogue,
+      costPerReservation: summary.costPerReservation,
+      costPerSale: summary.costPerSale,
+      roas: summary.roas
+    },
+    demand: {
+      byState,
+      byDdd,
+      stateTable: byState.map((row) => ({
+        state: row.label,
+        dialogues: row.dialogues,
+        reservations: row.reservations,
+        sales: row.sales,
+        revenue: row.revenue,
+        conversion: row.conversion,
+        ticketAverage: row.ticketAverage
+      }))
+    },
+    conversion: {
+      funnel: [
+        { label: "Diálogos", value: summary.dialogues },
+        { label: "Cotações", value: summary.quotes },
+        { label: "Reservas", value: summary.reservations },
+        { label: "Vendas", value: summary.sales }
+      ],
+      byHotel,
+      byChannel,
+      byStateDdd
+    },
+    media: {
+      googleSpend,
+      metaSpend,
+      costPerDialogue: summary.costPerDialogue,
+      costPerReservation: summary.costPerReservation,
+      costPerSale: summary.costPerSale,
+      byCampaign,
+      byState: byState.map((row) => ({
+        state: row.label,
+        spend: row.spend,
+        revenue: row.revenue,
+        roas: row.roas
+      }))
+    },
+    competitiveness: {
+      rows: competitiveness,
+      alerts: competitiveness
+        .filter((row) => row.demand === "Alta" || Math.abs(row.diffPct) >= 8)
+        .map((row) => ({
+          hotel: row.hotel,
+          message: row.opportunity,
+          suggestion: row.suggestion
+        }))
+    },
+    opportunities: {
+      formula: "Oportunidade = Diálogos × (1 - Conversão de venda)",
+      byState,
+      byDdd,
+      byChannel,
+      byHotel,
+      byCampaign,
+      byOrigin
+    }
+  };
+}
+
+function marketFiltersFromUrl(url) {
+  return {
+    month: /^\d{4}-\d{2}$/.test(url.searchParams.get("month") || "") ? url.searchParams.get("month") : undefined,
+    hotel: url.searchParams.get("hotel") || "",
+    state: url.searchParams.get("state") || "",
+    ddd: url.searchParams.get("ddd") || "",
+    channel: url.searchParams.get("channel") || "",
+    campaign: url.searchParams.get("campaign") || "",
+    origin: url.searchParams.get("origin") || "",
+    device: url.searchParams.get("device") || ""
+  };
+}
+
 function demoDataset() {
   const today = todayKey();
   const month = today.slice(0, 7);
@@ -1456,6 +1718,11 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/operacional/tv") {
       return json(res, 200, await buildOperationalTvPayload(periodFromUrl(url)));
+    }
+
+    if (url.pathname === "/api/inteligencia/mercado") {
+      if (!hasManagerAccess(req, url)) return forbidden(res);
+      return json(res, 200, buildMarketIntelligencePayload(marketFiltersFromUrl(url)));
     }
 
     return serveStatic(req, res);

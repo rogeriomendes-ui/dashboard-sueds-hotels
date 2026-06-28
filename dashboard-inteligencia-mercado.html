@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUEDS Hotels | Inteligência de Mercado</title>
+    <link rel="stylesheet" href="inteligencia-mercado.css">
+  </head>
+  <body>
+    <main class="market-shell">
+      <header class="market-topbar">
+        <div>
+          <p class="eyebrow">Gestores</p>
+          <h1>Inteligência de Mercado</h1>
+          <span class="subtitle">Demanda, conversão, mídia paga e competitividade</span>
+        </div>
+        <nav class="market-nav" aria-label="Navegação de gestores">
+          <a href="dashboard-gestores.html">Comercial</a>
+          <a href="dashboard-operacional-tv.html">Operacional</a>
+        </nav>
+        <div class="status-pill">
+          <span class="live-dot"></span>
+          <span id="lastUpdate">Atualizando...</span>
+        </div>
+      </header>
+
+      <section class="filters-panel" aria-label="Filtros globais">
+        <label>
+          <span>Período</span>
+          <select id="monthSelect"></select>
+        </label>
+        <label>
+          <span>Hotel</span>
+          <select id="hotelSelect"></select>
+        </label>
+        <label>
+          <span>Estado</span>
+          <select id="stateSelect"></select>
+        </label>
+        <label>
+          <span>DDD</span>
+          <select id="dddSelect"></select>
+        </label>
+        <label>
+          <span>Canal</span>
+          <select id="channelSelect"></select>
+        </label>
+        <label>
+          <span>Campanha</span>
+          <select id="campaignSelect"></select>
+        </label>
+        <label>
+          <span>Origem</span>
+          <select id="originSelect"></select>
+        </label>
+        <label>
+          <span>Dispositivo</span>
+          <select id="deviceSelect"></select>
+        </label>
+      </section>
+
+      <section id="kpiGrid" class="kpi-grid"></section>
+
+      <section class="market-grid two-cols">
+        <article class="panel demand-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Origem da Demanda</p>
+              <h2>Estados e DDDs</h2>
+            </div>
+          </div>
+          <div class="split-content">
+            <div>
+              <h3>Diálogos por estado</h3>
+              <div id="stateChart" class="bar-chart"></div>
+            </div>
+            <div>
+              <h3>Diálogos por DDD</h3>
+              <div id="dddChart" class="bar-chart"></div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Estado</th>
+                  <th>Diálogos</th>
+                  <th>Reservas</th>
+                  <th>Vendas</th>
+                  <th>Receita</th>
+                  <th>Conversão</th>
+                  <th>Ticket médio</th>
+                </tr>
+              </thead>
+              <tbody id="stateTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Conversão Comercial</p>
+              <h2>Funil e eficiência</h2>
+            </div>
+          </div>
+          <div id="funnel" class="funnel"></div>
+          <div class="split-content compact">
+            <div>
+              <h3>Por hotel</h3>
+              <div id="hotelConversion" class="bar-chart"></div>
+            </div>
+            <div>
+              <h3>Por canal</h3>
+              <div id="channelConversion" class="bar-chart"></div>
+            </div>
+          </div>
+          <h3>Por estado / DDD</h3>
+          <div id="stateDddConversion" class="mini-ranking"></div>
+        </article>
+      </section>
+
+      <section class="market-grid two-cols">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Investimento em Mídia</p>
+              <h2>Google Ads, Meta Ads e ROAS</h2>
+            </div>
+          </div>
+          <div id="mediaCards" class="mini-kpi-grid"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Campanha</th>
+                  <th>Investimento</th>
+                  <th>Vendas</th>
+                  <th>Receita</th>
+                  <th>Custo/venda</th>
+                  <th>ROAS</th>
+                </tr>
+              </thead>
+              <tbody id="campaignTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Competitividade - Vetor Trade</p>
+              <h2>Preço, demanda e oportunidade</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Hotel</th>
+                  <th>Sueds</th>
+                  <th>Concorrentes</th>
+                  <th>Dif.</th>
+                  <th>Ranking</th>
+                  <th>Demanda</th>
+                </tr>
+              </thead>
+              <tbody id="competitivenessTable"></tbody>
+            </table>
+          </div>
+          <div id="marketAlerts" class="alert-list"></div>
+        </article>
+      </section>
+
+      <section class="panel opportunities-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Ranking de Oportunidades</p>
+            <h2>Índice de Oportunidade</h2>
+            <small>Oportunidade = Diálogos × (1 - Conversão de venda)</small>
+          </div>
+        </div>
+        <div class="opportunity-grid">
+          <div>
+            <h3>Estado</h3>
+            <div id="oppState" class="mini-ranking"></div>
+          </div>
+          <div>
+            <h3>DDD</h3>
+            <div id="oppDdd" class="mini-ranking"></div>
+          </div>
+          <div>
+            <h3>Canal</h3>
+            <div id="oppChannel" class="mini-ranking"></div>
+          </div>
+          <div>
+            <h3>Hotel</h3>
+            <div id="oppHotel" class="mini-ranking"></div>
+          </div>
+          <div>
+            <h3>Campanha</h3>
+            <div id="oppCampaign" class="mini-ranking"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="inteligencia-mercado.js"></script>
+  </body>
+</html>
