@@ -502,6 +502,32 @@ function parseDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function normalizeTextKey(value) {
+  return String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function normalizeHotelName(value) {
+  const raw = String(value || "").trim();
+  const key = normalizeTextKey(raw);
+  if (!key) return "";
+
+  const map = [
+    ["segundo sol", "SUEDS SEGUNDO SOL"],
+    ["cabralia", "SUEDS CABRALIA"],
+    ["plaza", "SUEDS PLAZA"],
+    ["premium", "SUEDS PREMIUM"],
+    ["trancoso", "SUEDS TRANCOSO"],
+    ["casas", "CASAS SUEDS ARRAIAL"],
+    ["arraial", "CASAS SUEDS ARRAIAL"]
+  ];
+  const match = map.find(([needle]) => key.includes(needle));
+  return match ? match[1] : raw;
+}
+
 function dateKey(date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: TIME_ZONE,
@@ -530,7 +556,7 @@ function normalizeRecord(item) {
     dateKey: saleDate ? dateKey(saleDate) : "",
     monthKey: saleDate ? monthKey(saleDate) : "",
     reservationCode: String(item["Codigo Reserva"] || "").trim(),
-    hotel: String(item["Hotel Normalizado"] || item["Hotel"] || "").trim(),
+    hotel: normalizeHotelName(item["Hotel Normalizado"] || item["Hotel"] || ""),
     channel: String(item["Canal Detalhado"] || item["Canal"] || "").trim(),
     rawChannel: String(item["Canal"] || "").trim(),
     seller: normalizeSellerName(item["Vendedor"] || ""),
@@ -569,7 +595,7 @@ function normalizeGoal(item) {
     month: String(item.Mes || "").trim(),
     date: String(item.Data || item.Dia || "").trim(),
     type: String(item["Tipo Meta"] || "").trim(),
-    hotel: String(item.Hotel || "").trim(),
+    hotel: normalizeHotelName(item.Hotel || ""),
     channel: String(item.Canal || "").trim(),
     seller: normalizeSellerName(item.Responsavel || item.Vendedor || ""),
     revenueGoal: parseNumber(item["Meta Receita"]),
