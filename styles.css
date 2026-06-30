@@ -647,10 +647,10 @@ h2 {
 }
 
 .daily-head {
-  color: var(--muted);
+  color: #ffffff;
   background: var(--panel-soft);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
