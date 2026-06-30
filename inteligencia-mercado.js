@@ -12,6 +12,8 @@ const state = {
   }
 };
 
+const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
+
 const formatCurrency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -44,6 +46,22 @@ function formatPct(value) {
 function setText(id, value) {
   const element = document.getElementById(id);
   if (element) element.textContent = value;
+}
+
+function getStoredAccessToken() {
+  return localStorage.getItem(GESTORES_TOKEN_STORAGE_KEY) || "";
+}
+
+function askAccessToken() {
+  const token = window.prompt("Digite a senha de acesso da visão gestores:");
+  if (!token) return "";
+  const trimmed = token.trim();
+  localStorage.setItem(GESTORES_TOKEN_STORAGE_KEY, trimmed);
+  return trimmed;
+}
+
+function clearAccessToken() {
+  localStorage.removeItem(GESTORES_TOKEN_STORAGE_KEY);
 }
 
 function createOption(value, label, selectedValue) {
@@ -109,7 +127,23 @@ function queryString() {
 
 async function loadDashboard() {
   try {
-    const response = await fetch(`/api/inteligencia/mercado?${queryString()}`);
+    let token = getStoredAccessToken();
+    if (!token) token = askAccessToken();
+    if (!token) throw new Error("Acesso aos gestores não informado");
+
+    let response = await fetch(`/api/inteligencia/mercado?${queryString()}`, {
+      headers: { "x-dashboard-token": token }
+    });
+
+    if (response.status === 401) {
+      clearAccessToken();
+      token = askAccessToken();
+      if (!token) throw new Error("Acesso aos gestores não autorizado");
+      response = await fetch(`/api/inteligencia/mercado?${queryString()}`, {
+        headers: { "x-dashboard-token": token }
+      });
+    }
+
     if (!response.ok) throw new Error("Falha ao carregar inteligência de mercado");
     state.payload = await response.json();
     renderDashboard(state.payload);
