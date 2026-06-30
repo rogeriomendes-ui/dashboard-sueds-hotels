@@ -900,11 +900,21 @@ const OFFICIAL_SALES_CHANNELS = [
   "RECEPÇÃO"
 ];
 
-function normalizeOfficialSalesChannel(value, record = {}) {
-  if (comparableKey(record.seller) === comparableKey("Site")) return "SITE";
-
+function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   const key = comparableKey(value || record.channel || record.rawChannel);
   if (!key || key === "selecione") return "";
+
+  if (month === "2026-05" || month === "2026-06") {
+    if (key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile") || key === "site") return "SITE";
+    if (key.includes("central de reservas")) return "CENTRAL DE RESERVAS";
+    if (key.includes("particular")) return "PARTICULAR (individual)";
+    if (key.includes("balcao")) return "BALCÃO";
+    if (key.includes("agencia")) return "AGÊNCIA (grupos)";
+    if (key.includes("recepcao")) return "RECEPÇÃO";
+    return "";
+  }
+
+  if (comparableKey(record.seller) === comparableKey("Site")) return "SITE";
   if (key.includes("booking engine") || key === "site") return "SITE";
   if (key.includes("central de reservas") || key.includes("whatsapp")) return "CENTRAL DE RESERVAS";
   if (key.includes("particular")) return "PARTICULAR (individual)";
@@ -993,7 +1003,7 @@ function buildMetrics(records, goals, period = {}) {
   const goalDate = selectedDay || today;
   const selectedHotel = period.hotel || "";
   const selectedChannel = period.channel || "";
-  const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record);
+  const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record, month);
   const confirmed = records.filter((record) => record.status.toLowerCase() === "confirmada");
   const monthRecords = confirmed.filter((record) => record.monthKey === month);
   const filteredRecords = monthRecords.filter((record) => {
@@ -1071,7 +1081,7 @@ function buildMetrics(records, goals, period = {}) {
     ...OFFICIAL_SALES_CHANNELS,
     ...goals
       .filter((goal) => goal.month === month && goal.channel)
-      .map((goal) => normalizeOfficialSalesChannel(goal.channel))
+      .map((goal) => normalizeOfficialSalesChannel(goal.channel, {}, month))
       .filter(Boolean)
   ]);
 
@@ -1079,7 +1089,7 @@ function buildMetrics(records, goals, period = {}) {
   const channels = [...channelLabels]
     .map((label) => {
       const rows = recordsByChannel.get(label) || [];
-      const goal = goals.find((item) => item.month === month && comparableKey(normalizeOfficialSalesChannel(item.channel)) === comparableKey(label));
+      const goal = goals.find((item) => item.month === month && comparableKey(normalizeOfficialSalesChannel(item.channel, {}, month)) === comparableKey(label));
       const value = sum(rows, (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
       return {

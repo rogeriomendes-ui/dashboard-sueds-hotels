@@ -261,6 +261,7 @@ function parseRows(rows) {
       vendedor
     ] = columns;
 
+    if (String(dataVenda || "").toLocaleUpperCase("pt-BR") === "DATA VENDA") return;
     if (!dataVenda || !hotel || !cliente) return;
     records.push({
       sourceLine: index + 2,
