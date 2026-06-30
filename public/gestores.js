@@ -141,10 +141,10 @@ function bars(items, options = {}) {
     .map((item) => `
       <div class="performance-row">
         <span class="row-label">${formatLabel(item.label)}</span>
-        <strong>${number.format(item.reservations || 0)}</strong>
-        <strong>${money.format(item.value)}</strong>
-        <strong>${money.format(item.monthlyGoal || 0)}</strong>
-        <strong class="icm-value ${icmClass(item.monthlyGoalPct)}">${pct(item.monthlyGoalPct)}</strong>
+        <strong data-label="Reservas">${number.format(item.reservations || 0)}</strong>
+        <strong data-label="Venda">${money.format(item.value)}</strong>
+        <strong data-label="Meta">${money.format(item.monthlyGoal || 0)}</strong>
+        <strong data-label="ICM" class="icm-value ${icmClass(item.monthlyGoalPct)}">${pct(item.monthlyGoalPct)}</strong>
       </div>
     `)
     .join("");
@@ -320,10 +320,10 @@ function render(data) {
         <div class="seller-table-row">
           <span class="rank-position">${index + 1}</span>
           <span class="row-label">${seller.name}</span>
-          <strong>${number.format(seller.reservationsMonth)}</strong>
-          <strong>${money.format(seller.salesMonth)}</strong>
-          <strong>${money.format(seller.monthlyGoal || 0)}</strong>
-          <strong class="icm-value ${icmClass(seller.monthlyGoalPct)}">${pct(seller.monthlyGoalPct)}</strong>
+          <strong data-label="Reservas">${number.format(seller.reservationsMonth)}</strong>
+          <strong data-label="Venda">${money.format(seller.salesMonth)}</strong>
+          <strong data-label="Meta">${money.format(seller.monthlyGoal || 0)}</strong>
+          <strong data-label="ICM" class="icm-value ${icmClass(seller.monthlyGoalPct)}">${pct(seller.monthlyGoalPct)}</strong>
         </div>
       `)
       .join("")}
@@ -336,10 +336,10 @@ function render(data) {
     .map((day) => `
       <div class="daily-row">
         <span>${formatDate(day.date)}</span>
-        <span>${number.format(day.reservations)}</span>
-        <span>${money.format(day.sales)}</span>
-        <span>${money.format(day.received)}</span>
-        <span>${money.format(day.remaining)}</span>
+        <span data-label="Reservas">${number.format(day.reservations)}</span>
+        <span data-label="Venda">${money.format(day.sales)}</span>
+        <span data-label="Recebido">${money.format(day.received)}</span>
+        <span data-label="A receber">${money.format(day.remaining)}</span>
       </div>
     `)
     .join("");
