@@ -1009,7 +1009,11 @@ function buildMetrics(records, goals, period = {}) {
   const selectedChannel = period.channel || "";
   const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record, month);
   const confirmed = records.filter((record) => record.status.toLowerCase() === "confirmada");
-  const monthRecords = confirmed.filter((record) => record.monthKey === month);
+  const rawMonthRecords = confirmed.filter((record) => record.monthKey === month);
+  const hasHistoricalMayBase = month === "2026-05" && rawMonthRecords.some((record) => comparableKey(record.source).includes("historico"));
+  const monthRecords = hasHistoricalMayBase
+    ? rawMonthRecords.filter((record) => comparableKey(record.source).includes("historico"))
+    : rawMonthRecords;
   const filteredRecords = monthRecords.filter((record) => {
     const matchesDay = !selectedDay || record.dateKey === selectedDay;
     const matchesHotel = !selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel);
