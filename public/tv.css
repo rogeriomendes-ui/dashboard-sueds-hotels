@@ -156,11 +156,13 @@
 
 .seller-card-team {
   position: relative;
-  border: 3px solid #ddc6a6;
+  border: 4px solid #f2c94c;
+  outline: 3px solid #ddc6a6;
+  outline-offset: 2px;
   background:
     linear-gradient(180deg, rgba(221, 198, 166, 0.18), rgba(255, 255, 255, 0) 36%),
     var(--panel);
-  box-shadow: 0 0 0 3px rgba(221, 198, 166, 0.18), 0 16px 30px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 0 0 6px rgba(242, 201, 76, 0.12), 0 16px 30px rgba(0, 0, 0, 0.16);
 }
 
 .seller-card-team::before {
