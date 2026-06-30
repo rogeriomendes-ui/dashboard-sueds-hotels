@@ -901,10 +901,14 @@ const OFFICIAL_SALES_CHANNELS = [
 ];
 
 function normalizeOfficialSalesChannel(value, record = {}, month = "") {
-  const key = comparableKey(value || record.channel || record.rawChannel);
+  const useHistoricalChannel = month === "2026-05" || month === "2026-06";
+  const sourceValue = useHistoricalChannel
+    ? (record.rawChannel || value || record.channel)
+    : (value || record.channel || record.rawChannel);
+  const key = comparableKey(sourceValue);
   if (!key || key === "selecione") return "";
 
-  if (month === "2026-05" || month === "2026-06") {
+  if (useHistoricalChannel) {
     if (key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile") || key === "site") return "SITE";
     if (key.includes("central de reservas")) return "CENTRAL DE RESERVAS";
     if (key.includes("particular")) return "PARTICULAR (individual)";
