@@ -73,6 +73,11 @@ function pct(value) {
   return value === null || value === undefined ? "Sem meta" : `${number.format(Math.round(value))}%`;
 }
 
+function icmClass(value) {
+  if (value === null || value === undefined) return "icm-no-goal";
+  return value < 100 ? "icm-low" : "icm-ok";
+}
+
 function formatLastUpdate(value) {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -139,7 +144,7 @@ function bars(items, options = {}) {
         <strong>${number.format(item.reservations || 0)}</strong>
         <strong>${money.format(item.value)}</strong>
         <strong>${money.format(item.monthlyGoal || 0)}</strong>
-        <strong class="icm-value">${pct(item.monthlyGoalPct)}</strong>
+        <strong class="icm-value ${icmClass(item.monthlyGoalPct)}">${pct(item.monthlyGoalPct)}</strong>
       </div>
     `)
     .join("");
@@ -318,7 +323,7 @@ function render(data) {
           <strong>${number.format(seller.reservationsMonth)}</strong>
           <strong>${money.format(seller.salesMonth)}</strong>
           <strong>${money.format(seller.monthlyGoal || 0)}</strong>
-          <strong class="icm-value">${pct(seller.monthlyGoalPct)}</strong>
+          <strong class="icm-value ${icmClass(seller.monthlyGoalPct)}">${pct(seller.monthlyGoalPct)}</strong>
         </div>
       `)
       .join("")}

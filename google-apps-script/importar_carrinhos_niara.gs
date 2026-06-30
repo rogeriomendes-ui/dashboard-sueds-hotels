@@ -4,6 +4,12 @@ const ASKSUITE_IMPORT_SHEET = "Importar_Asksuite";
 const ASKSUITE_TARGET_SHEET = "Asksuite_Atendimentos";
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
 const TEAM_INPUT_BACKGROUND = "#d9eaf7";
+const HEADER_BACKGROUND = "#0f4c5c";
+const BODY_BACKGROUND = "#ffffff";
+const BODY_ALT_BACKGROUND = "#eef5e6";
+const BODY_FONT_COLOR = "#000000";
+const HEADER_FONT_COLOR = "#ffffff";
+const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 
 const NIARA_SOURCE_HEADERS = [
   "ID",
@@ -108,6 +114,8 @@ function importarCarrinhosNiara() {
   let nextAppendRow = Math.max(targetSheet.getLastRow() + 1, 2);
   let inserted = 0;
   let updated = 0;
+  let nextResponsibleIndex = 0;
+  const responsibleDistribution = {};
 
   sourceRows.forEach((sourceRow) => {
     const id = String(sourceRow[0] || "").trim();
@@ -116,8 +124,15 @@ function importarCarrinhosNiara() {
 
     targetSheet.getRange(targetRow, 1, 1, NIARA_SOURCE_HEADERS.length).setValues([sourceRow]);
 
-    if (existingRow) updated += 1;
-    else inserted += 1;
+    if (existingRow) {
+      updated += 1;
+    } else {
+      const responsible = NIARA_RESPONSIBLE_ROTATION[nextResponsibleIndex % NIARA_RESPONSIBLE_ROTATION.length];
+      targetSheet.getRange(targetRow, 18).setValue(responsible);
+      responsibleDistribution[responsible] = (responsibleDistribution[responsible] || 0) + 1;
+      nextResponsibleIndex += 1;
+      inserted += 1;
+    }
   });
 
   sortNiaraTargetByAbandonDate_(targetSheet);
@@ -128,6 +143,7 @@ function importarCarrinhosNiara() {
     `Lidas: ${sourceRows.length}\n` +
     `Atualizadas: ${updated}\n` +
     `Inseridas: ${inserted}\n\n` +
+    formatResponsibleDistribution_(responsibleDistribution) +
     "As colunas R:U foram preservadas."
   );
 }
@@ -175,19 +191,6 @@ function importarAsksuite() {
     return;
   }
 
-  const dateResponse = ui.prompt(
-    "Importar Asksuite",
-    "Informe a data do relatorio no formato AAAA-MM-DD. Exemplo: 2026-06-23",
-    ui.ButtonSet.OK_CANCEL
-  );
-  if (dateResponse.getSelectedButton() !== ui.Button.OK) return;
-
-  const reportDate = String(dateResponse.getResponseText() || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
-    ui.alert("Data invalida. Use o formato AAAA-MM-DD, por exemplo 2026-06-23.");
-    return;
-  }
-
   ensureAsksuiteHeaders_(targetSheet);
 
   const importValues = importSheet.getDataRange().getValues();
@@ -198,41 +201,72 @@ function importarAsksuite() {
 
   const headers = importValues[0];
   const attendantIndex = findHeaderIndex_(headers, "Atendente");
+  const startIndex = findHeaderIndex_(headers, "Início do atendimento");
   const attendancesIndex = findHeaderIndex_(headers, "Atendimentos");
   const opportunitiesIndex = findHeaderIndex_(headers, "Oportunidades");
   const salesIndex = findHeaderIndex_(headers, "Vendas");
-  const revenueIndex = findHeaderIndex_(headers, "Receita");
+  const revenueIndex = findHeaderIndex_(headers, "Receita") !== -1
+    ? findHeaderIndex_(headers, "Receita")
+    : findHeaderIndex_(headers, "Valor vendido");
   const conversionIndexes = findAllHeaderIndexes_(headers, "Conv.%");
+  const isDetailedReport = attendantIndex !== -1 && startIndex !== -1 && opportunitiesIndex !== -1 && salesIndex !== -1 && revenueIndex !== -1;
 
-  const missingHeaders = [];
-  if (attendantIndex === -1) missingHeaders.push("Atendente");
-  if (attendancesIndex === -1) missingHeaders.push("Atendimentos");
-  if (opportunitiesIndex === -1) missingHeaders.push("Oportunidades");
-  if (salesIndex === -1) missingHeaders.push("Vendas");
-  if (revenueIndex === -1) missingHeaders.push("Receita");
-  if (conversionIndexes.length < 2) missingHeaders.push("Conv.% duas vezes");
+  let sourceRows;
+  let reportDateLabel = "datas do arquivo";
 
-  if (missingHeaders.length) {
-    ui.alert(`Colunas ausentes na aba Importar_Asksuite: ${missingHeaders.join(", ")}`);
-    return;
+  if (isDetailedReport) {
+    sourceRows = aggregateDetailedAsksuiteRows_(importValues.slice(1), {
+      attendantIndex,
+      startIndex,
+      opportunitiesIndex,
+      salesIndex,
+      revenueIndex
+    });
+  } else {
+    const dateResponse = ui.prompt(
+      "Importar Asksuite",
+      "Informe a data do relatorio no formato AAAA-MM-DD. Exemplo: 2026-06-23",
+      ui.ButtonSet.OK_CANCEL
+    );
+    if (dateResponse.getSelectedButton() !== ui.Button.OK) return;
+
+    const reportDate = String(dateResponse.getResponseText() || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) {
+      ui.alert("Data invalida. Use o formato AAAA-MM-DD, por exemplo 2026-06-23.");
+      return;
+    }
+    reportDateLabel = reportDate;
+
+    const missingHeaders = [];
+    if (attendantIndex === -1) missingHeaders.push("Atendente");
+    if (attendancesIndex === -1) missingHeaders.push("Atendimentos");
+    if (opportunitiesIndex === -1) missingHeaders.push("Oportunidades");
+    if (salesIndex === -1) missingHeaders.push("Vendas");
+    if (revenueIndex === -1) missingHeaders.push("Receita ou Valor vendido");
+    if (conversionIndexes.length < 2) missingHeaders.push("Conv.% duas vezes");
+
+    if (missingHeaders.length) {
+      ui.alert(`Colunas ausentes na aba Importar_Asksuite: ${missingHeaders.join(", ")}`);
+      return;
+    }
+
+    sourceRows = importValues
+      .slice(1)
+      .map((row) => {
+        const seller = normalizeSellerName_(row[attendantIndex]);
+        return [
+          reportDate,
+          seller,
+          toNumber_(row[attendancesIndex]),
+          toNumber_(row[conversionIndexes[0]]),
+          toNumber_(row[opportunitiesIndex]),
+          toNumber_(row[conversionIndexes[1]]),
+          toNumber_(row[salesIndex]),
+          toNumber_(row[revenueIndex])
+        ];
+      })
+      .filter((row) => ASKSUITE_ALLOWED_SELLERS.indexOf(row[1]) !== -1);
   }
-
-  const sourceRows = importValues
-    .slice(1)
-    .map((row) => {
-      const seller = normalizeSellerName_(row[attendantIndex]);
-      return [
-        reportDate,
-        seller,
-        toNumber_(row[attendancesIndex]),
-        toNumber_(row[conversionIndexes[0]]),
-        toNumber_(row[opportunitiesIndex]),
-        toNumber_(row[conversionIndexes[1]]),
-        toNumber_(row[salesIndex]),
-        toNumber_(row[revenueIndex])
-      ];
-    })
-    .filter((row) => ASKSUITE_ALLOWED_SELLERS.indexOf(row[1]) !== -1);
 
   if (!sourceRows.length) {
     ui.alert("Nenhum vendedor valido encontrado na aba Importar_Asksuite.");
@@ -264,7 +298,7 @@ function importarAsksuite() {
 
   ui.alert(
     "Importacao Asksuite concluida.\n\n" +
-    `Data: ${reportDate}\n` +
+    `Data: ${reportDateLabel}\n` +
     `Lidas: ${sourceRows.length}\n` +
     `Atualizadas: ${updated}\n` +
     `Inseridas: ${inserted}\n\n` +
@@ -274,14 +308,67 @@ function importarAsksuite() {
 
 function ensureTargetHeaders_(sheet) {
   sheet.getRange(1, 1, 1, NIARA_TARGET_HEADERS.length).setValues([NIARA_TARGET_HEADERS]);
+  formatNiaraTargetSheet_(sheet);
+}
+
+function aggregateDetailedAsksuiteRows_(rows, indexes) {
+  const grouped = {};
+
+  rows.forEach((row) => {
+    const seller = normalizeSellerName_(row[indexes.attendantIndex]);
+    if (ASKSUITE_ALLOWED_SELLERS.indexOf(seller) === -1) return;
+
+    const date = normalizeDateKey_(row[indexes.startIndex]);
+    if (!date) return;
+
+    const key = `${date}|${seller}`;
+    if (!grouped[key]) {
+      grouped[key] = {
+        date,
+        seller,
+        attendances: 0,
+        opportunities: 0,
+        sales: 0,
+        revenue: 0
+      };
+    }
+
+    grouped[key].attendances += 1;
+    grouped[key].opportunities += toNumber_(row[indexes.opportunitiesIndex]);
+    grouped[key].sales += toNumber_(row[indexes.salesIndex]);
+    grouped[key].revenue += toNumber_(row[indexes.revenueIndex]);
+  });
+
+  return Object.values(grouped)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.seller.localeCompare(b.seller, "pt-BR"))
+    .map((item) => [
+      item.date,
+      item.seller,
+      item.attendances,
+      percentage_(item.opportunities, item.attendances),
+      item.opportunities,
+      percentage_(item.sales, item.opportunities),
+      item.sales,
+      item.revenue
+    ]);
+}
+
+function percentage_(part, total) {
+  return total ? (Number(part || 0) / Number(total || 0)) * 100 : 0;
+}
+
+function formatResponsibleDistribution_(distribution) {
+  const lines = NIARA_RESPONSIBLE_ROTATION
+    .filter((name) => distribution[name])
+    .map((name) => `${name}: ${distribution[name]}`);
+  return lines.length ? `Distribuicao automatica:\n${lines.join("\n")}\n\n` : "";
 }
 
 function protectNiaraTargetSheet_(sheet) {
   const lastRow = Math.max(sheet.getMaxRows(), 1000);
   const inputRange = sheet.getRange(2, 18, lastRow - 1, 4);
 
-  sheet.getRange(2, 18, lastRow - 1, 4).setBackground(TEAM_INPUT_BACKGROUND);
-  sheet.getRange(1, 18, 1, 4).setBackground("#9fc5e8").setFontWeight("bold");
+  formatNiaraTargetSheet_(sheet);
 
   sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET)
     .filter((protection) => protection.getDescription() === SHEET_PROTECTION_NOTE)
@@ -298,8 +385,45 @@ function sortNiaraTargetByAbandonDate_(sheet) {
   if (lastRow <= 2) return;
   const range = sheet.getRange(2, 1, lastRow - 1, NIARA_TARGET_HEADERS.length);
   const rows = range.getValues();
-  rows.sort((a, b) => parseNiaraDateTime_(a[1]) - parseNiaraDateTime_(b[1]));
-  range.setValues(rows);
+  const validRows = rows
+    .filter((row) => String(row[0] || "").trim() && parseNiaraDateTime_(row[1]) > 0)
+    .sort((a, b) => parseNiaraDateTime_(a[1]) - parseNiaraDateTime_(b[1]));
+
+  if (!validRows.length) return;
+
+  range.clearContent();
+  sheet.getRange(2, 1, validRows.length, NIARA_TARGET_HEADERS.length).setValues(validRows);
+  formatNiaraTargetSheet_(sheet);
+  sheet.setActiveRange(sheet.getRange(2, 2));
+}
+
+function formatNiaraTargetSheet_(sheet) {
+  const maxRows = Math.max(sheet.getMaxRows(), 1000);
+  const maxColumns = NIARA_TARGET_HEADERS.length;
+  const lastRow = Math.max(sheet.getLastRow(), 2);
+
+  sheet.getRange(1, 1, 1, maxColumns)
+    .setBackground(HEADER_BACKGROUND)
+    .setFontColor(HEADER_FONT_COLOR)
+    .setFontWeight("bold");
+
+  const bodyRange = sheet.getRange(2, 1, Math.max(maxRows - 1, 1), maxColumns);
+  bodyRange
+    .setFontColor(BODY_FONT_COLOR)
+    .setFontWeight("normal")
+    .setBackground(BODY_BACKGROUND);
+
+  for (let row = 2; row <= lastRow; row += 2) {
+    sheet.getRange(row, 1, 1, maxColumns).setBackground(BODY_ALT_BACKGROUND);
+  }
+
+  sheet.getRange(2, 18, Math.max(maxRows - 1, 1), 4)
+    .setBackground(TEAM_INPUT_BACKGROUND)
+    .setFontColor(BODY_FONT_COLOR);
+  sheet.getRange(1, 18, 1, 4)
+    .setBackground("#9fc5e8")
+    .setFontColor(BODY_FONT_COLOR)
+    .setFontWeight("bold");
 }
 
 function parseNiaraDateTime_(value) {

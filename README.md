@@ -94,6 +94,7 @@ Na TV, o painel exibe separadamente o site institucional e o motor Omnibees, com
 ```text
 GOOGLE_ADS_CUSTOMER_ID=7300401572
 GOOGLE_ADS_LOGIN_CUSTOMER_ID=4545711374
+GOOGLE_ADS_API_VERSION=v24
 GOOGLE_ADS_DEVELOPER_TOKEN=COLE_O_DEVELOPER_TOKEN_AQUI
 GOOGLE_ADS_CLIENT_ID=COLE_O_CLIENT_ID_OAUTH_AQUI
 GOOGLE_ADS_CLIENT_SECRET=COLE_O_CLIENT_SECRET_OAUTH_AQUI
@@ -106,6 +107,8 @@ npm run googleads:token
 ```
 
 Abra o link exibido no terminal, autorize com o usuario que acessa o Google Ads e copie o valor `GOOGLE_ADS_REFRESH_TOKEN` retornado para o `.env` local e para as variaveis de ambiente da Vercel.
+
+Com essas variaveis configuradas, a pagina `dashboard-inteligencia-mercado.html` passa a buscar investimento, cliques, impressoes, conversoes, valor de conversao e ROAS por campanha diretamente da Google Ads API.
 
 No Windows, se o `npm` nao estiver disponivel, use duplo clique no arquivo `Gerar token Google Ads.bat`.
 
@@ -162,13 +165,13 @@ Opcao mais simples no Windows:
 
 Fluxo recomendado via Google Sheets:
 
-1. No Asksuite, exporte o relatorio por atendente em `.xlsx`.
+1. No Asksuite, exporte o relatorio por atendente ou o relatorio detalhado de WhatsApp em `.xlsx`.
 2. No Google Sheets, abra a aba `Importar_Asksuite`.
 3. Importe ou cole nessa aba os dados exportados do Asksuite, mantendo os cabecalhos na primeira linha.
 4. No menu da planilha, clique em `SUEDS Dashboard` > `Importar Asksuite da aba Importar_Asksuite`.
 5. Informe a data do relatorio no formato `AAAA-MM-DD`.
 
-O script da planilha cria/atualiza a aba `Asksuite_Atendimentos`, usa `Data + Atendente` como chave e ignora atendentes que nao fazem parte dos quatro vendedores do painel.
+O script da planilha cria/atualiza a aba `Asksuite_Atendimentos`, usa `Data + Atendente` como chave e ignora atendentes que nao fazem parte dos quatro vendedores do painel. Quando o arquivo vier detalhado por viajante/atendimento, o script agrupa automaticamente por data de inicio do atendimento e vendedor.
 
 Para instalar ou atualizar o menu na planilha:
 
@@ -178,7 +181,7 @@ Para instalar ou atualizar o menu na planilha:
 
 Fluxo alternativo local:
 
-1. No Asksuite, exporte o relatorio por atendente em `.xlsx`.
+1. No Asksuite, exporte o relatorio por atendente ou o relatorio detalhado de WhatsApp em `.xlsx`.
 2. Deixe o nome original com a data, por exemplo `por_atendente_23_06_2026_2135.xlsx`.
 3. Rode primeiro em modo simulacao:
 

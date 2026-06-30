@@ -20,6 +20,13 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
 const GA4_SITE_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_SITE_PROPERTY_ID || process.env.GOOGLE_ANALYTICS_PROPERTY_ID || "";
 const GA4_OMNIBEES_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_OMNIBEES_PROPERTY_ID || "";
+const GOOGLE_ADS_API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v24";
+const GOOGLE_ADS_CUSTOMER_ID = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/\D/g, "");
+const GOOGLE_ADS_LOGIN_CUSTOMER_ID = (process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID || "").replace(/\D/g, "");
+const GOOGLE_ADS_DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "";
+const GOOGLE_ADS_CLIENT_ID = process.env.GOOGLE_ADS_CLIENT_ID || "";
+const GOOGLE_ADS_CLIENT_SECRET = process.env.GOOGLE_ADS_CLIENT_SECRET || "";
+const GOOGLE_ADS_REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || "";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -35,6 +42,7 @@ const tokenCache = new Map();
 let dataCache = { expiresAt: 0, payload: null };
 let analyticsCache = { expiresAt: 0, payload: null };
 let operationalCache = { expiresAt: 0, payload: null };
+let googleAdsCache = { expiresAt: 0, key: "", payload: null };
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -434,6 +442,153 @@ async function loadAnalyticsMetrics(period = {}) {
   };
   analyticsCache = { payload: { cacheKey, data }, expiresAt: Date.now() + CACHE_TTL_MS };
   return data;
+}
+
+function googleAdsConfigured() {
+  return Boolean(
+    GOOGLE_ADS_CUSTOMER_ID &&
+    GOOGLE_ADS_DEVELOPER_TOKEN &&
+    GOOGLE_ADS_CLIENT_ID &&
+    GOOGLE_ADS_CLIENT_SECRET &&
+    GOOGLE_ADS_REFRESH_TOKEN
+  );
+}
+
+async function getGoogleAdsOAuthAccessToken() {
+  const cacheKey = "google_ads_oauth";
+  const cached = tokenCache.get(cacheKey);
+  if (cached?.accessToken && Date.now() < cached.expiresAt - 30000) {
+    return cached.accessToken;
+  }
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: GOOGLE_ADS_CLIENT_ID,
+      client_secret: GOOGLE_ADS_CLIENT_SECRET,
+      refresh_token: GOOGLE_ADS_REFRESH_TOKEN,
+      grant_type: "refresh_token"
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Google Ads OAuth failed: ${response.status} ${JSON.stringify(payload)}`);
+  }
+
+  tokenCache.set(cacheKey, {
+    accessToken: payload.access_token,
+    expiresAt: Date.now() + Number(payload.expires_in || 3600) * 1000
+  });
+  return payload.access_token;
+}
+
+async function googleAdsSearchStream(query) {
+  const accessToken = await getGoogleAdsOAuthAccessToken();
+  const customerId = GOOGLE_ADS_CUSTOMER_ID;
+  const response = await fetch(`https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:searchStream`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
+      "login-customer-id": GOOGLE_ADS_LOGIN_CUSTOMER_ID || customerId,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ query })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Google Ads request failed: ${response.status} ${JSON.stringify(payload)}`);
+  }
+
+  return Array.isArray(payload) ? payload.flatMap((chunk) => chunk.results || []) : [];
+}
+
+function googleAdsMetricNumber(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+async function loadGoogleAdsMetrics(period = {}) {
+  const { month, startDate, endDate } = marketDateRangeForMonth(period.month);
+  const cacheKey = JSON.stringify({ month, startDate, endDate, customerId: GOOGLE_ADS_CUSTOMER_ID, version: GOOGLE_ADS_API_VERSION });
+  if (googleAdsCache.key === cacheKey && googleAdsCache.payload && Date.now() < googleAdsCache.expiresAt) {
+    return googleAdsCache.payload;
+  }
+
+  if (!googleAdsConfigured()) {
+    return {
+      configured: false,
+      source: "demo",
+      campaigns: [],
+      summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
+    };
+  }
+
+  try {
+    const query = `
+      SELECT
+        campaign.id,
+        campaign.name,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value
+      FROM campaign
+      WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+        AND campaign.status != 'REMOVED'
+      ORDER BY metrics.cost_micros DESC
+    `;
+    const results = await googleAdsSearchStream(query);
+    const campaigns = results.map((row) => {
+      const spend = googleAdsMetricNumber(row.metrics?.costMicros) / 1000000;
+      const clicks = googleAdsMetricNumber(row.metrics?.clicks);
+      const impressions = googleAdsMetricNumber(row.metrics?.impressions);
+      const conversions = googleAdsMetricNumber(row.metrics?.conversions);
+      const conversionValue = googleAdsMetricNumber(row.metrics?.conversionsValue);
+      return {
+        id: String(row.campaign?.id || ""),
+        label: String(row.campaign?.name || "Campanha sem nome"),
+        spend: marketRound(spend, 2),
+        clicks,
+        impressions,
+        conversions: marketRound(conversions, 2),
+        conversionValue: marketRound(conversionValue, 2),
+        costPerClick: marketRound(marketSafeDiv(spend, clicks), 2),
+        costPerConversion: marketRound(marketSafeDiv(spend, conversions), 2),
+        roas: marketRound(marketSafeDiv(conversionValue, spend), 2)
+      };
+    });
+    const summary = {
+      spend: marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2),
+      clicks: campaigns.reduce((total, row) => total + row.clicks, 0),
+      impressions: campaigns.reduce((total, row) => total + row.impressions, 0),
+      conversions: marketRound(campaigns.reduce((total, row) => total + row.conversions, 0), 2),
+      conversionValue: marketRound(campaigns.reduce((total, row) => total + row.conversionValue, 0), 2)
+    };
+    const payload = {
+      configured: true,
+      source: "google_ads_api",
+      apiVersion: GOOGLE_ADS_API_VERSION,
+      customerId: GOOGLE_ADS_CUSTOMER_ID,
+      period: { month, startDate, endDate },
+      campaigns,
+      summary
+    };
+    googleAdsCache = { key: cacheKey, payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    return payload;
+  } catch (error) {
+    return {
+      configured: true,
+      source: "error",
+      error: error.message,
+      campaigns: [],
+      summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
+    };
+  }
 }
 
 function rowsToObjects(rows, options = {}) {
@@ -1441,13 +1596,88 @@ function selectValues(rows, key) {
   return [...new Set(rows.map((row) => row[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
 }
 
-function buildMarketIntelligencePayload(filters = {}) {
+function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) {
+  payload.integrations = {
+    ...(payload.integrations || {}),
+    googleAds: {
+      configured: googleAds.configured,
+      source: googleAds.source,
+      error: googleAds.error || "",
+      apiVersion: googleAds.apiVersion || "",
+      customerId: googleAds.customerId || "",
+      period: googleAds.period || payload.period
+    }
+  };
+
+  if (!googleAds.configured || googleAds.source !== "google_ads_api") {
+    return payload;
+  }
+
+  const selectedCampaign = filters.campaign || "";
+  const campaigns = googleAds.campaigns
+    .filter((campaign) => !selectedCampaign || marketComparable(campaign.label) === marketComparable(selectedCampaign))
+    .map((campaign) => ({
+      label: campaign.label,
+      spend: campaign.spend,
+      clicks: campaign.clicks,
+      impressions: campaign.impressions,
+      conversions: campaign.conversions,
+      sales: campaign.conversions,
+      revenue: campaign.conversionValue,
+      conversionValue: campaign.conversionValue,
+      costPerClick: campaign.costPerClick,
+      costPerSale: campaign.costPerConversion,
+      roas: campaign.roas,
+      opportunityIndex: Math.max(0, Math.round(campaign.clicks - campaign.conversions))
+    }));
+
+  const googleSpend = marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2);
+  const googleClicks = campaigns.reduce((total, row) => total + row.clicks, 0);
+  const googleConversions = marketRound(campaigns.reduce((total, row) => total + row.conversions, 0), 2);
+  const googleConversionValue = marketRound(campaigns.reduce((total, row) => total + row.conversionValue, 0), 2);
+  const mediaSpend = googleSpend + payload.summary.metaSpend;
+
+  payload.summary.googleSpend = googleSpend;
+  payload.summary.mediaSpend = marketRound(mediaSpend, 2);
+  payload.summary.costPerSale = marketRound(marketSafeDiv(mediaSpend, payload.summary.sales), 2);
+  payload.summary.roas = marketRound(marketSafeDiv(payload.summary.revenue, mediaSpend), 2);
+
+  payload.media.googleSpend = googleSpend;
+  payload.media.googleClicks = googleClicks;
+  payload.media.googleConversions = googleConversions;
+  payload.media.googleConversionValue = googleConversionValue;
+  payload.media.costPerClick = marketRound(marketSafeDiv(googleSpend, googleClicks), 2);
+  payload.media.costPerDialogue = marketRound(marketSafeDiv(mediaSpend, payload.summary.dialogues), 2);
+  payload.media.costPerReservation = marketRound(marketSafeDiv(mediaSpend, payload.summary.reservations), 2);
+  payload.media.costPerSale = marketRound(marketSafeDiv(mediaSpend, payload.summary.sales), 2);
+  payload.media.byCampaign = campaigns.sort((a, b) => b.spend - a.spend);
+  payload.filters.campaigns = [...new Set([...(payload.filters.campaigns || []), ...googleAds.campaigns.map((campaign) => campaign.label)])]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  payload.opportunities.byCampaign = campaigns
+    .map((campaign) => ({
+      ...campaign,
+      dialogues: campaign.clicks,
+      conversion: marketRound(marketPct(campaign.conversions, campaign.clicks)),
+      opportunityIndex: Math.max(0, Math.round(campaign.clicks * (1 - marketSafeDiv(campaign.conversions, campaign.clicks))))
+    }))
+    .sort((a, b) => b.opportunityIndex - a.opportunityIndex);
+
+  return payload;
+}
+
+async function buildMarketIntelligencePayload(filters = {}) {
   const { month } = marketDateRangeForMonth(filters.month);
   const sourceRows = demoMarketRows(month);
   const rows = filterMarketRows(sourceRows, filters);
   const summary = summarizeMarketGroup("Total", rows);
   const googleSpend = marketSum(rows, "googleSpend");
   const metaSpend = marketSum(rows, "metaSpend");
+  const googleRows = rows.filter((row) => marketComparable(row.source) === "google ads");
+  const demoGoogleClicks = marketSum(googleRows, "dialogues");
+  const demoGoogleConversions = marketSum(googleRows, "sales");
+  const demoGoogleConversionValue = marketSum(googleRows, "revenue");
   const byState = rankedMarketGroups(rows, "state", 27);
   const byDdd = rankedMarketGroups(rows, "ddd", 30);
   const byHotel = rankedMarketGroups(rows, "hotel", 12);
@@ -1460,7 +1690,7 @@ function buildMarketIntelligencePayload(filters = {}) {
   const competitiveness = demoCompetitivenessRows(month)
     .filter((row) => !filters.hotel || marketComparable(row.hotel) === marketComparable(filters.hotel));
 
-  return {
+  const payload = {
     audience: "gestores-inteligencia-mercado",
     generatedAt: new Date().toISOString(),
     period: { month },
@@ -1515,6 +1745,10 @@ function buildMarketIntelligencePayload(filters = {}) {
     media: {
       googleSpend,
       metaSpend,
+      googleClicks: demoGoogleClicks,
+      googleConversions: demoGoogleConversions,
+      googleConversionValue: demoGoogleConversionValue,
+      costPerClick: marketRound(marketSafeDiv(googleSpend, demoGoogleClicks), 2),
       costPerDialogue: summary.costPerDialogue,
       costPerReservation: summary.costPerReservation,
       costPerSale: summary.costPerSale,
@@ -1546,6 +1780,8 @@ function buildMarketIntelligencePayload(filters = {}) {
       byOrigin
     }
   };
+  const googleAds = await loadGoogleAdsMetrics({ month });
+  return applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters);
 }
 
 function marketFiltersFromUrl(url) {
@@ -1708,6 +1944,7 @@ async function handleRequest(req, res) {
         analyticsConfigured: Boolean((GA4_SITE_PROPERTY_ID || GA4_OMNIBEES_PROPERTY_ID) && getServiceAccount()),
         analyticsSiteConfigured: Boolean(GA4_SITE_PROPERTY_ID && getServiceAccount()),
         analyticsOmnibeesConfigured: Boolean(GA4_OMNIBEES_PROPERTY_ID && getServiceAccount()),
+        googleAdsConfigured: googleAdsConfigured(),
         operationalConfigured: Boolean((OPERATIONAL_SHEET_ID || SHEET_ID) && getServiceAccount()),
         supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
         gestoresProtected: Boolean(GESTORES_ACCESS_TOKEN),
@@ -1748,7 +1985,7 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/inteligencia/mercado") {
       if (!hasManagerAccess(req, url)) return forbidden(res);
-      return json(res, 200, buildMarketIntelligencePayload(marketFiltersFromUrl(url)));
+      return json(res, 200, await buildMarketIntelligencePayload(marketFiltersFromUrl(url)));
     }
 
     return serveStatic(req, res);

@@ -600,6 +600,15 @@ h2 {
   color: var(--green);
 }
 
+.icm-value.icm-low {
+  color: var(--red);
+}
+
+.icm-value.icm-ok,
+.icm-value.icm-no-goal {
+  color: var(--green);
+}
+
 .panel-error {
   min-height: 120px;
   display: grid;

@@ -201,6 +201,9 @@ function renderMedia(media) {
   const cards = [
     ["Google Ads", formatCurrency.format(media.googleSpend)],
     ["Meta Ads", formatCurrency.format(media.metaSpend)],
+    ["Cliques Google", formatNumber.format(media.googleClicks || 0)],
+    ["Conversões Google", formatNumber.format(media.googleConversions || 0)],
+    ["Valor conv.", formatCurrency.format(media.googleConversionValue || 0)],
     ["Custo por diálogo", formatCurrencyDetailed.format(media.costPerDialogue)],
     ["Custo por reserva", formatCurrencyDetailed.format(media.costPerReservation)],
     ["Custo por venda", formatCurrencyDetailed.format(media.costPerSale)]
@@ -215,6 +218,8 @@ function renderMedia(media) {
     <tr>
       <td title="${row.label}">${row.label}</td>
       <td>${formatCurrency.format(row.spend)}</td>
+      <td>${formatNumber.format(row.clicks || 0)}</td>
+      <td>${formatNumber.format(row.conversions || 0)}</td>
       <td>${formatNumber.format(row.sales)}</td>
       <td>${formatCurrency.format(row.revenue)}</td>
       <td>${formatCurrencyDetailed.format(row.costPerSale)}</td>

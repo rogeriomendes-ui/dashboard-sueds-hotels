@@ -179,11 +179,20 @@ function readWorkbookRows(filePath) {
   const code = String.raw`
 import json
 import sys
+from datetime import date, datetime
 from openpyxl import load_workbook
 ws = load_workbook(sys.argv[1], data_only=True).active
 rows = []
 for row in ws.iter_rows(values_only=True):
-    rows.append(["" if value is None else value for value in row])
+    values = []
+    for value in row:
+        if value is None:
+            values.append("")
+        elif isinstance(value, (datetime, date)):
+            values.append(value.isoformat(sep=" "))
+        else:
+            values.append(value)
+    rows.append(values)
 print(json.dumps(rows, ensure_ascii=False))
 `;
   const result = spawnSync(PYTHON, ["-c", code, filePath], {
@@ -195,19 +204,127 @@ print(json.dumps(rows, ensure_ascii=False))
   return JSON.parse(result.stdout);
 }
 
+function normalizeHeader(value) {
+  return String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function findHeader(headers, expected) {
+  const key = normalizeHeader(expected);
+  return headers.findIndex((header) => normalizeHeader(header) === key);
+}
+
+function findAllHeaders(headers, expected) {
+  const key = normalizeHeader(expected);
+  return headers
+    .map((header, index) => normalizeHeader(header) === key ? index : -1)
+    .filter((index) => index !== -1);
+}
+
+function normalizeDateKey(value) {
+  const text = String(value || "").trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  return "";
+}
+
+function toNumber(value) {
+  if (typeof value === "number") return value;
+  const text = String(value || "").replace(/[R$%\s]/g, "").trim();
+  const normalized = text.includes(",") ? text.replace(/\./g, "").replace(",", ".") : text;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function percentage(part, total) {
+  return total ? (Number(part || 0) / Number(total || 0)) * 100 : 0;
+}
+
+function normalizeDetailedRows(rows, indexes) {
+  const grouped = new Map();
+  rows.slice(1).forEach((row) => {
+    const seller = normalizeName(row[indexes.attendant]);
+    if (!ALLOWED_SELLERS.has(seller)) return;
+    const date = normalizeDateKey(row[indexes.start]);
+    if (!date) return;
+
+    const key = `${date}|${seller}`.toUpperCase();
+    const current = grouped.get(key) || {
+      date,
+      seller,
+      attendances: 0,
+      opportunities: 0,
+      sales: 0,
+      revenue: 0
+    };
+    current.attendances += 1;
+    current.opportunities += toNumber(row[indexes.opportunities]);
+    current.sales += toNumber(row[indexes.sales]);
+    current.revenue += toNumber(row[indexes.revenue]);
+    grouped.set(key, current);
+  });
+
+  return [...grouped.values()]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.seller.localeCompare(b.seller, "pt-BR"))
+    .map((row) => [
+      row.date,
+      row.seller,
+      row.attendances,
+      percentage(row.opportunities, row.attendances),
+      row.opportunities,
+      percentage(row.sales, row.opportunities),
+      row.sales,
+      row.revenue
+    ]);
+}
+
 function normalizeRows(filePath) {
+  const workbookRows = readWorkbookRows(filePath);
+  const headers = workbookRows[0] || [];
+  const detailedIndexes = {
+    attendant: findHeader(headers, "Atendente"),
+    start: findHeader(headers, "Início do atendimento"),
+    opportunities: findHeader(headers, "Oportunidades"),
+    sales: findHeader(headers, "Vendas"),
+    revenue: findHeader(headers, "Valor vendido")
+  };
+
+  if (
+    detailedIndexes.attendant !== -1 &&
+    detailedIndexes.start !== -1 &&
+    detailedIndexes.opportunities !== -1 &&
+    detailedIndexes.sales !== -1 &&
+    detailedIndexes.revenue !== -1
+  ) {
+    return normalizeDetailedRows(workbookRows, detailedIndexes);
+  }
+
   const date = parseDateFromFile(filePath);
-  const rows = readWorkbookRows(filePath).slice(1);
+  const conversionIndexes = findAllHeaders(headers, "Conv.%");
+  const indexes = {
+    attendant: findHeader(headers, "Atendente"),
+    attendances: findHeader(headers, "Atendimentos"),
+    opportunities: findHeader(headers, "Oportunidades"),
+    sales: findHeader(headers, "Vendas"),
+    revenue: findHeader(headers, "Receita")
+  };
+
+  const rows = workbookRows.slice(1);
   return rows
     .map((row) => ({
       date,
-      seller: normalizeName(row[0]),
-      chats: Number(row[1] || 0),
-      chatConvPct: Number(row[2] || 0),
-      opportunities: Number(row[3] || 0),
-      salesConvPct: Number(row[4] || 0),
-      sales: Number(row[5] || 0),
-      revenue: Number(row[6] || 0)
+      seller: normalizeName(row[indexes.attendant]),
+      chats: toNumber(row[indexes.attendances]),
+      chatConvPct: toNumber(row[conversionIndexes[0]]),
+      opportunities: toNumber(row[indexes.opportunities]),
+      salesConvPct: toNumber(row[conversionIndexes[1]]),
+      sales: toNumber(row[indexes.sales]),
+      revenue: toNumber(row[indexes.revenue])
     }))
     .filter((row) => ALLOWED_SELLERS.has(row.seller))
     .map((row) => [
