@@ -1194,11 +1194,11 @@ function statusFromPct(value) {
 }
 
 const TV_SELLER_ORDER = [
+  TEAM_CARD_NAME,
   "Aline Nunes",
   "Emanoel Cesar",
   "Julia Reche",
   "Amanda Melgaco",
-  TEAM_CARD_NAME,
   "Site",
   "Operadoras",
   "OTAs",

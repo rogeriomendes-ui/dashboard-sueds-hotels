@@ -154,6 +154,34 @@
   color: var(--text);
 }
 
+.seller-card-team {
+  position: relative;
+  border: 3px solid #ddc6a6;
+  background:
+    linear-gradient(180deg, rgba(221, 198, 166, 0.18), rgba(255, 255, 255, 0) 36%),
+    var(--panel);
+  box-shadow: 0 0 0 3px rgba(221, 198, 166, 0.18), 0 16px 30px rgba(0, 0, 0, 0.16);
+}
+
+.seller-card-team::before {
+  content: "TOTAL DA EQUIPE";
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #2c3e50;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.seller-card-team .seller-name {
+  color: #2c3e50;
+}
+
 .seller-name {
   margin: 0 0 10px;
   overflow: hidden;

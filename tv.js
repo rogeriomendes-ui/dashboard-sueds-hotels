@@ -210,7 +210,7 @@ function render(data) {
 
   byId("sellerGrid").innerHTML = data.sellers
     .map((seller) => `
-      <article class="seller-card ${statusClass(seller)}">
+      <article class="seller-card ${statusClass(seller)} ${seller.name === "Equipe Sueds" ? "seller-card-team" : ""}">
         <h2 class="seller-name">${seller.name}</h2>
         <div class="gauge-layout">
           <div class="goal-column goal-column-day">
