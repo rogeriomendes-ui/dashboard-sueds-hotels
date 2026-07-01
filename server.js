@@ -8,6 +8,7 @@ loadEnvFile(path.join(__dirname, ".env"));
 const PORT = Number(process.env.PORT || 3000);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
+const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAMENTOS_RANGE || "Lancamento_Vendas!A:Y";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
@@ -190,6 +191,20 @@ async function getSheetValues(range, sheetId = SHEET_ID) {
 
   const payload = await response.json();
   return payload.values || [];
+}
+
+async function getFirstAvailableSheetValues(ranges, sheetId = SHEET_ID) {
+  let lastError = null;
+  for (const range of ranges.filter(Boolean)) {
+    try {
+      const rows = await getSheetValues(range, sheetId);
+      if (rows.length) return rows;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  return [];
 }
 
 async function googleAnalyticsRequest(propertyId, method, body) {
@@ -2527,7 +2542,7 @@ async function loadDataset() {
     asksuite = demo.asksuite || [];
   } else {
     const [baseRows, goalRows, cartRows, asksuiteRows] = await Promise.all([
-      getSheetValues(BASE_RANGE),
+      getFirstAvailableSheetValues([SALES_RANGE, BASE_RANGE]),
       getSheetValues(METAS_RANGE),
       getSheetValues(CARTS_RANGE),
       getSheetValues(ASKSUITE_RANGE)
