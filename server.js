@@ -542,7 +542,10 @@ async function googleAdsGeoTargetNames(resourceNames) {
 }
 
 async function loadGoogleAdsMetrics(period = {}) {
-  const { month, startDate, endDate } = marketDateRangeForMonth(period.month);
+  const dateRange = period.startDate && period.endDate
+    ? { month: period.month || "custom", startDate: period.startDate, endDate: period.endDate }
+    : marketDateRangeForMonth(period.month);
+  const { month, startDate, endDate } = dateRange;
   const cacheKey = JSON.stringify({ month, startDate, endDate, customerId: GOOGLE_ADS_CUSTOMER_ID, version: GOOGLE_ADS_API_VERSION });
   if (googleAdsCache.key === cacheKey && googleAdsCache.payload && Date.now() < googleAdsCache.expiresAt) {
     return googleAdsCache.payload;
@@ -721,6 +724,19 @@ async function loadGoogleAdsMetrics(period = {}) {
   }
 }
 
+function areContiguousMonths(months = []) {
+  const ascending = normalizeMarketMonthList(months).sort((a, b) => a.localeCompare(b));
+  if (ascending.length <= 1) return true;
+  for (let index = 1; index < ascending.length; index += 1) {
+    const previous = ascending[index - 1].split("-").map(Number);
+    const current = ascending[index].split("-").map(Number);
+    const expectedYear = previous[1] === 12 ? previous[0] + 1 : previous[0];
+    const expectedMonth = previous[1] === 12 ? 1 : previous[1] + 1;
+    if (current[0] !== expectedYear || current[1] !== expectedMonth) return false;
+  }
+  return true;
+}
+
 function combineGoogleAdsRows(rows = [], keyGetter = (row) => row.label || row.keyword || row.city || "") {
   const totals = new Map();
   rows.forEach((row) => {
@@ -752,6 +768,25 @@ async function loadGoogleAdsMetricsForMonths(months = []) {
   const selectedMonths = normalizeMarketMonthList(months);
   if (!selectedMonths.length) return loadGoogleAdsMetrics({});
   if (selectedMonths.length === 1) return loadGoogleAdsMetrics({ month: selectedMonths[0] });
+
+  if (areContiguousMonths(selectedMonths)) {
+    const startMonth = [...selectedMonths].sort((a, b) => a.localeCompare(b))[0];
+    const endMonth = [...selectedMonths].sort((a, b) => b.localeCompare(a))[0];
+    const payload = await loadGoogleAdsMetrics({
+      month: selectedMonths.join(","),
+      startDate: `${startMonth}-01`,
+      endDate: `${endMonth}-${String(daysInMonth(endMonth)).padStart(2, "0")}`
+    });
+    return {
+      ...payload,
+      period: {
+        ...(payload.period || {}),
+        months: selectedMonths,
+        startDate: `${startMonth}-01`,
+        endDate: `${endMonth}-${String(daysInMonth(endMonth)).padStart(2, "0")}`
+      }
+    };
+  }
 
   const payloads = await Promise.all(selectedMonths.map((month) => loadGoogleAdsMetrics({ month })));
   const campaigns = combineGoogleAdsRows(payloads.flatMap((payload) => payload.campaigns || []), (row) => row.label);
