@@ -78,7 +78,7 @@ function setSelect(id, values, placeholder, selectedValue) {
   if (!select) return;
   select.innerHTML = "";
   if (id === "monthSelect") {
-    const months = ["ytd", currentMonth(), "2026-07", "2026-06", "2026-05"];
+    const months = ["ytd", currentMonth(), "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"];
     [...new Set(months)].forEach((month) => select.appendChild(createOption(month, monthLabel(month), selectedValue)));
   } else {
     select.appendChild(createOption("", placeholder, selectedValue));

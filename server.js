@@ -609,8 +609,7 @@ async function loadGoogleAdsMetrics(period = {}) {
       googleAdsSearchStream(campaignQuery),
       googleAdsSearchStream(keywordQuery).catch(() => [])
     ]);
-    const cityResults = (await googleAdsSearchStream(cityQuery).catch(() => []))
-      .filter((row) => String(row.geographicView?.locationType || "") === "LOCATION_OF_PRESENCE");
+    const cityResults = await googleAdsSearchStream(cityQuery).catch(() => []);
     const cityNameMap = await googleAdsGeoTargetNames(cityResults.map((row) => row.segments?.geoTargetCity));
     const campaigns = results.map((row) => {
       const spend = googleAdsMetricNumber(row.metrics?.costMicros) / 1000000;
@@ -663,7 +662,7 @@ async function loadGoogleAdsMetrics(period = {}) {
         city: label,
         countryCode: cityInfo?.countryCode || "",
         targetType: cityInfo?.targetType || "",
-        locationType: String(row.geographicView?.locationType || ""),
+        locationType: "MATCHED_LOCATION",
         spend: 0,
         clicks: 0,
         impressions: 0,
