@@ -1692,6 +1692,39 @@ function demoMarketRows(month) {
   }));
 }
 
+function loadAsksuiteMarketRows(month) {
+  const filePath = path.join(__dirname, "data", "asksuite-market.json");
+  if (!fs.existsSync(filePath)) return [];
+
+  try {
+    const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const targetYear = todayKey().slice(0, 4);
+    return (payload.rows || [])
+      .filter((row) => month === "ytd" ? String(row.month || "").startsWith(targetYear) : row.month === month)
+      .map((row, index) => ({
+        id: `asksuite-${row.month}-${index + 1}`,
+        month: row.month,
+        state: row.state || "Não informado",
+        ddd: row.ddd || "NI",
+        hotel: row.hotel || "Não informado",
+        channel: row.channel || "Não informado",
+        campaign: row.campaign || `Asksuite ${row.channel || ""}`.trim(),
+        source: row.source || "Asksuite",
+        origin: row.origin || row.channel || "Não informado",
+        device: row.device || "Não informado",
+        dialogues: Number(row.dialogues || 0),
+        quotes: Number(row.quotes || 0),
+        reservations: Number(row.reservations || 0),
+        sales: Number(row.sales || 0),
+        revenue: Number(row.revenue || 0),
+        googleSpend: Number(row.googleSpend || 0),
+        metaSpend: Number(row.metaSpend || 0)
+      }));
+  } catch (error) {
+    return [];
+  }
+}
+
 function demoCompetitivenessRows(month) {
   const base = marketDateRangeForMonth(month).startDate;
   return [
@@ -1868,7 +1901,9 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
 
 async function buildMarketIntelligencePayload(filters = {}) {
   const { month } = marketDateRangeForMonth(filters.month);
-  const sourceRows = demoMarketRows(month);
+  const asksuiteMarketRows = loadAsksuiteMarketRows(month);
+  const sourceRows = asksuiteMarketRows.length ? asksuiteMarketRows : demoMarketRows(month);
+  const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "demo";
   const rows = filterMarketRows(sourceRows, filters);
   const summary = summarizeMarketGroup("Total", rows);
   const googleSpend = marketSum(rows, "googleSpend");
@@ -1893,6 +1928,16 @@ async function buildMarketIntelligencePayload(filters = {}) {
     audience: "gestores-inteligencia-mercado",
     generatedAt: new Date().toISOString(),
     period: { month },
+    integrations: {
+      asksuite: {
+        configured: Boolean(asksuiteMarketRows.length),
+        source: marketSource,
+        rows: asksuiteMarketRows.length,
+        note: asksuiteMarketRows.length
+          ? "Diálogos vêm dos atendimentos; cotações e reservas usam a coluna Oportunidades; vendas e receita usam Vendas e Valor vendido."
+          : "Dados demonstrativos usados enquanto não há relatório Asksuite para o período."
+      }
+    },
     filters: {
       selected: filters,
       hotels: selectValues(sourceRows, "hotel"),
