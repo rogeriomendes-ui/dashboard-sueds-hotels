@@ -1976,6 +1976,8 @@ function generatedMarketMonths(startMonth = "2025-01") {
 function marketAvailablePeriodsFromRows(rows) {
   const months = [...new Set([
     ...generatedMarketMonths("2025-01"),
+    todayKey().slice(0, 7),
+    "2026-07",
     ...(rows || []).map((row) => row.month)
   ].filter((month) => /^\d{4}-\d{2}$/.test(month)))]
     .sort((a, b) => b.localeCompare(a));
