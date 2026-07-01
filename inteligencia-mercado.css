@@ -153,6 +153,79 @@ h3 {
   padding: 0 8px;
 }
 
+.market-multi-select {
+  position: relative;
+  width: 100%;
+}
+
+.market-multi-button {
+  position: relative;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.market-multi-button::after {
+  position: absolute;
+  right: 12px;
+  top: 13px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text);
+  border-bottom: 2px solid var(--text);
+  content: "";
+  transform: rotate(45deg);
+}
+
+.market-multi-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+}
+
+.market-multi-option {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px !important;
+  padding: 9px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.market-multi-option:hover {
+  background: #eef3f7;
+}
+
+.market-multi-option input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--brand);
+}
+
+.market-multi-option span {
+  color: var(--text);
+  font-size: 13px;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));

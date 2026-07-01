@@ -721,6 +721,75 @@ async function loadGoogleAdsMetrics(period = {}) {
   }
 }
 
+function combineGoogleAdsRows(rows = [], keyGetter = (row) => row.label || row.keyword || row.city || "") {
+  const totals = new Map();
+  rows.forEach((row) => {
+    const key = keyGetter(row);
+    if (!key) return;
+    const current = totals.get(key) || { ...row, spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 };
+    current.spend += Number(row.spend || 0);
+    current.clicks += Number(row.clicks || 0);
+    current.impressions += Number(row.impressions || 0);
+    current.conversions += Number(row.conversions || 0);
+    current.conversionValue += Number(row.conversionValue || 0);
+    totals.set(key, current);
+  });
+
+  return [...totals.values()]
+    .map((row) => ({
+      ...row,
+      spend: marketRound(row.spend, 2),
+      conversions: marketRound(row.conversions, 2),
+      conversionValue: marketRound(row.conversionValue, 2),
+      costPerClick: marketRound(marketSafeDiv(row.spend, row.clicks), 2),
+      costPerConversion: marketRound(marketSafeDiv(row.spend, row.conversions), 2),
+      roas: marketRound(marketSafeDiv(row.conversionValue, row.spend), 2)
+    }))
+    .sort((a, b) => Number(b.spend || 0) - Number(a.spend || 0));
+}
+
+async function loadGoogleAdsMetricsForMonths(months = []) {
+  const selectedMonths = normalizeMarketMonthList(months);
+  if (!selectedMonths.length) return loadGoogleAdsMetrics({});
+  if (selectedMonths.length === 1) return loadGoogleAdsMetrics({ month: selectedMonths[0] });
+
+  const payloads = await Promise.all(selectedMonths.map((month) => loadGoogleAdsMetrics({ month })));
+  const campaigns = combineGoogleAdsRows(payloads.flatMap((payload) => payload.campaigns || []), (row) => row.label);
+  const keywords = combineGoogleAdsRows(
+    payloads.flatMap((payload) => payload.keywords || []),
+    (row) => `${row.keyword || ""}|${row.campaign || ""}|${row.adGroup || ""}`
+  );
+  const geoCities = combineGoogleAdsRows(
+    payloads.flatMap((payload) => payload.geoCities || []),
+    (row) => `${row.city || ""}|${row.countryCode || ""}|${row.locationType || ""}`
+  );
+  const startMonth = [...selectedMonths].sort((a, b) => a.localeCompare(b))[0];
+  const endMonth = [...selectedMonths].sort((a, b) => b.localeCompare(a))[0];
+  const summary = {
+    spend: marketRound(campaigns.reduce((total, row) => total + Number(row.spend || 0), 0), 2),
+    clicks: campaigns.reduce((total, row) => total + Number(row.clicks || 0), 0),
+    impressions: campaigns.reduce((total, row) => total + Number(row.impressions || 0), 0),
+    conversions: marketRound(campaigns.reduce((total, row) => total + Number(row.conversions || 0), 0), 2),
+    conversionValue: marketRound(campaigns.reduce((total, row) => total + Number(row.conversionValue || 0), 0), 2)
+  };
+
+  return {
+    configured: payloads.some((payload) => payload.configured),
+    source: payloads.find((payload) => payload.source === "google_ads_api") ? "google_ads_api" : (payloads[0]?.source || "empty"),
+    apiVersion: GOOGLE_ADS_API_VERSION,
+    customerId: GOOGLE_ADS_CUSTOMER_ID,
+    period: {
+      months: selectedMonths,
+      startDate: `${startMonth}-01`,
+      endDate: `${endMonth}-${String(daysInMonth(endMonth)).padStart(2, "0")}`
+    },
+    campaigns,
+    keywords,
+    geoCities,
+    summary
+  };
+}
+
 function rowsToObjects(rows, options = {}) {
   const [headers = [], ...body] = rows;
   return body
@@ -785,6 +854,18 @@ function parseDate(value) {
 
   const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseDateRange(value) {
+  const text = String(value || "").trim();
+  const parts = text.split(/\s+a\s+/i);
+  const start = parseDate(parts[0]);
+  const end = parts.length > 1 ? parseDate(parts[1]) : null;
+  return {
+    start,
+    end,
+    isRange: Boolean(start && end)
+  };
 }
 
 function normalizeTextKey(value) {
@@ -921,11 +1002,18 @@ function normalizeCartRecord(item) {
 }
 
 function normalizeAsksuiteRecord(item) {
-  const parsedDate = parseDate(item.Data);
+  const parsedRange = parseDateRange(item.Data);
+  const parsedDate = parsedRange.start || parseDate(item.Data);
+  const parsedEndDate = parsedRange.end;
+  const parsedMonth = parsedDate ? monthKey(parsedDate) : "";
+  const parsedEndMonth = parsedEndDate ? monthKey(parsedEndDate) : "";
   return {
     date: parsedDate,
     dateKey: parsedDate ? dateKey(parsedDate) : "",
-    monthKey: parsedDate ? monthKey(parsedDate) : "",
+    endDate: parsedEndDate,
+    endDateKey: parsedEndDate ? dateKey(parsedEndDate) : "",
+    monthKey: parsedMonth,
+    isMonthlyTotal: Boolean(parsedRange.isRange && parsedMonth && parsedMonth === parsedEndMonth),
     seller: normalizeSellerName(item.Atendente || ""),
     attendances: parseDecimalNumber(item.Atendimentos),
     chatConvPct: parseDecimalNumber(item["Conv Atendimento %"]),
@@ -939,7 +1027,8 @@ function normalizeAsksuiteRecord(item) {
 function dedupeAsksuiteRecords(rows) {
   const byKey = new Map();
   rows.forEach((row) => {
-    const key = `${row.dateKey}|${comparableKey(row.seller)}`;
+    const periodKey = row.isMonthlyTotal ? `${row.monthKey}|mensal` : `${row.dateKey}|diario`;
+    const key = `${periodKey}|${comparableKey(row.seller)}`;
     if (!row.dateKey || !row.seller) return;
     byKey.set(key, row);
   });
@@ -1132,6 +1221,15 @@ function buildAsksuiteMetrics(asksuite, period = {}) {
   function rowsForSellerPeriod(seller) {
     const rows = monthRows.filter((row) => comparableKey(row.seller) === comparableKey(seller));
     if (rows.length <= 1) return rows;
+
+    const monthlyTotals = rows
+      .filter((row) => row.isMonthlyTotal)
+      .sort((a, b) => {
+        const scoreA = a.attendances + a.opportunities + a.sales + a.revenue;
+        const scoreB = b.attendances + b.opportunities + b.sales + b.revenue;
+        return scoreB - scoreA;
+      });
+    if (monthlyTotals.length) return [monthlyTotals[0]];
 
     const monthEnd = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
     const maxDate = rows.reduce((latest, row) => row.dateKey > latest ? row.dateKey : latest, "");
@@ -1796,22 +1894,41 @@ function marketPeriodLabel(value) {
   return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: TIME_ZONE }).toUpperCase();
 }
 
+function generatedMarketMonths(startMonth = "2025-01") {
+  const months = [];
+  const current = todayKey().slice(0, 7);
+  let [year, month] = startMonth.split("-").map(Number);
+  while (`${year}-${String(month).padStart(2, "0")}` <= current) {
+    months.push(`${year}-${String(month).padStart(2, "0")}`);
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return months;
+}
+
 function marketAvailablePeriodsFromRows(rows) {
-  const months = [...new Set((rows || []).map((row) => row.month).filter((month) => /^\d{4}-\d{2}$/.test(month)))]
+  const months = [...new Set([
+    ...generatedMarketMonths("2025-01"),
+    ...(rows || []).map((row) => row.month)
+  ].filter((month) => /^\d{4}-\d{2}$/.test(month)))]
     .sort((a, b) => b.localeCompare(a));
-  const years = [...new Set(months.map((month) => month.slice(0, 4)))]
-    .sort((a, b) => b.localeCompare(a));
-  const periods = [
-    { value: "ytd", label: marketPeriodLabel("ytd") },
-    ...years.map((year) => ({ value: year, label: marketPeriodLabel(year) })),
-    ...months.map((month) => ({ value: month, label: marketPeriodLabel(month) }))
-  ];
+  const periods = months.map((month) => ({ value: month, label: marketPeriodLabel(month) }));
   const seen = new Set();
   return periods.filter((period) => {
     if (seen.has(period.value)) return false;
     seen.add(period.value);
     return true;
   });
+}
+
+function normalizeMarketMonthList(months = []) {
+  return [...new Set((months || [])
+    .map((month) => String(month || "").trim())
+    .filter((month) => /^\d{4}-\d{2}$/.test(month)))]
+    .sort((a, b) => b.localeCompare(a));
 }
 
 function loadAsksuiteMarketRawRows() {
@@ -1826,6 +1943,28 @@ function loadAsksuiteMarketRawRows() {
   }
 }
 
+function normalizeAsksuiteMarketRow(row, index) {
+  return {
+    id: `asksuite-${row.month}-${index + 1}`,
+    month: row.month,
+    state: row.state || "Não informado",
+    ddd: row.ddd || "NI",
+    hotel: row.hotel || "Não informado",
+    channel: row.channel || "Não informado",
+    campaign: row.campaign || `Asksuite ${row.channel || ""}`.trim(),
+    source: row.source || "Asksuite",
+    origin: row.origin || row.channel || "Não informado",
+    device: row.device || "Não informado",
+    dialogues: Number(row.dialogues || 0),
+    quotes: Number(row.quotes || 0),
+    reservations: Number(row.reservations || 0),
+    sales: Number(row.sales || 0),
+    revenue: Number(row.revenue || 0),
+    googleSpend: Number(row.googleSpend || 0),
+    metaSpend: Number(row.metaSpend || 0)
+  };
+}
+
 function loadAsksuiteMarketRows(month) {
   try {
     const targetYear = todayKey().slice(0, 4);
@@ -1836,25 +1975,19 @@ function loadAsksuiteMarketRows(month) {
         if (/^\d{4}$/.test(month || "")) return rowMonth.startsWith(month);
         return rowMonth === month;
       })
-      .map((row, index) => ({
-        id: `asksuite-${row.month}-${index + 1}`,
-        month: row.month,
-        state: row.state || "Não informado",
-        ddd: row.ddd || "NI",
-        hotel: row.hotel || "Não informado",
-        channel: row.channel || "Não informado",
-        campaign: row.campaign || `Asksuite ${row.channel || ""}`.trim(),
-        source: row.source || "Asksuite",
-        origin: row.origin || row.channel || "Não informado",
-        device: row.device || "Não informado",
-        dialogues: Number(row.dialogues || 0),
-        quotes: Number(row.quotes || 0),
-        reservations: Number(row.reservations || 0),
-        sales: Number(row.sales || 0),
-        revenue: Number(row.revenue || 0),
-        googleSpend: Number(row.googleSpend || 0),
-        metaSpend: Number(row.metaSpend || 0)
-      }));
+      .map(normalizeAsksuiteMarketRow);
+  } catch (error) {
+    return [];
+  }
+}
+
+function loadAsksuiteMarketRowsForMonths(months = []) {
+  try {
+    const selected = new Set(normalizeMarketMonthList(months));
+    if (!selected.size) return [];
+    return loadAsksuiteMarketRawRows()
+      .filter((row) => selected.has(String(row.month || "")))
+      .map(normalizeAsksuiteMarketRow);
   } catch (error) {
     return [];
   }
@@ -2062,7 +2195,11 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
 async function buildMarketIntelligencePayload(filters = {}) {
   const { month } = marketDateRangeForMonth(filters.month);
   const allMarketRows = loadAsksuiteMarketRawRows();
-  const asksuiteMarketRows = loadAsksuiteMarketRows(month);
+  const selectedMonths = normalizeMarketMonthList(filters.months || []);
+  const activeMonths = selectedMonths.length ? selectedMonths : normalizeMarketMonthList([month]);
+  const asksuiteMarketRows = activeMonths.length > 1
+    ? loadAsksuiteMarketRowsForMonths(activeMonths)
+    : loadAsksuiteMarketRows(activeMonths[0] || month);
   const sourceRows = asksuiteMarketRows;
   const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "empty";
   const rows = filterMarketRows(sourceRows, filters);
@@ -2087,7 +2224,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
   const payload = {
     audience: "gestores-inteligencia-mercado",
     generatedAt: new Date().toISOString(),
-    period: { month },
+    period: { month: activeMonths[0] || month, months: activeMonths },
     integrations: {
       asksuite: {
         configured: Boolean(asksuiteMarketRows.length),
@@ -2099,7 +2236,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
       }
     },
     filters: {
-      selected: filters,
+      selected: { ...filters, months: activeMonths },
       periods: marketAvailablePeriodsFromRows(allMarketRows),
       hotels: selectValues(sourceRows, "hotel"),
       states: selectValues(sourceRows, "state"),
@@ -2187,14 +2324,18 @@ async function buildMarketIntelligencePayload(filters = {}) {
       byOrigin
     }
   };
-  const googleAds = await loadGoogleAdsMetrics({ month });
+  const googleAds = activeMonths.length > 1
+    ? await loadGoogleAdsMetricsForMonths(activeMonths)
+    : await loadGoogleAdsMetrics({ month: activeMonths[0] || month });
   return applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters);
 }
 
 function marketFiltersFromUrl(url) {
   const period = url.searchParams.get("month") || "";
+  const months = normalizeMarketMonthList((url.searchParams.get("months") || "").split(","));
   return {
     month: period === "ytd" || /^\d{4}$/.test(period) || /^\d{4}-\d{2}$/.test(period) ? period : undefined,
+    months,
     hotel: url.searchParams.get("hotel") || "",
     state: url.searchParams.get("state") || "",
     ddd: url.searchParams.get("ddd") || "",

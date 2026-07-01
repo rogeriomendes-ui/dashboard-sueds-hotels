@@ -1,7 +1,7 @@
 const state = {
   payload: null,
   filters: {
-    month: currentMonth(),
+    months: [currentMonth()],
     hotel: "",
     state: "",
     ddd: "",
@@ -34,11 +34,16 @@ function currentMonth() {
 }
 
 function monthLabel(value) {
-  if (value === "ytd") return "ESTE ANO";
-  if (/^\d{4}$/.test(value || "")) return `ANO ${value}`;
   const [year, month] = String(value || currentMonth()).split("-");
   const date = new Date(Number(year), Number(month) - 1, 1);
   return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase();
+}
+
+function normalizeMonthValues(values = []) {
+  return [...new Set((values || [])
+    .map((value) => String(value || "").trim())
+    .filter((value) => /^\d{4}-\d{2}$/.test(value)))]
+    .sort((a, b) => b.localeCompare(a));
 }
 
 function formatPct(value) {
@@ -81,24 +86,89 @@ function setSelect(id, values, placeholder, selectedValue) {
   const select = document.getElementById(id);
   if (!select) return;
   select.innerHTML = "";
-  if (id === "monthSelect") {
-    const fallbackPeriods = ["ytd", currentMonth(), "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]
-      .map((month) => ({ value: month, label: monthLabel(month) }));
-    const periods = values.length ? values : fallbackPeriods;
-    periods.forEach((period) => {
-      const value = typeof period === "string" ? period : period.value;
-      const label = typeof period === "string" ? monthLabel(period) : period.label;
-      select.appendChild(createOption(value, label, selectedValue));
-    });
-  } else {
-    select.appendChild(createOption("", placeholder, selectedValue));
-    values.forEach((value) => select.appendChild(createOption(value, value, selectedValue)));
+  select.appendChild(createOption("", placeholder, selectedValue));
+  values.forEach((value) => select.appendChild(createOption(value, value, selectedValue)));
+}
+
+function monthSelectionLabel(months = []) {
+  const selected = normalizeMonthValues(months);
+  if (selected.length === 1) return monthLabel(selected[0]);
+  if (selected.length > 1) return `${selected.length} MESES SELECIONADOS`;
+  return "Selecionar meses";
+}
+
+function setMonthMultiSelect(values = []) {
+  const select = document.getElementById("monthSelect");
+  if (!select) return;
+  const fallbackPeriods = [currentMonth(), "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]
+    .map((month) => ({ value: month, label: monthLabel(month) }));
+  const periods = (values.length ? values : fallbackPeriods)
+    .map((period) => ({
+      value: typeof period === "string" ? period : period.value,
+      label: typeof period === "string" ? monthLabel(period) : period.label
+    }))
+    .filter((period) => /^\d{4}-\d{2}$/.test(period.value));
+  const available = normalizeMonthValues(periods.map((period) => period.value));
+  let selected = normalizeMonthValues(state.filters.months);
+  if (!selected.length) selected = [available.includes(currentMonth()) ? currentMonth() : available[0]].filter(Boolean);
+  selected = selected.filter((month) => available.includes(month));
+  if (!selected.length && available.length) selected = [available[0]];
+  state.filters.months = selected;
+
+  select.hidden = true;
+  select.innerHTML = "";
+  periods.forEach((period) => {
+    const option = createOption(period.value, period.label, "");
+    option.selected = selected.includes(period.value);
+    select.appendChild(option);
+  });
+
+  let wrapper = document.getElementById("monthMultiSelect");
+  if (!wrapper) {
+    wrapper = document.createElement("div");
+    wrapper.id = "monthMultiSelect";
+    wrapper.className = "market-multi-select";
+    wrapper.innerHTML = `
+      <button type="button" id="monthMultiButton" class="market-multi-button" aria-expanded="false"></button>
+      <div id="monthMultiPanel" class="market-multi-panel" hidden></div>
+    `;
+    select.insertAdjacentElement("afterend", wrapper);
   }
+
+  const button = document.getElementById("monthMultiButton");
+  const panel = document.getElementById("monthMultiPanel");
+  if (!button || !panel) return;
+
+  button.textContent = monthSelectionLabel(selected);
+  button.onclick = () => {
+    const isOpen = !panel.hidden;
+    panel.hidden = isOpen;
+    button.setAttribute("aria-expanded", String(!isOpen));
+  };
+
+  panel.innerHTML = periods.map((period) => `
+    <label class="market-multi-option">
+      <input type="checkbox" value="${period.value}" ${selected.includes(period.value) ? "checked" : ""}>
+      <span>${period.label}</span>
+    </label>
+  `).join("");
+  panel.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const checked = [...panel.querySelectorAll("input[type='checkbox']:checked")].map((item) => item.value);
+      state.filters.months = normalizeMonthValues(checked);
+      if (!state.filters.months.length) {
+        checkbox.checked = true;
+        state.filters.months = [checkbox.value];
+      }
+      button.textContent = monthSelectionLabel(state.filters.months);
+      loadDashboard();
+    });
+  });
 }
 
 function updateFilters(payload) {
   const filters = payload.filters || {};
-  setSelect("monthSelect", filters.periods || [], "Mês", state.filters.month);
+  setMonthMultiSelect(filters.periods || []);
   setSelect("hotelSelect", filters.hotels || [], "Todos os hotéis", state.filters.hotel);
   setSelect("stateSelect", filters.states || [], "Todos os estados", state.filters.state);
   setSelect("dddSelect", filters.ddds || [], "Todos os DDDs", state.filters.ddd);
@@ -110,7 +180,6 @@ function updateFilters(payload) {
 
 function bindFilters() {
   [
-    ["monthSelect", "month"],
     ["hotelSelect", "hotel"],
     ["stateSelect", "state"],
     ["dddSelect", "ddd"],
@@ -131,10 +200,25 @@ function bindFilters() {
 function queryString() {
   const params = new URLSearchParams();
   Object.entries(state.filters).forEach(([key, value]) => {
-    if (value) params.set(key, value);
+    if (Array.isArray(value)) {
+      if (value.length) params.set(key, value.join(","));
+    } else if (value) {
+      params.set(key, value);
+    }
   });
   return params.toString();
 }
+
+document.addEventListener("click", (event) => {
+  const wrapper = document.getElementById("monthMultiSelect");
+  const panel = document.getElementById("monthMultiPanel");
+  const button = document.getElementById("monthMultiButton");
+  if (!wrapper || !panel || !button || panel.hidden) return;
+  if (!wrapper.contains(event.target)) {
+    panel.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+  }
+});
 
 async function loadDashboard() {
   try {
