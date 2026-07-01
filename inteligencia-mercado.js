@@ -34,6 +34,7 @@ function currentMonth() {
 }
 
 function monthLabel(value) {
+  if (value === "ytd") return "ESTE ANO";
   const [year, month] = String(value || currentMonth()).split("-");
   const date = new Date(Number(year), Number(month) - 1, 1);
   return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase();
@@ -77,7 +78,7 @@ function setSelect(id, values, placeholder, selectedValue) {
   if (!select) return;
   select.innerHTML = "";
   if (id === "monthSelect") {
-    const months = [currentMonth(), "2026-07", "2026-06", "2026-05"];
+    const months = ["ytd", currentMonth(), "2026-07", "2026-06", "2026-05"];
     [...new Set(months)].forEach((month) => select.appendChild(createOption(month, monthLabel(month), selectedValue)));
   } else {
     select.appendChild(createOption("", placeholder, selectedValue));

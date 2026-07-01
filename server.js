@@ -1554,6 +1554,17 @@ function marketRound(value, digits = 1) {
 }
 
 function marketDateRangeForMonth(month) {
+  if (month === "ytd") {
+    const today = todayKey();
+    const year = today.slice(0, 4);
+    return {
+      month: "ytd",
+      label: `Este ano ${year}`,
+      startDate: `${year}-01-01`,
+      endDate: today
+    };
+  }
+
   const safeMonth = /^\d{4}-\d{2}$/.test(month || "") ? month : todayKey().slice(0, 7);
   return {
     month: safeMonth,
@@ -1874,8 +1885,9 @@ async function buildMarketIntelligencePayload(filters = {}) {
 }
 
 function marketFiltersFromUrl(url) {
+  const period = url.searchParams.get("month") || "";
   return {
-    month: /^\d{4}-\d{2}$/.test(url.searchParams.get("month") || "") ? url.searchParams.get("month") : undefined,
+    month: period === "ytd" || /^\d{4}-\d{2}$/.test(period) ? period : undefined,
     hotel: url.searchParams.get("hotel") || "",
     state: url.searchParams.get("state") || "",
     ddd: url.searchParams.get("ddd") || "",
