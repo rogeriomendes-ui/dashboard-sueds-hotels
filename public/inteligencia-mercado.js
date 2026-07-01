@@ -279,7 +279,7 @@ function renderMedia(media) {
     </tr>
   `).join("") : `
     <tr>
-      <td colspan="8">Sem dados de cidade para este período. O Google Ads pode não devolver cidade quando há pouco volume ou limitação de privacidade.</td>
+      <td colspan="8">Sem dados de localização física por cidade para este período. Cidades apenas de interesse foram ignoradas nesta leitura.</td>
     </tr>
   `;
 
