@@ -232,7 +232,7 @@ function renderConversion(conversion) {
   `).join("");
   renderConversionTable("hotelConversionTable", conversion.byHotel, 6);
   renderConversionTable("channelConversionTable", conversion.byChannel, 6);
-  renderConversionTable("stateDddConversionTable", conversion.byStateDdd, 8);
+  renderConversionTable("stateDddConversionTable", conversion.byStateDdd, 20);
 }
 
 function renderConversionTable(id, rows, maxRows = 8) {
