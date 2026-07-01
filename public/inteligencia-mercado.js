@@ -13,6 +13,7 @@ const state = {
 };
 
 const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
+let dashboardRequestId = 0;
 
 const formatCurrency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -221,12 +222,14 @@ document.addEventListener("click", (event) => {
 });
 
 async function loadDashboard() {
+  const requestId = ++dashboardRequestId;
+  const requestQuery = queryString();
   try {
     let token = getStoredAccessToken();
     if (!token) token = askAccessToken();
     if (!token) throw new Error("Acesso aos gestores não informado");
 
-    let response = await fetch(`/api/inteligencia/mercado?${queryString()}`, {
+    let response = await fetch(`/api/inteligencia/mercado?${requestQuery}`, {
       headers: { "x-dashboard-token": token }
     });
 
@@ -234,15 +237,18 @@ async function loadDashboard() {
       clearAccessToken();
       token = askAccessToken();
       if (!token) throw new Error("Acesso aos gestores não autorizado");
-      response = await fetch(`/api/inteligencia/mercado?${queryString()}`, {
+      response = await fetch(`/api/inteligencia/mercado?${requestQuery}`, {
         headers: { "x-dashboard-token": token }
       });
     }
 
     if (!response.ok) throw new Error("Falha ao carregar inteligência de mercado");
-    state.payload = await response.json();
+    const payload = await response.json();
+    if (requestId !== dashboardRequestId) return;
+    state.payload = payload;
     renderDashboard(state.payload);
   } catch (error) {
+    if (requestId !== dashboardRequestId) return;
     document.getElementById("kpiGrid").innerHTML = `<div class="empty-state">${error.message}</div>`;
   }
 }
