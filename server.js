@@ -1129,6 +1129,27 @@ function buildAsksuiteMetrics(asksuite, period = {}) {
   const month = period.month || today.slice(0, 7);
   const monthRows = asksuite.filter((row) => row.monthKey === month);
 
+  function rowsForSellerPeriod(seller) {
+    const rows = monthRows.filter((row) => comparableKey(row.seller) === comparableKey(seller));
+    if (rows.length <= 1) return rows;
+
+    const monthEnd = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+    const maxDate = rows.reduce((latest, row) => row.dateKey > latest ? row.dateKey : latest, "");
+    const candidates = rows
+      .filter((row) => {
+        const hasMeaningfulTotal = row.attendances >= 20 || row.opportunities >= 10 || row.sales > 0 || row.revenue > 0;
+        const isMonthClosingRow = row.dateKey === monthEnd || (row.dateKey === maxDate && Number(row.dateKey.slice(8, 10)) >= 28);
+        return hasMeaningfulTotal && isMonthClosingRow;
+      })
+      .sort((a, b) => {
+        const scoreA = a.attendances + a.opportunities + a.sales + a.revenue;
+        const scoreB = b.attendances + b.opportunities + b.sales + b.revenue;
+        return scoreB - scoreA;
+      });
+
+    return candidates.length ? [candidates[0]] : rows;
+  }
+
   function metricsFromRows(name, rows) {
     const attendances = sum(rows, (row) => row.attendances);
     const opportunities = sum(rows, (row) => row.opportunities);
@@ -1147,10 +1168,10 @@ function buildAsksuiteMetrics(asksuite, period = {}) {
   }
 
   const sellerMetrics = TEAM_SELLERS.map((seller) => {
-    const rows = monthRows.filter((row) => comparableKey(row.seller) === comparableKey(seller));
+    const rows = rowsForSellerPeriod(seller);
     return metricsFromRows(seller, rows);
   });
-  const teamRows = monthRows.filter((row) => TEAM_SELLERS.some((seller) => comparableKey(row.seller) === comparableKey(seller)));
+  const teamRows = TEAM_SELLERS.flatMap((seller) => rowsForSellerPeriod(seller));
 
   return [
     ...sellerMetrics,
