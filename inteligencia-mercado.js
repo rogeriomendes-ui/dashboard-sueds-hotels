@@ -225,9 +225,30 @@ function renderConversion(conversion) {
       <div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, (step.value / max) * 100)}%"></div></div>
     </div>
   `).join("");
-  renderBars("hotelConversion", conversion.byHotel, "conversion", "", 6);
-  renderBars("channelConversion", conversion.byChannel, "conversion", "", 6);
-  renderRanking("stateDddConversion", conversion.byStateDdd.slice(0, 6), "conversion", true);
+  renderConversionTable("hotelConversionTable", conversion.byHotel, 6);
+  renderConversionTable("channelConversionTable", conversion.byChannel, 6);
+  renderConversionTable("stateDddConversionTable", conversion.byStateDdd, 8);
+}
+
+function renderConversionTable(id, rows, maxRows = 8) {
+  const items = (rows || []).slice(0, maxRows);
+  const body = document.getElementById(id);
+  if (!body) return;
+  body.innerHTML = items.length ? items.map((row) => `
+    <tr>
+      <td title="${row.label}">${row.label}</td>
+      <td>${formatNumber.format(row.dialogues || 0)}</td>
+      <td>${formatNumber.format(row.reservations || 0)}</td>
+      <td>${formatNumber.format(row.sales || 0)}</td>
+      <td>${formatCurrency.format(row.revenue || 0)}</td>
+      <td>${formatPct(row.conversion || 0)}</td>
+      <td>${formatCurrency.format(row.ticketAverage || 0)}</td>
+    </tr>
+  `).join("") : `
+    <tr>
+      <td colspan="7">Sem dados para este filtro.</td>
+    </tr>
+  `;
 }
 
 function renderMedia(media) {
