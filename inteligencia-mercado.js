@@ -103,12 +103,15 @@ function setMonthMultiSelect(values = []) {
   if (!select) return;
   const fallbackPeriods = [currentMonth(), "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]
     .map((month) => ({ value: month, label: monthLabel(month) }));
-  const periods = (values.length ? values : fallbackPeriods)
+  const periodsByValue = new Map();
+  [...fallbackPeriods, ...(values.length ? values : [])]
     .map((period) => ({
       value: typeof period === "string" ? period : period.value,
       label: typeof period === "string" ? monthLabel(period) : period.label
     }))
-    .filter((period) => /^\d{4}-\d{2}$/.test(period.value));
+    .filter((period) => /^\d{4}-\d{2}$/.test(period.value))
+    .forEach((period) => periodsByValue.set(period.value, period));
+  const periods = [...periodsByValue.values()].sort((a, b) => b.value.localeCompare(a.value));
   const available = normalizeMonthValues(periods.map((period) => period.value));
   let selected = normalizeMonthValues(state.filters.months);
   selected = selected.filter((month) => available.includes(month));
