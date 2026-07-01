@@ -35,6 +35,7 @@ function currentMonth() {
 
 function monthLabel(value) {
   if (value === "ytd") return "ESTE ANO";
+  if (/^\d{4}$/.test(value || "")) return `ANO ${value}`;
   const [year, month] = String(value || currentMonth()).split("-");
   const date = new Date(Number(year), Number(month) - 1, 1);
   return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase();
@@ -81,8 +82,14 @@ function setSelect(id, values, placeholder, selectedValue) {
   if (!select) return;
   select.innerHTML = "";
   if (id === "monthSelect") {
-    const months = ["ytd", currentMonth(), "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"];
-    [...new Set(months)].forEach((month) => select.appendChild(createOption(month, monthLabel(month), selectedValue)));
+    const fallbackPeriods = ["ytd", currentMonth(), "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]
+      .map((month) => ({ value: month, label: monthLabel(month) }));
+    const periods = values.length ? values : fallbackPeriods;
+    periods.forEach((period) => {
+      const value = typeof period === "string" ? period : period.value;
+      const label = typeof period === "string" ? monthLabel(period) : period.label;
+      select.appendChild(createOption(value, label, selectedValue));
+    });
   } else {
     select.appendChild(createOption("", placeholder, selectedValue));
     values.forEach((value) => select.appendChild(createOption(value, value, selectedValue)));
@@ -91,7 +98,7 @@ function setSelect(id, values, placeholder, selectedValue) {
 
 function updateFilters(payload) {
   const filters = payload.filters || {};
-  setSelect("monthSelect", [], "Mês", state.filters.month);
+  setSelect("monthSelect", filters.periods || [], "Mês", state.filters.month);
   setSelect("hotelSelect", filters.hotels || [], "Todos os hotéis", state.filters.hotel);
   setSelect("stateSelect", filters.states || [], "Todos os estados", state.filters.state);
   setSelect("dddSelect", filters.ddds || [], "Todos os DDDs", state.filters.ddd);

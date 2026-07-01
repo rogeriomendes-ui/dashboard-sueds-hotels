@@ -1715,6 +1715,15 @@ function marketDateRangeForMonth(month) {
     };
   }
 
+  if (/^\d{4}$/.test(month || "")) {
+    return {
+      month,
+      label: `Ano ${month}`,
+      startDate: `${month}-01-01`,
+      endDate: `${month}-12-31`
+    };
+  }
+
   const safeMonth = /^\d{4}-\d{2}$/.test(month || "") ? month : todayKey().slice(0, 7);
   return {
     month: safeMonth,
@@ -1758,15 +1767,54 @@ function demoMarketRows(month) {
   }));
 }
 
-function loadAsksuiteMarketRows(month) {
+function marketPeriodLabel(value) {
+  if (value === "ytd") return `ESTE ANO ${todayKey().slice(0, 4)}`;
+  if (/^\d{4}$/.test(value || "")) return `ANO ${value}`;
+  const [year, month] = String(value || todayKey().slice(0, 7)).split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: TIME_ZONE }).toUpperCase();
+}
+
+function marketAvailablePeriodsFromRows(rows) {
+  const months = [...new Set((rows || []).map((row) => row.month).filter((month) => /^\d{4}-\d{2}$/.test(month)))]
+    .sort((a, b) => b.localeCompare(a));
+  const years = [...new Set(months.map((month) => month.slice(0, 4)))]
+    .sort((a, b) => b.localeCompare(a));
+  const periods = [
+    { value: "ytd", label: marketPeriodLabel("ytd") },
+    ...years.map((year) => ({ value: year, label: marketPeriodLabel(year) })),
+    ...months.map((month) => ({ value: month, label: marketPeriodLabel(month) }))
+  ];
+  const seen = new Set();
+  return periods.filter((period) => {
+    if (seen.has(period.value)) return false;
+    seen.add(period.value);
+    return true;
+  });
+}
+
+function loadAsksuiteMarketRawRows() {
   const filePath = path.join(__dirname, "data", "asksuite-market.json");
   if (!fs.existsSync(filePath)) return [];
 
   try {
     const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return payload.rows || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function loadAsksuiteMarketRows(month) {
+  try {
     const targetYear = todayKey().slice(0, 4);
-    return (payload.rows || [])
-      .filter((row) => month === "ytd" ? String(row.month || "").startsWith(targetYear) : row.month === month)
+    return loadAsksuiteMarketRawRows()
+      .filter((row) => {
+        const rowMonth = String(row.month || "");
+        if (month === "ytd") return rowMonth.startsWith(targetYear);
+        if (/^\d{4}$/.test(month || "")) return rowMonth.startsWith(month);
+        return rowMonth === month;
+      })
       .map((row, index) => ({
         id: `asksuite-${row.month}-${index + 1}`,
         month: row.month,
@@ -1992,6 +2040,7 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
 
 async function buildMarketIntelligencePayload(filters = {}) {
   const { month } = marketDateRangeForMonth(filters.month);
+  const allMarketRows = loadAsksuiteMarketRawRows();
   const asksuiteMarketRows = loadAsksuiteMarketRows(month);
   const sourceRows = asksuiteMarketRows;
   const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "empty";
@@ -2030,6 +2079,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
     },
     filters: {
       selected: filters,
+      periods: marketAvailablePeriodsFromRows(allMarketRows),
       hotels: selectValues(sourceRows, "hotel"),
       states: selectValues(sourceRows, "state"),
       ddds: selectValues(sourceRows, "ddd"),
@@ -2123,7 +2173,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
 function marketFiltersFromUrl(url) {
   const period = url.searchParams.get("month") || "";
   return {
-    month: period === "ytd" || /^\d{4}-\d{2}$/.test(period) ? period : undefined,
+    month: period === "ytd" || /^\d{4}$/.test(period) || /^\d{4}-\d{2}$/.test(period) ? period : undefined,
     hotel: url.searchParams.get("hotel") || "",
     state: url.searchParams.get("state") || "",
     ddd: url.searchParams.get("ddd") || "",
