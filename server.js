@@ -511,6 +511,36 @@ function googleAdsMetricNumber(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+async function googleAdsGeoTargetNames(resourceNames) {
+  const ids = [...new Set((resourceNames || [])
+    .map((name) => String(name || "").match(/(\d+)$/)?.[1])
+    .filter(Boolean))];
+  if (!ids.length) return new Map();
+
+  try {
+    const query = `
+      SELECT
+        geo_target_constant.id,
+        geo_target_constant.name,
+        geo_target_constant.country_code,
+        geo_target_constant.target_type
+      FROM geo_target_constant
+      WHERE geo_target_constant.id IN (${ids.join(", ")})
+    `;
+    const rows = await googleAdsSearchStream(query);
+    return new Map(rows.map((row) => [
+      String(row.geoTargetConstant?.resourceName || `geoTargetConstants/${row.geoTargetConstant?.id || ""}`),
+      {
+        name: String(row.geoTargetConstant?.name || ""),
+        countryCode: String(row.geoTargetConstant?.countryCode || ""),
+        targetType: String(row.geoTargetConstant?.targetType || "")
+      }
+    ]));
+  } catch (error) {
+    return new Map();
+  }
+}
+
 async function loadGoogleAdsMetrics(period = {}) {
   const { month, startDate, endDate } = marketDateRangeForMonth(period.month);
   const cacheKey = JSON.stringify({ month, startDate, endDate, customerId: GOOGLE_ADS_CUSTOMER_ID, version: GOOGLE_ADS_API_VERSION });
@@ -524,6 +554,7 @@ async function loadGoogleAdsMetrics(period = {}) {
       source: "demo",
       campaigns: [],
       keywords: [],
+      geoCities: [],
       summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
     };
   }
@@ -561,10 +592,25 @@ async function loadGoogleAdsMetrics(period = {}) {
         AND ad_group_criterion.status != 'REMOVED'
       ORDER BY metrics.cost_micros DESC
     `;
+    const cityQuery = `
+      SELECT
+        segments.geo_target_city,
+        geographic_view.location_type,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value
+      FROM geographic_view
+      WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+      ORDER BY metrics.cost_micros DESC
+    `;
     const [results, keywordResults] = await Promise.all([
       googleAdsSearchStream(campaignQuery),
       googleAdsSearchStream(keywordQuery).catch(() => [])
     ]);
+    const cityResults = await googleAdsSearchStream(cityQuery).catch(() => []);
+    const cityNameMap = await googleAdsGeoTargetNames(cityResults.map((row) => row.segments?.geoTargetCity));
     const campaigns = results.map((row) => {
       const spend = googleAdsMetricNumber(row.metrics?.costMicros) / 1000000;
       const clicks = googleAdsMetricNumber(row.metrics?.clicks);
@@ -606,6 +652,42 @@ async function loadGoogleAdsMetrics(period = {}) {
         };
       })
       .filter((row) => row.spend || row.clicks || row.conversions || row.conversionValue);
+    const cityTotals = new Map();
+    cityResults.forEach((row) => {
+      const cityResource = String(row.segments?.geoTargetCity || "");
+      const cityInfo = cityNameMap.get(cityResource);
+      const label = cityInfo?.name || "Cidade não informada";
+      const key = `${label}|${cityInfo?.countryCode || ""}`;
+      const current = cityTotals.get(key) || {
+        city: label,
+        countryCode: cityInfo?.countryCode || "",
+        targetType: cityInfo?.targetType || "",
+        locationType: String(row.geographicView?.locationType || ""),
+        spend: 0,
+        clicks: 0,
+        impressions: 0,
+        conversions: 0,
+        conversionValue: 0
+      };
+      current.spend += googleAdsMetricNumber(row.metrics?.costMicros) / 1000000;
+      current.clicks += googleAdsMetricNumber(row.metrics?.clicks);
+      current.impressions += googleAdsMetricNumber(row.metrics?.impressions);
+      current.conversions += googleAdsMetricNumber(row.metrics?.conversions);
+      current.conversionValue += googleAdsMetricNumber(row.metrics?.conversionsValue);
+      cityTotals.set(key, current);
+    });
+    const geoCities = [...cityTotals.values()]
+      .map((row) => ({
+        ...row,
+        spend: marketRound(row.spend, 2),
+        conversions: marketRound(row.conversions, 2),
+        conversionValue: marketRound(row.conversionValue, 2),
+        costPerClick: marketRound(marketSafeDiv(row.spend, row.clicks), 2),
+        costPerConversion: marketRound(marketSafeDiv(row.spend, row.conversions), 2),
+        roas: marketRound(marketSafeDiv(row.conversionValue, row.spend), 2)
+      }))
+      .filter((row) => row.spend || row.clicks || row.conversions || row.conversionValue)
+      .sort((a, b) => b.spend - a.spend);
     const summary = {
       spend: marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2),
       clicks: campaigns.reduce((total, row) => total + row.clicks, 0),
@@ -621,6 +703,7 @@ async function loadGoogleAdsMetrics(period = {}) {
       period: { month, startDate, endDate },
       campaigns,
       keywords,
+      geoCities,
       summary
     };
     googleAdsCache = { key: cacheKey, payload, expiresAt: Date.now() + CACHE_TTL_MS };
@@ -632,6 +715,7 @@ async function loadGoogleAdsMetrics(period = {}) {
       error: error.message,
       campaigns: [],
       keywords: [],
+      geoCities: [],
       summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
     };
   }
@@ -1723,6 +1807,22 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
       costPerSale: keyword.costPerConversion,
       roas: keyword.roas
     }));
+  const geoCities = (googleAds.geoCities || []).map((city) => ({
+    label: city.city,
+    city: city.city,
+    countryCode: city.countryCode,
+    locationType: city.locationType,
+    spend: city.spend,
+    clicks: city.clicks,
+    impressions: city.impressions,
+    conversions: city.conversions,
+    sales: city.conversions,
+    revenue: city.conversionValue,
+    conversionValue: city.conversionValue,
+    costPerClick: city.costPerClick,
+    costPerSale: city.costPerConversion,
+    roas: city.roas
+  }));
 
   const googleSpend = marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2);
   const googleClicks = campaigns.reduce((total, row) => total + row.clicks, 0);
@@ -1749,6 +1849,7 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
   payload.media.costPerSale = marketRound(marketSafeDiv(mediaSpend, payload.summary.sales), 2);
   payload.media.byCampaign = campaigns.sort((a, b) => b.spend - a.spend);
   payload.media.byKeyword = keywords.sort((a, b) => b.spend - a.spend);
+  payload.media.byCity = geoCities.sort((a, b) => b.spend - a.spend);
   payload.filters.campaigns = [...new Set([...(payload.filters.campaigns || []), ...googleAds.campaigns.map((campaign) => campaign.label)])]
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
