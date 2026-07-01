@@ -248,6 +248,41 @@ function renderMedia(media) {
     </div>
   `).join("");
 
+  const cityRows = media.byCity && media.byCity.length ? media.byCity : [];
+  const citySpend = cityRows.reduce((total, row) => total + Number(row.spend || 0), 0);
+  const cityClicks = cityRows.reduce((total, row) => total + Number(row.clicks || 0), 0);
+  const cityConversions = cityRows.reduce((total, row) => total + Number(row.conversions || 0), 0);
+  const cityCards = [
+    ["Cidades", formatNumber.format(cityRows.length)],
+    ["Investimento", formatCurrency.format(citySpend)],
+    ["Cliques", formatNumber.format(cityClicks)],
+    ["Conversões", formatNumber.format(cityConversions)],
+    ["CPC médio", formatCurrencyDetailed.format(cityClicks ? citySpend / cityClicks : 0)],
+    ["Custo/conv.", formatCurrencyDetailed.format(cityConversions ? citySpend / cityConversions : 0)]
+  ];
+  document.getElementById("cityMediaCards").innerHTML = cityCards.map(([label, value]) => `
+    <div class="mini-kpi">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `).join("");
+  document.getElementById("cityTable").innerHTML = cityRows.length ? cityRows.map((row) => `
+    <tr>
+      <td>${row.city || row.label}</td>
+      <td>${formatCurrency.format(row.spend || 0)}</td>
+      <td>${formatNumber.format(row.clicks || 0)}</td>
+      <td>${formatNumber.format(row.conversions || 0)}</td>
+      <td>${formatCurrency.format(row.revenue || 0)}</td>
+      <td>${formatCurrencyDetailed.format(row.costPerClick || 0)}</td>
+      <td>${formatCurrencyDetailed.format(row.costPerSale || 0)}</td>
+      <td>${Number(row.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</td>
+    </tr>
+  `).join("") : `
+    <tr>
+      <td colspan="8">Sem dados de cidade para este período. O Google Ads pode não devolver cidade quando há pouco volume ou limitação de privacidade.</td>
+    </tr>
+  `;
+
   const metaCards = [
     ["Investimento", formatCurrency.format(media.metaSpend || 0)],
     ["Cliques", "--"],

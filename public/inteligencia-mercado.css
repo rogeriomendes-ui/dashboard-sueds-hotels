@@ -196,6 +196,10 @@ h3 {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
+.three-cols {
+  grid-template-columns: minmax(300px, 0.85fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
 .panel {
   min-width: 0;
   padding: 18px;
@@ -293,12 +297,14 @@ h3 {
   border-radius: 8px;
 }
 
-.keyword-table-wrap {
+.keyword-table-wrap,
+.city-table-wrap {
   max-height: 790px;
   overflow: auto;
 }
 
-.keyword-table-wrap thead th {
+.keyword-table-wrap thead th,
+.city-table-wrap thead th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -491,11 +497,16 @@ tr:last-child td {
   .opportunities-panel .opportunity-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .three-cols {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 980px) {
   .market-topbar,
   .two-cols,
+  .three-cols,
   .split-content {
     grid-template-columns: 1fr;
   }
