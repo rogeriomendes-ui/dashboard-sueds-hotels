@@ -1610,6 +1610,30 @@ function marketComparable(value) {
     .toLowerCase();
 }
 
+const MARKET_DDD_CITY = {
+  "11": "São Paulo",
+  "21": "Rio de Janeiro",
+  "27": "Vitória",
+  "31": "Belo Horizonte",
+  "33": "Governador Valadares",
+  "61": "Brasília",
+  "62": "Goiânia",
+  "71": "Salvador",
+  "73": "Porto Seguro",
+  "77": "Vitória da Conquista",
+  "81": "Recife"
+};
+
+function marketDddLabel(state, ddd) {
+  const safeDdd = String(ddd || "").trim();
+  if (!safeDdd || marketComparable(safeDdd) === "ni") {
+    return `${state || "Nao informado"} / NI`;
+  }
+
+  const city = MARKET_DDD_CITY[safeDdd];
+  return city ? `${city} / ${safeDdd}` : `${state || "Nao informado"} / ${safeDdd}`;
+}
+
 function marketGroupBy(rows, keyFn) {
   const map = new Map();
   rows.forEach((row) => {
@@ -1777,6 +1801,20 @@ function summarizeMarketGroup(label, rows) {
   };
 }
 
+function emptyMarketGroup(label) {
+  return summarizeMarketGroup(label, []);
+}
+
+function ensureMarketGroupRows(rows, labels) {
+  const existing = new Set(rows.map((row) => marketComparable(row.label)));
+  labels.forEach((label) => {
+    if (!existing.has(marketComparable(label))) {
+      rows.push(emptyMarketGroup(label));
+    }
+  });
+  return rows;
+}
+
 function rankedMarketGroups(rows, key, limit = 10) {
   return [...marketGroupBy(rows, (row) => row[key] || "Nao informado").entries()]
     .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
@@ -1786,6 +1824,17 @@ function rankedMarketGroups(rows, key, limit = 10) {
 
 function selectValues(rows, key) {
   return [...new Set(rows.map((row) => row[key]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
+}
+
+function ensureSelectValues(values, labels) {
+  const nextValues = [...values];
+  const existing = new Set(nextValues.map((value) => marketComparable(value)));
+  labels.forEach((label) => {
+    if (!existing.has(marketComparable(label))) {
+      nextValues.push(label);
+    }
+  });
+  return nextValues.sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
 }
 
 function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) {
@@ -1915,10 +1964,10 @@ async function buildMarketIntelligencePayload(filters = {}) {
   const byState = rankedMarketGroups(rows, "state", 27);
   const byDdd = rankedMarketGroups(rows, "ddd", 30);
   const byHotel = rankedMarketGroups(rows, "hotel", 12);
-  const byChannel = rankedMarketGroups(rows, "channel", 12);
+  const byChannel = ensureMarketGroupRows(rankedMarketGroups(rows, "channel", 12), ["Robo"]);
   const byCampaign = rankedMarketGroups(rows, "campaign", 12);
   const byOrigin = rankedMarketGroups(rows, "origin", 12);
-  const byStateDdd = [...marketGroupBy(rows, (row) => `${row.state} / ${row.ddd}`).entries()]
+  const byStateDdd = [...marketGroupBy(rows, (row) => marketDddLabel(row.state, row.ddd)).entries()]
     .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
     .sort((a, b) => b.dialogues - a.dialogues);
   const competitiveness = [];
@@ -1942,7 +1991,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
       hotels: selectValues(sourceRows, "hotel"),
       states: selectValues(sourceRows, "state"),
       ddds: selectValues(sourceRows, "ddd"),
-      channels: selectValues(sourceRows, "channel"),
+      channels: ensureSelectValues(selectValues(sourceRows, "channel"), ["Robo"]),
       campaigns: selectValues(sourceRows, "campaign"),
       origins: selectValues(sourceRows, "origin"),
       devices: selectValues(sourceRows, "device")
