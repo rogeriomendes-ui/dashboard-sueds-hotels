@@ -120,49 +120,48 @@
         </article>
       </section>
 
-      <section class="market-grid two-cols">
-        <article class="panel">
+      <section class="market-grid two-cols media-grid">
+        <article class="panel media-panel">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Investimento em Mídia</p>
-              <h2>Google Ads e Meta Ads</h2>
+              <h2>Google Ads</h2>
+              <small>Resumo real do período</small>
             </div>
           </div>
-          <div class="media-source-grid">
-            <section class="media-source-card">
-              <div class="media-source-heading">
-                <p class="eyebrow">Google Ads</p>
-                <h3>Resumo real do período</h3>
-              </div>
-              <div id="googleMediaCards" class="mini-kpi-grid media-kpi-grid"></div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Palavra-chave</th>
-                      <th>Investimento</th>
-                      <th>Cliques</th>
-                      <th>Conversões</th>
-                      <th>Receita</th>
-                      <th>Custo/conv.</th>
-                      <th>ROAS</th>
-                    </tr>
-                  </thead>
-                  <tbody id="keywordTable"></tbody>
-                </table>
-              </div>
-            </section>
-            <section class="media-source-card">
-              <div class="media-source-heading">
-                <p class="eyebrow">Meta Ads</p>
-                <h3>Resumo do período</h3>
-              </div>
-              <div id="metaMediaCards" class="mini-kpi-grid media-kpi-grid"></div>
-              <div id="metaMediaStatus" class="empty-state"></div>
-            </section>
+          <div id="googleMediaCards" class="mini-kpi-grid media-kpi-grid"></div>
+          <div class="table-wrap keyword-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Palavra-chave</th>
+                  <th>Investimento</th>
+                  <th>Cliques</th>
+                  <th>Conversões</th>
+                  <th>Receita</th>
+                  <th>Custo/conv.</th>
+                  <th>ROAS</th>
+                </tr>
+              </thead>
+              <tbody id="keywordTable"></tbody>
+            </table>
           </div>
         </article>
 
+        <article class="panel media-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Investimento em Mídia</p>
+              <h2>Meta Ads</h2>
+              <small>Resumo do período</small>
+            </div>
+          </div>
+          <div id="metaMediaCards" class="mini-kpi-grid media-kpi-grid"></div>
+          <div id="metaMediaStatus" class="empty-state meta-status"></div>
+        </article>
+      </section>
+
+      <section class="market-grid two-cols lower-strategy-grid">
         <article class="panel">
           <div class="panel-header">
             <div>
@@ -187,38 +186,38 @@
           </div>
           <div id="marketAlerts" class="alert-list"></div>
         </article>
-      </section>
 
-      <section class="panel opportunities-panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Ranking de Oportunidades</p>
-            <h2>Índice de Oportunidade</h2>
-            <small>Oportunidade = Diálogos × (1 - Conversão de venda)</small>
+        <article class="panel opportunities-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Ranking de Oportunidades</p>
+              <h2>Índice de Oportunidade</h2>
+              <small>Oportunidade = Diálogos × (1 - Conversão de venda)</small>
+            </div>
           </div>
-        </div>
-        <div class="opportunity-grid">
-          <div>
-            <h3>Estado</h3>
-            <div id="oppState" class="mini-ranking"></div>
+          <div class="opportunity-grid">
+            <div>
+              <h3>Estado</h3>
+              <div id="oppState" class="mini-ranking"></div>
+            </div>
+            <div>
+              <h3>DDD</h3>
+              <div id="oppDdd" class="mini-ranking"></div>
+            </div>
+            <div>
+              <h3>Canal</h3>
+              <div id="oppChannel" class="mini-ranking"></div>
+            </div>
+            <div>
+              <h3>Hotel</h3>
+              <div id="oppHotel" class="mini-ranking"></div>
+            </div>
+            <div>
+              <h3>Campanha</h3>
+              <div id="oppCampaign" class="mini-ranking"></div>
+            </div>
           </div>
-          <div>
-            <h3>DDD</h3>
-            <div id="oppDdd" class="mini-ranking"></div>
-          </div>
-          <div>
-            <h3>Canal</h3>
-            <div id="oppChannel" class="mini-ranking"></div>
-          </div>
-          <div>
-            <h3>Hotel</h3>
-            <div id="oppHotel" class="mini-ranking"></div>
-          </div>
-          <div>
-            <h3>Campanha</h3>
-            <div id="oppCampaign" class="mini-ranking"></div>
-          </div>
-        </div>
+        </article>
       </section>
     </main>
 
