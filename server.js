@@ -1902,8 +1902,8 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
 async function buildMarketIntelligencePayload(filters = {}) {
   const { month } = marketDateRangeForMonth(filters.month);
   const asksuiteMarketRows = loadAsksuiteMarketRows(month);
-  const sourceRows = asksuiteMarketRows.length ? asksuiteMarketRows : demoMarketRows(month);
-  const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "demo";
+  const sourceRows = asksuiteMarketRows;
+  const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "empty";
   const rows = filterMarketRows(sourceRows, filters);
   const summary = summarizeMarketGroup("Total", rows);
   const googleSpend = marketSum(rows, "googleSpend");
@@ -1921,8 +1921,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
   const byStateDdd = [...marketGroupBy(rows, (row) => `${row.state} / ${row.ddd}`).entries()]
     .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
     .sort((a, b) => b.dialogues - a.dialogues);
-  const competitiveness = demoCompetitivenessRows(month)
-    .filter((row) => !filters.hotel || marketComparable(row.hotel) === marketComparable(filters.hotel));
+  const competitiveness = [];
 
   const payload = {
     audience: "gestores-inteligencia-mercado",
@@ -1935,7 +1934,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
         rows: asksuiteMarketRows.length,
         note: asksuiteMarketRows.length
           ? "Diálogos vêm dos atendimentos; cotações e reservas usam a coluna Oportunidades; vendas e receita usam Vendas e Valor vendido."
-          : "Dados demonstrativos usados enquanto não há relatório Asksuite para o período."
+          : "Sem relatório Asksuite carregado para este período."
       }
     },
     filters: {

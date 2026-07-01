@@ -155,7 +155,7 @@ async function loadDashboard() {
 
 function renderDashboard(payload) {
   updateFilters(payload);
-  renderKpis(payload.summary);
+  renderKpis(payload.summary, payload.integrations);
   renderDemand(payload.demand);
   renderConversion(payload.conversion);
   renderMedia(payload.media);
@@ -165,16 +165,18 @@ function renderDashboard(payload) {
   setText("lastUpdate", `Atualizado ${updated.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}, ${updated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`);
 }
 
-function renderKpis(summary) {
+function renderKpis(summary, integrations = {}) {
+  const hasDemandData = Boolean(integrations.asksuite?.configured);
+  const demandValue = (value) => (hasDemandData ? value : "");
   const cards = [
-    ["Diálogos totais", formatNumber.format(summary.dialogues), "Volume bruto de demanda"],
-    ["Reservas", formatNumber.format(summary.reservations), "Pré-vendas geradas"],
-    ["Vendas", formatNumber.format(summary.sales), "Reservas vendidas"],
-    ["Receita", formatCurrency.format(summary.revenue), "Receita confirmada"],
-    ["Conversão diálogo → venda", formatPct(summary.dialogueToSaleConversion), "Eficiência comercial"],
+    ["Diálogos totais", demandValue(formatNumber.format(summary.dialogues)), "Volume bruto de demanda"],
+    ["Reservas", demandValue(formatNumber.format(summary.reservations)), "Pré-vendas geradas"],
+    ["Vendas", demandValue(formatNumber.format(summary.sales)), "Reservas vendidas"],
+    ["Receita", demandValue(formatCurrency.format(summary.revenue)), "Receita confirmada"],
+    ["Conversão diálogo → venda", demandValue(formatPct(summary.dialogueToSaleConversion)), "Eficiência comercial"],
     ["Investimento em mídia", formatCurrency.format(summary.mediaSpend), "Google + Meta"],
-    ["Custo por venda", formatCurrencyDetailed.format(summary.costPerSale), "Investimento / venda"],
-    ["ROAS", `${summary.roas.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`, "Receita / mídia"]
+    ["Custo por venda", demandValue(formatCurrencyDetailed.format(summary.costPerSale)), "Investimento / venda"],
+    ["ROAS", demandValue(`${summary.roas.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`), "Receita / mídia"]
   ];
   document.getElementById("kpiGrid").innerHTML = cards
     .map(([label, value, detail], index) => `
