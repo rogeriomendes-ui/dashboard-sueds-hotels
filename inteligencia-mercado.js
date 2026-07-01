@@ -14,6 +14,7 @@ const state = {
 
 const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
 let dashboardRequestId = 0;
+let currentKeywordExportRows = [];
 
 const formatCurrency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -218,6 +219,65 @@ function queryString() {
     }
   });
   return params.toString();
+}
+
+function csvValue(value) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(filename, headers, rows) {
+  const lines = [
+    headers.map(csvValue).join(";"),
+    ...rows.map((row) => row.map(csvValue).join(";"))
+  ];
+  const blob = new Blob(["\ufeff", lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function selectedPeriodForFilename() {
+  const months = normalizeMonthValues(state.filters.months);
+  return months.length ? months.join("_") : "periodo";
+}
+
+function exportKeywordTable() {
+  const rows = currentKeywordExportRows || [];
+  if (!rows.length) return;
+  downloadCsv(`google-ads-palavras-chave-${selectedPeriodForFilename()}.csv`, [
+    "Palavra-chave",
+    "Campanha",
+    "Grupo de anúncios",
+    "Investimento",
+    "Cliques",
+    "Vendas",
+    "Conversão %",
+    "Receita",
+    "Custo/conv.",
+    "ROAS"
+  ], rows.map((row) => [
+    row.keyword || row.label || "",
+    row.campaign || "",
+    row.adGroup || "",
+    formatCurrencyDetailed.format(row.spend || 0),
+    formatNumber.format(row.clicks || 0),
+    formatNumber.format(row.conversions || 0),
+    formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0),
+    formatCurrencyDetailed.format(row.revenue || 0),
+    formatCurrencyDetailed.format(row.costPerSale || 0),
+    `${Number(row.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`
+  ]));
+}
+
+function bindExportButtons() {
+  const button = document.getElementById("exportKeywordTable");
+  if (!button) return;
+  button.addEventListener("click", exportKeywordTable);
 }
 
 document.addEventListener("click", (event) => {
@@ -441,6 +501,9 @@ function renderMedia(media) {
     : "Meta Ads ainda não conectado. Este bloco está preparado para receber os dados da API da Meta.";
 
   const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];
+  currentKeywordExportRows = keywordRows;
+  const exportButton = document.getElementById("exportKeywordTable");
+  if (exportButton) exportButton.disabled = !keywordRows.length;
   document.getElementById("keywordTable").innerHTML = keywordRows.length ? keywordRows.map((row) => `
     <tr>
       <td title="${row.campaign} | ${row.adGroup}">${row.keyword || row.label}</td>
@@ -499,5 +562,6 @@ function renderOpportunities(opportunities) {
   renderRanking("oppCampaign", opportunities.byCampaign);
 }
 
+bindExportButtons();
 bindFilters();
 loadDashboard();
