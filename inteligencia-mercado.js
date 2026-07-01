@@ -252,11 +252,12 @@ function renderMedia(media) {
   const citySpend = cityRows.reduce((total, row) => total + Number(row.spend || 0), 0);
   const cityClicks = cityRows.reduce((total, row) => total + Number(row.clicks || 0), 0);
   const cityConversions = cityRows.reduce((total, row) => total + Number(row.conversions || 0), 0);
+  const cityRevenue = cityRows.reduce((total, row) => total + Number(row.revenue || 0), 0);
   const cityCards = [
-    ["Cidades", formatNumber.format(cityRows.length)],
     ["Investimento", formatCurrency.format(citySpend)],
     ["Cliques", formatNumber.format(cityClicks)],
     ["Conversões", formatNumber.format(cityConversions)],
+    ["Valor conv.", formatCurrency.format(cityRevenue)],
     ["CPC médio", formatCurrencyDetailed.format(cityClicks ? citySpend / cityClicks : 0)],
     ["Custo/conv.", formatCurrencyDetailed.format(cityConversions ? citySpend / cityConversions : 0)]
   ];
