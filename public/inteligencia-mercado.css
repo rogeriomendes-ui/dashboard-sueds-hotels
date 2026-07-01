@@ -297,17 +297,23 @@ h3 {
   border-radius: 8px;
 }
 
+.demand-table-wrap,
 .keyword-table-wrap,
 .city-table-wrap {
   max-height: 790px;
   overflow: auto;
 }
 
+.demand-table-wrap thead th,
 .keyword-table-wrap thead th,
 .city-table-wrap thead th {
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+.demand-table-wrap {
+  max-height: 920px;
 }
 
 table {

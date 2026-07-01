@@ -203,8 +203,6 @@ function renderBars(id, rows, valueKey, suffix = "", maxRows = 8) {
 }
 
 function renderDemand(demand) {
-  renderBars("stateChart", demand.byState, "dialogues");
-  renderBars("dddChart", demand.byDdd, "dialogues");
   document.getElementById("stateTable").innerHTML = demand.stateTable.map((row) => `
     <tr>
       <td>${row.state}</td>
