@@ -36,8 +36,21 @@ function currentMonth() {
 
 function monthLabel(value) {
   const [year, month] = String(value || currentMonth()).split("-");
-  const date = new Date(Number(year), Number(month) - 1, 1);
-  return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase();
+  const monthName = [
+    "JANEIRO",
+    "FEVEREIRO",
+    "MARÇO",
+    "ABRIL",
+    "MAIO",
+    "JUNHO",
+    "JULHO",
+    "AGOSTO",
+    "SETEMBRO",
+    "OUTUBRO",
+    "NOVEMBRO",
+    "DEZEMBRO"
+  ][Number(month) - 1] || "";
+  return `${monthName} DE ${year}`.trim();
 }
 
 function normalizeMonthValues(values = []) {

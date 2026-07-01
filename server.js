@@ -1954,8 +1954,21 @@ function marketPeriodLabel(value) {
   if (value === "ytd") return `ESTE ANO ${todayKey().slice(0, 4)}`;
   if (/^\d{4}$/.test(value || "")) return `ANO ${value}`;
   const [year, month] = String(value || todayKey().slice(0, 7)).split("-");
-  const date = new Date(Number(year), Number(month) - 1, 1);
-  return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: TIME_ZONE }).toUpperCase();
+  const monthName = [
+    "JANEIRO",
+    "FEVEREIRO",
+    "MARÇO",
+    "ABRIL",
+    "MAIO",
+    "JUNHO",
+    "JULHO",
+    "AGOSTO",
+    "SETEMBRO",
+    "OUTUBRO",
+    "NOVEMBRO",
+    "DEZEMBRO"
+  ][Number(month) - 1] || "";
+  return `${monthName} DE ${year}`.trim();
 }
 
 function generatedMarketMonths(startMonth = "2025-01") {
