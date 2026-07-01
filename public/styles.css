@@ -578,6 +578,12 @@ h2 {
   overflow-y: auto;
 }
 
+.state-ddd-table-wrap {
+  max-height: 306px;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 .conversion-table-wrap table {
   min-width: 620px;
 }
