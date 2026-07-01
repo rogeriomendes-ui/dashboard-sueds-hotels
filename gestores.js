@@ -5,8 +5,9 @@ const money = new Intl.NumberFormat("pt-BR", {
 });
 
 const number = new Intl.NumberFormat("pt-BR");
-const MONTHS = ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
+const MONTHS = ["ytd", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
 const MONTH_LABELS = {
+  ytd: "ESTE ANO",
   "2026-05": "MAIO",
   "2026-06": "JUNHO",
   "2026-07": "JULHO",
@@ -51,6 +52,9 @@ function lastDayOfMonth(month) {
 
 function dateForMonth(month) {
   const now = new Date();
+  if (month === "ytd") {
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const day = month === currentMonth ? now.getDate() : lastDayOfMonth(month);
   return `${month}-${String(day).padStart(2, "0")}`;

@@ -985,6 +985,20 @@ function dimensionGoal(goals, field, label, period) {
   return goals.find((goal) => goal.month === period && comparableKey(goal[field]) === key) || null;
 }
 
+function monthsFromYearStart(dateKey) {
+  const [year, monthNumber] = String(dateKey || todayKey()).split("-").map(Number);
+  if (!year || !monthNumber) return [];
+  return Array.from({ length: monthNumber }, (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`);
+}
+
+function ytdGoal(goals, matcher, months) {
+  const revenueGoal = sum(
+    goals.filter((goal) => months.includes(goal.month) && matcher(goal)),
+    (goal) => goal.revenueGoal
+  );
+  return revenueGoal ? { revenueGoal } : null;
+}
+
 function sortLabels(labels) {
   return [...labels].filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
@@ -1146,17 +1160,25 @@ function buildAsksuiteMetrics(asksuite, period = {}) {
 
 function buildMetrics(records, goals, period = {}) {
   const today = period.date || todayKey();
-  const month = period.month || today.slice(0, 7);
+  const requestedMonth = period.month || today.slice(0, 7);
+  const isYearToDate = requestedMonth === "ytd";
+  const month = requestedMonth;
+  const activeMonth = isYearToDate ? today.slice(0, 7) : month;
+  const ytdStart = `${today.slice(0, 4)}-01-01`;
+  const ytdMonths = isYearToDate ? monthsFromYearStart(today) : [month];
   const selectedDay = period.day || "";
   const goalDate = selectedDay || today;
   const selectedHotel = period.hotel || "";
   const selectedChannel = period.channel || "";
-  const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record, month);
+  const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record, record.monthKey || activeMonth);
   const confirmed = records.filter((record) => record.status.toLowerCase() === "confirmada");
-  const rawMonthRecords = confirmed.filter((record) => record.monthKey === month);
-  const hasHistoricalMayBase = month === "2026-05" && rawMonthRecords.some((record) => comparableKey(record.source).includes("historico"));
+  const rawMonthRecords = confirmed.filter((record) => {
+    if (isYearToDate) return record.dateKey >= ytdStart && record.dateKey <= today;
+    return record.monthKey === month;
+  });
+  const hasHistoricalMayBase = rawMonthRecords.some((record) => record.monthKey === "2026-05" && comparableKey(record.source).includes("historico"));
   const monthRecords = hasHistoricalMayBase
-    ? rawMonthRecords.filter((record) => comparableKey(record.source).includes("historico"))
+    ? rawMonthRecords.filter((record) => record.monthKey !== "2026-05" || comparableKey(record.source).includes("historico"))
     : rawMonthRecords;
   const filteredRecords = monthRecords.filter((record) => {
     const matchesDay = !selectedDay || record.dateKey === selectedDay;
@@ -1167,12 +1189,12 @@ function buildMetrics(records, goals, period = {}) {
   const todayRecords = filteredRecords.filter((record) => record.dateKey === today);
   const selectedDayRecords = selectedDay ? filteredRecords : todayRecords;
   const monthToDateRecords = filteredRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
-  const workdaysInMonth = businessDaysInMonth(month);
-  const workdaysElapsed = businessDaysElapsed(month, goalDate);
+  const workdaysInMonth = isYearToDate ? businessDaysElapsed(activeMonth, goalDate) : businessDaysInMonth(month);
+  const workdaysElapsed = isYearToDate ? workdaysInMonth : businessDaysElapsed(month, goalDate);
 
   const sellerNames = new Set([
     ...filteredRecords.map((record) => record.seller).filter(Boolean),
-    ...goals.filter((goal) => goal.month === month || goal.date === goalDate).map((goal) => goal.seller).filter(Boolean)
+    ...goals.filter((goal) => ytdMonths.includes(goal.month) || goal.date === goalDate).map((goal) => goal.seller).filter(Boolean)
   ]);
 
   const recordsBySeller = groupBy(filteredRecords, (record) => record.seller);
@@ -1181,7 +1203,9 @@ function buildMetrics(records, goals, period = {}) {
       const sellerRecords = recordsBySeller.get(seller) || [];
       const dayRecords = selectedDay ? sellerRecords : sellerRecords.filter((record) => record.dateKey === today);
       const mtdRecords = sellerRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
-      const goal = sellerGoal(goals, seller, month, goalDate);
+      const goal = isYearToDate
+        ? ytdGoal(goals, (item) => comparableKey(item.seller) === comparableKey(seller), ytdMonths)
+        : sellerGoal(goals, seller, month, goalDate);
       const dayRevenue = sum(dayRecords, (record) => record.total);
       const mtdRevenue = sum(mtdRecords, (record) => record.total);
       const monthRevenue = mtdRevenue;
@@ -1232,8 +1256,8 @@ function buildMetrics(records, goals, period = {}) {
   const channelLabels = new Set([
     ...OFFICIAL_SALES_CHANNELS,
     ...goals
-      .filter((goal) => goal.month === month && goal.channel)
-      .map((goal) => normalizeOfficialSalesChannel(goal.channel, {}, month))
+      .filter((goal) => ytdMonths.includes(goal.month) && goal.channel)
+      .map((goal) => normalizeOfficialSalesChannel(goal.channel, {}, goal.month || activeMonth))
       .filter(Boolean)
   ]);
 
@@ -1241,7 +1265,9 @@ function buildMetrics(records, goals, period = {}) {
   const channels = [...channelLabels]
     .map((label) => {
       const rows = recordsByChannel.get(label) || [];
-      const goal = goals.find((item) => item.month === month && comparableKey(normalizeOfficialSalesChannel(item.channel, {}, month)) === comparableKey(label));
+      const goal = isYearToDate
+        ? ytdGoal(goals, (item) => comparableKey(normalizeOfficialSalesChannel(item.channel, {}, item.month || activeMonth)) === comparableKey(label), ytdMonths)
+        : goals.find((item) => item.month === month && comparableKey(normalizeOfficialSalesChannel(item.channel, {}, month)) === comparableKey(label));
       const value = sum(rows, (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
       return {
@@ -1256,14 +1282,16 @@ function buildMetrics(records, goals, period = {}) {
 
   const hotelLabels = new Set([
     ...filteredRecords.map((record) => record.hotel).filter(Boolean),
-    ...goals.filter((goal) => goal.month === month && goal.hotel).map((goal) => goal.hotel)
+    ...goals.filter((goal) => ytdMonths.includes(goal.month) && goal.hotel).map((goal) => goal.hotel)
   ]);
 
   const recordsByHotel = groupBy(filteredRecords, (record) => record.hotel);
   const hotels = [...hotelLabels]
     .map((label) => {
       const rows = recordsByHotel.get(label) || [];
-      const goal = dimensionGoal(goals, "hotel", label, month);
+      const goal = isYearToDate
+        ? ytdGoal(goals, (item) => comparableKey(item.hotel) === comparableKey(label), ytdMonths)
+        : dimensionGoal(goals, "hotel", label, month);
       const value = sum(rows, (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
       return {
@@ -2219,7 +2247,7 @@ function periodFromUrl(url) {
   const day = url.searchParams.get("day") || "";
   return {
     date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
-    month: /^\d{4}-\d{2}$/.test(month) ? month : undefined,
+    month: month === "ytd" || /^\d{4}-\d{2}$/.test(month) ? month : undefined,
     day: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "",
     hotel,
     channel
