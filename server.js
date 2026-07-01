@@ -872,6 +872,10 @@ function normalizeSellerName(value) {
     "OTAS": "OTAs",
     "ROBO": "Robo"
   };
+  if (key.includes("ALINE NUNES")) return "Aline Nunes";
+  if (key.includes("AMANDA MELGACO")) return "Amanda Melgaco";
+  if (key.includes("JULIA RECHE")) return "Julia Reche";
+  if (key.includes("EMANOEL CESAR")) return "Emanoel Cesar";
   return map[key] || raw;
 }
 
@@ -930,6 +934,16 @@ function normalizeAsksuiteRecord(item) {
     sales: parseDecimalNumber(item.Vendas),
     revenue: parseDecimalNumber(item.Receita)
   };
+}
+
+function dedupeAsksuiteRecords(rows) {
+  const byKey = new Map();
+  rows.forEach((row) => {
+    const key = `${row.dateKey}|${comparableKey(row.seller)}`;
+    if (!row.dateKey || !row.seller) return;
+    byKey.set(key, row);
+  });
+  return [...byKey.values()];
 }
 
 function sum(records, getter) {
@@ -2177,7 +2191,7 @@ async function loadDataset() {
     records = rowsToObjects(baseRows).map(normalizeRecord);
     goals = rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal);
     carts = rowsToObjects(cartRows, { keepAnyValue: true }).map(normalizeCartRecord);
-    asksuite = rowsToObjects(asksuiteRows, { keepAnyValue: true }).map(normalizeAsksuiteRecord);
+    asksuite = dedupeAsksuiteRecords(rowsToObjects(asksuiteRows, { keepAnyValue: true }).map(normalizeAsksuiteRecord));
   }
 
   const payload = { records, goals, carts, asksuite, loadedAt: new Date().toISOString() };

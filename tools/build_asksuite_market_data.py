@@ -95,12 +95,16 @@ def canonical_channel(value):
     return clean(value) or "Não informado"
 
 
+def is_robot_attendant(value):
+    return norm_header(value) in {"ROBO", "ROBÔ"}
+
+
 def parse_file(path, month):
     workbook = load_workbook(path, data_only=True, read_only=True)
     sheet = workbook.active
     headers = [clean(cell.value) for cell in next(sheet.iter_rows(max_row=1))]
     indexes = {header: index for index, header in enumerate(headers)}
-    required = ["Telefone", "Empresa", "Canal", "Início do atendimento", "Oportunidades", "Vendas", "Valor vendido"]
+    required = ["Telefone", "Atendente", "Empresa", "Canal", "Início do atendimento", "Oportunidades", "Vendas", "Valor vendido"]
     missing = [header for header in required if header not in indexes]
     if missing:
         raise RuntimeError(f"{path.name}: colunas ausentes: {', '.join(missing)}")
@@ -123,7 +127,7 @@ def parse_file(path, month):
         ddd = phone_ddd(row[indexes["Telefone"]])
         state = DDD_UF.get(ddd, "Não informado")
         hotel = canonical_hotel(row[indexes["Empresa"]])
-        channel = canonical_channel(row[indexes["Canal"]])
+        channel = "Robo" if is_robot_attendant(row[indexes["Atendente"]]) else canonical_channel(row[indexes["Canal"]])
         key = (month, state, ddd or "NI", hotel, channel)
         target = groups[key]
         opportunities = number(row[indexes["Oportunidades"]])

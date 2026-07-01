@@ -9,6 +9,7 @@ const inputArg = args.find((arg) => !arg.startsWith("--"));
 const INPUT_FILE = inputArg || path.join(process.env.USERPROFILE || "C:\\Users\\roger", "Downloads", "por_atendente.xlsx");
 const APPLY = args.includes("--apply");
 const DATE_ARG = (args.find((arg) => arg.startsWith("--date=")) || "").slice("--date=".length);
+const SUMMARY_MONTH = (args.find((arg) => arg.startsWith("--summary=")) || "").slice("--summary=".length);
 const SHEET_NAME = "Asksuite_Atendimentos";
 const READ_RANGE = `'${SHEET_NAME}'!A:H`;
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
@@ -164,6 +165,10 @@ function normalizeName(value) {
     "JULIA RECHE": "Julia Reche",
     "EMANOEL CESAR": "Emanoel Cesar"
   };
+  if (key.includes("ALINE NUNES")) return "Aline Nunes";
+  if (key.includes("AMANDA MELGACO")) return "Amanda Melgaco";
+  if (key.includes("JULIA RECHE")) return "Julia Reche";
+  if (key.includes("EMANOEL CESAR")) return "Emanoel Cesar";
   return map[key] || String(value || "").trim();
 }
 
@@ -340,7 +345,7 @@ function normalizeRows(filePath) {
 }
 
 function key(row) {
-  return `${row[0]}|${row[1]}`.toUpperCase();
+  return `${row[0]}|${normalizeName(row[1])}`.toUpperCase();
 }
 
 function existingRowsByKey(rows) {
@@ -351,8 +356,64 @@ function existingRowsByKey(rows) {
   return map;
 }
 
+async function printSheetSummary(month) {
+  await ensureSheet();
+  const current = (await sheetsValues("GET", READ_RANGE)).values || [];
+  const byKey = new Map();
+  current.slice(1).forEach((row) => {
+    const date = normalizeDateKey(row[0]);
+    if (!date || !date.startsWith(month)) return;
+    const seller = normalizeName(row[1]);
+    if (!seller) return;
+    byKey.set(`${date}|${seller}`.toUpperCase(), [
+      date,
+      seller,
+      row[2],
+      row[3],
+      row[4],
+      row[5],
+      row[6],
+      row[7]
+    ]);
+  });
+
+  const totals = new Map();
+  [...byKey.values()].forEach((row) => {
+    const seller = normalizeName(row[1]);
+    if (!seller) return;
+    const item = totals.get(seller) || {
+      attendances: 0,
+      opportunities: 0,
+      sales: 0,
+      revenue: 0
+    };
+    item.attendances += toNumber(row[2]);
+    item.opportunities += toNumber(row[4]);
+    item.sales += toNumber(row[6]);
+    item.revenue += toNumber(row[7]);
+    totals.set(seller, item);
+  });
+
+  const summary = [...totals.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+    .map(([seller, values]) => ({
+      seller,
+      attendances: values.attendances,
+      opportunities: values.opportunities,
+      sales: values.sales,
+      revenue: Math.round(values.revenue * 100) / 100
+    }));
+
+  console.log(JSON.stringify({ month, summary }, null, 2));
+}
+
 async function main() {
   if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado.");
+  if (SUMMARY_MONTH) {
+    await printSheetSummary(SUMMARY_MONTH);
+    return;
+  }
+
   const parsed = normalizeRows(INPUT_FILE);
   await ensureSheet();
   const current = (await sheetsValues("GET", READ_RANGE)).values || [];
