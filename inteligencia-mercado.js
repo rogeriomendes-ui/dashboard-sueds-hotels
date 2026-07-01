@@ -41,7 +41,10 @@ function monthLabel(value) {
 }
 
 function formatPct(value) {
-  return `${Math.round(Number(value || 0))}%`;
+  return `${Number(value || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}%`;
 }
 
 function setText(id, value) {
