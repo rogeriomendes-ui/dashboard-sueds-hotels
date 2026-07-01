@@ -2270,13 +2270,16 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
 }
 
 async function buildMarketIntelligencePayload(filters = {}) {
-  const { month } = marketDateRangeForMonth(filters.month);
+  const requestedMonth = filters.month && (filters.month === "ytd" || /^\d{4}$/.test(filters.month) || /^\d{4}-\d{2}$/.test(filters.month))
+    ? filters.month
+    : "";
+  const { month } = requestedMonth ? marketDateRangeForMonth(requestedMonth) : { month: "" };
   const allMarketRows = loadAsksuiteMarketRawRows();
   const selectedMonths = normalizeMarketMonthList(filters.months || []);
   const activeMonths = selectedMonths.length ? selectedMonths : normalizeMarketMonthList([month]);
   const asksuiteMarketRows = activeMonths.length > 1
     ? loadAsksuiteMarketRowsForMonths(activeMonths)
-    : loadAsksuiteMarketRows(activeMonths[0] || month);
+    : (activeMonths.length ? loadAsksuiteMarketRows(activeMonths[0]) : []);
   const sourceRows = asksuiteMarketRows;
   const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "empty";
   const rows = filterMarketRows(sourceRows, filters);
@@ -2403,7 +2406,16 @@ async function buildMarketIntelligencePayload(filters = {}) {
   };
   const googleAds = activeMonths.length > 1
     ? await loadGoogleAdsMetricsForMonths(activeMonths)
-    : await loadGoogleAdsMetrics({ month: activeMonths[0] || month });
+    : (activeMonths.length
+      ? await loadGoogleAdsMetrics({ month: activeMonths[0] })
+      : {
+        configured: false,
+        source: "empty",
+        campaigns: [],
+        keywords: [],
+        geoCities: [],
+        summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
+      });
   return applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters);
 }
 

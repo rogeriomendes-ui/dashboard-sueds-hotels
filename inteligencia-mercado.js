@@ -1,7 +1,7 @@
 const state = {
   payload: null,
   filters: {
-    months: [currentMonth()],
+    months: [],
     hotel: "",
     state: "",
     ddd: "",
@@ -95,7 +95,7 @@ function monthSelectionLabel(months = []) {
   const selected = normalizeMonthValues(months);
   if (selected.length === 1) return monthLabel(selected[0]);
   if (selected.length > 1) return `${selected.length} MESES SELECIONADOS`;
-  return "Selecionar meses";
+  return "Selecione";
 }
 
 function setMonthMultiSelect(values = []) {
@@ -111,9 +111,7 @@ function setMonthMultiSelect(values = []) {
     .filter((period) => /^\d{4}-\d{2}$/.test(period.value));
   const available = normalizeMonthValues(periods.map((period) => period.value));
   let selected = normalizeMonthValues(state.filters.months);
-  if (!selected.length) selected = [available.includes(currentMonth()) ? currentMonth() : available[0]].filter(Boolean);
   selected = selected.filter((month) => available.includes(month));
-  if (!selected.length && available.length) selected = [available[0]];
   state.filters.months = selected;
 
   select.hidden = true;
@@ -157,10 +155,6 @@ function setMonthMultiSelect(values = []) {
     checkbox.addEventListener("change", () => {
       const checked = [...panel.querySelectorAll("input[type='checkbox']:checked")].map((item) => item.value);
       state.filters.months = normalizeMonthValues(checked);
-      if (!state.filters.months.length) {
-        checkbox.checked = true;
-        state.filters.months = [checkbox.value];
-      }
       button.textContent = monthSelectionLabel(state.filters.months);
       loadDashboard();
     });
