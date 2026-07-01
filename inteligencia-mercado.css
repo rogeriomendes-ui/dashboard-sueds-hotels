@@ -367,6 +367,24 @@ tr:last-child td {
   margin-bottom: 14px;
 }
 
+.media-source-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 14px;
+}
+
+.media-source-card {
+  min-width: 0;
+}
+
+.media-source-heading {
+  margin-bottom: 12px;
+}
+
+.media-kpi-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .mini-kpi {
   min-height: 82px;
   padding: 12px;
@@ -445,6 +463,10 @@ tr:last-child td {
   .opportunity-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .media-source-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 980px) {
@@ -467,6 +489,7 @@ tr:last-child td {
   .kpi-grid,
   .filters-panel,
   .mini-kpi-grid,
+  .media-source-grid,
   .opportunity-grid,
   .funnel {
     grid-template-columns: 1fr;

@@ -125,26 +125,41 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Investimento em Mídia</p>
-              <h2>Google Ads, Meta Ads e ROAS</h2>
+              <h2>Google Ads e Meta Ads</h2>
             </div>
           </div>
-          <div id="mediaCards" class="mini-kpi-grid"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Campanha</th>
-                  <th>Investimento</th>
-                  <th>Cliques</th>
-                  <th>Conversões</th>
-                  <th>Vendas</th>
-                  <th>Receita</th>
-                  <th>Custo/venda</th>
-                  <th>ROAS</th>
-                </tr>
-              </thead>
-              <tbody id="campaignTable"></tbody>
-            </table>
+          <div class="media-source-grid">
+            <section class="media-source-card">
+              <div class="media-source-heading">
+                <p class="eyebrow">Google Ads</p>
+                <h3>Resumo real do período</h3>
+              </div>
+              <div id="googleMediaCards" class="mini-kpi-grid media-kpi-grid"></div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Palavra-chave</th>
+                      <th>Investimento</th>
+                      <th>Cliques</th>
+                      <th>Conversões</th>
+                      <th>Receita</th>
+                      <th>Custo/conv.</th>
+                      <th>ROAS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="keywordTable"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="media-source-card">
+              <div class="media-source-heading">
+                <p class="eyebrow">Meta Ads</p>
+                <h3>Resumo do período</h3>
+              </div>
+              <div id="metaMediaCards" class="mini-kpi-grid media-kpi-grid"></div>
+              <div id="metaMediaStatus" class="empty-state"></div>
+            </section>
           </div>
         </article>
 

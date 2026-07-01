@@ -523,12 +523,13 @@ async function loadGoogleAdsMetrics(period = {}) {
       configured: false,
       source: "demo",
       campaigns: [],
+      keywords: [],
       summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
     };
   }
 
   try {
-    const query = `
+    const campaignQuery = `
       SELECT
         campaign.id,
         campaign.name,
@@ -542,7 +543,28 @@ async function loadGoogleAdsMetrics(period = {}) {
         AND campaign.status != 'REMOVED'
       ORDER BY metrics.cost_micros DESC
     `;
-    const results = await googleAdsSearchStream(query);
+    const keywordQuery = `
+      SELECT
+        campaign.id,
+        campaign.name,
+        ad_group.name,
+        ad_group_criterion.keyword.text,
+        metrics.impressions,
+        metrics.clicks,
+        metrics.cost_micros,
+        metrics.conversions,
+        metrics.conversions_value
+      FROM keyword_view
+      WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+        AND campaign.status != 'REMOVED'
+        AND ad_group.status != 'REMOVED'
+        AND ad_group_criterion.status != 'REMOVED'
+      ORDER BY metrics.cost_micros DESC
+    `;
+    const [results, keywordResults] = await Promise.all([
+      googleAdsSearchStream(campaignQuery),
+      googleAdsSearchStream(keywordQuery).catch(() => [])
+    ]);
     const campaigns = results.map((row) => {
       const spend = googleAdsMetricNumber(row.metrics?.costMicros) / 1000000;
       const clicks = googleAdsMetricNumber(row.metrics?.clicks);
@@ -562,6 +584,28 @@ async function loadGoogleAdsMetrics(period = {}) {
         roas: marketRound(marketSafeDiv(conversionValue, spend), 2)
       };
     });
+    const keywords = keywordResults
+      .map((row) => {
+        const spend = googleAdsMetricNumber(row.metrics?.costMicros) / 1000000;
+        const clicks = googleAdsMetricNumber(row.metrics?.clicks);
+        const impressions = googleAdsMetricNumber(row.metrics?.impressions);
+        const conversions = googleAdsMetricNumber(row.metrics?.conversions);
+        const conversionValue = googleAdsMetricNumber(row.metrics?.conversionsValue);
+        return {
+          keyword: String(row.adGroupCriterion?.keyword?.text || "Palavra-chave sem nome"),
+          campaign: String(row.campaign?.name || "Campanha sem nome"),
+          adGroup: String(row.adGroup?.name || "Grupo sem nome"),
+          spend: marketRound(spend, 2),
+          clicks,
+          impressions,
+          conversions: marketRound(conversions, 2),
+          conversionValue: marketRound(conversionValue, 2),
+          costPerClick: marketRound(marketSafeDiv(spend, clicks), 2),
+          costPerConversion: marketRound(marketSafeDiv(spend, conversions), 2),
+          roas: marketRound(marketSafeDiv(conversionValue, spend), 2)
+        };
+      })
+      .filter((row) => row.spend || row.clicks || row.conversions || row.conversionValue);
     const summary = {
       spend: marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2),
       clicks: campaigns.reduce((total, row) => total + row.clicks, 0),
@@ -576,6 +620,7 @@ async function loadGoogleAdsMetrics(period = {}) {
       customerId: GOOGLE_ADS_CUSTOMER_ID,
       period: { month, startDate, endDate },
       campaigns,
+      keywords,
       summary
     };
     googleAdsCache = { key: cacheKey, payload, expiresAt: Date.now() + CACHE_TTL_MS };
@@ -586,6 +631,7 @@ async function loadGoogleAdsMetrics(period = {}) {
       source: "error",
       error: error.message,
       campaigns: [],
+      keywords: [],
       summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
     };
   }
@@ -1648,19 +1694,41 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
       roas: campaign.roas,
       opportunityIndex: Math.max(0, Math.round(campaign.clicks - campaign.conversions))
     }));
+  const keywords = (googleAds.keywords || [])
+    .filter((keyword) => !selectedCampaign || marketComparable(keyword.campaign) === marketComparable(selectedCampaign))
+    .map((keyword) => ({
+      label: keyword.keyword,
+      keyword: keyword.keyword,
+      campaign: keyword.campaign,
+      adGroup: keyword.adGroup,
+      spend: keyword.spend,
+      clicks: keyword.clicks,
+      impressions: keyword.impressions,
+      conversions: keyword.conversions,
+      sales: keyword.conversions,
+      revenue: keyword.conversionValue,
+      conversionValue: keyword.conversionValue,
+      costPerClick: keyword.costPerClick,
+      costPerSale: keyword.costPerConversion,
+      roas: keyword.roas
+    }));
 
   const googleSpend = marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2);
   const googleClicks = campaigns.reduce((total, row) => total + row.clicks, 0);
   const googleConversions = marketRound(campaigns.reduce((total, row) => total + row.conversions, 0), 2);
   const googleConversionValue = marketRound(campaigns.reduce((total, row) => total + row.conversionValue, 0), 2);
-  const mediaSpend = googleSpend + payload.summary.metaSpend;
+  const metaSpend = 0;
+  const mediaSpend = googleSpend + metaSpend;
 
   payload.summary.googleSpend = googleSpend;
+  payload.summary.metaSpend = metaSpend;
   payload.summary.mediaSpend = marketRound(mediaSpend, 2);
   payload.summary.costPerSale = marketRound(marketSafeDiv(mediaSpend, payload.summary.sales), 2);
   payload.summary.roas = marketRound(marketSafeDiv(payload.summary.revenue, mediaSpend), 2);
 
   payload.media.googleSpend = googleSpend;
+  payload.media.metaSpend = metaSpend;
+  payload.media.metaConnected = false;
   payload.media.googleClicks = googleClicks;
   payload.media.googleConversions = googleConversions;
   payload.media.googleConversionValue = googleConversionValue;
@@ -1669,6 +1737,7 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
   payload.media.costPerReservation = marketRound(marketSafeDiv(mediaSpend, payload.summary.reservations), 2);
   payload.media.costPerSale = marketRound(marketSafeDiv(mediaSpend, payload.summary.sales), 2);
   payload.media.byCampaign = campaigns.sort((a, b) => b.spend - a.spend);
+  payload.media.byKeyword = keywords.sort((a, b) => b.spend - a.spend);
   payload.filters.campaigns = [...new Set([...(payload.filters.campaigns || []), ...googleAds.campaigns.map((campaign) => campaign.label)])]
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -1763,6 +1832,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
     media: {
       googleSpend,
       metaSpend,
+      metaConnected: false,
       googleClicks: demoGoogleClicks,
       googleConversions: demoGoogleConversions,
       googleConversionValue: demoGoogleConversionValue,
@@ -1771,6 +1841,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
       costPerReservation: summary.costPerReservation,
       costPerSale: summary.costPerSale,
       byCampaign,
+      byKeyword: [],
       byState: byState.map((row) => ({
         state: row.label,
         spend: row.spend,

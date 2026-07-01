@@ -232,34 +232,55 @@ function renderConversion(conversion) {
 }
 
 function renderMedia(media) {
-  const cards = [
-    ["Google Ads", formatCurrency.format(media.googleSpend)],
-    ["Meta Ads", formatCurrency.format(media.metaSpend)],
-    ["Cliques Google", formatNumber.format(media.googleClicks || 0)],
-    ["Conversões Google", formatNumber.format(media.googleConversions || 0)],
+  const googleCards = [
+    ["Investimento", formatCurrency.format(media.googleSpend || 0)],
+    ["Cliques", formatNumber.format(media.googleClicks || 0)],
+    ["Conversões", formatNumber.format(media.googleConversions || 0)],
     ["Valor conv.", formatCurrency.format(media.googleConversionValue || 0)],
-    ["Custo por diálogo", formatCurrencyDetailed.format(media.costPerDialogue)],
-    ["Custo por reserva", formatCurrencyDetailed.format(media.costPerReservation)],
-    ["Custo por venda", formatCurrencyDetailed.format(media.costPerSale)]
+    ["CPC médio", formatCurrencyDetailed.format(media.costPerClick || 0)],
+    ["Custo/conv.", formatCurrencyDetailed.format(media.googleConversions ? (media.googleSpend || 0) / media.googleConversions : 0)]
   ];
-  document.getElementById("mediaCards").innerHTML = cards.map(([label, value]) => `
+  document.getElementById("googleMediaCards").innerHTML = googleCards.map(([label, value]) => `
     <div class="mini-kpi">
       <span>${label}</span>
       <strong>${value}</strong>
     </div>
   `).join("");
-  document.getElementById("campaignTable").innerHTML = media.byCampaign.map((row) => `
+
+  const metaCards = [
+    ["Investimento", formatCurrency.format(media.metaSpend || 0)],
+    ["Cliques", "--"],
+    ["Conversões", "--"],
+    ["Valor conv.", "--"],
+    ["CPC médio", "--"],
+    ["Custo/conv.", "--"]
+  ];
+  document.getElementById("metaMediaCards").innerHTML = metaCards.map(([label, value]) => `
+    <div class="mini-kpi">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `).join("");
+  document.getElementById("metaMediaStatus").textContent = media.metaConnected
+    ? "Meta Ads conectado."
+    : "Meta Ads ainda não conectado. Este bloco está preparado para receber os dados da API da Meta.";
+
+  const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];
+  document.getElementById("keywordTable").innerHTML = keywordRows.length ? keywordRows.map((row) => `
     <tr>
-      <td title="${row.label}">${row.label}</td>
+      <td title="${row.campaign} | ${row.adGroup}">${row.keyword || row.label}</td>
       <td>${formatCurrency.format(row.spend)}</td>
       <td>${formatNumber.format(row.clicks || 0)}</td>
       <td>${formatNumber.format(row.conversions || 0)}</td>
-      <td>${formatNumber.format(row.sales)}</td>
       <td>${formatCurrency.format(row.revenue)}</td>
       <td>${formatCurrencyDetailed.format(row.costPerSale)}</td>
       <td>${row.roas.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</td>
     </tr>
-  `).join("");
+  `).join("") : `
+    <tr>
+      <td colspan="7">Sem dados de palavras-chave para este período. Algumas campanhas podem não usar palavras-chave tradicionais.</td>
+    </tr>
+  `;
 }
 
 function renderCompetitiveness(competitiveness) {
