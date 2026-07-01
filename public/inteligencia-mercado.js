@@ -297,6 +297,7 @@ function renderMedia(media) {
       <td>${formatCurrency.format(row.spend || 0)}</td>
       <td>${formatNumber.format(row.clicks || 0)}</td>
       <td>${formatNumber.format(row.conversions || 0)}</td>
+      <td>${formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0)}</td>
       <td>${formatCurrency.format(row.revenue || 0)}</td>
       <td>${formatCurrencyDetailed.format(row.costPerClick || 0)}</td>
       <td>${formatCurrencyDetailed.format(row.costPerSale || 0)}</td>
@@ -304,7 +305,7 @@ function renderMedia(media) {
     </tr>
   `).join("") : `
     <tr>
-      <td colspan="8">Sem dados de localização física por cidade para este período. Cidades apenas de interesse foram ignoradas nesta leitura.</td>
+      <td colspan="9">Sem dados de localização física por cidade para este período. Cidades apenas de interesse foram ignoradas nesta leitura.</td>
     </tr>
   `;
 
@@ -333,13 +334,14 @@ function renderMedia(media) {
       <td>${formatCurrency.format(row.spend)}</td>
       <td>${formatNumber.format(row.clicks || 0)}</td>
       <td>${formatNumber.format(row.conversions || 0)}</td>
+      <td>${formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0)}</td>
       <td>${formatCurrency.format(row.revenue)}</td>
       <td>${formatCurrencyDetailed.format(row.costPerSale)}</td>
       <td>${row.roas.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</td>
     </tr>
   `).join("") : `
     <tr>
-      <td colspan="7">Sem dados de palavras-chave para este período. Algumas campanhas podem não usar palavras-chave tradicionais.</td>
+      <td colspan="8">Sem dados de palavras-chave para este período. Algumas campanhas podem não usar palavras-chave tradicionais.</td>
     </tr>
   `;
 }
