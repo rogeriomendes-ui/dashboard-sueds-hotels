@@ -239,6 +239,12 @@ function renderConversionTable(id, rows, maxRows = 8) {
   const items = (rows || []).slice(0, maxRows);
   const body = document.getElementById(id);
   if (!body) return;
+  const wrap = body.closest(".table-wrap");
+  if (id === "stateDddConversionTable" && wrap) {
+    wrap.classList.add("state-ddd-table-wrap");
+    wrap.style.maxHeight = "286px";
+    wrap.style.overflowY = "scroll";
+  }
   body.innerHTML = items.length ? items.map((row) => `
     <tr>
       <td title="${row.label}">${row.label}</td>

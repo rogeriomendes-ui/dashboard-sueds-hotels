@@ -579,7 +579,7 @@ h2 {
 }
 
 .state-ddd-table-wrap {
-  max-height: 306px;
+  max-height: 286px;
   overflow-y: scroll;
   scrollbar-gutter: stable;
 }
