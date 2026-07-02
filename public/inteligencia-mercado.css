@@ -435,6 +435,14 @@ table {
   min-width: 720px;
 }
 
+.keyword-table-wrap table,
+.city-table-wrap table,
+.meta-campaign-table-wrap table,
+.meta-ad-table-wrap table {
+  table-layout: fixed;
+  min-width: 100%;
+}
+
 th,
 td {
   padding: 12px 10px;
@@ -443,6 +451,34 @@ td {
   font-size: 13px;
   text-align: right;
   white-space: nowrap;
+}
+
+.keyword-table-wrap th,
+.keyword-table-wrap td,
+.city-table-wrap th,
+.city-table-wrap td,
+.meta-campaign-table-wrap th,
+.meta-campaign-table-wrap td,
+.meta-ad-table-wrap th,
+.meta-ad-table-wrap td {
+  overflow: hidden;
+  padding: 10px 7px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.keyword-table-wrap th:first-child,
+.keyword-table-wrap td:first-child,
+.city-table-wrap th:first-child,
+.city-table-wrap td:first-child {
+  width: 20%;
+}
+
+.meta-campaign-table-wrap th:first-child,
+.meta-campaign-table-wrap td:first-child,
+.meta-ad-table-wrap th:first-child,
+.meta-ad-table-wrap td:first-child {
+  width: 32%;
 }
 
 th:first-child,
