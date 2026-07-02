@@ -1221,6 +1221,7 @@ function isOnOrBeforeDateKey(record, key) {
 }
 
 const TEAM_CARD_NAME = "Equipe Sueds";
+const TEAM_CARD_DISPLAY_NAME = "EQUIPE SUEDS";
 const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
 const OFFICIAL_SALES_CHANNELS = [
@@ -1231,6 +1232,21 @@ const OFFICIAL_SALES_CHANNELS = [
   "AGÊNCIA (grupos)",
   "RECEPÇÃO"
 ];
+
+function isTeamCardName(value) {
+  return comparableKey(value) === comparableKey(TEAM_CARD_NAME);
+}
+
+function sellerRankingSort(a, b) {
+  const aIsTeam = isTeamCardName(a.name);
+  const bIsTeam = isTeamCardName(b.name);
+  if (aIsTeam !== bIsTeam) return aIsTeam ? -1 : 1;
+  return b.salesMonth - a.salesMonth;
+}
+
+function displaySellerName(value) {
+  return isTeamCardName(value) ? TEAM_CARD_DISPLAY_NAME : value;
+}
 
 function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   const useHistoricalChannel = month === "2026-05" || month === "2026-06";
@@ -1433,7 +1449,7 @@ function buildMetrics(records, goals, period = {}) {
         monthlyGoalPct: pct(monthRevenue, monthlyGoal)
       };
     })
-    .sort((a, b) => b.salesMonth - a.salesMonth);
+    .sort(sellerRankingSort);
 
   const teamCard = sellers.find((seller) => seller.name === TEAM_CARD_NAME);
   if (teamCard) {
@@ -1455,7 +1471,10 @@ function buildMetrics(records, goals, period = {}) {
     teamCard.monthlyGoalPct = pct(teamSalesMonth, teamCard.monthlyGoal);
   }
 
-  sellers = sellers.sort((a, b) => b.salesMonth - a.salesMonth);
+  sellers = sellers.sort(sellerRankingSort).map((seller) => ({
+    ...seller,
+    name: displaySellerName(seller.name)
+  }));
 
   const channelLabels = new Set([
     ...OFFICIAL_SALES_CHANNELS,
@@ -1582,7 +1601,7 @@ const TV_SELLER_ORDER = [
 ];
 
 function tvOrder(name) {
-  const index = TV_SELLER_ORDER.findIndex((item) => item.toLowerCase() === String(name).toLowerCase());
+  const index = TV_SELLER_ORDER.findIndex((item) => comparableKey(item) === comparableKey(name));
   return index === -1 ? TV_SELLER_ORDER.length : index;
 }
 

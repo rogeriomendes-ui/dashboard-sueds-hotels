@@ -20,6 +20,18 @@ function byId(id) {
   return document.getElementById(id);
 }
 
+function normalizedName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isTeamSeller(value) {
+  return normalizedName(value) === "equipe sueds";
+}
+
 function defaultMonth() {
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -213,13 +225,13 @@ function render(data) {
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
   renderAnalytics(data.analytics);
 
-  const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [item.name, item]));
-  const asksuiteBySeller = new Map((data.asksuite || []).map((item) => [item.name, item]));
+  const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [normalizedName(item.name), item]));
+  const asksuiteBySeller = new Map((data.asksuite || []).map((item) => [normalizedName(item.name), item]));
 
   byId("sellerGrid").innerHTML = data.sellers
     .map((seller) => `
-      <article class="seller-card ${statusClass(seller)} ${seller.name === "Equipe Sueds" ? "seller-card-team" : ""}">
-        <h2 class="seller-name">${seller.name === "Equipe Sueds" ? "TIME SUEDS" : seller.name}</h2>
+      <article class="seller-card ${statusClass(seller)} ${isTeamSeller(seller.name) ? "seller-card-team" : ""}">
+        <h2 class="seller-name">${isTeamSeller(seller.name) ? "TIME SUEDS" : seller.name}</h2>
         <div class="gauge-layout">
           <div class="goal-column goal-column-day">
             ${goalGauge("Meta dia", seller.dailyGoalPct)}
@@ -229,8 +241,8 @@ function render(data) {
           ${goalColumn("ICM mês", seller.monthlyGoalPct, "")}
           <span class="reservations-pill reservations-pill-month">${seller.reservationsMonth} no mês</span>
         </div>
-        ${renderAsksuiteBlock(asksuiteBySeller.get(seller.name))}
-        ${renderCartRecoveryBlock(cartsBySeller.get(seller.name))}
+        ${renderAsksuiteBlock(asksuiteBySeller.get(normalizedName(seller.name)))}
+        ${renderCartRecoveryBlock(cartsBySeller.get(normalizedName(seller.name)))}
       </article>
     `)
     .join("");
