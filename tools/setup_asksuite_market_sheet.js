@@ -11,21 +11,17 @@ loadEnvFile(path.join(ROOT, ".env"));
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
 const HEADERS = [
-  "Mês",
-  "Estado",
-  "DDD",
-  "Hotel",
+  "Viajante",
+  "Email",
+  "Telefone",
+  "Atendente",
+  "Empresa",
   "Canal",
-  "Campanha",
-  "Origem",
-  "Dispositivo",
-  "Diálogos",
-  "Cotações",
-  "Reservas",
+  "Início do atendimento",
+  "Final do atendimento",
+  "Oportunidades",
   "Vendas",
-  "Receita",
-  "Investimento Google",
-  "Investimento Meta"
+  "Valor vendido"
 ];
 
 function loadEnvFile(filePath) {
@@ -153,10 +149,19 @@ async function main() {
     sheetId = created.replies?.[0]?.addSheet?.properties?.sheetId;
   }
 
-  await updateValues(`'${SHEET_NAME}'!A1:O1`, [HEADERS]);
+  await updateValues(`'${SHEET_NAME}'!A1:K1`, [HEADERS]);
 
   if (sheetId !== undefined) {
     await batchUpdate([
+      {
+        updateSheetProperties: {
+          properties: {
+            sheetId,
+            gridProperties: { columnCount: HEADERS.length, frozenRowCount: 1 }
+          },
+          fields: "gridProperties.columnCount,gridProperties.frozenRowCount"
+        }
+      },
       {
         repeatCell: {
           range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: HEADERS.length },

@@ -12,7 +12,7 @@ const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAME
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
-const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:O";
+const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:K";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
 const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AG";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
@@ -1878,16 +1878,84 @@ function marketComparable(value) {
 
 const MARKET_DDD_CITY = {
   "11": "São Paulo",
+  "12": "São José dos Campos",
+  "13": "Santos",
+  "14": "Bauru",
+  "15": "Sorocaba",
+  "16": "Ribeirão Preto",
+  "17": "São José do Rio Preto",
+  "18": "Presidente Prudente",
+  "19": "Campinas",
   "21": "Rio de Janeiro",
+  "22": "Campos dos Goytacazes",
+  "24": "Volta Redonda",
   "27": "Vitória",
+  "28": "Cachoeiro de Itapemirim",
   "31": "Belo Horizonte",
+  "32": "Juiz de Fora",
   "33": "Governador Valadares",
+  "34": "Uberlândia",
+  "35": "Poços de Caldas",
+  "37": "Divinópolis",
+  "38": "Montes Claros",
   "61": "Brasília",
   "62": "Goiânia",
+  "64": "Rio Verde",
   "71": "Salvador",
   "73": "Porto Seguro",
+  "74": "Juazeiro",
+  "75": "Feira de Santana",
   "77": "Vitória da Conquista",
-  "81": "Recife"
+  "81": "Recife",
+  "82": "Maceió",
+  "84": "Natal",
+  "85": "Fortaleza",
+  "86": "Teresina",
+  "87": "Petrolina",
+  "88": "Juazeiro do Norte",
+  "98": "São Luís",
+  "99": "Imperatriz"
+};
+
+const MARKET_DDD_STATE = {
+  "11": "SP",
+  "12": "SP",
+  "13": "SP",
+  "14": "SP",
+  "15": "SP",
+  "16": "SP",
+  "17": "SP",
+  "18": "SP",
+  "19": "SP",
+  "21": "RJ",
+  "22": "RJ",
+  "24": "RJ",
+  "27": "ES",
+  "28": "ES",
+  "31": "MG",
+  "32": "MG",
+  "33": "MG",
+  "34": "MG",
+  "35": "MG",
+  "37": "MG",
+  "38": "MG",
+  "61": "DF",
+  "62": "GO",
+  "64": "GO",
+  "71": "BA",
+  "73": "BA",
+  "74": "BA",
+  "75": "BA",
+  "77": "BA",
+  "81": "PE",
+  "82": "AL",
+  "84": "RN",
+  "85": "CE",
+  "86": "PI",
+  "87": "PE",
+  "88": "CE",
+  "98": "MA",
+  "99": "MA"
 };
 
 function marketDddLabel(state, ddd) {
@@ -2082,21 +2150,69 @@ function monthFromMarketValue(value) {
   return text;
 }
 
-function normalizeAsksuiteMarketSheetRow(item) {
-  const month = monthFromMarketValue(firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]));
+function dddFromPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "NI";
+  if (digits.startsWith("55") && digits.length >= 4) return digits.slice(2, 4);
+  return digits.length >= 2 ? digits.slice(0, 2) : "NI";
+}
+
+function normalizeMarketHotelName(value) {
+  const text = String(value || "").trim();
+  const key = marketComparable(text);
+  if (!key) return "Não informado";
+  if (key.includes("cabralia")) return "SUEDS Cabralia";
+  if (key.includes("segundo sol")) return "SUEDS Segundo Sol";
+  if (key.includes("plaza")) return "SUEDS Plaza";
+  if (key.includes("premium")) return "SUEDS Premium";
+  if (key.includes("trancoso")) return "SUEDS Trancoso";
+  if (key.includes("arraial")) return "Casas Sueds Arraial";
+  if (key.includes("sueds")) return "SUEDS Hotels";
+  return text;
+}
+
+function normalizeAsksuiteMarketChannel(value) {
+  const text = String(value || "").trim();
+  const key = marketComparable(text);
+  if (!key) return "Não informado";
+  if (key.includes("whatsapp")) return "WhatsApp";
+  if (key.includes("chat")) return "Chat web";
+  if (key.includes("instagram")) return "Instagram";
+  if (key.includes("robo")) return "Robo";
+  return text;
+}
+
+function normalizeAsksuiteMarketSheetRow(item, index = 0) {
+  const start = firstFilledValue(item, ["Início do atendimento", "Inicio do atendimento"]);
+  const month = monthFromMarketValue(firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]) || start);
   if (!month) return null;
 
+  const rawDdd = String(firstFilledValue(item, ["DDD", "ddd"]) || "").replace(/\D/g, "");
+  const ddd = rawDdd || dddFromPhone(firstFilledValue(item, ["Telefone", "phone"]));
+  const state = firstFilledValue(item, ["Estado", "UF", "state"]) || MARKET_DDD_STATE[ddd] || "Não informado";
+  const channel = normalizeAsksuiteMarketChannel(firstFilledValue(item, ["Canal", "channel"]));
+  const hotel = normalizeMarketHotelName(firstFilledValue(item, ["Hotel", "hotel", "Empresa"]));
+  const dialoguesValue = firstFilledValue(item, ["Diálogos", "Dialogos", "dialogues", "Atendimentos"]);
+  const rawKey = [
+    firstFilledValue(item, ["Telefone", "phone"]),
+    start,
+    firstFilledValue(item, ["Atendente"]),
+    firstFilledValue(item, ["Empresa"]),
+    firstFilledValue(item, ["Canal", "channel"])
+  ].join("|");
+
   return {
+    sheetKey: `sheet-${month}-${rawKey || index + 1}`,
     month,
-    state: firstFilledValue(item, ["Estado", "UF", "state"]) || "Não informado",
-    ddd: String(firstFilledValue(item, ["DDD", "ddd"]) || "NI").replace(/\D/g, "") || "NI",
-    hotel: firstFilledValue(item, ["Hotel", "hotel"]) || "Não informado",
-    channel: firstFilledValue(item, ["Canal", "channel"]) || "Não informado",
-    campaign: firstFilledValue(item, ["Campanha", "campaign"]),
+    state,
+    ddd,
+    hotel,
+    channel,
+    campaign: firstFilledValue(item, ["Campanha", "campaign"]) || `Asksuite ${channel}`,
     source: firstFilledValue(item, ["Fonte", "Origem Sistema", "source"]) || "Asksuite",
-    origin: firstFilledValue(item, ["Origem", "origin", "Canal"]) || "Não informado",
+    origin: firstFilledValue(item, ["Origem", "origin"]) || channel,
     device: firstFilledValue(item, ["Dispositivo", "device"]) || "Não informado",
-    dialogues: parseDecimalNumber(firstFilledValue(item, ["Diálogos", "Dialogos", "dialogues", "Atendimentos"])),
+    dialogues: dialoguesValue === "" ? 1 : parseDecimalNumber(dialoguesValue),
     quotes: parseDecimalNumber(firstFilledValue(item, ["Cotações", "Cotacoes", "quotes", "Oportunidades"])),
     reservations: parseDecimalNumber(firstFilledValue(item, ["Reservas", "reservations", "Cotações", "Cotacoes", "Oportunidades"])),
     sales: parseDecimalNumber(firstFilledValue(item, ["Vendas", "sales"])),
@@ -2107,6 +2223,7 @@ function normalizeAsksuiteMarketSheetRow(item) {
 }
 
 function marketRowKey(row) {
+  if (row.sheetKey) return row.sheetKey;
   return [
     row.month,
     row.state,
@@ -2134,7 +2251,7 @@ async function loadAsksuiteMarketSheetRawRows() {
   try {
     const rows = await getSheetValues(ASKSUITE_MARKET_RANGE);
     return rowsToObjectsAny(rows)
-      .map(normalizeAsksuiteMarketSheetRow)
+      .map((row, index) => normalizeAsksuiteMarketSheetRow(row, index))
       .filter(Boolean);
   } catch (error) {
     return [];
