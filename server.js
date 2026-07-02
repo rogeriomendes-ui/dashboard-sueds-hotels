@@ -622,8 +622,6 @@ async function loadGoogleAdsMetrics(period = {}) {
     `;
     const cityQuery = `
       SELECT
-        campaign.id,
-        campaign.name,
         segments.geo_target_city,
         geographic_view.location_type,
         metrics.impressions,
@@ -633,7 +631,6 @@ async function loadGoogleAdsMetrics(period = {}) {
         metrics.conversions_value
       FROM geographic_view
       WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-        AND campaign.status != 'REMOVED'
       ORDER BY metrics.cost_micros DESC
     `;
     const [results, accountSummaryResults, keywordResults] = await Promise.all([
