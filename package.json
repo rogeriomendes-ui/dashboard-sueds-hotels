@@ -10,6 +10,7 @@
     "import:asksuite": "node tools/import_asksuite_google.js",
     "googleads:token": "node tools/google_ads_oauth_token.js",
     "setup:niara:sheet": "node tools/setup_niara_import_sheet.js",
+    "setup:niara:rules": "node tools/apply_niara_sheet_rules.js",
     "setup:asksuite:sheet": "node tools/setup_asksuite_import_sheet.js"
   },
   "engines": {
