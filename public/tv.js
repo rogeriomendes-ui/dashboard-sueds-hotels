@@ -234,7 +234,7 @@ function render(data) {
         <h2 class="seller-name">${isTeamSeller(seller.name) ? "TIME SUEDS" : seller.name}</h2>
         <div class="gauge-layout">
           <div class="goal-column goal-column-day">
-            ${goalGauge("Meta dia", seller.dailyGoalPct)}
+            ${goalGauge("Meta hoje", seller.dailyGoalPct)}
             <span class="reservations-pill">${seller.reservationsToday} reservas hoje</span>
           </div>
           ${goalColumn("ICM MTD", seller.mtdGoalPct, "")}
