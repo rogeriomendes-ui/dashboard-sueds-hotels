@@ -11,6 +11,7 @@ const BODY_FONT_COLOR = "#000000";
 const HEADER_FONT_COLOR = "#ffffff";
 const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
+const NIARA_STATUS_OPTIONS = ["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
 
 const NIARA_SOURCE_HEADERS = [
@@ -442,8 +443,13 @@ function applyNiaraInputValidations_(sheet) {
     .requireValueInList(NIARA_LOSS_REASON_OPTIONS, true)
     .setAllowInvalid(false)
     .build();
+  const statusRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(NIARA_STATUS_OPTIONS, true)
+    .setAllowInvalid(false)
+    .build();
 
   sheet.getRange(2, 18, Math.max(maxRows - 1, 1), 1).setDataValidation(responsibleRule);
+  sheet.getRange(2, 19, Math.max(maxRows - 1, 1), 1).setDataValidation(statusRule);
   sheet.getRange(2, 20, Math.max(maxRows - 1, 1), 1).setDataValidation(lossReasonRule);
 }
 

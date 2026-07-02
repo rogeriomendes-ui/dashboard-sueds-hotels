@@ -7,6 +7,7 @@ const SHEET_NAME = "Recuperação de carrinhos";
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
+const STATUS_OPTIONS = ["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
 
 loadEnvFile(path.join(ROOT, ".env"));
@@ -151,6 +152,13 @@ async function main() {
     },
     {
       repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: 18, endColumnIndex: 19 },
+        cell: { dataValidation: listValidation(STATUS_OPTIONS) },
+        fields: "dataValidation"
+      }
+    },
+    {
+      repeatCell: {
         range: { sheetId, startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: 19, endColumnIndex: 20 },
         cell: { dataValidation: listValidation(LOSS_REASON_OPTIONS) },
         fields: "dataValidation"
@@ -166,6 +174,7 @@ async function main() {
     unprotectedColumns: "R:U",
     validations: {
       R: RESPONSIBLE_OPTIONS,
+      S: STATUS_OPTIONS,
       T: LOSS_REASON_OPTIONS
     },
     replies: result.replies?.length || 0
