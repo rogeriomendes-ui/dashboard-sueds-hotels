@@ -29,6 +29,13 @@ const GOOGLE_ADS_DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "";
 const GOOGLE_ADS_CLIENT_ID = process.env.GOOGLE_ADS_CLIENT_ID || "";
 const GOOGLE_ADS_CLIENT_SECRET = process.env.GOOGLE_ADS_CLIENT_SECRET || "";
 const GOOGLE_ADS_REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || "";
+const META_ADS_API_VERSION = process.env.META_ADS_API_VERSION || "v23.0";
+const META_ADS_ACCOUNT_ID = (process.env.META_ADS_ACCOUNT_ID || "").replace(/^act_/i, "").replace(/\D/g, "");
+const META_ADS_ACCESS_TOKEN = process.env.META_ADS_ACCESS_TOKEN || "";
+const META_ADS_CONVERSION_ACTIONS = (process.env.META_ADS_CONVERSION_ACTIONS || "purchase,omni_purchase,offsite_conversion.fb_pixel_purchase")
+  .split(",")
+  .map((action) => action.trim())
+  .filter(Boolean);
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -45,6 +52,7 @@ let dataCache = { expiresAt: 0, payload: null };
 let analyticsCache = { expiresAt: 0, payload: null };
 let operationalCache = { expiresAt: 0, payload: null };
 let googleAdsCache = { expiresAt: 0, key: "", payload: null };
+let metaAdsCache = { expiresAt: 0, key: "", payload: null };
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -866,6 +874,199 @@ async function loadGoogleAdsMetricsForMonths(months = []) {
     campaigns,
     keywords,
     geoCities,
+    summary
+  };
+}
+
+function metaAdsConfigured() {
+  return Boolean(META_ADS_ACCOUNT_ID && META_ADS_ACCESS_TOKEN);
+}
+
+function metaAdsMetricNumber(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function metaAdsActionTotal(actions = [], actionTypes = META_ADS_CONVERSION_ACTIONS) {
+  const allowed = new Set(actionTypes.map((action) => marketComparable(action)));
+  return (actions || []).reduce((total, action) => {
+    const type = marketComparable(action.action_type || action.actionType || "");
+    if (!allowed.has(type)) return total;
+    return total + metaAdsMetricNumber(action.value);
+  }, 0);
+}
+
+function normalizeMetaAdsInsight(row = {}) {
+  const spend = metaAdsMetricNumber(row.spend);
+  const clicks = metaAdsMetricNumber(row.clicks);
+  const impressions = metaAdsMetricNumber(row.impressions);
+  const conversions = metaAdsActionTotal(row.actions || []);
+  const conversionValue = metaAdsActionTotal(row.action_values || []);
+  return {
+    id: String(row.campaign_id || row.account_id || ""),
+    label: String(row.campaign_name || row.account_name || "Meta Ads"),
+    spend: marketRound(spend, 2),
+    clicks: Math.round(clicks),
+    impressions: Math.round(impressions),
+    conversions: marketRound(conversions, 2),
+    conversionValue: marketRound(conversionValue, 2),
+    costPerClick: marketRound(marketSafeDiv(spend, clicks), 2),
+    costPerConversion: marketRound(marketSafeDiv(spend, conversions), 2),
+    roas: marketRound(marketSafeDiv(conversionValue, spend), 2)
+  };
+}
+
+async function metaAdsInsightsRequest(params = {}) {
+  const url = new URL(`https://graph.facebook.com/${META_ADS_API_VERSION}/act_${META_ADS_ACCOUNT_ID}/insights`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
+  });
+  url.searchParams.set("access_token", META_ADS_ACCESS_TOKEN);
+
+  const allRows = [];
+  let nextUrl = url.toString();
+  while (nextUrl) {
+    const response = await fetch(nextUrl);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(`Meta Ads request failed: ${response.status} ${JSON.stringify(payload)}`);
+    }
+    allRows.push(...(payload.data || []));
+    nextUrl = payload.paging?.next || "";
+  }
+  return allRows;
+}
+
+async function loadMetaAdsMetrics(period = {}) {
+  const dateRange = period.startDate && period.endDate
+    ? { month: period.month || "custom", startDate: period.startDate, endDate: period.endDate }
+    : marketDateRangeForMonth(period.month);
+  const { month, startDate, endDate } = dateRange;
+  const cacheKey = JSON.stringify({
+    month,
+    startDate,
+    endDate,
+    accountId: META_ADS_ACCOUNT_ID,
+    version: META_ADS_API_VERSION,
+    actions: META_ADS_CONVERSION_ACTIONS
+  });
+  if (metaAdsCache.key === cacheKey && metaAdsCache.payload && Date.now() < metaAdsCache.expiresAt) {
+    return metaAdsCache.payload;
+  }
+
+  if (!metaAdsConfigured()) {
+    return {
+      configured: false,
+      source: "empty",
+      campaigns: [],
+      summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
+    };
+  }
+
+  try {
+    const fields = [
+      "campaign_id",
+      "campaign_name",
+      "spend",
+      "clicks",
+      "impressions",
+      "actions",
+      "action_values"
+    ].join(",");
+    const timeRange = JSON.stringify({ since: startDate, until: endDate });
+    const campaignRows = await metaAdsInsightsRequest({
+      level: "campaign",
+      fields,
+      time_range: timeRange,
+      limit: "500"
+    });
+    const campaigns = campaignRows
+      .map(normalizeMetaAdsInsight)
+      .filter((row) => row.spend || row.clicks || row.impressions || row.conversions || row.conversionValue)
+      .sort((a, b) => b.spend - a.spend);
+    const summary = {
+      spend: marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2),
+      clicks: campaigns.reduce((total, row) => total + row.clicks, 0),
+      impressions: campaigns.reduce((total, row) => total + row.impressions, 0),
+      conversions: marketRound(campaigns.reduce((total, row) => total + row.conversions, 0), 2),
+      conversionValue: marketRound(campaigns.reduce((total, row) => total + row.conversionValue, 0), 2)
+    };
+    const payload = {
+      configured: true,
+      source: "meta_ads_api",
+      apiVersion: META_ADS_API_VERSION,
+      accountId: META_ADS_ACCOUNT_ID,
+      conversionActions: META_ADS_CONVERSION_ACTIONS,
+      period: { month, startDate, endDate },
+      campaigns,
+      summary
+    };
+    metaAdsCache = { key: cacheKey, payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    return payload;
+  } catch (error) {
+    return {
+      configured: true,
+      source: "error",
+      error: error.message,
+      apiVersion: META_ADS_API_VERSION,
+      accountId: META_ADS_ACCOUNT_ID,
+      campaigns: [],
+      summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
+    };
+  }
+}
+
+function combineMetaAdsRows(rows = []) {
+  return combineGoogleAdsRows(rows, (row) => row.label || row.id || "");
+}
+
+async function loadMetaAdsMetricsForMonths(months = []) {
+  const selectedMonths = normalizeMarketMonthList(months);
+  if (!selectedMonths.length) return loadMetaAdsMetrics({});
+  if (selectedMonths.length === 1) return loadMetaAdsMetrics({ month: selectedMonths[0] });
+
+  if (areContiguousMonths(selectedMonths)) {
+    const startMonth = [...selectedMonths].sort((a, b) => a.localeCompare(b))[0];
+    const endMonth = [...selectedMonths].sort((a, b) => b.localeCompare(a))[0];
+    const payload = await loadMetaAdsMetrics({
+      month: selectedMonths.join(","),
+      startDate: `${startMonth}-01`,
+      endDate: `${endMonth}-${String(daysInMonth(endMonth)).padStart(2, "0")}`
+    });
+    return {
+      ...payload,
+      period: {
+        ...(payload.period || {}),
+        months: selectedMonths,
+        startDate: `${startMonth}-01`,
+        endDate: `${endMonth}-${String(daysInMonth(endMonth)).padStart(2, "0")}`
+      }
+    };
+  }
+
+  const payloads = await Promise.all(selectedMonths.map((month) => loadMetaAdsMetrics({ month })));
+  const campaigns = combineMetaAdsRows(payloads.flatMap((payload) => payload.campaigns || []));
+  const startMonth = [...selectedMonths].sort((a, b) => a.localeCompare(b))[0];
+  const endMonth = [...selectedMonths].sort((a, b) => b.localeCompare(a))[0];
+  const summary = {
+    spend: marketRound(campaigns.reduce((total, row) => total + Number(row.spend || 0), 0), 2),
+    clicks: campaigns.reduce((total, row) => total + Number(row.clicks || 0), 0),
+    impressions: campaigns.reduce((total, row) => total + Number(row.impressions || 0), 0),
+    conversions: marketRound(campaigns.reduce((total, row) => total + Number(row.conversions || 0), 0), 2),
+    conversionValue: marketRound(campaigns.reduce((total, row) => total + Number(row.conversionValue || 0), 0), 2)
+  };
+
+  return {
+    configured: payloads.some((payload) => payload.configured),
+    source: payloads.find((payload) => payload.source === "meta_ads_api") ? "meta_ads_api" : (payloads[0]?.source || "empty"),
+    apiVersion: META_ADS_API_VERSION,
+    accountId: META_ADS_ACCOUNT_ID,
+    period: {
+      months: selectedMonths,
+      startDate: `${startMonth}-01`,
+      endDate: `${endMonth}-${String(daysInMonth(endMonth)).padStart(2, "0")}`
+    },
+    campaigns,
     summary
   };
 }
@@ -2404,7 +2605,7 @@ function ensureSelectValues(values, labels) {
   return nextValues.sort((a, b) => String(a).localeCompare(String(b), "pt-BR"));
 }
 
-function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) {
+function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, metaAds = {}) {
   payload.integrations = {
     ...(payload.integrations || {}),
     googleAds: {
@@ -2414,15 +2615,26 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
       apiVersion: googleAds.apiVersion || "",
       customerId: googleAds.customerId || "",
       period: googleAds.period || payload.period
+    },
+    metaAds: {
+      configured: Boolean(metaAds.configured),
+      source: metaAds.source || "empty",
+      error: metaAds.error || "",
+      apiVersion: metaAds.apiVersion || "",
+      accountId: metaAds.accountId || "",
+      period: metaAds.period || payload.period
     }
   };
 
-  if (!googleAds.configured || googleAds.source !== "google_ads_api") {
+  const hasGoogleAds = Boolean(googleAds.configured && googleAds.source === "google_ads_api");
+  const hasMetaAds = Boolean(metaAds.configured && metaAds.source === "meta_ads_api");
+
+  if (!hasGoogleAds && !hasMetaAds) {
     return payload;
   }
 
   const selectedCampaign = filters.campaign || "";
-  const campaigns = googleAds.campaigns
+  const campaigns = (googleAds.campaigns || [])
     .filter((campaign) => !selectedCampaign || marketComparable(campaign.label) === marketComparable(selectedCampaign))
     .map((campaign) => ({
       label: campaign.label,
@@ -2472,8 +2684,24 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
     costPerSale: city.costPerConversion,
     roas: city.roas
   }));
+  const metaCampaigns = (metaAds.campaigns || [])
+    .filter((campaign) => !selectedCampaign || marketComparable(campaign.label) === marketComparable(selectedCampaign))
+    .map((campaign) => ({
+      label: campaign.label,
+      spend: campaign.spend,
+      clicks: campaign.clicks,
+      impressions: campaign.impressions,
+      conversions: campaign.conversions,
+      sales: campaign.conversions,
+      revenue: campaign.conversionValue,
+      conversionValue: campaign.conversionValue,
+      costPerClick: campaign.costPerClick,
+      costPerSale: campaign.costPerConversion,
+      roas: campaign.roas
+    }));
 
   const googleSummary = googleAds.summary || {};
+  const metaSummary = metaAds.summary || {};
   const campaignSpend = campaigns.reduce((total, row) => total + row.spend, 0);
   const campaignClicks = campaigns.reduce((total, row) => total + row.clicks, 0);
   const campaignConversions = campaigns.reduce((total, row) => total + row.conversions, 0);
@@ -2491,7 +2719,23 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
   const googleConversionValue = useCampaignSummary
     ? marketRound(campaignConversionValue, 2)
     : marketRound(googleSummary.conversionValue, 2);
-  const metaSpend = 0;
+  const metaCampaignSpend = metaCampaigns.reduce((total, row) => total + row.spend, 0);
+  const metaCampaignClicks = metaCampaigns.reduce((total, row) => total + row.clicks, 0);
+  const metaCampaignConversions = metaCampaigns.reduce((total, row) => total + row.conversions, 0);
+  const metaCampaignConversionValue = metaCampaigns.reduce((total, row) => total + row.conversionValue, 0);
+  const useMetaCampaignSummary = Boolean(selectedCampaign) || metaCampaignSpend || metaCampaignClicks || metaCampaignConversions || metaCampaignConversionValue;
+  const metaSpend = useMetaCampaignSummary
+    ? marketRound(metaCampaignSpend, 2)
+    : marketRound(metaSummary.spend, 2);
+  const metaClicks = useMetaCampaignSummary
+    ? metaCampaignClicks
+    : Number(metaSummary.clicks || 0);
+  const metaConversions = useMetaCampaignSummary
+    ? marketRound(metaCampaignConversions, 2)
+    : marketRound(metaSummary.conversions, 2);
+  const metaConversionValue = useMetaCampaignSummary
+    ? marketRound(metaCampaignConversionValue, 2)
+    : marketRound(metaSummary.conversionValue, 2);
   const mediaSpend = googleSpend + metaSpend;
 
   payload.summary.googleSpend = googleSpend;
@@ -2513,10 +2757,27 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
   payload.media.costPerDialogue = marketRound(marketSafeDiv(mediaSpend, payload.summary.dialogues), 2);
   payload.media.costPerReservation = marketRound(marketSafeDiv(mediaSpend, payload.summary.reservations), 2);
   payload.media.costPerSale = marketRound(marketSafeDiv(mediaSpend, payload.summary.sales), 2);
+  payload.media.metaConnected = hasMetaAds;
+  payload.media.metaSource = metaAds.source || "empty";
+  payload.media.metaError = metaAds.error || "";
+  payload.media.metaClicks = metaClicks;
+  payload.media.metaImpressions = useMetaCampaignSummary
+    ? metaCampaigns.reduce((total, row) => total + row.impressions, 0)
+    : Number(metaSummary.impressions || 0);
+  payload.media.metaConversions = metaConversions;
+  payload.media.metaConversionValue = metaConversionValue;
+  payload.media.metaCostPerClick = marketRound(marketSafeDiv(metaSpend, metaClicks), 2);
+  payload.media.metaCostPerConversion = marketRound(marketSafeDiv(metaSpend, metaConversions), 2);
+  payload.media.metaRoas = marketRound(marketSafeDiv(metaConversionValue, metaSpend), 2);
   payload.media.byCampaign = campaigns.sort((a, b) => b.spend - a.spend);
   payload.media.byKeyword = keywords.sort((a, b) => b.spend - a.spend);
   payload.media.byCity = geoCities.sort((a, b) => b.spend - a.spend);
-  payload.filters.campaigns = [...new Set([...(payload.filters.campaigns || []), ...googleAds.campaigns.map((campaign) => campaign.label)])]
+  payload.media.byMetaCampaign = metaCampaigns.sort((a, b) => b.spend - a.spend);
+  payload.filters.campaigns = [...new Set([
+    ...(payload.filters.campaigns || []),
+    ...(googleAds.campaigns || []).map((campaign) => campaign.label),
+    ...(metaAds.campaigns || []).map((campaign) => campaign.label)
+  ])]
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
 
@@ -2667,19 +2928,23 @@ async function buildMarketIntelligencePayload(filters = {}) {
       byOrigin
     }
   };
-  const googleAds = activeMonths.length > 1
-    ? await loadGoogleAdsMetricsForMonths(activeMonths)
-    : (activeMonths.length
-      ? await loadGoogleAdsMetrics({ month: activeMonths[0] })
-      : {
-        configured: false,
-        source: "empty",
-        campaigns: [],
-        keywords: [],
-        geoCities: [],
-        summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
-      });
-  return applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters);
+  const emptyAdsPayload = {
+    configured: false,
+    source: "empty",
+    campaigns: [],
+    keywords: [],
+    geoCities: [],
+    summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
+  };
+  const [googleAds, metaAds] = await Promise.all([
+    activeMonths.length > 1
+      ? loadGoogleAdsMetricsForMonths(activeMonths)
+      : (activeMonths.length ? loadGoogleAdsMetrics({ month: activeMonths[0] }) : emptyAdsPayload),
+    activeMonths.length > 1
+      ? loadMetaAdsMetricsForMonths(activeMonths)
+      : (activeMonths.length ? loadMetaAdsMetrics({ month: activeMonths[0] }) : emptyAdsPayload)
+  ]);
+  return applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters, metaAds);
 }
 
 function marketFiltersFromUrl(url) {
@@ -2846,6 +3111,7 @@ async function handleRequest(req, res) {
         analyticsSiteConfigured: Boolean(GA4_SITE_PROPERTY_ID && getServiceAccount()),
         analyticsOmnibeesConfigured: Boolean(GA4_OMNIBEES_PROPERTY_ID && getServiceAccount()),
         googleAdsConfigured: googleAdsConfigured(),
+        metaAdsConfigured: metaAdsConfigured(),
         operationalConfigured: Boolean((OPERATIONAL_SHEET_ID || SHEET_ID) && getServiceAccount()),
         supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
         gestoresProtected: Boolean(GESTORES_ACCESS_TOKEN),

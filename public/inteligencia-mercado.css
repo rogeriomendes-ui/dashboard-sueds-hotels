@@ -396,14 +396,16 @@ h3 {
 
 .demand-table-wrap,
 .keyword-table-wrap,
-.city-table-wrap {
+.city-table-wrap,
+.meta-campaign-table-wrap {
   max-height: 790px;
   overflow: auto;
 }
 
 .demand-table-wrap thead th,
 .keyword-table-wrap thead th,
-.city-table-wrap thead th {
+.city-table-wrap thead th,
+.meta-campaign-table-wrap thead th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -507,7 +509,8 @@ tr:last-child td {
 }
 
 .meta-status {
-  min-height: 138px;
+  min-height: 82px;
+  margin-bottom: 14px;
 }
 
 .mini-kpi {

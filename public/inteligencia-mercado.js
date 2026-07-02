@@ -484,11 +484,11 @@ function renderMedia(media) {
 
   const metaCards = [
     ["Investimento", formatCurrency.format(media.metaSpend || 0)],
-    ["Cliques", "--"],
-    ["Conversões", "--"],
-    ["Valor conv.", "--"],
-    ["CPC médio", "--"],
-    ["Custo/conv.", "--"]
+    ["Cliques", media.metaConnected ? formatNumber.format(media.metaClicks || 0) : "--"],
+    ["Conversões", media.metaConnected ? formatNumber.format(media.metaConversions || 0) : "--"],
+    ["Valor conv.", media.metaConnected ? formatCurrency.format(media.metaConversionValue || 0) : "--"],
+    ["CPC médio", media.metaConnected ? formatCurrencyDetailed.format(media.metaCostPerClick || 0) : "--"],
+    ["Custo/conv.", media.metaConnected ? formatCurrencyDetailed.format(media.metaCostPerConversion || 0) : "--"]
   ];
   document.getElementById("metaMediaCards").innerHTML = metaCards.map(([label, value]) => `
     <div class="mini-kpi">
@@ -496,9 +496,33 @@ function renderMedia(media) {
       <strong>${value}</strong>
     </div>
   `).join("");
-  document.getElementById("metaMediaStatus").textContent = media.metaConnected
-    ? "Meta Ads conectado."
-    : "Meta Ads ainda não conectado. Este bloco está preparado para receber os dados da API da Meta.";
+  const metaStatus = document.getElementById("metaMediaStatus");
+  if (metaStatus) {
+    metaStatus.textContent = media.metaConnected
+      ? "Meta Ads conectado."
+      : (media.metaError || "Meta Ads ainda não conectado. Este bloco está preparado para receber os dados da API da Meta.");
+    metaStatus.hidden = Boolean(media.metaConnected && (media.byMetaCampaign || []).length);
+  }
+  const metaCampaignRows = media.byMetaCampaign && media.byMetaCampaign.length ? media.byMetaCampaign : [];
+  const metaCampaignTable = document.getElementById("metaCampaignTable");
+  if (metaCampaignTable) {
+    metaCampaignTable.innerHTML = metaCampaignRows.length ? metaCampaignRows.map((row) => `
+      <tr>
+        <td>${row.label}</td>
+        <td>${formatCurrency.format(row.spend || 0)}</td>
+        <td>${formatNumber.format(row.clicks || 0)}</td>
+        <td>${formatNumber.format(row.conversions || 0)}</td>
+        <td>${formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0)}</td>
+        <td>${formatCurrency.format(row.revenue || 0)}</td>
+        <td>${formatCurrencyDetailed.format(row.costPerSale || 0)}</td>
+        <td>${Number(row.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</td>
+      </tr>
+    `).join("") : `
+      <tr>
+        <td colspan="8">Sem campanhas da Meta para este período.</td>
+      </tr>
+    `;
+  }
 
   const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];
   currentKeywordExportRows = keywordRows;
