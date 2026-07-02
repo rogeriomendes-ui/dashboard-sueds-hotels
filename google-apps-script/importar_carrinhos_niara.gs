@@ -9,7 +9,8 @@ const BODY_BACKGROUND = "#ffffff";
 const BODY_ALT_BACKGROUND = "#eef5e6";
 const BODY_FONT_COLOR = "#000000";
 const HEADER_FONT_COLOR = "#ffffff";
-const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
+const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
+const NIARA_DISTRIBUTION_START_DATE = "2026-07-01";
 const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
 const NIARA_STATUS_OPTIONS = ["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
@@ -117,7 +118,7 @@ function importarCarrinhosNiara() {
   let nextAppendRow = Math.max(targetSheet.getLastRow() + 1, 2);
   let inserted = 0;
   let updated = 0;
-  let nextResponsibleIndex = 0;
+  let nextResponsibleIndex = nextResponsibleIndexFromTarget_(targetValues);
   const responsibleDistribution = {};
 
   sourceRows.forEach((sourceRow) => {
@@ -365,6 +366,20 @@ function formatResponsibleDistribution_(distribution) {
     .filter((name) => distribution[name])
     .map((name) => `${name}: ${distribution[name]}`);
   return lines.length ? `Distribuicao automatica:\n${lines.join("\n")}\n\n` : "";
+}
+
+function nextResponsibleIndexFromTarget_(targetValues) {
+  const distributed = targetValues
+    .slice(1)
+    .filter((row) => {
+      const id = String(row[0] || "").trim();
+      const abandonDate = parseNiaraDateTime_(row[1]);
+      const responsible = normalizeSellerName_(row[17]);
+      return id &&
+        abandonDate >= parseNiaraDateTime_(`${NIARA_DISTRIBUTION_START_DATE} 00:00`) &&
+        NIARA_RESPONSIBLE_ROTATION.indexOf(responsible) !== -1;
+    }).length;
+  return distributed % NIARA_RESPONSIBLE_ROTATION.length;
 }
 
 function protectNiaraTargetSheet_(sheet) {

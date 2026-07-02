@@ -17,6 +17,8 @@ const PYTHON = process.env.PYTHON_EXE
 loadEnvFile(path.join(ROOT, ".env"));
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
+const DISTRIBUTION_START_DATE = "2026-07-01";
 
 const TARGET_HEADERS = [
   "ID",
@@ -276,11 +278,26 @@ function parseNiaraDateTime(value) {
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
+function nextResponsibleIndexFromRows(rows) {
+  const startAt = parseNiaraDateTime(`${DISTRIBUTION_START_DATE} 00:00`);
+  const distributed = rows
+    .slice(1)
+    .filter((row) => {
+      const padded = padRow(row, TARGET_HEADERS.length);
+      const id = normalizeText(padded[0]);
+      const abandonAt = parseNiaraDateTime(padded[1]);
+      const responsible = normalizeText(padded[17]);
+      return id && abandonAt >= startAt && RESPONSIBLE_ROTATION.includes(responsible);
+    }).length;
+  return distributed % RESPONSIBLE_ROTATION.length;
+}
+
 async function main() {
   const sourceRows = normalizeRows(readNiaraWorkbook(INPUT_FILE));
   const currentRows = (await sheetsValues("GET", READ_RANGE)).values || [];
   const currentById = currentRowsById(currentRows);
   let appendRow = firstAppendRow(currentRows);
+  let nextResponsibleIndex = nextResponsibleIndexFromRows(currentRows);
   const updates = [];
   const stats = { parsed: sourceRows.length, updated: 0, inserted: 0, unchanged: 0 };
 
@@ -293,7 +310,9 @@ async function main() {
     const id = normalizeText(sourceRow[0]);
     const existing = currentById.get(id);
     const targetRowNumber = existing ? existing.rowNumber : appendRow++;
-    const existingWorkColumns = existing ? padRow(existing.row, 21).slice(17, 21) : ["", "", "", ""];
+    const existingWorkColumns = existing
+      ? padRow(existing.row, 21).slice(17, 21)
+      : [RESPONSIBLE_ROTATION[nextResponsibleIndex++ % RESPONSIBLE_ROTATION.length], "", "", ""];
     const merged = [...sourceRow.slice(0, 17), ...existingWorkColumns];
     const currentComparable = existing ? padRow(existing.row, 21).slice(0, 21) : null;
 
