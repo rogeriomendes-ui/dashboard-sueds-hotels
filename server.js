@@ -931,6 +931,12 @@ function parseDate(value) {
   const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (br) return new Date(`${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}T12:00:00-03:00`);
 
+  const brWithoutYear = text.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (brWithoutYear) {
+    const currentYear = todayKey().slice(0, 4);
+    return new Date(`${currentYear}-${brWithoutYear[2].padStart(2, "0")}-${brWithoutYear[1].padStart(2, "0")}T12:00:00-03:00`);
+  }
+
   const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
