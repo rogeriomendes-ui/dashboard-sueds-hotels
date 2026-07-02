@@ -622,6 +622,8 @@ async function loadGoogleAdsMetrics(period = {}) {
     `;
     const cityQuery = `
       SELECT
+        campaign.id,
+        campaign.name,
         segments.geo_target_city,
         geographic_view.location_type,
         metrics.impressions,
@@ -631,6 +633,7 @@ async function loadGoogleAdsMetrics(period = {}) {
         metrics.conversions_value
       FROM geographic_view
       WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+        AND campaign.status != 'REMOVED'
       ORDER BY metrics.cost_micros DESC
     `;
     const [results, accountSummaryResults, keywordResults] = await Promise.all([
@@ -2245,19 +2248,23 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
   }));
 
   const googleSummary = googleAds.summary || {};
-  const useAccountSummary = !selectedCampaign && googleSummary.source === "customer";
-  const googleSpend = useAccountSummary
-    ? marketRound(googleSummary.spend, 2)
-    : marketRound(campaigns.reduce((total, row) => total + row.spend, 0), 2);
-  const googleClicks = useAccountSummary
-    ? Number(googleSummary.clicks || 0)
-    : campaigns.reduce((total, row) => total + row.clicks, 0);
-  const googleConversions = useAccountSummary
-    ? marketRound(googleSummary.conversions, 2)
-    : marketRound(campaigns.reduce((total, row) => total + row.conversions, 0), 2);
-  const googleConversionValue = useAccountSummary
-    ? marketRound(googleSummary.conversionValue, 2)
-    : marketRound(campaigns.reduce((total, row) => total + row.conversionValue, 0), 2);
+  const campaignSpend = campaigns.reduce((total, row) => total + row.spend, 0);
+  const campaignClicks = campaigns.reduce((total, row) => total + row.clicks, 0);
+  const campaignConversions = campaigns.reduce((total, row) => total + row.conversions, 0);
+  const campaignConversionValue = campaigns.reduce((total, row) => total + row.conversionValue, 0);
+  const useCampaignSummary = Boolean(selectedCampaign) || campaignSpend || campaignClicks || campaignConversions || campaignConversionValue;
+  const googleSpend = useCampaignSummary
+    ? marketRound(campaignSpend, 2)
+    : marketRound(googleSummary.spend, 2);
+  const googleClicks = useCampaignSummary
+    ? campaignClicks
+    : Number(googleSummary.clicks || 0);
+  const googleConversions = useCampaignSummary
+    ? marketRound(campaignConversions, 2)
+    : marketRound(googleSummary.conversions, 2);
+  const googleConversionValue = useCampaignSummary
+    ? marketRound(campaignConversionValue, 2)
+    : marketRound(googleSummary.conversionValue, 2);
   const metaSpend = 0;
   const mediaSpend = googleSpend + metaSpend;
 
@@ -2273,7 +2280,7 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}) 
   payload.media.googleClicks = googleClicks;
   payload.media.googleConversions = googleConversions;
   payload.media.googleConversionValue = googleConversionValue;
-  payload.media.googleSummarySource = useAccountSummary ? "customer" : "campaigns";
+  payload.media.googleSummarySource = useCampaignSummary ? "campaigns" : "customer";
   payload.media.googleCampaignSpend = marketRound(googleSummary.campaignSpend, 2);
   payload.media.googleAccountSpend = marketRound(googleSummary.accountSpend, 2);
   payload.media.costPerClick = marketRound(marketSafeDiv(googleSpend, googleClicks), 2);
