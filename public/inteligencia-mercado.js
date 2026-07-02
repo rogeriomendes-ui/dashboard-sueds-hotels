@@ -658,11 +658,27 @@ function renderRanking(id, rows, valueKey = "opportunityIndex", isPercent = fals
 }
 
 function renderOpportunities(opportunities) {
-  renderRanking("oppState", opportunities.byState);
-  renderRanking("oppDdd", opportunities.byDdd);
-  renderRanking("oppChannel", opportunities.byChannel);
-  renderRanking("oppHotel", opportunities.byHotel);
-  renderRanking("oppCampaign", opportunities.byCampaign);
+  const element = document.getElementById("investmentSuggestions");
+  if (!element) return;
+  const suggestions = opportunities?.suggestions || [];
+  element.innerHTML = suggestions.length ? suggestions.map((item, index) => `
+    <article class="investment-suggestion">
+      <div class="suggestion-rank">${index + 1}</div>
+      <div>
+        <span class="suggestion-type">${item.type || "Sugestão"}</span>
+        <h3>${item.title}</h3>
+        <p>${item.action}</p>
+        <div class="suggestion-meta">
+          ${item.metric ? `<strong>${item.metric}</strong>` : ""}
+          <small>${item.basis || ""}</small>
+        </div>
+      </div>
+    </article>
+  `).join("") : `
+    <div class="empty-state">
+      Sem sugestões para este filtro. Selecione um período com dados de Asksuites, Google Ads ou Meta Ads.
+    </div>
+  `;
 }
 
 bindExportButtons();

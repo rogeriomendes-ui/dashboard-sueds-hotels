@@ -2619,6 +2619,14 @@ function ensureMarketGroupRows(rows, labels) {
   return rows;
 }
 
+function marketCurrency(value) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0
+  }).format(Number(value || 0));
+}
+
 function rankedMarketGroups(rows, key, limit = 10) {
   return [...marketGroupBy(rows, (row) => row[key] || "Nao informado").entries()]
     .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
@@ -2847,6 +2855,123 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, 
   return payload;
 }
 
+function buildInvestmentSuggestions(payload) {
+  const suggestions = [];
+  const addSuggestion = (type, title, action, metric, basis, priority = 0) => {
+    if (!title || !action || !basis) return;
+    suggestions.push({ type, title, action, metric: metric || "", basis, priority });
+  };
+
+  const bestDdd = (payload.conversion?.byStateDdd || [])
+    .filter((row) => Number(row.dialogues || 0) >= 20 && Number(row.sales || 0) > 0)
+    .sort((a, b) => b.revenue - a.revenue || b.sales - a.sales || b.dialogues - a.dialogues)[0];
+  if (bestDdd) {
+    addSuggestion(
+      "Origem da demanda",
+      `Reforçar mídia para ${bestDdd.label}`,
+      "Priorizar campanhas e criativos segmentados para essa praça, pois ela combina demanda e venda real.",
+      `${bestDdd.dialogues} diálogos | ${bestDdd.sales} vendas | ${marketRound(bestDdd.conversion, 2).toLocaleString("pt-BR")}% conv.`,
+      "Asksuites: cidade/DDD com maior combinação de diálogos, vendas e receita.",
+      90
+    );
+  }
+
+  const bestChannel = (payload.conversion?.byChannel || [])
+    .filter((row) => Number(row.dialogues || 0) >= 20)
+    .sort((a, b) => b.sales - a.sales || b.revenue - a.revenue || b.dialogues - a.dialogues)[0];
+  if (bestChannel) {
+    addSuggestion(
+      "Canal",
+      `Proteger verba e atenção para ${bestChannel.label}`,
+      "Manter presença forte nesse canal e usar a taxa de conversão como referência para comparar novos investimentos.",
+      `${bestChannel.dialogues} diálogos | ${bestChannel.sales} vendas | ${marketCurrency(bestChannel.revenue)}`,
+      "Asksuites: canal com maior volume comercial no período filtrado.",
+      80
+    );
+  }
+
+  const lowConversionHighDemand = (payload.conversion?.byStateDdd || [])
+    .filter((row) => Number(row.dialogues || 0) >= 50 && Number(row.conversion || 0) < 2)
+    .sort((a, b) => b.dialogues - a.dialogues)[0];
+  if (lowConversionHighDemand) {
+    addSuggestion(
+      "Recuperação",
+      `Criar remarketing para ${lowConversionHighDemand.label}`,
+      "Há procura, mas pouca venda. Testar criativos de urgência, prova social e oferta de retomada para esses contatos.",
+      `${lowConversionHighDemand.dialogues} diálogos | ${marketRound(lowConversionHighDemand.conversion, 2).toLocaleString("pt-BR")}% conv.`,
+      "Asksuites: praça com alto volume de diálogos e baixa conversão.",
+      70
+    );
+  }
+
+  const keywordRows = payload.media?.byKeyword || [];
+  const bestKeyword = keywordRows
+    .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
+    .sort((a, b) => {
+      const convA = marketSafeDiv(a.conversions, a.clicks);
+      const convB = marketSafeDiv(b.conversions, b.clicks);
+      return convB - convA || b.conversions - a.conversions || b.roas - a.roas;
+    })[0];
+  if (bestKeyword) {
+    addSuggestion(
+      "Google Ads",
+      `Aumentar teste em "${bestKeyword.keyword || bestKeyword.label}"`,
+      "Essa palavra-chave converte melhor que a média do card. Avaliar aumento controlado de orçamento e variações de anúncio.",
+      `${bestKeyword.clicks} cliques | ${bestKeyword.conversions} vendas | ${marketRound(marketPct(bestKeyword.conversions, bestKeyword.clicks), 2).toLocaleString("pt-BR")}% conv.`,
+      "Google Ads: palavra-chave com cliques e vendas no período selecionado.",
+      85
+    );
+  }
+
+  const cityRows = payload.media?.byCity || [];
+  const bestCity = cityRows
+    .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
+    .sort((a, b) => b.conversions - a.conversions || b.roas - a.roas || b.clicks - a.clicks)[0];
+  if (bestCity) {
+    addSuggestion(
+      "Localização",
+      `Revisar verba por cidade: ${bestCity.city || bestCity.label}`,
+      "Usar essa cidade como referência de segmentação geográfica e comparar com as praças de maior diálogo no Asksuites.",
+      `${bestCity.clicks} cliques | ${bestCity.conversions} vendas | ${marketCurrency(bestCity.spend)} investidos`,
+      "Google Ads: cidade física de usuários que clicaram nos links patrocinados.",
+      82
+    );
+  }
+
+  const metaAdRows = payload.media?.byMetaAd || [];
+  const bestMetaAd = metaAdRows
+    .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
+    .sort((a, b) => b.roas - a.roas || b.conversions - a.conversions || b.clicks - a.clicks)[0];
+  if (bestMetaAd) {
+    addSuggestion(
+      "Meta Ads",
+      `Escalar criativo "${bestMetaAd.label}"`,
+      "Replicar linguagem, público ou oferta deste anúncio em novos testes, mantendo controle de custo por venda.",
+      `${bestMetaAd.clicks} cliques | ${bestMetaAd.conversions} vendas | ${Number(bestMetaAd.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ROAS`,
+      "Meta Ads: anúncio com conversões no período selecionado.",
+      78
+    );
+  }
+
+  const bestHotel = (payload.conversion?.byHotel || [])
+    .filter((row) => Number(row.dialogues || 0) >= 20)
+    .sort((a, b) => b.opportunityIndex - a.opportunityIndex || b.dialogues - a.dialogues)[0];
+  if (bestHotel) {
+    addSuggestion(
+      "Hotel",
+      `Acompanhar oportunidade em ${bestHotel.label}`,
+      "Cruzar demanda deste hotel com tarifa e disponibilidade antes de ampliar verba. Se houver inventário, criar campanha específica.",
+      `${bestHotel.dialogues} diálogos | ${bestHotel.sales} vendas | índice ${bestHotel.opportunityIndex}`,
+      "Asksuites: hotel com maior volume de oportunidade ainda não convertido.",
+      65
+    );
+  }
+
+  return suggestions
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 6);
+}
+
 async function buildMarketIntelligencePayload(filters = {}) {
   const requestedMonth = filters.month && (filters.month === "ytd" || /^\d{4}$/.test(filters.month) || /^\d{4}-\d{2}$/.test(filters.month))
     ? filters.month
@@ -2999,7 +3124,12 @@ async function buildMarketIntelligencePayload(filters = {}) {
       ? loadMetaAdsMetricsForMonths(activeMonths)
       : (activeMonths.length ? loadMetaAdsMetrics({ month: activeMonths[0] }) : emptyAdsPayload)
   ]);
-  return applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters, metaAds);
+  const enrichedPayload = applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters, metaAds);
+  enrichedPayload.opportunities = {
+    ...(enrichedPayload.opportunities || {}),
+    suggestions: buildInvestmentSuggestions(enrichedPayload)
+  };
+  return enrichedPayload;
 }
 
 function marketFiltersFromUrl(url) {
