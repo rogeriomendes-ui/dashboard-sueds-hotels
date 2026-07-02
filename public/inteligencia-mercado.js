@@ -482,6 +482,49 @@ function renderMedia(media) {
     </tr>
   `;
 
+  const metaAdRows = media.byMetaAd && media.byMetaAd.length ? media.byMetaAd : [];
+  const metaAdSpend = metaAdRows.reduce((total, row) => total + Number(row.spend || 0), 0);
+  const metaAdClicks = metaAdRows.reduce((total, row) => total + Number(row.clicks || 0), 0);
+  const metaAdConversions = metaAdRows.reduce((total, row) => total + Number(row.conversions || 0), 0);
+  const metaAdRevenue = metaAdRows.reduce((total, row) => total + Number(row.revenue || 0), 0);
+  const metaAdCards = [
+    ["Investimento", formatCurrency.format(metaAdSpend)],
+    ["Cliques", formatNumber.format(metaAdClicks)],
+    ["Conversões", formatNumber.format(metaAdConversions)],
+    ["Valor conv.", formatCurrency.format(metaAdRevenue)],
+    ["CPC médio", formatCurrencyDetailed.format(metaAdClicks ? metaAdSpend / metaAdClicks : 0)],
+    ["Custo/conv.", formatCurrencyDetailed.format(metaAdConversions ? metaAdSpend / metaAdConversions : 0)]
+  ];
+  const metaAdMediaCards = document.getElementById("metaAdMediaCards");
+  if (metaAdMediaCards) {
+    metaAdMediaCards.innerHTML = metaAdCards.map(([label, value]) => `
+      <div class="mini-kpi">
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </div>
+    `).join("");
+  }
+  const metaAdTable = document.getElementById("metaAdTable");
+  if (metaAdTable) {
+    metaAdTable.innerHTML = metaAdRows.length ? metaAdRows.map((row) => `
+      <tr>
+        <td title="${row.campaign || ""} | ${row.adSet || ""}">${row.label}</td>
+        <td>${formatCurrency.format(row.spend || 0)}</td>
+        <td>${formatNumber.format(row.clicks || 0)}</td>
+        <td>${formatNumber.format(row.conversions || 0)}</td>
+        <td>${formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0)}</td>
+        <td>${formatCurrency.format(row.revenue || 0)}</td>
+        <td>${formatCurrencyDetailed.format(row.costPerClick || 0)}</td>
+        <td>${formatCurrencyDetailed.format(row.costPerSale || 0)}</td>
+        <td>${Number(row.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</td>
+      </tr>
+    `).join("") : `
+      <tr>
+        <td colspan="9">Sem dados por anúncio da Meta para este período.</td>
+      </tr>
+    `;
+  }
+
   const metaCards = [
     ["Investimento", formatCurrency.format(media.metaSpend || 0)],
     ["Cliques", media.metaConnected ? formatNumber.format(media.metaClicks || 0) : "--"],

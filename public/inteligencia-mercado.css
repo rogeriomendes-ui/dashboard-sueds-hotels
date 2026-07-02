@@ -409,7 +409,8 @@ h3 {
 .demand-table-wrap,
 .keyword-table-wrap,
 .city-table-wrap,
-.meta-campaign-table-wrap {
+.meta-campaign-table-wrap,
+.meta-ad-table-wrap {
   max-height: 790px;
   overflow: auto;
 }
@@ -417,7 +418,8 @@ h3 {
 .demand-table-wrap thead th,
 .keyword-table-wrap thead th,
 .city-table-wrap thead th,
-.meta-campaign-table-wrap thead th {
+.meta-campaign-table-wrap thead th,
+.meta-ad-table-wrap thead th {
   position: sticky;
   top: 0;
   z-index: 1;

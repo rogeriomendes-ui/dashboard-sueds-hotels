@@ -902,9 +902,13 @@ function normalizeMetaAdsInsight(row = {}) {
   const impressions = metaAdsMetricNumber(row.impressions);
   const conversions = metaAdsActionTotal(row.actions || []);
   const conversionValue = metaAdsActionTotal(row.action_values || []);
+  const id = String(row.ad_id || row.campaign_id || row.account_id || "");
+  const label = String(row.ad_name || row.campaign_name || row.account_name || "Meta Ads");
   return {
-    id: String(row.campaign_id || row.account_id || ""),
-    label: String(row.campaign_name || row.account_name || "Meta Ads"),
+    id,
+    label,
+    campaign: String(row.campaign_name || ""),
+    adSet: String(row.adset_name || ""),
     spend: marketRound(spend, 2),
     clicks: Math.round(clicks),
     impressions: Math.round(impressions),
@@ -959,12 +963,13 @@ async function loadMetaAdsMetrics(period = {}) {
       configured: false,
       source: "empty",
       campaigns: [],
+      ads: [],
       summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
     };
   }
 
   try {
-    const fields = [
+    const campaignFields = [
       "campaign_id",
       "campaign_name",
       "spend",
@@ -973,14 +978,37 @@ async function loadMetaAdsMetrics(period = {}) {
       "actions",
       "action_values"
     ].join(",");
+    const adFields = [
+      "campaign_name",
+      "adset_name",
+      "ad_id",
+      "ad_name",
+      "spend",
+      "clicks",
+      "impressions",
+      "actions",
+      "action_values"
+    ].join(",");
     const timeRange = JSON.stringify({ since: startDate, until: endDate });
-    const campaignRows = await metaAdsInsightsRequest({
-      level: "campaign",
-      fields,
-      time_range: timeRange,
-      limit: "500"
-    });
+    const [campaignRows, adRows] = await Promise.all([
+      metaAdsInsightsRequest({
+        level: "campaign",
+        fields: campaignFields,
+        time_range: timeRange,
+        limit: "500"
+      }),
+      metaAdsInsightsRequest({
+        level: "ad",
+        fields: adFields,
+        time_range: timeRange,
+        limit: "500"
+      }).catch(() => [])
+    ]);
     const campaigns = campaignRows
+      .map(normalizeMetaAdsInsight)
+      .filter((row) => row.spend || row.clicks || row.impressions || row.conversions || row.conversionValue)
+      .sort((a, b) => b.spend - a.spend);
+    const ads = adRows
       .map(normalizeMetaAdsInsight)
       .filter((row) => row.spend || row.clicks || row.impressions || row.conversions || row.conversionValue)
       .sort((a, b) => b.spend - a.spend);
@@ -999,6 +1027,7 @@ async function loadMetaAdsMetrics(period = {}) {
       conversionActions: META_ADS_CONVERSION_ACTIONS,
       period: { month, startDate, endDate },
       campaigns,
+      ads,
       summary
     };
     metaAdsCache = { key: cacheKey, payload, expiresAt: Date.now() + CACHE_TTL_MS };
@@ -1011,6 +1040,7 @@ async function loadMetaAdsMetrics(period = {}) {
       apiVersion: META_ADS_API_VERSION,
       accountId: META_ADS_ACCOUNT_ID,
       campaigns: [],
+      ads: [],
       summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
     };
   }
@@ -1018,6 +1048,10 @@ async function loadMetaAdsMetrics(period = {}) {
 
 function combineMetaAdsRows(rows = []) {
   return combineGoogleAdsRows(rows, (row) => row.label || row.id || "");
+}
+
+function combineMetaAdsAdRows(rows = []) {
+  return combineGoogleAdsRows(rows, (row) => `${row.label || row.id || ""}|${row.campaign || ""}|${row.adSet || ""}`);
 }
 
 async function loadMetaAdsMetricsForMonths(months = []) {
@@ -1046,6 +1080,7 @@ async function loadMetaAdsMetricsForMonths(months = []) {
 
   const payloads = await Promise.all(selectedMonths.map((month) => loadMetaAdsMetrics({ month })));
   const campaigns = combineMetaAdsRows(payloads.flatMap((payload) => payload.campaigns || []));
+  const ads = combineMetaAdsAdRows(payloads.flatMap((payload) => payload.ads || []));
   const startMonth = [...selectedMonths].sort((a, b) => a.localeCompare(b))[0];
   const endMonth = [...selectedMonths].sort((a, b) => b.localeCompare(a))[0];
   const summary = {
@@ -1067,6 +1102,7 @@ async function loadMetaAdsMetricsForMonths(months = []) {
       endDate: `${endMonth}-${String(daysInMonth(endMonth)).padStart(2, "0")}`
     },
     campaigns,
+    ads,
     summary
   };
 }
@@ -2699,6 +2735,23 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, 
       costPerSale: campaign.costPerConversion,
       roas: campaign.roas
     }));
+  const metaAdsRows = (metaAds.ads || [])
+    .filter((ad) => !selectedCampaign || marketComparable(ad.campaign) === marketComparable(selectedCampaign))
+    .map((ad) => ({
+      label: ad.label,
+      campaign: ad.campaign,
+      adSet: ad.adSet,
+      spend: ad.spend,
+      clicks: ad.clicks,
+      impressions: ad.impressions,
+      conversions: ad.conversions,
+      sales: ad.conversions,
+      revenue: ad.conversionValue,
+      conversionValue: ad.conversionValue,
+      costPerClick: ad.costPerClick,
+      costPerSale: ad.costPerConversion,
+      roas: ad.roas
+    }));
 
   const googleSummary = googleAds.summary || {};
   const metaSummary = metaAds.summary || {};
@@ -2773,6 +2826,7 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, 
   payload.media.byKeyword = keywords.sort((a, b) => b.spend - a.spend);
   payload.media.byCity = geoCities.sort((a, b) => b.spend - a.spend);
   payload.media.byMetaCampaign = metaCampaigns.sort((a, b) => b.spend - a.spend);
+  payload.media.byMetaAd = metaAdsRows.sort((a, b) => b.spend - a.spend);
   payload.filters.campaigns = [...new Set([
     ...(payload.filters.campaigns || []),
     ...(googleAds.campaigns || []).map((campaign) => campaign.label),
@@ -2932,6 +2986,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
     configured: false,
     source: "empty",
     campaigns: [],
+    ads: [],
     keywords: [],
     geoCities: [],
     summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
