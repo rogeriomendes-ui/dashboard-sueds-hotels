@@ -12,6 +12,7 @@ const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAME
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
+const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:O";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
 const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AG";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
@@ -2050,7 +2051,7 @@ function normalizeMarketMonthList(months = []) {
     .sort((a, b) => b.localeCompare(a));
 }
 
-function loadAsksuiteMarketRawRows() {
+function loadAsksuiteMarketFileRawRows() {
   const filePath = path.join(__dirname, "data", "asksuite-market.json");
   if (!fs.existsSync(filePath)) return [];
 
@@ -2060,6 +2061,92 @@ function loadAsksuiteMarketRawRows() {
   } catch (error) {
     return [];
   }
+}
+
+function firstFilledValue(item, keys = []) {
+  for (const key of keys) {
+    const value = item[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+  }
+  return "";
+}
+
+function monthFromMarketValue(value) {
+  const text = String(value || "").trim();
+  const isoMonth = text.match(/^(\d{4})-(\d{2})$/);
+  if (isoMonth) return `${isoMonth[1]}-${isoMonth[2]}`;
+  const isoDate = text.match(/^(\d{4})-(\d{2})-\d{2}/);
+  if (isoDate) return `${isoDate[1]}-${isoDate[2]}`;
+  const brDate = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (brDate) return `${brDate[3]}-${String(Number(brDate[2])).padStart(2, "0")}`;
+  return text;
+}
+
+function normalizeAsksuiteMarketSheetRow(item) {
+  const month = monthFromMarketValue(firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]));
+  if (!month) return null;
+
+  return {
+    month,
+    state: firstFilledValue(item, ["Estado", "UF", "state"]) || "Não informado",
+    ddd: String(firstFilledValue(item, ["DDD", "ddd"]) || "NI").replace(/\D/g, "") || "NI",
+    hotel: firstFilledValue(item, ["Hotel", "hotel"]) || "Não informado",
+    channel: firstFilledValue(item, ["Canal", "channel"]) || "Não informado",
+    campaign: firstFilledValue(item, ["Campanha", "campaign"]),
+    source: firstFilledValue(item, ["Fonte", "Origem Sistema", "source"]) || "Asksuite",
+    origin: firstFilledValue(item, ["Origem", "origin", "Canal"]) || "Não informado",
+    device: firstFilledValue(item, ["Dispositivo", "device"]) || "Não informado",
+    dialogues: parseDecimalNumber(firstFilledValue(item, ["Diálogos", "Dialogos", "dialogues", "Atendimentos"])),
+    quotes: parseDecimalNumber(firstFilledValue(item, ["Cotações", "Cotacoes", "quotes", "Oportunidades"])),
+    reservations: parseDecimalNumber(firstFilledValue(item, ["Reservas", "reservations", "Cotações", "Cotacoes", "Oportunidades"])),
+    sales: parseDecimalNumber(firstFilledValue(item, ["Vendas", "sales"])),
+    revenue: parseDecimalNumber(firstFilledValue(item, ["Receita", "revenue", "Valor vendido"])),
+    googleSpend: parseDecimalNumber(firstFilledValue(item, ["Investimento Google", "Google Ads", "googleSpend"])),
+    metaSpend: parseDecimalNumber(firstFilledValue(item, ["Investimento Meta", "Meta Ads", "metaSpend"]))
+  };
+}
+
+function marketRowKey(row) {
+  return [
+    row.month,
+    row.state,
+    row.ddd,
+    row.hotel,
+    row.channel,
+    row.campaign,
+    row.source,
+    row.origin,
+    row.device
+  ].map((value) => marketComparable(value)).join("|");
+}
+
+function mergeAsksuiteMarketRows(fileRows = [], sheetRows = []) {
+  const rowsByKey = new Map();
+  [...fileRows, ...sheetRows].forEach((row) => {
+    if (!row?.month) return;
+    rowsByKey.set(marketRowKey(row), row);
+  });
+  return [...rowsByKey.values()];
+}
+
+async function loadAsksuiteMarketSheetRawRows() {
+  if (!SHEET_ID || !getServiceAccount()) return [];
+  try {
+    const rows = await getSheetValues(ASKSUITE_MARKET_RANGE);
+    return rowsToObjectsAny(rows)
+      .map(normalizeAsksuiteMarketSheetRow)
+      .filter(Boolean);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function loadAsksuiteMarketRawRows() {
+  const [fileRows, sheetRows] = await Promise.all([
+    Promise.resolve(loadAsksuiteMarketFileRawRows()),
+    loadAsksuiteMarketSheetRawRows()
+  ]);
+  return mergeAsksuiteMarketRows(fileRows, sheetRows);
 }
 
 function normalizeAsksuiteMarketRow(row, index) {
@@ -2084,10 +2171,10 @@ function normalizeAsksuiteMarketRow(row, index) {
   };
 }
 
-function loadAsksuiteMarketRows(month) {
+function loadAsksuiteMarketRowsFromRaw(rawRows, month) {
   try {
     const targetYear = todayKey().slice(0, 4);
-    return loadAsksuiteMarketRawRows()
+    return rawRows
       .filter((row) => {
         const rowMonth = String(row.month || "");
         if (month === "ytd") return rowMonth.startsWith(targetYear);
@@ -2100,11 +2187,11 @@ function loadAsksuiteMarketRows(month) {
   }
 }
 
-function loadAsksuiteMarketRowsForMonths(months = []) {
+function loadAsksuiteMarketRowsForMonthsFromRaw(rawRows, months = []) {
   try {
     const selected = new Set(normalizeMarketMonthList(months));
     if (!selected.size) return [];
-    return loadAsksuiteMarketRawRows()
+    return rawRows
       .filter((row) => selected.has(String(row.month || "")))
       .map(normalizeAsksuiteMarketRow);
   } catch (error) {
@@ -2333,12 +2420,12 @@ async function buildMarketIntelligencePayload(filters = {}) {
     ? filters.month
     : "";
   const { month } = requestedMonth ? marketDateRangeForMonth(requestedMonth) : { month: "" };
-  const allMarketRows = loadAsksuiteMarketRawRows();
+  const allMarketRows = await loadAsksuiteMarketRawRows();
   const selectedMonths = normalizeMarketMonthList(filters.months || []);
   const activeMonths = selectedMonths.length ? selectedMonths : normalizeMarketMonthList([month]);
   const asksuiteMarketRows = activeMonths.length > 1
-    ? loadAsksuiteMarketRowsForMonths(activeMonths)
-    : (activeMonths.length ? loadAsksuiteMarketRows(activeMonths[0]) : []);
+    ? loadAsksuiteMarketRowsForMonthsFromRaw(allMarketRows, activeMonths)
+    : (activeMonths.length ? loadAsksuiteMarketRowsFromRaw(allMarketRows, activeMonths[0]) : []);
   const sourceRows = asksuiteMarketRows;
   const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "empty";
   const rows = filterMarketRows(sourceRows, filters);
