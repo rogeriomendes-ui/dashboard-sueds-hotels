@@ -107,6 +107,15 @@ function gaugeValue(value) {
   return value === null || value === undefined ? "--" : number.format(value);
 }
 
+function teamGoalTotals(sellers = []) {
+  const team = sellers.find((seller) => String(seller.name || "").toUpperCase() === "EQUIPE SUEDS");
+  const rows = team ? [team] : sellers.filter((seller) => String(seller.name || "").toUpperCase() !== "EQUIPE SUEDS");
+  return {
+    daily: rows.reduce((total, seller) => total + (Number(seller.dailyGoal) || 0), 0),
+    monthly: rows.reduce((total, seller) => total + (Number(seller.monthlyGoal) || 0), 0)
+  };
+}
+
 function monthlyGauge(item) {
   const value = gaugePct(item.monthlyGoalPct);
   return `
@@ -283,6 +292,9 @@ function render(data) {
   byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
   byId("salesMonth").textContent = money.format(data.summary.salesMonth);
   byId("ticketAverage").textContent = `Ticket médio ${money.format(data.summary.ticketAverageMonth)}`;
+  const goals = teamGoalTotals(data.sellers || []);
+  byId("dailyGoalSummary").textContent = `Meta do dia ${money.format(goals.daily)}`;
+  byId("monthlyGoalSummary").textContent = `Meta do mês ${money.format(goals.monthly)}`;
   byId("receivedMonth").textContent = money.format(data.summary.receivedMonth);
   byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
