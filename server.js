@@ -1227,9 +1227,9 @@ const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
 const OFFICIAL_SALES_CHANNELS = [
   "SITE",
   "CENTRAL DE RESERVAS",
-  "PARTICULAR (individual)",
+  "INDIVIDUAL",
   "BALCÃO",
-  "AGÊNCIA (grupos)",
+  "GRUPOS",
   "RECEPÇÃO"
 ];
 
@@ -1259,9 +1259,9 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   if (useHistoricalChannel) {
     if (key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile") || key === "site") return "SITE";
     if (key.includes("central de reservas")) return "CENTRAL DE RESERVAS";
-    if (key.includes("particular")) return "PARTICULAR (individual)";
+    if (key.includes("particular") || key.includes("individual")) return "INDIVIDUAL";
     if (key.includes("balcao")) return "BALCÃO";
-    if (key.includes("agencia")) return "AGÊNCIA (grupos)";
+    if (key.includes("agencia") || key.includes("grupos")) return "GRUPOS";
     if (key.includes("recepcao")) return "RECEPÇÃO";
     return "";
   }
@@ -1269,9 +1269,9 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   if (comparableKey(record.seller) === comparableKey("Site")) return "SITE";
   if (key.includes("booking engine") || key === "site") return "SITE";
   if (key.includes("central de reservas") || key.includes("whatsapp")) return "CENTRAL DE RESERVAS";
-  if (key.includes("particular")) return "PARTICULAR (individual)";
+  if (key.includes("particular") || key.includes("individual")) return "INDIVIDUAL";
   if (key.includes("balcao")) return "BALCÃO";
-  if (key.includes("agencia")) return "AGÊNCIA (grupos)";
+  if (key.includes("agencia") || key.includes("grupos")) return "GRUPOS";
   if (key.includes("recepcao")) return "RECEPÇÃO";
   return "";
 }
