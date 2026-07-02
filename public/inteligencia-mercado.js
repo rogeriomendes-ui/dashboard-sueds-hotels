@@ -15,6 +15,7 @@ const state = {
 const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
 let dashboardRequestId = 0;
 let currentKeywordExportRows = [];
+let currentMetaAdExportRows = [];
 
 const formatCurrency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -274,10 +275,42 @@ function exportKeywordTable() {
   ]));
 }
 
+function exportMetaAdTable() {
+  const rows = currentMetaAdExportRows || [];
+  if (!rows.length) return;
+  downloadCsv(`meta-ads-anuncios-${selectedPeriodForFilename()}.csv`, [
+    "Anúncio",
+    "Campanha",
+    "Conjunto",
+    "Investimento",
+    "Cliques",
+    "Vendas",
+    "Conversão %",
+    "Receita",
+    "CPC",
+    "Custo/conv.",
+    "ROAS"
+  ], rows.map((row) => [
+    row.label || "",
+    row.campaign || "",
+    row.adSet || "",
+    formatCurrencyDetailed.format(row.spend || 0),
+    formatNumber.format(row.clicks || 0),
+    formatNumber.format(row.conversions || 0),
+    formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0),
+    formatCurrencyDetailed.format(row.revenue || 0),
+    formatCurrencyDetailed.format(row.costPerClick || 0),
+    formatCurrencyDetailed.format(row.costPerSale || 0),
+    `${Number(row.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`
+  ]));
+}
+
 function bindExportButtons() {
-  const button = document.getElementById("exportKeywordTable");
-  if (!button) return;
-  button.addEventListener("click", exportKeywordTable);
+  const keywordButton = document.getElementById("exportKeywordTable");
+  if (keywordButton) keywordButton.addEventListener("click", exportKeywordTable);
+
+  const metaAdButton = document.getElementById("exportMetaAdTable");
+  if (metaAdButton) metaAdButton.addEventListener("click", exportMetaAdTable);
 }
 
 document.addEventListener("click", (event) => {
@@ -345,7 +378,7 @@ function renderKpis(summary, integrations = {}) {
     ["Receita", demandValue(formatCurrency.format(summary.revenue)), "Receita confirmada"],
     ["Conversão diálogo → venda", demandValue(formatPct(summary.dialogueToSaleConversion)), "Eficiência comercial"],
     ["Investimento em mídia", formatCurrency.format(summary.mediaSpend), "Google + Meta"],
-    ["Custo por venda", demandValue(formatCurrencyDetailed.format(summary.costPerSale)), "Investimento / venda"],
+    ["Custo por venda", demandValue(formatCurrency.format(summary.costPerSale)), "Investimento / venda"],
     ["ROAS", demandValue(`${summary.roas.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`), "Receita / mídia"]
   ];
   document.getElementById("kpiGrid").innerHTML = cards
@@ -483,6 +516,9 @@ function renderMedia(media) {
   `;
 
   const metaAdRows = media.byMetaAd && media.byMetaAd.length ? media.byMetaAd : [];
+  currentMetaAdExportRows = metaAdRows;
+  const exportMetaAdButton = document.getElementById("exportMetaAdTable");
+  if (exportMetaAdButton) exportMetaAdButton.disabled = !metaAdRows.length;
   const metaAdSpend = metaAdRows.reduce((total, row) => total + Number(row.spend || 0), 0);
   const metaAdClicks = metaAdRows.reduce((total, row) => total + Number(row.clicks || 0), 0);
   const metaAdConversions = metaAdRows.reduce((total, row) => total + Number(row.conversions || 0), 0);

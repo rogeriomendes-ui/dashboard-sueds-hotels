@@ -461,24 +461,114 @@ td {
 .meta-campaign-table-wrap td,
 .meta-ad-table-wrap th,
 .meta-ad-table-wrap td {
-  overflow: hidden;
   padding: 10px 7px;
   font-size: 12px;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.keyword-table-wrap th,
+.city-table-wrap th,
+.meta-campaign-table-wrap th,
+.meta-ad-table-wrap th {
+  padding: 9px 5px;
+  font-size: 9px;
 }
 
 .keyword-table-wrap th:first-child,
 .keyword-table-wrap td:first-child,
 .city-table-wrap th:first-child,
 .city-table-wrap td:first-child {
-  width: 20%;
+  width: 18%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .meta-campaign-table-wrap th:first-child,
-.meta-campaign-table-wrap td:first-child,
+.meta-campaign-table-wrap td:first-child {
+  width: 28%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .meta-ad-table-wrap th:first-child,
 .meta-ad-table-wrap td:first-child {
-  width: 32%;
+  width: 28%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.keyword-table-wrap th:nth-child(2),
+.keyword-table-wrap td:nth-child(2),
+.city-table-wrap th:nth-child(2),
+.city-table-wrap td:nth-child(2),
+.meta-campaign-table-wrap th:nth-child(2),
+.meta-campaign-table-wrap td:nth-child(2),
+.meta-ad-table-wrap th:nth-child(2),
+.meta-ad-table-wrap td:nth-child(2) {
+  width: 14%;
+}
+
+.keyword-table-wrap th:nth-child(3),
+.keyword-table-wrap td:nth-child(3),
+.city-table-wrap th:nth-child(3),
+.city-table-wrap td:nth-child(3),
+.meta-campaign-table-wrap th:nth-child(3),
+.meta-campaign-table-wrap td:nth-child(3),
+.meta-ad-table-wrap th:nth-child(3),
+.meta-ad-table-wrap td:nth-child(3) {
+  width: 11%;
+}
+
+.keyword-table-wrap th:nth-child(4),
+.keyword-table-wrap td:nth-child(4),
+.city-table-wrap th:nth-child(4),
+.city-table-wrap td:nth-child(4),
+.meta-campaign-table-wrap th:nth-child(4),
+.meta-campaign-table-wrap td:nth-child(4),
+.meta-ad-table-wrap th:nth-child(4),
+.meta-ad-table-wrap td:nth-child(4) {
+  width: 8%;
+}
+
+.keyword-table-wrap th:nth-child(5),
+.keyword-table-wrap td:nth-child(5),
+.city-table-wrap th:nth-child(5),
+.city-table-wrap td:nth-child(5),
+.meta-campaign-table-wrap th:nth-child(5),
+.meta-campaign-table-wrap td:nth-child(5),
+.meta-ad-table-wrap th:nth-child(5),
+.meta-ad-table-wrap td:nth-child(5) {
+  width: 11%;
+}
+
+.keyword-table-wrap th:nth-child(6),
+.keyword-table-wrap td:nth-child(6),
+.city-table-wrap th:nth-child(6),
+.city-table-wrap td:nth-child(6),
+.meta-campaign-table-wrap th:nth-child(6),
+.meta-campaign-table-wrap td:nth-child(6),
+.meta-ad-table-wrap th:nth-child(6),
+.meta-ad-table-wrap td:nth-child(6) {
+  width: 11%;
+}
+
+.keyword-table-wrap th:nth-child(7),
+.keyword-table-wrap td:nth-child(7),
+.city-table-wrap th:nth-child(8),
+.city-table-wrap td:nth-child(8),
+.meta-campaign-table-wrap th:nth-child(7),
+.meta-campaign-table-wrap td:nth-child(7),
+.meta-ad-table-wrap th:nth-child(8),
+.meta-ad-table-wrap td:nth-child(8) {
+  width: 12%;
+}
+
+.keyword-table-wrap th:nth-child(8),
+.keyword-table-wrap td:nth-child(8),
+.meta-campaign-table-wrap th:nth-child(8),
+.meta-campaign-table-wrap td:nth-child(8) {
+  width: 8%;
 }
 
 th:first-child,
