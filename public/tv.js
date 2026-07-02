@@ -182,13 +182,12 @@ function renderAsksuiteBlock(seller) {
     <section class="asksuite-card" aria-label="Asksuite de ${escapeHtml(seller.name)}">
       <div class="asksuite-title">
         <span>Asksuite</span>
-        <strong>Conversão diálogo → venda ${formatDetailedPct(seller.salesConvPct)}</strong>
       </div>
       <div class="asksuite-kpis">
         <div><strong>${integer.format(seller.attendances || 0)}</strong><span>atend.</span></div>
         <div><strong>${integer.format(seller.opportunities || 0)}</strong><span>oport.</span></div>
         <div><strong>${integer.format(seller.sales || 0)}</strong><span>vendas</span></div>
-        <div><strong>${formatCartPct(seller.chatConvPct)}</strong><span>conv. atend.</span></div>
+        <div><strong>${formatDetailedPct(seller.salesConvPct)}</strong><span>conv. vendas</span></div>
       </div>
     </section>
   `;
