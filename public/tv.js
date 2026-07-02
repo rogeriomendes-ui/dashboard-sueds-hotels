@@ -95,6 +95,10 @@ function formatDetailedPct(value) {
   return value === null || value === undefined ? "0,00%" : `${percentDetailed.format(value)}%`;
 }
 
+function pctFromValues(part, total) {
+  return total ? (Number(part || 0) / Number(total || 0)) * 100 : 0;
+}
+
 function formatLastUpdate(value) {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -187,7 +191,7 @@ function renderAsksuiteBlock(seller) {
         <div><strong>${integer.format(seller.attendances || 0)}</strong><span>atend.</span></div>
         <div><strong>${integer.format(seller.opportunities || 0)}</strong><span>oport.</span></div>
         <div><strong>${integer.format(seller.sales || 0)}</strong><span>vendas</span></div>
-        <div><strong>${formatDetailedPct(seller.salesConvPct)}</strong><span>conv. vendas</span></div>
+        <div><strong>${formatDetailedPct(pctFromValues(seller.sales, seller.attendances))}</strong><span>conv. vendas</span></div>
       </div>
     </section>
   `;
