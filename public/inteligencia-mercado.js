@@ -196,7 +196,6 @@ function updateFilters(payload) {
   setSelect("stateSelect", filters.states || [], "Todos os estados", state.filters.state);
   setSelect("dddSelect", filters.ddds || [], "Todos os DDDs", state.filters.ddd);
   setSelect("channelSelect", filters.channels || [], "Todos os canais", state.filters.channel);
-  setSelect("campaignSelect", filters.campaigns || [], "Todas as campanhas", state.filters.campaign);
   setSelect("originSelect", filters.origins || [], "Todas as origens", state.filters.origin);
   setSelect("deviceSelect", filters.devices || [], "Todos os dispositivos", state.filters.device);
 }
@@ -208,7 +207,6 @@ function bindFilters() {
     ["stateSelect", "state"],
     ["dddSelect", "ddd"],
     ["channelSelect", "channel"],
-    ["campaignSelect", "campaign"],
     ["originSelect", "origin"],
     ["deviceSelect", "device"]
   ].forEach(([id, key]) => {
