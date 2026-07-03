@@ -7,8 +7,6 @@ const state = {
     ddd: "",
     channel: "",
     campaign: "",
-    origin: "",
-    device: "",
     checkinMonth: ""
   }
 };
@@ -196,8 +194,6 @@ function updateFilters(payload) {
   setSelect("stateSelect", filters.states || [], "Todos os estados", state.filters.state);
   setSelect("dddSelect", filters.ddds || [], "Todos os DDDs", state.filters.ddd);
   setSelect("channelSelect", filters.channels || [], "Todos os canais", state.filters.channel);
-  setSelect("originSelect", filters.origins || [], "Todas as origens", state.filters.origin);
-  setSelect("deviceSelect", filters.devices || [], "Todos os dispositivos", state.filters.device);
 }
 
 function bindFilters() {
@@ -206,9 +202,7 @@ function bindFilters() {
     ["checkinMonthSelect", "checkinMonth"],
     ["stateSelect", "state"],
     ["dddSelect", "ddd"],
-    ["channelSelect", "channel"],
-    ["originSelect", "origin"],
-    ["deviceSelect", "device"]
+    ["channelSelect", "channel"]
   ].forEach(([id, key]) => {
     const select = document.getElementById(id);
     if (!select) return;
