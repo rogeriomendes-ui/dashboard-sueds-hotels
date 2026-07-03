@@ -14,6 +14,7 @@ const NIARA_DISTRIBUTION_START_DATE = "2026-07-01";
 const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
 const NIARA_STATUS_OPTIONS = ["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
+const NIARA_DEFAULT_STATUS = "Pensando";
 
 const NIARA_SOURCE_HEADERS = [
   "ID",
@@ -132,13 +133,14 @@ function importarCarrinhosNiara() {
       updated += 1;
     } else {
       const responsible = NIARA_RESPONSIBLE_ROTATION[nextResponsibleIndex % NIARA_RESPONSIBLE_ROTATION.length];
-      targetSheet.getRange(targetRow, 18).setValue(responsible);
+      targetSheet.getRange(targetRow, 18, 1, 4).setValues([[responsible, NIARA_DEFAULT_STATUS, "", ""]]);
       responsibleDistribution[responsible] = (responsibleDistribution[responsible] || 0) + 1;
       nextResponsibleIndex += 1;
       inserted += 1;
     }
   });
 
+  sanitizeNiaraWorkColumns_(targetSheet);
   sortNiaraTargetByAbandonDate_(targetSheet);
   protectNiaraTargetSheet_(targetSheet);
 
@@ -403,18 +405,57 @@ function protectNiaraTargetSheet_(sheet) {
 function sortNiaraTargetByAbandonDate_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 2) return;
+
+  sanitizeNiaraWorkColumns_(sheet);
+
   const range = sheet.getRange(2, 1, lastRow - 1, NIARA_TARGET_HEADERS.length);
   const rows = range.getValues();
   const validRows = rows
     .filter((row) => String(row[0] || "").trim() && parseNiaraDateTime_(row[1]) > 0)
     .sort((a, b) => parseNiaraDateTime_(a[1]) - parseNiaraDateTime_(b[1]));
+  const emptyRows = rows.filter((row) => !String(row[0] || "").trim() || parseNiaraDateTime_(row[1]) <= 0);
+  const sortedRows = validRows.concat(emptyRows);
 
   if (!validRows.length) return;
 
-  range.clearContent();
-  sheet.getRange(2, 1, validRows.length, NIARA_TARGET_HEADERS.length).setValues(validRows);
+  range.setValues(sortedRows);
   formatNiaraTargetSheet_(sheet);
   sheet.setActiveRange(sheet.getRange(2, 2));
+}
+
+function sanitizeNiaraWorkColumns_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  const range = sheet.getRange(2, 18, lastRow - 1, 4);
+  const values = range.getValues();
+  let changed = false;
+
+  const sanitized = values.map((row) => {
+    const next = row.slice();
+    const responsible = String(next[0] || "").trim();
+    const status = String(next[1] || "").trim();
+    const reason = String(next[2] || "").trim();
+
+    if (!NIARA_RESPONSIBLE_OPTIONS.includes(responsible)) {
+      next[0] = "Selecione";
+      changed = true;
+    }
+
+    if (!NIARA_STATUS_OPTIONS.includes(status)) {
+      next[1] = NIARA_DEFAULT_STATUS;
+      changed = true;
+    }
+
+    if (reason && !NIARA_LOSS_REASON_OPTIONS.includes(reason)) {
+      next[2] = "";
+      changed = true;
+    }
+
+    return next;
+  });
+
+  if (changed) range.setValues(sanitized);
 }
 
 function formatNiaraTargetSheet_(sheet) {
@@ -444,6 +485,16 @@ function formatNiaraTargetSheet_(sheet) {
     .setBackground("#9fc5e8")
     .setFontColor(BODY_FONT_COLOR)
     .setFontWeight("bold");
+
+  sheet.getRange(2, 2, Math.max(maxRows - 1, 1), 1).setNumberFormat("dd/mm/yyyy hh:mm");
+  sheet.getRange(2, 3, Math.max(maxRows - 1, 1), 1).setNumberFormat("dd/mm/yyyy");
+  sheet.getRange(2, 4, Math.max(maxRows - 1, 1), 1).setNumberFormat("hh:mm");
+  sheet.getRange(2, 5, Math.max(maxRows - 1, 1), 2).setNumberFormat("dd/mm/yyyy");
+  sheet.setColumnWidth(2, 135);
+  sheet.setColumnWidth(3, 120);
+  sheet.setColumnWidth(4, 115);
+  sheet.setColumnWidth(5, 105);
+  sheet.setColumnWidth(6, 105);
 
   applyNiaraInputValidations_(sheet);
 }

@@ -19,6 +19,7 @@ loadEnvFile(path.join(ROOT, ".env"));
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
 const DISTRIBUTION_START_DATE = "2026-07-01";
+const DEFAULT_STATUS = "Pensando";
 
 const TARGET_HEADERS = [
   "ID",
@@ -257,6 +258,13 @@ function padRow(row, length) {
   return [...row, ...Array(Math.max(0, length - row.length)).fill("")].slice(0, length);
 }
 
+function sanitizeWorkColumns(columns) {
+  const next = [...columns];
+  if (!RESPONSIBLE_ROTATION.includes(normalizeText(next[0]))) next[0] = "Selecione";
+  if (!["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"].includes(normalizeText(next[1]))) next[1] = DEFAULT_STATUS;
+  return next;
+}
+
 function parseNiaraDateTime(value) {
   if (typeof value === "number") {
     return new Date(Date.UTC(1899, 11, 30 + value)).getTime();
@@ -311,8 +319,8 @@ async function main() {
     const existing = currentById.get(id);
     const targetRowNumber = existing ? existing.rowNumber : appendRow++;
     const existingWorkColumns = existing
-      ? padRow(existing.row, 21).slice(17, 21)
-      : [RESPONSIBLE_ROTATION[nextResponsibleIndex++ % RESPONSIBLE_ROTATION.length], "", "", ""];
+      ? sanitizeWorkColumns(padRow(existing.row, 21).slice(17, 21))
+      : [RESPONSIBLE_ROTATION[nextResponsibleIndex++ % RESPONSIBLE_ROTATION.length], DEFAULT_STATUS, "", ""];
     const merged = [...sourceRow.slice(0, 17), ...existingWorkColumns];
     const currentComparable = existing ? padRow(existing.row, 21).slice(0, 21) : null;
 
