@@ -776,6 +776,11 @@ tr:last-child td {
   font-size: 13px;
 }
 
+.suggestion-meta strong span {
+  display: block;
+  margin-bottom: 2px;
+}
+
 .suggestion-meta small {
   color: var(--muted);
   font-size: 12px;

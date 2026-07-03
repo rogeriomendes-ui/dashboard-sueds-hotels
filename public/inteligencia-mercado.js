@@ -661,6 +661,13 @@ function renderOpportunities(opportunities) {
   const element = document.getElementById("investmentSuggestions");
   if (!element) return;
   const suggestions = opportunities?.suggestions || [];
+  const metricHtml = (metric = "") => {
+    if (!metric) return "";
+    const parts = String(metric).split(/\s+\|\s+(?=\d+\.\s)/);
+    return parts.length > 1
+      ? `<strong>${parts.map((part) => `<span>${part}</span>`).join("")}</strong>`
+      : `<strong>${metric}</strong>`;
+  };
   element.innerHTML = suggestions.length ? suggestions.map((item, index) => `
     <article class="investment-suggestion">
       <div class="suggestion-rank">${index + 1}</div>
@@ -669,7 +676,7 @@ function renderOpportunities(opportunities) {
         <h3>${item.title}</h3>
         <p>${item.action}</p>
         <div class="suggestion-meta">
-          ${item.metric ? `<strong>${item.metric}</strong>` : ""}
+          ${metricHtml(item.metric)}
           <small>${item.basis || ""}</small>
         </div>
       </div>
