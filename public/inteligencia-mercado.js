@@ -646,7 +646,7 @@ function renderCompetitiveness(competitiveness) {
         ${items.map((item) => `
           <li>
             <span title="${item.name}">${item.name}</span>
-            <strong>${formatCurrency.format(Number(item.averagePrice || item.bestPrice || 0))}</strong>
+            <strong>${formatCurrency.format(Number(item.bestPrice || item.averagePrice || 0))}</strong>
           </li>
         `).join("")}
       </ul>
