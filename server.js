@@ -3071,9 +3071,82 @@ function buildInvestmentSuggestions(payload) {
     );
   }
 
+  const conversionHighlights = [
+    ...dddRows
+      .filter((row) => Number(row.dialogues || 0) >= 20 && Number(row.sales || 0) > 0)
+      .map((row) => ({
+        source: "DDD",
+        label: row.label,
+        base: Number(row.dialogues || 0),
+        result: Number(row.sales || 0),
+        rate: marketPct(row.sales, row.dialogues)
+      })),
+    ...(payload.conversion?.byChannel || [])
+      .filter((row) => Number(row.dialogues || 0) >= 20 && Number(row.sales || 0) > 0)
+      .map((row) => ({
+        source: "Canal",
+        label: row.label,
+        base: Number(row.dialogues || 0),
+        result: Number(row.sales || 0),
+        rate: marketPct(row.sales, row.dialogues)
+      })),
+    ...(payload.conversion?.byHotel || [])
+      .filter((row) => Number(row.dialogues || 0) >= 20 && Number(row.sales || 0) > 0)
+      .map((row) => ({
+        source: "Hotel",
+        label: row.label,
+        base: Number(row.dialogues || 0),
+        result: Number(row.sales || 0),
+        rate: marketPct(row.sales, row.dialogues)
+      })),
+    ...keywordRows
+      .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
+      .map((row) => ({
+        source: "Google",
+        label: row.keyword || row.label,
+        base: Number(row.clicks || 0),
+        result: Number(row.conversions || 0),
+        rate: marketPct(row.conversions, row.clicks)
+      })),
+    ...cityRows
+      .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
+      .map((row) => ({
+        source: "Cidade Google",
+        label: row.city || row.label,
+        base: Number(row.clicks || 0),
+        result: Number(row.conversions || 0),
+        rate: marketPct(row.conversions, row.clicks)
+      })),
+    ...metaAdRows
+      .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
+      .map((row) => ({
+        source: "Meta",
+        label: row.label,
+        base: Number(row.clicks || 0),
+        result: Number(row.conversions || 0),
+        rate: marketPct(row.conversions, row.clicks)
+      }))
+  ]
+    .filter((row) => Number.isFinite(row.rate) && row.rate > 0)
+    .sort((a, b) => b.rate - a.rate || b.result - a.result || b.base - a.base)
+    .slice(0, 5);
+
+  if (conversionHighlights.length) {
+    addSuggestion(
+      "Destaques de conversão",
+      "5 maiores taxas de conversão",
+      "Usar estes recortes como referência para novos testes de verba, criativos e segmentação, sempre validando volume antes de escalar.",
+      conversionHighlights
+        .map((row, index) => `${index + 1}. ${row.source}: ${row.label} (${marketRound(row.rate, 2).toLocaleString("pt-BR")}% | ${row.result}/${row.base})`)
+        .join(" | "),
+      "Ranking calculado com recortes que tiveram volume mínimo e pelo menos uma venda/conversão no período filtrado.",
+      77
+    );
+  }
+
   return suggestions
     .sort((a, b) => b.priority - a.priority)
-    .slice(0, 6);
+    .slice(0, 7);
 }
 
 async function buildMarketIntelligencePayload(filters = {}) {
