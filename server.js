@@ -3227,7 +3227,8 @@ async function loadVetorTradeCompetitiveness({ checkinMonth, hotel } = {}, byHot
           .map((row) => ({
             hotel: row.hotel,
             message: row.opportunity,
-            suggestion: row.suggestion
+            suggestion: row.suggestion,
+            competitors: row.competitors || []
           })),
       message: payload.message || ""
     };

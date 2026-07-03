@@ -636,6 +636,22 @@ function renderCompetitiveness(competitiveness) {
   const currencyOrEmpty = (value) => Number.isFinite(Number(value)) && Number(value) > 0
     ? formatCurrency.format(Number(value))
     : "--";
+  const competitorListHtml = (competitors = []) => {
+    const items = (competitors || [])
+      .filter((item) => item?.name && Number(item.averagePrice || item.bestPrice || 0) > 0)
+      .slice(0, 8);
+    if (!items.length) return "";
+    return `
+      <ul class="market-competitors">
+        ${items.map((item) => `
+          <li>
+            <span title="${item.name}">${item.name}</span>
+            <strong>${formatCurrency.format(Number(item.averagePrice || item.bestPrice || 0))}</strong>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  };
   document.getElementById("competitivenessTable").innerHTML = rows.length ? rows.map((row) => `
     <tr>
       <td>${row.hotel}</td>
@@ -654,6 +670,7 @@ function renderCompetitiveness(competitiveness) {
     <div class="market-alert">
       <strong>${alert.hotel}: ${alert.message}</strong>
       <span>${alert.suggestion}</span>
+      ${competitorListHtml(alert.competitors)}
     </div>
   `).join("");
 }
