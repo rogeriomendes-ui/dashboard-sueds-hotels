@@ -268,6 +268,7 @@ function exportKeywordTable() {
     "Vendas",
     "Conversão %",
     "Receita",
+    "CPC",
     "Custo/conv.",
     "ROAS"
   ], rows.map((row) => [
@@ -279,6 +280,7 @@ function exportKeywordTable() {
     formatNumber.format(row.conversions || 0),
     formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0),
     formatCurrencyDetailed.format(row.revenue || 0),
+    formatCurrencyDetailed.format(row.costPerClick || 0),
     formatCurrencyDetailed.format(row.costPerSale || 0),
     `${Number(row.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`
   ]));
@@ -624,12 +626,13 @@ function renderMedia(media) {
       <td>${formatNumber.format(row.conversions || 0)}</td>
       <td>${formatPct(row.clicks ? (Number(row.conversions || 0) / Number(row.clicks || 0)) * 100 : 0)}</td>
       <td>${formatCurrency.format(row.revenue)}</td>
+      <td>${formatCurrencyDetailed.format(row.costPerClick || 0)}</td>
       <td>${formatCurrencyDetailed.format(row.costPerSale)}</td>
       <td>${row.roas.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x</td>
     </tr>
   `).join("") : `
     <tr>
-      <td colspan="8">Sem dados de palavras-chave para este período. Algumas campanhas podem não usar palavras-chave tradicionais.</td>
+      <td colspan="9">Sem dados de palavras-chave para este período. Algumas campanhas podem não usar palavras-chave tradicionais.</td>
     </tr>
   `;
 }
