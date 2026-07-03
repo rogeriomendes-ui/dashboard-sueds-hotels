@@ -2855,6 +2855,46 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, 
   return payload;
 }
 
+function marketPlaceFromDddLabel(label) {
+  const text = String(label || "").trim();
+  const [rawCity = ""] = text.split("/");
+  const ddd = text.match(/\/\s*([0-9]{2}|NI)\b/i)?.[1] || "";
+  return {
+    city: rawCity.trim(),
+    ddd: ddd.trim()
+  };
+}
+
+function marketRowMatchesPlace(row, city, ddd = "") {
+  const cityKey = marketComparable(city);
+  if (!cityKey || cityKey === "nao informado") return false;
+
+  const directCity = marketComparable(row.city || row.label || "");
+  if (directCity && (directCity === cityKey || directCity.includes(cityKey) || cityKey.includes(directCity))) {
+    return true;
+  }
+
+  const text = [
+    row.label,
+    row.keyword,
+    row.campaign,
+    row.adGroup,
+    row.adSet
+  ]
+    .map((value) => marketComparable(value))
+    .filter(Boolean)
+    .join(" ");
+
+  if (text.includes(cityKey)) return true;
+
+  const dddKey = marketComparable(ddd);
+  return Boolean(dddKey && dddKey !== "ni" && new RegExp(`(^|\\D)${dddKey}(\\D|$)`).test(text));
+}
+
+function marketSumRows(rows, field) {
+  return (rows || []).reduce((total, row) => total + Number(row?.[field] || 0), 0);
+}
+
 function buildInvestmentSuggestions(payload) {
   const suggestions = [];
   const addSuggestion = (type, title, action, metric, basis, priority = 0) => {
@@ -2862,7 +2902,74 @@ function buildInvestmentSuggestions(payload) {
     suggestions.push({ type, title, action, metric: metric || "", basis, priority });
   };
 
-  const bestDdd = (payload.conversion?.byStateDdd || [])
+  const dddRows = payload.conversion?.byStateDdd || [];
+  const keywordRows = payload.media?.byKeyword || [];
+  const cityRows = payload.media?.byCity || [];
+  const metaCampaignRows = payload.media?.byMetaCampaign || [];
+  const metaAdRows = payload.media?.byMetaAd || [];
+
+  const integratedPlace = dddRows
+    .map((row) => {
+      const { city, ddd } = marketPlaceFromDddLabel(row.label);
+      const googleCityMatches = cityRows.filter((cityRow) => marketRowMatchesPlace(cityRow, city, ddd));
+      const googleKeywordMatches = keywordRows.filter((keywordRow) => marketRowMatchesPlace(keywordRow, city, ddd));
+      const metaMatches = [...metaCampaignRows, ...metaAdRows].filter((metaRow) => marketRowMatchesPlace(metaRow, city, ddd));
+      const sourceCount = [
+        Number(row.dialogues || 0) > 0 || Number(row.sales || 0) > 0,
+        marketSumRows(googleCityMatches, "clicks") > 0 || marketSumRows(googleKeywordMatches, "clicks") > 0,
+        marketSumRows(metaMatches, "clicks") > 0
+      ].filter(Boolean).length;
+
+      return {
+        row,
+        city,
+        ddd,
+        sourceCount,
+        googleClicks: marketSumRows(googleCityMatches, "clicks"),
+        googleConversions: marketSumRows(googleCityMatches, "conversions") + marketSumRows(googleKeywordMatches, "conversions"),
+        googleSpend: marketSumRows(googleCityMatches, "spend") + marketSumRows(googleKeywordMatches, "spend"),
+        metaClicks: marketSumRows(metaMatches, "clicks"),
+        metaConversions: marketSumRows(metaMatches, "conversions"),
+        metaSpend: marketSumRows(metaMatches, "spend"),
+        score:
+          Number(row.sales || 0) * 500 +
+          Number(row.revenue || 0) / 100 +
+          Number(row.dialogues || 0) * 2 +
+          (marketSumRows(googleCityMatches, "conversions") + marketSumRows(googleKeywordMatches, "conversions")) * 250 +
+          (marketSumRows(googleCityMatches, "clicks") + marketSumRows(googleKeywordMatches, "clicks")) * 0.6 +
+          marketSumRows(metaMatches, "conversions") * 220 +
+          marketSumRows(metaMatches, "clicks") * 0.5
+      };
+    })
+    .filter((candidate) => {
+      const cityKey = marketComparable(candidate.city);
+      return cityKey && cityKey !== "nao informado" && candidate.sourceCount >= 2 && candidate.score > 0;
+    })
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (integratedPlace) {
+    const placeLabel = `${integratedPlace.city}${integratedPlace.ddd ? ` / ${integratedPlace.ddd}` : ""}`;
+    const mediaSignals = [
+      integratedPlace.googleClicks ? `${integratedPlace.googleClicks} cliques Google` : "",
+      integratedPlace.googleConversions ? `${marketRound(integratedPlace.googleConversions, 2).toLocaleString("pt-BR")} vendas Google` : "",
+      integratedPlace.metaClicks ? `${integratedPlace.metaClicks} cliques Meta` : "",
+      integratedPlace.metaConversions ? `${marketRound(integratedPlace.metaConversions, 2).toLocaleString("pt-BR")} vendas Meta` : ""
+    ].filter(Boolean);
+    addSuggestion(
+      "Foco integrado",
+      `Foco total de investimento em ${placeLabel}`,
+      "Concentrar testes de verba, criativos e ofertas para essa praça, pois demanda comercial e mídia paga apontam para o mesmo lugar.",
+      [
+        `${integratedPlace.row.dialogues} diálogos`,
+        `${integratedPlace.row.sales} vendas Asksuites`,
+        ...mediaSignals
+      ].join(" | "),
+      "Cruzamento de Asksuites, cidades físicas dos cliques no Google Ads, palavras/campanhas relacionadas e Meta Ads quando houver sinal por praça.",
+      120
+    );
+  }
+
+  const bestDdd = dddRows
     .filter((row) => Number(row.dialogues || 0) >= 20 && Number(row.sales || 0) > 0)
     .sort((a, b) => b.revenue - a.revenue || b.sales - a.sales || b.dialogues - a.dialogues)[0];
   if (bestDdd) {
@@ -2890,7 +2997,7 @@ function buildInvestmentSuggestions(payload) {
     );
   }
 
-  const lowConversionHighDemand = (payload.conversion?.byStateDdd || [])
+  const lowConversionHighDemand = dddRows
     .filter((row) => Number(row.dialogues || 0) >= 50 && Number(row.conversion || 0) < 2)
     .sort((a, b) => b.dialogues - a.dialogues)[0];
   if (lowConversionHighDemand) {
@@ -2904,7 +3011,6 @@ function buildInvestmentSuggestions(payload) {
     );
   }
 
-  const keywordRows = payload.media?.byKeyword || [];
   const bestKeyword = keywordRows
     .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
     .sort((a, b) => {
@@ -2923,7 +3029,6 @@ function buildInvestmentSuggestions(payload) {
     );
   }
 
-  const cityRows = payload.media?.byCity || [];
   const bestCity = cityRows
     .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
     .sort((a, b) => b.conversions - a.conversions || b.roas - a.roas || b.clicks - a.clicks)[0];
@@ -2938,7 +3043,6 @@ function buildInvestmentSuggestions(payload) {
     );
   }
 
-  const metaAdRows = payload.media?.byMetaAd || [];
   const bestMetaAd = metaAdRows
     .filter((row) => Number(row.clicks || 0) >= 10 && Number(row.conversions || 0) > 0)
     .sort((a, b) => b.roas - a.roas || b.conversions - a.conversions || b.clicks - a.clicks)[0];
