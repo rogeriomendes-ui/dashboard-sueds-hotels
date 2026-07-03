@@ -8,7 +8,8 @@ const state = {
     channel: "",
     campaign: "",
     origin: "",
-    device: ""
+    device: "",
+    checkinMonth: ""
   }
 };
 
@@ -103,7 +104,11 @@ function setSelect(id, values, placeholder, selectedValue) {
   if (!select) return;
   select.innerHTML = "";
   select.appendChild(createOption("", placeholder, selectedValue));
-  values.forEach((value) => select.appendChild(createOption(value, value, selectedValue)));
+  values.forEach((item) => {
+    const value = typeof item === "string" ? item : item.value;
+    const label = typeof item === "string" ? item : item.label;
+    select.appendChild(createOption(value, label, selectedValue));
+  });
 }
 
 function monthSelectionLabel(months = []) {
@@ -181,8 +186,13 @@ function setMonthMultiSelect(values = []) {
 
 function updateFilters(payload) {
   const filters = payload.filters || {};
+  const selected = filters.selected || {};
+  if (!state.filters.checkinMonth && selected.checkinMonth) {
+    state.filters.checkinMonth = selected.checkinMonth;
+  }
   setMonthMultiSelect(filters.periods || []);
   setSelect("hotelSelect", filters.hotels || [], "Todos os hotéis", state.filters.hotel);
+  setSelect("checkinMonthSelect", filters.checkinMonths || [], "Próximo mês", state.filters.checkinMonth);
   setSelect("stateSelect", filters.states || [], "Todos os estados", state.filters.state);
   setSelect("dddSelect", filters.ddds || [], "Todos os DDDs", state.filters.ddd);
   setSelect("channelSelect", filters.channels || [], "Todos os canais", state.filters.channel);
@@ -194,6 +204,7 @@ function updateFilters(payload) {
 function bindFilters() {
   [
     ["hotelSelect", "hotel"],
+    ["checkinMonthSelect", "checkinMonth"],
     ["stateSelect", "state"],
     ["dddSelect", "ddd"],
     ["channelSelect", "channel"],
@@ -626,17 +637,25 @@ function renderMedia(media) {
 }
 
 function renderCompetitiveness(competitiveness) {
-  document.getElementById("competitivenessTable").innerHTML = competitiveness.rows.map((row) => `
+  const rows = competitiveness?.rows || [];
+  const currencyOrEmpty = (value) => Number.isFinite(Number(value)) && Number(value) > 0
+    ? formatCurrency.format(Number(value))
+    : "--";
+  document.getElementById("competitivenessTable").innerHTML = rows.length ? rows.map((row) => `
     <tr>
       <td>${row.hotel}</td>
-      <td>${formatCurrency.format(row.suedsPrice)}</td>
-      <td>${formatCurrency.format(row.competitorAvg)}</td>
-      <td>${Math.round(row.diffPct)}%</td>
-      <td>${row.rank}º</td>
-      <td>${row.demand}</td>
+      <td>${currencyOrEmpty(row.suedsPrice)}</td>
+      <td>${currencyOrEmpty(row.competitorAvg)}</td>
+      <td>${Number.isFinite(Number(row.diffPct)) ? `${Math.round(Number(row.diffPct))}%` : "--"}</td>
+      <td>${row.rank ? `${row.rank}º` : "--"}</td>
+      <td>${row.demand || "--"}</td>
     </tr>
-  `).join("");
-  document.getElementById("marketAlerts").innerHTML = competitiveness.alerts.map((alert) => `
+  `).join("") : `
+    <tr>
+      <td colspan="6">${competitiveness?.message || "Sem dados do Vetor Trade para este mês de check-in."}</td>
+    </tr>
+  `;
+  document.getElementById("marketAlerts").innerHTML = (competitiveness?.alerts || []).map((alert) => `
     <div class="market-alert">
       <strong>${alert.hotel}: ${alert.message}</strong>
       <span>${alert.suggestion}</span>

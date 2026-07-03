@@ -36,6 +36,8 @@ const META_ADS_CONVERSION_ACTIONS = (process.env.META_ADS_CONVERSION_ACTIONS || 
   .split(",")
   .map((action) => action.trim())
   .filter(Boolean);
+const VETOR_TRADE_API_URL = (process.env.VETOR_TRADE_API_URL || "").replace(/\/$/, "");
+const VETOR_TRADE_SHARED_TOKEN = process.env.VETOR_TRADE_SHARED_TOKEN || "";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -2351,6 +2353,26 @@ function marketAvailablePeriodsFromRows(rows) {
   });
 }
 
+function nextCheckinMonthKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const monthIndex = now.getMonth() + 1;
+  const next = new Date(year, monthIndex, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function marketCheckinMonthOptions() {
+  const current = todayKey().slice(0, 7);
+  const [year, month] = current.split("-").map(Number);
+  const months = [];
+  for (let offset = -1; offset <= 12; offset += 1) {
+    const date = new Date(year, month - 1 + offset, 1);
+    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    months.push({ value, label: marketPeriodLabel(value) });
+  }
+  return months;
+}
+
 function normalizeMarketMonthList(months = []) {
   return [...new Set((months || [])
     .map((month) => String(month || "").trim())
@@ -3151,6 +3173,75 @@ function buildInvestmentSuggestions(payload) {
     .slice(0, 7);
 }
 
+function demandLabelFromDialogues(dialogues = 0) {
+  const value = Number(dialogues) || 0;
+  if (value >= 100) return "Alta";
+  if (value >= 30) return "Média";
+  if (value > 0) return "Baixa";
+  return "";
+}
+
+function enrichVetorRowsWithDemand(rows = [], byHotel = []) {
+  const demandByHotel = new Map((byHotel || []).map((row) => [marketComparable(row.label), row]));
+  return (rows || []).map((row) => {
+    const demandRow = demandByHotel.get(marketComparable(row.hotel));
+    const demand = row.demand || demandLabelFromDialogues(demandRow?.dialogues || 0);
+    return {
+      ...row,
+      demand,
+      demandDialogues: demandRow?.dialogues || 0,
+      demandSales: demandRow?.sales || 0
+    };
+  });
+}
+
+async function loadVetorTradeCompetitiveness({ checkinMonth, hotel } = {}, byHotel = []) {
+  const month = /^\d{4}-\d{2}$/.test(String(checkinMonth || "")) ? checkinMonth : nextCheckinMonthKey();
+  if (!VETOR_TRADE_API_URL) {
+    return {
+      source: "not_configured",
+      checkinMonth: month,
+      rows: [],
+      alerts: [],
+      message: "Configure VETOR_TRADE_API_URL para consumir o resumo calculado no Vetor Trade."
+    };
+  }
+
+  try {
+    const params = new URLSearchParams({ checkin_month: month });
+    if (hotel) params.set("hotel", hotel);
+    const response = await fetch(`${VETOR_TRADE_API_URL}/api/competitividade-sueds?${params.toString()}`, {
+      headers: VETOR_TRADE_SHARED_TOKEN ? { "x-vetor-token": VETOR_TRADE_SHARED_TOKEN } : {}
+    });
+    if (!response.ok) throw new Error(`Vetor Trade retornou HTTP ${response.status}`);
+    const payload = await response.json();
+    const rows = enrichVetorRowsWithDemand(payload.rows || [], byHotel);
+    return {
+      source: payload.source || "vetor_trade",
+      checkinMonth: payload.checkinMonth || month,
+      rows,
+      alerts: (payload.alerts || []).length
+        ? payload.alerts
+        : rows
+          .filter((row) => row.demand === "Alta" || Math.abs(Number(row.diffPct) || 0) >= 8)
+          .map((row) => ({
+            hotel: row.hotel,
+            message: row.opportunity,
+            suggestion: row.suggestion
+          })),
+      message: payload.message || ""
+    };
+  } catch (error) {
+    return {
+      source: "error",
+      checkinMonth: month,
+      rows: [],
+      alerts: [],
+      message: `Falha ao consultar Vetor Trade: ${error.message}`
+    };
+  }
+}
+
 async function buildMarketIntelligencePayload(filters = {}) {
   const requestedMonth = filters.month && (filters.month === "ytd" || /^\d{4}$/.test(filters.month) || /^\d{4}-\d{2}$/.test(filters.month))
     ? filters.month
@@ -3181,7 +3272,10 @@ async function buildMarketIntelligencePayload(filters = {}) {
   const byStateDdd = [...marketGroupBy(rows, (row) => marketDddLabel(row.state, row.ddd)).entries()]
     .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
     .sort((a, b) => b.dialogues - a.dialogues);
-  const competitiveness = [];
+  const checkinMonth = /^\d{4}-\d{2}$/.test(String(filters.checkinMonth || ""))
+    ? filters.checkinMonth
+    : nextCheckinMonthKey();
+  const competitiveness = await loadVetorTradeCompetitiveness({ checkinMonth, hotel: filters.hotel }, byHotel);
 
   const payload = {
     audience: "gestores-inteligencia-mercado",
@@ -3195,11 +3289,18 @@ async function buildMarketIntelligencePayload(filters = {}) {
         note: asksuiteMarketRows.length
           ? "Diálogos vêm dos atendimentos; cotações e reservas usam a coluna Oportunidades; vendas e receita usam Vendas e Valor vendido."
           : "Sem relatório Asksuite carregado para este período."
+      },
+      vetorTrade: {
+        configured: Boolean(VETOR_TRADE_API_URL),
+        source: competitiveness.source,
+        checkinMonth: competitiveness.checkinMonth,
+        message: competitiveness.message || ""
       }
     },
     filters: {
-      selected: { ...filters, months: activeMonths },
+      selected: { ...filters, months: activeMonths, checkinMonth: competitiveness.checkinMonth },
       periods: marketAvailablePeriodsFromRows(allMarketRows),
+      checkinMonths: marketCheckinMonthOptions(),
       hotels: selectValues(sourceRows, "hotel"),
       states: selectValues(sourceRows, "state"),
       ddds: selectValues(sourceRows, "ddd"),
@@ -3267,14 +3368,10 @@ async function buildMarketIntelligencePayload(filters = {}) {
       }))
     },
     competitiveness: {
-      rows: competitiveness,
-      alerts: competitiveness
-        .filter((row) => row.demand === "Alta" || Math.abs(row.diffPct) >= 8)
-        .map((row) => ({
-          hotel: row.hotel,
-          message: row.opportunity,
-          suggestion: row.suggestion
-        }))
+      checkinMonth: competitiveness.checkinMonth,
+      rows: competitiveness.rows,
+      alerts: competitiveness.alerts,
+      message: competitiveness.message || ""
     },
     opportunities: {
       formula: "Oportunidade = Diálogos × (1 - Conversão de venda)",
@@ -3323,7 +3420,10 @@ function marketFiltersFromUrl(url) {
     channel: url.searchParams.get("channel") || "",
     campaign: url.searchParams.get("campaign") || "",
     origin: url.searchParams.get("origin") || "",
-    device: url.searchParams.get("device") || ""
+    device: url.searchParams.get("device") || "",
+    checkinMonth: /^\d{4}-\d{2}$/.test(url.searchParams.get("checkinMonth") || "")
+      ? url.searchParams.get("checkinMonth")
+      : ""
   };
 }
 
