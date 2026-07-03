@@ -2962,6 +2962,7 @@ function buildInvestmentSuggestions(payload) {
       [
         `${integratedPlace.row.dialogues} diálogos`,
         `${integratedPlace.row.sales} vendas Asksuites`,
+        `${marketRound(marketPct(integratedPlace.row.sales, integratedPlace.row.dialogues), 2).toLocaleString("pt-BR")}% conv.`,
         ...mediaSignals
       ].join(" | "),
       "Cruzamento de Asksuites, cidades físicas dos cliques no Google Ads, palavras/campanhas relacionadas e Meta Ads quando houver sinal por praça.",
@@ -2991,7 +2992,7 @@ function buildInvestmentSuggestions(payload) {
       "Canal",
       `Proteger verba e atenção para ${bestChannel.label}`,
       "Manter presença forte nesse canal e usar a taxa de conversão como referência para comparar novos investimentos.",
-      `${bestChannel.dialogues} diálogos | ${bestChannel.sales} vendas | ${marketCurrency(bestChannel.revenue)}`,
+      `${bestChannel.dialogues} diálogos | ${bestChannel.sales} vendas | ${marketRound(marketPct(bestChannel.sales, bestChannel.dialogues), 2).toLocaleString("pt-BR")}% conv. | ${marketCurrency(bestChannel.revenue)}`,
       "Asksuites: canal com maior volume comercial no período filtrado.",
       80
     );
@@ -3037,7 +3038,7 @@ function buildInvestmentSuggestions(payload) {
       "Localização",
       `Revisar verba por cidade: ${bestCity.city || bestCity.label}`,
       "Usar essa cidade como referência de segmentação geográfica e comparar com as praças de maior diálogo no Asksuites.",
-      `${bestCity.clicks} cliques | ${bestCity.conversions} vendas | ${marketCurrency(bestCity.spend)} investidos`,
+      `${bestCity.clicks} cliques | ${bestCity.conversions} vendas | ${marketRound(marketPct(bestCity.conversions, bestCity.clicks), 2).toLocaleString("pt-BR")}% conv. | ${marketCurrency(bestCity.spend)} investidos`,
       "Google Ads: cidade física de usuários que clicaram nos links patrocinados.",
       82
     );
@@ -3051,13 +3052,14 @@ function buildInvestmentSuggestions(payload) {
       "Meta Ads",
       `Escalar criativo "${bestMetaAd.label}"`,
       "Replicar linguagem, público ou oferta deste anúncio em novos testes, mantendo controle de custo por venda.",
-      `${bestMetaAd.clicks} cliques | ${bestMetaAd.conversions} vendas | ${Number(bestMetaAd.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ROAS`,
+      `${bestMetaAd.clicks} cliques | ${bestMetaAd.conversions} vendas | ${marketRound(marketPct(bestMetaAd.conversions, bestMetaAd.clicks), 2).toLocaleString("pt-BR")}% conv. | ${Number(bestMetaAd.roas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x ROAS`,
       "Meta Ads: anúncio com conversões no período selecionado.",
       78
     );
   }
 
   const bestHotel = (payload.conversion?.byHotel || [])
+    .filter((row) => !["sueds hotels", "sued's hotels"].includes(marketComparable(row.label)))
     .filter((row) => Number(row.dialogues || 0) >= 20)
     .sort((a, b) => b.opportunityIndex - a.opportunityIndex || b.dialogues - a.dialogues)[0];
   if (bestHotel) {
@@ -3065,7 +3067,7 @@ function buildInvestmentSuggestions(payload) {
       "Hotel",
       `Acompanhar oportunidade em ${bestHotel.label}`,
       "Cruzar demanda deste hotel com tarifa e disponibilidade antes de ampliar verba. Se houver inventário, criar campanha específica.",
-      `${bestHotel.dialogues} diálogos | ${bestHotel.sales} vendas | índice ${bestHotel.opportunityIndex}`,
+      `${bestHotel.dialogues} diálogos | ${bestHotel.sales} vendas | ${marketRound(marketPct(bestHotel.sales, bestHotel.dialogues), 2).toLocaleString("pt-BR")}% conv. | índice ${bestHotel.opportunityIndex}`,
       "Asksuites: hotel com maior volume de oportunidade ainda não convertido.",
       65
     );
