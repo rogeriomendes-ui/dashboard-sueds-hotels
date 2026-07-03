@@ -2137,6 +2137,7 @@ const MARKET_DDD_CITY = {
   "38": "Montes Claros",
   "61": "Brasília",
   "62": "Goiânia",
+  "63": "Palmas",
   "64": "Rio Verde",
   "71": "Salvador",
   "73": "Porto Seguro",
@@ -2178,6 +2179,7 @@ const MARKET_DDD_STATE = {
   "38": "MG",
   "61": "DF",
   "62": "GO",
+  "63": "TO",
   "64": "GO",
   "71": "BA",
   "73": "BA",
@@ -2859,15 +2861,16 @@ function marketPlaceFromDddLabel(label) {
   const text = String(label || "").trim();
   const [rawCity = ""] = text.split("/");
   const ddd = text.match(/\/\s*([0-9]{2}|NI)\b/i)?.[1] || "";
+  const mappedCity = MARKET_DDD_CITY[ddd] || "";
   return {
-    city: rawCity.trim(),
+    city: mappedCity || rawCity.trim(),
     ddd: ddd.trim()
   };
 }
 
 function marketRowMatchesPlace(row, city, ddd = "") {
   const cityKey = marketComparable(city);
-  if (!cityKey || cityKey === "nao informado") return false;
+  if (!cityKey || cityKey === "nao informado" || cityKey.length < 3) return false;
 
   const directCity = marketComparable(row.city || row.label || "");
   if (directCity && (directCity === cityKey || directCity.includes(cityKey) || cityKey.includes(directCity))) {
@@ -2885,10 +2888,7 @@ function marketRowMatchesPlace(row, city, ddd = "") {
     .filter(Boolean)
     .join(" ");
 
-  if (text.includes(cityKey)) return true;
-
-  const dddKey = marketComparable(ddd);
-  return Boolean(dddKey && dddKey !== "ni" && new RegExp(`(^|\\D)${dddKey}(\\D|$)`).test(text));
+  return text.includes(cityKey);
 }
 
 function marketSumRows(rows, field) {
