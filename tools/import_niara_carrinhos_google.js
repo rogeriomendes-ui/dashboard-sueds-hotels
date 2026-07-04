@@ -19,7 +19,7 @@ loadEnvFile(path.join(ROOT, ".env"));
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
 const DISTRIBUTION_START_DATE = "2026-07-01";
-const DEFAULT_STATUS = "Pensando";
+const DEFAULT_STATUS = "Selecione";
 
 const TARGET_HEADERS = [
   "ID",
@@ -261,7 +261,7 @@ function padRow(row, length) {
 function sanitizeWorkColumns(columns) {
   const next = [...columns];
   if (!RESPONSIBLE_ROTATION.includes(normalizeText(next[0]))) next[0] = "Selecione";
-  if (!["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"].includes(normalizeText(next[1]))) next[1] = DEFAULT_STATUS;
+  if (!["Selecione", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"].includes(normalizeText(next[1]))) next[1] = DEFAULT_STATUS;
   return next;
 }
 

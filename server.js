@@ -1241,6 +1241,10 @@ function normalizeRecord(item) {
   const total = parseNumber(item["Valor Total"]);
   const received = parseNumber(item["Recebido"]);
   const remaining = parseNumber(item["A Receber"]);
+  const paymentMethod = String(item["Forma Pagto"] || item["Forma Pagamento"] || "").trim();
+  const installments = String(item["Parcelas"] || "").trim();
+  const status = String(item["Status"] || "").trim() || "Confirmada";
+  const notes = String(item["Observacoes"] || item["Observações"] || item["Observacao"] || item["Observação"] || "").trim();
 
   return {
     date: saleDate,
@@ -1252,7 +1256,10 @@ function normalizeRecord(item) {
     rawChannel: String(item["Canal"] || "").trim(),
     seller: normalizeSellerName(item["Vendedor"] || ""),
     customer: String(item["Cliente"] || "").trim(),
-    status: String(item["Status"] || "").trim() || "Confirmada",
+    status,
+    paymentMethod,
+    installments,
+    notes,
     total,
     received,
     remaining,
@@ -1362,6 +1369,15 @@ function dedupeAsksuiteRecords(rows) {
 
 function sum(records, getter) {
   return records.reduce((total, record) => total + getter(record), 0);
+}
+
+function uniqueSummary(rows, getter) {
+  const values = Array.from(new Set(
+    rows
+      .map((row) => String(getter(row) || "").trim())
+      .filter(Boolean)
+  ));
+  return values.join("; ");
 }
 
 function groupBy(records, keyGetter) {
@@ -1773,7 +1789,11 @@ function buildMetrics(records, goals, period = {}) {
       sales: sum(rows, (record) => record.total),
       received: sum(rows, (record) => record.received),
       remaining: sum(rows, (record) => record.remaining),
-      reservations: rows.length
+      reservations: rows.length,
+      paymentMethods: uniqueSummary(rows, (record) => record.paymentMethod),
+      installments: uniqueSummary(rows, (record) => record.installments),
+      statuses: uniqueSummary(rows, (record) => record.status),
+      notes: uniqueSummary(rows, (record) => record.notes)
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 

@@ -3,6 +3,7 @@ const NIARA_TARGET_SHEET = "Recuperação de carrinhos";
 const ASKSUITE_IMPORT_SHEET = "Importar_Asksuite";
 const ASKSUITE_TARGET_SHEET = "Asksuite_Atendimentos";
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
+const SENSITIVE_SHEETS_PROTECTION_NOTE = "Protecao abas sensiveis SUEDS. Apenas gestores autorizados.";
 const TEAM_INPUT_BACKGROUND = "#d9eaf7";
 const HEADER_BACKGROUND = "#0f4c5c";
 const BODY_BACKGROUND = "#ffffff";
@@ -12,9 +13,9 @@ const HEADER_FONT_COLOR = "#ffffff";
 const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
 const NIARA_DISTRIBUTION_START_DATE = "2026-07-01";
 const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
-const NIARA_STATUS_OPTIONS = ["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
+const NIARA_STATUS_OPTIONS = ["Selecione", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
-const NIARA_DEFAULT_STATUS = "Pensando";
+const NIARA_DEFAULT_STATUS = "Selecione";
 
 const NIARA_SOURCE_HEADERS = [
   "ID",
@@ -56,6 +57,14 @@ const ASKSUITE_TARGET_HEADERS = [
 ];
 
 const ASKSUITE_ALLOWED_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
+const SENSITIVE_SHEETS = [
+  NIARA_IMPORT_SHEET,
+  ASKSUITE_IMPORT_SHEET,
+  ASKSUITE_TARGET_SHEET,
+  "Asksuite_Detalhado",
+  "Metas"
+];
+const MANAGER_EMAILS_PROPERTY = "SUEDS_MANAGER_EDITORS";
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -65,6 +74,8 @@ function onOpen() {
     .addSeparator()
     .addItem("Ordenar carrinhos do mais antigo ao mais recente", "ordenarCarrinhosAntigoRecente")
     .addItem("Proteger aba de carrinhos", "protegerAbaCarrinhos")
+    .addItem("Configurar e-mails gestores", "configurarEmailsGestores")
+    .addItem("Proteger abas sensiveis", "protegerAbasSensiveis")
     .addToUi();
 }
 
@@ -169,6 +180,72 @@ function protegerAbaCarrinhos() {
     "Protecao aplicada.\n\n" +
     "Apenas as colunas R, S, T e U ficaram liberadas para preenchimento do time.\n\n" +
     "Observacao: Google Sheets nao usa senha em protecao de celulas; a senha SuedsGestores2026! fica como referencia operacional."
+  );
+}
+
+function protegerAbasSensiveis() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActive();
+  const managerEmails = getManagerEmails_();
+  const protectedSheets = [];
+  const missingSheets = [];
+
+  if (!managerEmails.length) {
+    ui.alert(
+      "Antes de proteger, configure os e-mails dos gestores.\n\n" +
+      "Use o menu: SUEDS Dashboard > Configurar e-mails gestores"
+    );
+    return;
+  }
+
+  SENSITIVE_SHEETS.forEach((sheetName) => {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      missingSheets.push(sheetName);
+      return;
+    }
+
+    protectSheetForManagers_(sheet, SENSITIVE_SHEETS_PROTECTION_NOTE, managerEmails);
+    protectedSheets.push(sheetName);
+  });
+
+  ui.alert(
+    "Protecao das abas sensiveis aplicada.\n\n" +
+    `Abas protegidas:\n${protectedSheets.length ? protectedSheets.join("\n") : "Nenhuma"}\n\n` +
+    (missingSheets.length ? `Abas nao encontradas:\n${missingSheets.join("\n")}\n\n` : "") +
+    `Gestores autorizados:\n${managerEmails.join("\n")}\n\n` +
+    "Somente estes e-mails poderao editar essas guias.\n\n" +
+    "Observacao: Google Sheets nao usa senha por aba. A seguranca e feita por e-mail autorizado."
+  );
+}
+
+function configurarEmailsGestores() {
+  const ui = SpreadsheetApp.getUi();
+  const currentEmails = getManagerEmails_();
+  const response = ui.prompt(
+    "Configurar e-mails gestores",
+    "Informe os e-mails que podem editar abas sensiveis, separados por virgula.\n\n" +
+    "Exemplo: rogeriomendes@suedshotels.com.br, gestor@suedshotels.com.br\n\n" +
+    `Atual: ${currentEmails.join(", ") || "nenhum"}`,
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+
+  const emails = parseEmails_(response.getResponseText());
+  const currentUserEmail = Session.getEffectiveUser().getEmail();
+  if (currentUserEmail && !emails.includes(currentUserEmail)) emails.unshift(currentUserEmail);
+
+  if (!emails.length) {
+    ui.alert("Nenhum e-mail valido informado.");
+    return;
+  }
+
+  PropertiesService.getDocumentProperties().setProperty(MANAGER_EMAILS_PROPERTY, emails.join(","));
+  ui.alert(
+    "E-mails gestores salvos.\n\n" +
+    emails.join("\n") +
+    "\n\nAgora rode: SUEDS Dashboard > Proteger abas sensiveis"
   );
 }
 
@@ -400,6 +477,42 @@ function protectNiaraTargetSheet_(sheet) {
   protection.setUnprotectedRanges([inputRange]);
 
   applyNiaraInputValidations_(sheet);
+}
+
+function protectSheetForManagers_(sheet, description, managerEmails) {
+  sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET)
+    .filter((protection) => protection.getDescription() === description)
+    .forEach((protection) => protection.remove());
+
+  const protection = sheet.protect();
+  protection.setDescription(description);
+  protection.setWarningOnly(false);
+
+  const currentUser = Session.getEffectiveUser();
+  const currentUserEmail = currentUser.getEmail();
+  const allowedEmails = Array.from(new Set([currentUserEmail].concat(managerEmails).filter(Boolean)));
+  protection.addEditors(allowedEmails);
+
+  const editorsToRemove = protection.getEditors()
+    .filter((editor) => !allowedEmails.includes(editor.getEmail()));
+  if (editorsToRemove.length) protection.removeEditors(editorsToRemove);
+
+  if (protection.canDomainEdit()) protection.setDomainEdit(false);
+}
+
+function getManagerEmails_() {
+  const stored = PropertiesService.getDocumentProperties().getProperty(MANAGER_EMAILS_PROPERTY);
+  const emails = parseEmails_(stored);
+  const currentUserEmail = Session.getEffectiveUser().getEmail();
+  if (currentUserEmail && !emails.includes(currentUserEmail)) emails.unshift(currentUserEmail);
+  return emails;
+}
+
+function parseEmails_(value) {
+  return String(value || "")
+    .split(/[,;\n]/)
+    .map((email) => email.trim().toLowerCase())
+    .filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
 }
 
 function sortNiaraTargetByAbandonDate_(sheet) {
