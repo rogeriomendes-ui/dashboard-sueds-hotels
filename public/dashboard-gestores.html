@@ -14,7 +14,7 @@
           <h1>SUEDS Hotels</h1>
         </div>
         <div class="topbar-controls">
-          <a class="nav-link-button" href="dashboard-inteligencia-mercado.html">Inteligência de Mercado</a>
+          <a class="nav-link-button" href="dashboard-inteligencia-mercado.html">Inteligência Comercial</a>
           <a class="nav-link-button" href="dashboard-operacional-tv.html" target="_blank" rel="noopener">Operacional</a>
           <label class="month-control" for="monthSelect">
             <span>Mês</span>
@@ -44,13 +44,11 @@
           <span id="salesTodayLabel">Vendas hoje</span>
           <strong id="salesToday">R$ 0</strong>
           <small id="reservationsToday">0 reservas hoje</small>
-          <small id="dailyGoalSummary">Meta do dia R$ 0</small>
         </article>
         <article class="metric-card">
           <span id="salesMonthLabel">Vendas no mês</span>
           <strong id="salesMonth">R$ 0</strong>
           <small id="ticketAverage">Ticket médio R$ 0</small>
-          <small id="monthlyGoalSummary">Meta do mês R$ 0</small>
         </article>
         <article class="metric-card">
           <span>Recebido no mês</span>
@@ -102,6 +100,7 @@
             <p class="eyebrow">Calendário comercial</p>
             <h2>Vendas por dia</h2>
           </div>
+          <button id="exportDetailedSales" class="export-detail-button" type="button">Exportar detalhado</button>
         </div>
         <div class="daily-table">
           <div class="daily-row daily-head">
@@ -110,6 +109,10 @@
             <span>Venda</span>
             <span>Recebido</span>
             <span>A receber</span>
+            <span>Forma Pgto</span>
+            <span>Parcelas</span>
+            <span>Status</span>
+            <span>Observações</span>
           </div>
           <div id="dailySales"></div>
         </div>

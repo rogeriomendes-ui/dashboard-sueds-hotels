@@ -18,6 +18,7 @@ const MONTH_LABELS = {
   "2026-12": "DEZEMBRO"
 };
 const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
+let currentDashboardData = null;
 
 function byId(id) {
   return document.getElementById(id);
@@ -71,6 +72,7 @@ function setupGlobalFilters() {
   byId("daySelect").addEventListener("change", load);
   byId("hotelSelect").addEventListener("change", load);
   byId("channelSelect").addEventListener("change", load);
+  byId("exportDetailedSales")?.addEventListener("click", exportDetailedSales);
 }
 
 function pct(value) {
@@ -105,15 +107,6 @@ function gaugeClass(value) {
 
 function gaugeValue(value) {
   return value === null || value === undefined ? "--" : number.format(value);
-}
-
-function teamGoalTotals(sellers = []) {
-  const team = sellers.find((seller) => String(seller.name || "").toUpperCase() === "EQUIPE SUEDS");
-  const rows = team ? [team] : sellers.filter((seller) => String(seller.name || "").toUpperCase() !== "EQUIPE SUEDS");
-  return {
-    daily: rows.reduce((total, seller) => total + (Number(seller.dailyGoal) || 0), 0),
-    monthly: rows.reduce((total, seller) => total + (Number(seller.monthlyGoal) || 0), 0)
-  };
 }
 
 function monthlyGauge(item) {
@@ -281,6 +274,7 @@ function renderGlobalFilters(filters) {
 }
 
 function render(data) {
+  currentDashboardData = data;
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
   renderAnalytics(data);
 
@@ -292,9 +286,6 @@ function render(data) {
   byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
   byId("salesMonth").textContent = money.format(data.summary.salesMonth);
   byId("ticketAverage").textContent = `Ticket médio ${money.format(data.summary.ticketAverageMonth)}`;
-  const goals = teamGoalTotals(data.sellers || []);
-  byId("dailyGoalSummary").textContent = `Meta do dia ${money.format(goals.daily)}`;
-  byId("monthlyGoalSummary").textContent = `Meta do mês ${money.format(goals.monthly)}`;
   byId("receivedMonth").textContent = money.format(data.summary.receivedMonth);
   byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
@@ -356,9 +347,88 @@ function render(data) {
         <span data-label="Venda">${money.format(day.sales)}</span>
         <span data-label="Recebido">${money.format(day.received)}</span>
         <span data-label="A receber">${money.format(day.remaining)}</span>
+        <span data-label="Forma Pgto">${day.paymentMethods || "-"}</span>
+        <span data-label="Parcelas">${day.installments || "-"}</span>
+        <span data-label="Status">${day.statuses || "-"}</span>
+        <span data-label="Observações">${day.notes || "-"}</span>
       </div>
     `)
     .join("");
+}
+
+function excelCell(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function exportDetailedSales() {
+  const rows = currentDashboardData?.detailedSales || [];
+  if (!rows.length) {
+    window.alert("Não há vendas detalhadas para exportar neste filtro.");
+    return;
+  }
+
+  const columns = [
+    ["Data Venda", "dataVenda"],
+    ["Código Reserva", "codigoReserva"],
+    ["Hotel", "hotel"],
+    ["Canal", "canal"],
+    ["Vendedor", "vendedor"],
+    ["Cliente", "cliente"],
+    ["Checkin", "checkin"],
+    ["Checkout", "checkout"],
+    ["Diárias", "diarias"],
+    ["UH's", "uh"],
+    ["Adultos", "adultos"],
+    ["Crianças", "criancas"],
+    ["Valor Total", "valorTotal"],
+    ["Recebido", "recebido"],
+    ["A Receber", "aReceber"],
+    ["Forma Pgto", "formaPagamento"],
+    ["Parcelas", "parcelas"],
+    ["Status", "status"],
+    ["Observações", "observacoes"]
+  ];
+
+  const moneyKeys = new Set(["valorTotal", "recebido", "aReceber"]);
+  const tableHead = columns.map(([label]) => `<th>${excelCell(label)}</th>`).join("");
+  const tableRows = rows
+    .map((row) => `
+      <tr>
+        ${columns
+          .map(([, key]) => {
+            const value = moneyKeys.has(key) ? money.format(Number(row[key] || 0)) : row[key];
+            return `<td>${excelCell(value)}</td>`;
+          })
+          .join("")}
+      </tr>
+    `)
+    .join("");
+
+  const html = `\uFEFF
+    <html>
+      <head><meta charset="utf-8"></head>
+      <body>
+        <table border="1">
+          <thead><tr>${tableHead}</tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const period = currentDashboardData?.period?.month || byId("monthSelect").value || "periodo";
+  link.href = url;
+  link.download = `vendas-detalhadas-sueds-${period}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function load() {
