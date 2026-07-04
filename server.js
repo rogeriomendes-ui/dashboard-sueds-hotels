@@ -1245,6 +1245,12 @@ function normalizeRecord(item) {
   const installments = String(item["Parcelas"] || "").trim();
   const status = String(item["Status"] || "").trim() || "Confirmada";
   const notes = String(item["Observacoes"] || item["Observações"] || item["Observacao"] || item["Observação"] || "").trim();
+  const checkin = String(item["Checkin"] || item["Check-in"] || "").trim();
+  const checkout = String(item["Checkout"] || item["Check-out"] || "").trim();
+  const days = String(item["Diar"] || item["Diarias"] || item["Diárias"] || "").trim();
+  const uh = String(item["UH's"] || item["UHs"] || item["UH"] || "").trim();
+  const adults = String(item["Adult"] || item["Adultos"] || "").trim();
+  const children = String(item["Crian"] || item["Criancas"] || item["Crianças"] || "").trim();
 
   return {
     date: saleDate,
@@ -1256,6 +1262,12 @@ function normalizeRecord(item) {
     rawChannel: String(item["Canal"] || "").trim(),
     seller: normalizeSellerName(item["Vendedor"] || ""),
     customer: String(item["Cliente"] || "").trim(),
+    checkin,
+    checkout,
+    days,
+    uh,
+    adults,
+    children,
     status,
     paymentMethod,
     installments,
@@ -1378,6 +1390,30 @@ function uniqueSummary(rows, getter) {
       .filter(Boolean)
   ));
   return values.join("; ");
+}
+
+function salesDetailRow(record, channelLabelForRecord) {
+  return {
+    dataVenda: record.dateKey,
+    codigoReserva: record.reservationCode,
+    hotel: record.hotel,
+    canal: channelLabelForRecord(record),
+    vendedor: record.seller,
+    cliente: record.customer,
+    checkin: record.checkin,
+    checkout: record.checkout,
+    diarias: record.days,
+    uh: record.uh,
+    adultos: record.adults,
+    criancas: record.children,
+    valorTotal: record.total,
+    recebido: record.received,
+    aReceber: record.remaining,
+    formaPagamento: record.paymentMethod,
+    parcelas: record.installments,
+    status: record.status,
+    observacoes: record.notes
+  };
 }
 
 function groupBy(records, keyGetter) {
@@ -1797,6 +1833,11 @@ function buildMetrics(records, goals, period = {}) {
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  const detailedSales = filteredRecords
+    .slice()
+    .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.reservationCode.localeCompare(b.reservationCode))
+    .map((record) => salesDetailRow(record, channelLabelForRecord));
+
   return {
     generatedAt: new Date().toISOString(),
     period: { today, month, day: selectedDay, hotel: selectedHotel, channel: selectedChannel },
@@ -1821,7 +1862,8 @@ function buildMetrics(records, goals, period = {}) {
     sellers,
     channels,
     hotels,
-    dailySales
+    dailySales,
+    detailedSales
   };
 }
 
@@ -1837,6 +1879,7 @@ function buildManagerPayload(metrics) {
     channels: metrics.channels,
     hotels: metrics.hotels,
     dailySales: metrics.dailySales,
+    detailedSales: metrics.detailedSales,
     analytics: metrics.analytics || null
   };
 }

@@ -18,6 +18,7 @@ const MONTH_LABELS = {
   "2026-12": "DEZEMBRO"
 };
 const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
+let currentDashboardData = null;
 
 function byId(id) {
   return document.getElementById(id);
@@ -71,6 +72,7 @@ function setupGlobalFilters() {
   byId("daySelect").addEventListener("change", load);
   byId("hotelSelect").addEventListener("change", load);
   byId("channelSelect").addEventListener("change", load);
+  byId("exportDetailedSales")?.addEventListener("click", exportDetailedSales);
 }
 
 function pct(value) {
@@ -272,6 +274,7 @@ function renderGlobalFilters(filters) {
 }
 
 function render(data) {
+  currentDashboardData = data;
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
   renderAnalytics(data);
 
@@ -351,6 +354,81 @@ function render(data) {
       </div>
     `)
     .join("");
+}
+
+function excelCell(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function exportDetailedSales() {
+  const rows = currentDashboardData?.detailedSales || [];
+  if (!rows.length) {
+    window.alert("Não há vendas detalhadas para exportar neste filtro.");
+    return;
+  }
+
+  const columns = [
+    ["Data Venda", "dataVenda"],
+    ["Código Reserva", "codigoReserva"],
+    ["Hotel", "hotel"],
+    ["Canal", "canal"],
+    ["Vendedor", "vendedor"],
+    ["Cliente", "cliente"],
+    ["Checkin", "checkin"],
+    ["Checkout", "checkout"],
+    ["Diárias", "diarias"],
+    ["UH's", "uh"],
+    ["Adultos", "adultos"],
+    ["Crianças", "criancas"],
+    ["Valor Total", "valorTotal"],
+    ["Recebido", "recebido"],
+    ["A Receber", "aReceber"],
+    ["Forma Pgto", "formaPagamento"],
+    ["Parcelas", "parcelas"],
+    ["Status", "status"],
+    ["Observações", "observacoes"]
+  ];
+
+  const moneyKeys = new Set(["valorTotal", "recebido", "aReceber"]);
+  const tableHead = columns.map(([label]) => `<th>${excelCell(label)}</th>`).join("");
+  const tableRows = rows
+    .map((row) => `
+      <tr>
+        ${columns
+          .map(([, key]) => {
+            const value = moneyKeys.has(key) ? money.format(Number(row[key] || 0)) : row[key];
+            return `<td>${excelCell(value)}</td>`;
+          })
+          .join("")}
+      </tr>
+    `)
+    .join("");
+
+  const html = `\uFEFF
+    <html>
+      <head><meta charset="utf-8"></head>
+      <body>
+        <table border="1">
+          <thead><tr>${tableHead}</tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const period = currentDashboardData?.period?.month || byId("monthSelect").value || "periodo";
+  link.href = url;
+  link.download = `vendas-detalhadas-sueds-${period}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function load() {
