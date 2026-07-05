@@ -35,6 +35,8 @@ function currentMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+state.filters.months = [currentMonth()];
+
 function monthLabel(value) {
   const [year, month] = String(value || currentMonth()).split("-");
   const monthName = [
