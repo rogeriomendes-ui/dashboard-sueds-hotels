@@ -740,7 +740,7 @@ h2 {
 
 .daily-row {
   display: grid;
-  grid-template-columns: minmax(95px, 0.9fr) 70px repeat(3, minmax(95px, 0.9fr)) minmax(115px, 1fr) 80px minmax(105px, 1fr) minmax(150px, 1.2fr);
+  grid-template-columns: minmax(95px, 0.9fr) 70px repeat(3, minmax(95px, 0.9fr)) minmax(115px, 1fr) 80px;
   gap: 12px;
   align-items: center;
   min-height: 42px;
@@ -761,9 +761,7 @@ h2 {
   text-align: right;
 }
 
-.daily-row span:nth-child(6),
-.daily-row span:nth-child(8),
-.daily-row span:nth-child(9) {
+.daily-row span:nth-child(6) {
   text-align: left;
 }
 

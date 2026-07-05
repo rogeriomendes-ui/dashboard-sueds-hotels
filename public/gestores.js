@@ -349,8 +349,6 @@ function render(data) {
         <span data-label="A receber">${money.format(day.remaining)}</span>
         <span data-label="Forma Pgto">${day.paymentMethods || "-"}</span>
         <span data-label="Parcelas">${day.installments || "-"}</span>
-        <span data-label="Status">${day.statuses || "-"}</span>
-        <span data-label="Observações">${day.notes || "-"}</span>
       </div>
     `)
     .join("");
