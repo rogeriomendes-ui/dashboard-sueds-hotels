@@ -1884,6 +1884,31 @@ function buildManagerPayload(metrics) {
   };
 }
 
+function buildSellersPayload(metrics) {
+  return {
+    audience: "vendedores",
+    generatedAt: metrics.generatedAt,
+    period: metrics.period,
+    summary: {
+      salesToday: metrics.summary.salesToday,
+      salesMonth: metrics.summary.salesMonth,
+      receivedMonth: metrics.summary.receivedMonth,
+      remainingMonth: metrics.summary.remainingMonth,
+      reservationsToday: metrics.summary.reservationsToday,
+      reservationsMonth: metrics.summary.reservationsMonth
+    },
+    sellers: (metrics.sellers || [])
+      .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
+      .map((seller) => ({
+        name: seller.name,
+        reservationsMonth: seller.reservationsMonth,
+        salesMonth: seller.salesMonth,
+        monthlyGoal: seller.monthlyGoal,
+        monthlyGoalPct: seller.monthlyGoalPct
+      }))
+  };
+}
+
 function statusFromPct(value) {
   if (value === null) return "sem_meta";
   if (value >= 100) return "meta_batida";
@@ -3667,6 +3692,11 @@ async function handleRequest(req, res) {
       if (!hasManagerAccess(req, url)) return forbidden(res);
       const metrics = await loadMetrics(periodFromUrl(url));
       return json(res, 200, buildManagerPayload(metrics));
+    }
+
+    if (url.pathname === "/api/dashboard/vendedores") {
+      const metrics = await loadMetrics(periodFromUrl(url));
+      return json(res, 200, buildSellersPayload(metrics));
     }
 
     if (url.pathname === "/api/dashboard/tv") {

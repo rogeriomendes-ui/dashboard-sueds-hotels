@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUEDS Hotels | Vendedores</title>
+    <link rel="stylesheet" href="vendedores.css">
+  </head>
+  <body>
+    <main class="seller-shell">
+      <header class="seller-header">
+        <div>
+          <p class="eyebrow">Central de vendas</p>
+          <h1>Metas e Vendas</h1>
+        </div>
+        <label class="month-control" for="monthSelect">
+          <span>Mês</span>
+          <select id="monthSelect"></select>
+        </label>
+        <div class="status-strip">
+          <span class="live-dot"></span>
+          <span id="lastUpdate">Atualizando...</span>
+        </div>
+      </header>
+
+      <section class="hero-metrics">
+        <article class="metric-card primary">
+          <span>Vendas hoje</span>
+          <strong id="salesToday">R$ 0</strong>
+          <small id="reservationsToday">0 reservas hoje</small>
+        </article>
+        <article class="metric-card">
+          <span>Vendas no mês</span>
+          <strong id="salesMonth">R$ 0</strong>
+          <small id="monthHint">0 reservas no mês</small>
+        </article>
+        <article class="metric-card">
+          <span>Recebido no mês</span>
+          <strong id="receivedMonth">R$ 0</strong>
+          <small>Confirmadas</small>
+        </article>
+        <article class="metric-card">
+          <span>A receber</span>
+          <strong id="remainingMonth">R$ 0</strong>
+          <small>No mês</small>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <p class="eyebrow">Equipe</p>
+          <h2>Ranking de vendedores</h2>
+        </div>
+        <div id="sellerRanking" class="ranking-list"></div>
+      </section>
+    </main>
+
+    <script src="vendedores.js"></script>
+  </body>
+</html>
