@@ -120,7 +120,8 @@ function renderSellers(sellers = []) {
         <span class="seller-name">${seller.name}</span>
         <span class="metric-cell" data-label="Reservas">${number.format(seller.reservationsMonth || 0)}</span>
         <span class="metric-cell" data-label="Venda">${money.format(seller.salesMonth || 0)}</span>
-        <span class="metric-cell" data-label="Meta">${money.format(seller.monthlyGoal || 0)}</span>
+        <span class="metric-cell" data-label="Mês">${money.format(seller.monthlyGoal || 0)}</span>
+        <span class="metric-cell" data-label="Dia">${money.format(seller.dailyGoal || 0)}</span>
         <span class="metric-cell icm ${icmTone}" data-label="ICM %">${icmText}</span>
       </div>
     `;
@@ -132,7 +133,8 @@ function renderSellers(sellers = []) {
       <span>Responsável</span>
       <span>Reservas</span>
       <span>Venda</span>
-      <span>Meta</span>
+      <span>Mês</span>
+      <span>Dia</span>
       <span>ICM %</span>
     </div>
     ${rows}

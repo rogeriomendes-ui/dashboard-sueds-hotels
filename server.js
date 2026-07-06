@@ -1929,6 +1929,7 @@ function buildSellersPayload(metrics) {
         name: seller.name,
         reservationsMonth: seller.reservationsMonth,
         salesMonth: seller.salesMonth,
+        dailyGoal: seller.dailyGoal,
         monthlyGoal: seller.monthlyGoal,
         monthlyGoalPct: seller.monthlyGoalPct
       }))

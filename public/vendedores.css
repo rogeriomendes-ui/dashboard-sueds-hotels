@@ -164,7 +164,7 @@ h2 {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 44px minmax(170px, 1.3fr) repeat(4, minmax(100px, 1fr));
+  grid-template-columns: 44px minmax(170px, 1.3fr) repeat(5, minmax(90px, 1fr));
   gap: 12px;
   align-items: center;
   min-height: 54px;
