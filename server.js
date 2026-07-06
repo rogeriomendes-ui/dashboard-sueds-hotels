@@ -1508,6 +1508,20 @@ function businessDaysElapsed(month, key) {
   return businessDays;
 }
 
+function businessDaysRemaining(month, key) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const selectedDay = Number(String(key || "").slice(8, 10));
+  if (!year || !monthNumber || !selectedDay) return businessDaysInMonth(month);
+  const totalDays = daysInMonth(month);
+  const startDay = Math.min(Math.max(selectedDay, 1), totalDays);
+  let businessDays = 0;
+  for (let day = startDay; day <= totalDays; day += 1) {
+    const weekday = new Date(year, monthNumber - 1, day).getDay();
+    if (weekday !== 0) businessDays += 1;
+  }
+  return Math.max(1, businessDays);
+}
+
 function isOnOrBeforeDateKey(record, key) {
   return record.dateKey && key && record.dateKey <= key;
 }
@@ -1703,6 +1717,7 @@ function buildMetrics(records, goals, period = {}) {
   const monthToDateRecords = filteredRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
   const workdaysInMonth = isYearToDate ? businessDaysElapsed(activeMonth, goalDate) : businessDaysInMonth(month);
   const workdaysElapsed = isYearToDate ? workdaysInMonth : businessDaysElapsed(month, goalDate);
+  const workdaysRemaining = isYearToDate ? 1 : businessDaysRemaining(month, goalDate);
 
   const sellerNames = new Set([
     ...filteredRecords.map((record) => record.seller).filter(Boolean),
@@ -1715,15 +1730,20 @@ function buildMetrics(records, goals, period = {}) {
       const sellerRecords = recordsBySeller.get(seller) || [];
       const dayRecords = selectedDay ? sellerRecords : sellerRecords.filter((record) => record.dateKey === today);
       const mtdRecords = sellerRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
+      const beforeGoalDateRecords = sellerRecords.filter((record) => record.dateKey && goalDate && record.dateKey < goalDate);
       const goal = isYearToDate
         ? ytdGoal(goals, (item) => comparableKey(item.seller) === comparableKey(seller), ytdMonths)
         : sellerGoal(goals, seller, month, goalDate);
       const dayRevenue = sum(dayRecords, (record) => record.total);
       const mtdRevenue = sum(mtdRecords, (record) => record.total);
+      const salesBeforeGoalDate = sum(beforeGoalDateRecords, (record) => record.total);
       const monthRevenue = mtdRevenue;
       const monthlyGoal = goal?.revenueGoal || 0;
-      const dailyGoal = monthlyGoal ? monthlyGoal / workdaysInMonth : 0;
-      const mtdGoal = dailyGoal * workdaysElapsed;
+      const baseDailyGoal = monthlyGoal ? monthlyGoal / workdaysInMonth : 0;
+      const dailyGoal = isYearToDate
+        ? baseDailyGoal
+        : Math.max(0, monthlyGoal - salesBeforeGoalDate) / workdaysRemaining;
+      const mtdGoal = baseDailyGoal * workdaysElapsed;
 
       return {
         name: seller,
