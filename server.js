@@ -1885,6 +1885,7 @@ function buildManagerPayload(metrics) {
 }
 
 function buildSellersPayload(metrics) {
+  const teamSeller = (metrics.sellers || []).find((seller) => seller.name === TEAM_CARD_DISPLAY_NAME);
   return {
     audience: "vendedores",
     generatedAt: metrics.generatedAt,
@@ -1895,7 +1896,9 @@ function buildSellersPayload(metrics) {
       receivedMonth: metrics.summary.receivedMonth,
       remainingMonth: metrics.summary.remainingMonth,
       reservationsToday: metrics.summary.reservationsToday,
-      reservationsMonth: metrics.summary.reservationsMonth
+      reservationsMonth: metrics.summary.reservationsMonth,
+      dailyGoal: teamSeller?.dailyGoal || 0,
+      monthlyGoal: teamSeller?.monthlyGoal || 0
     },
     sellers: (metrics.sellers || [])
       .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))

@@ -144,6 +144,11 @@ h2 {
   font-weight: 700;
 }
 
+.metric-card .goal-line {
+  color: var(--ink);
+  font-weight: 900;
+}
+
 .panel {
   padding: 18px;
 }

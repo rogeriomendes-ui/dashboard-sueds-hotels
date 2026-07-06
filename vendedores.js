@@ -99,6 +99,8 @@ function renderSummary(summary = {}) {
   byId("remainingMonth").textContent = money.format(summary.remainingMonth || 0);
   byId("reservationsToday").textContent = `${number.format(summary.reservationsToday || 0)} reservas hoje`;
   byId("monthHint").textContent = `${number.format(summary.reservationsMonth || 0)} reservas no mês`;
+  byId("dailyGoal").textContent = `Meta do dia ${money.format(summary.dailyGoal || 0)}`;
+  byId("monthlyGoal").textContent = `Meta do mês ${money.format(summary.monthlyGoal || 0)}`;
 }
 
 function renderSellers(sellers = []) {
