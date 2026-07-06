@@ -284,8 +284,10 @@ function render(data) {
   byId("salesMonthLabel").textContent = hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês";
   byId("salesToday").textContent = money.format(data.summary.salesToday);
   byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
+  byId("dailyGoal").textContent = `Meta do dia ${money.format(data.summary.dailyGoal || 0)}`;
   byId("salesMonth").textContent = money.format(data.summary.salesMonth);
   byId("ticketAverage").textContent = `Ticket médio ${money.format(data.summary.ticketAverageMonth)}`;
+  byId("monthlyGoal").textContent = `Meta do mês ${money.format(data.summary.monthlyGoal || 0)}`;
   byId("receivedMonth").textContent = money.format(data.summary.receivedMonth);
   byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });

@@ -1767,6 +1767,7 @@ function buildMetrics(records, goals, period = {}) {
     ...seller,
     name: displaySellerName(seller.name)
   }));
+  const teamSummarySeller = sellers.find((seller) => isTeamCardName(seller.name));
 
   const channelLabels = new Set([
     ...OFFICIAL_SALES_CHANNELS,
@@ -1857,6 +1858,8 @@ function buildMetrics(records, goals, period = {}) {
       remainingMonth: sum(filteredRecords, (record) => record.remaining),
       reservationsToday: selectedDayRecords.length,
       reservationsMonth: filteredRecords.length,
+      dailyGoal: teamSummarySeller?.dailyGoal || 0,
+      monthlyGoal: teamSummarySeller?.monthlyGoal || 0,
       ticketAverageMonth: filteredRecords.length ? sum(filteredRecords, (record) => record.total) / filteredRecords.length : 0
     },
     sellers,
