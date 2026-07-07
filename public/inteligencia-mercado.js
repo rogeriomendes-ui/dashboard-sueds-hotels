@@ -695,6 +695,53 @@ function renderMedia(media) {
     `;
   }
 
+  const metaOriginRows = media.byMetaOrigin || [];
+  const metaOriginSpend = metaOriginRows.reduce((total, row) => total + Number(row.spend || 0), 0);
+  const metaOriginClicks = metaOriginRows.reduce((total, row) => total + Number(row.clicks || 0), 0);
+  const metaOriginConversions = metaOriginRows.reduce((total, row) => total + Number(row.conversions || row.sales || 0), 0);
+  const metaOriginRevenue = metaOriginRows.reduce((total, row) => total + Number(row.revenue || row.conversionValue || 0), 0);
+  const metaOriginCards = [
+    ["Investimento", formatCurrency.format(metaOriginSpend)],
+    ["Cliques", formatNumber.format(metaOriginClicks)],
+    ["Conversões", formatNumber.format(metaOriginConversions)],
+    ["Valor conv.", formatCurrency.format(metaOriginRevenue)],
+    ["CPC médio", formatCurrencyDetailed.format(metaOriginClicks ? metaOriginSpend / metaOriginClicks : 0)],
+    ["Custo/conv.", formatCurrencyDetailed.format(metaOriginConversions ? metaOriginSpend / metaOriginConversions : 0)],
+    ["Tx. conversão", conversionRate(metaOriginConversions, metaOriginClicks)],
+    ["ROAS", roasText(metaOriginRevenue, metaOriginSpend)]
+  ];
+  const metaOriginMediaCards = document.getElementById("metaOriginMediaCards");
+  if (metaOriginMediaCards) {
+    metaOriginMediaCards.innerHTML = metaOriginCards.map(([label, value]) => `
+      <div class="mini-kpi">
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </div>
+    `).join("");
+  }
+  const metaOriginTable = document.getElementById("metaOriginTable");
+  if (metaOriginTable) {
+    metaOriginTable.innerHTML = metaOriginRows.length ? metaOriginRows.map((row) => {
+      const clicks = Number(row.clicks || 0);
+      const conversions = Number(row.conversions || row.sales || 0);
+      const spend = Number(row.spend || 0);
+      const revenue = Number(row.revenue || row.conversionValue || 0);
+      return `
+        <tr>
+          <td>${row.label || row.region || row.country || "Não informado"}</td>
+          <td>${formatCurrency.format(spend)}</td>
+          <td>${formatNumber.format(clicks)}</td>
+          <td>${formatNumber.format(conversions)}</td>
+          <td>${conversionRate(conversions, clicks)}</td>
+          <td>${formatCurrency.format(revenue)}</td>
+          <td>${formatCurrencyDetailed.format(row.costPerClick || (clicks ? spend / clicks : 0))}</td>
+          <td>${formatCurrencyDetailed.format(row.costPerSale || row.costPerConversion || (conversions ? spend / conversions : 0))}</td>
+          <td>${roasText(revenue, spend)}</td>
+        </tr>
+      `;
+    }).join("") : `<tr><td colspan="9">Sem dados de origem dos cliques da Meta para este filtro.</td></tr>`;
+  }
+
   const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];
   currentKeywordExportRows = keywordRows;
   const exportButton = document.getElementById("exportKeywordTable");
