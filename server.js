@@ -891,11 +891,14 @@ function metaAdsMetricNumber(value) {
 
 function metaAdsActionTotal(actions = [], actionTypes = META_ADS_CONVERSION_ACTIONS) {
   const allowed = new Set(actionTypes.map((action) => marketComparable(action)));
-  return (actions || []).reduce((total, action) => {
+  const values = (actions || []).reduce((items, action) => {
     const type = marketComparable(action.action_type || action.actionType || "");
-    if (!allowed.has(type)) return total;
-    return total + metaAdsMetricNumber(action.value);
-  }, 0);
+    if (!allowed.has(type)) return items;
+    const value = metaAdsMetricNumber(action.value);
+    if (value > 0) items.push(value);
+    return items;
+  }, []);
+  return values.length ? Math.max(...values) : 0;
 }
 
 function normalizeMetaAdsInsight(row = {}) {
