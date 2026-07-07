@@ -470,13 +470,21 @@ function renderConversionTable(id, rows, maxRows = 8) {
 }
 
 function renderMedia(media) {
+  const conversionRate = (conversions, clicks) => formatPct(clicks ? (Number(conversions || 0) / Number(clicks || 0)) * 100 : 0);
+  const roasText = (revenue, spend) => `${(spend ? Number(revenue || 0) / Number(spend || 0) : 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  })}x`;
+
   const googleCards = [
     ["Investimento", formatCurrency.format(media.googleSpend || 0)],
     ["Cliques", formatNumber.format(media.googleClicks || 0)],
     ["Conversões", formatNumber.format(media.googleConversions || 0)],
     ["Valor conv.", formatCurrency.format(media.googleConversionValue || 0)],
     ["CPC médio", formatCurrencyDetailed.format(media.costPerClick || 0)],
-    ["Custo/conv.", formatCurrencyDetailed.format(media.googleConversions ? (media.googleSpend || 0) / media.googleConversions : 0)]
+    ["Custo/conv.", formatCurrencyDetailed.format(media.googleConversions ? (media.googleSpend || 0) / media.googleConversions : 0)],
+    ["Tx. conversão", conversionRate(media.googleConversions, media.googleClicks)],
+    ["ROAS", roasText(media.googleConversionValue, media.googleSpend)]
   ];
   document.getElementById("googleMediaCards").innerHTML = googleCards.map(([label, value]) => `
     <div class="mini-kpi">
@@ -496,7 +504,9 @@ function renderMedia(media) {
     ["Conversões", formatNumber.format(cityConversions)],
     ["Valor conv.", formatCurrency.format(cityRevenue)],
     ["CPC médio", formatCurrencyDetailed.format(cityClicks ? citySpend / cityClicks : 0)],
-    ["Custo/conv.", formatCurrencyDetailed.format(cityConversions ? citySpend / cityConversions : 0)]
+    ["Custo/conv.", formatCurrencyDetailed.format(cityConversions ? citySpend / cityConversions : 0)],
+    ["Tx. conversão", conversionRate(cityConversions, cityClicks)],
+    ["ROAS", roasText(cityRevenue, citySpend)]
   ];
   document.getElementById("cityMediaCards").innerHTML = cityCards.map(([label, value]) => `
     <div class="mini-kpi">
@@ -536,7 +546,9 @@ function renderMedia(media) {
     ["Conversões", formatNumber.format(metaAdConversions)],
     ["Valor conv.", formatCurrency.format(metaAdRevenue)],
     ["CPC médio", formatCurrencyDetailed.format(metaAdClicks ? metaAdSpend / metaAdClicks : 0)],
-    ["Custo/conv.", formatCurrencyDetailed.format(metaAdConversions ? metaAdSpend / metaAdConversions : 0)]
+    ["Custo/conv.", formatCurrencyDetailed.format(metaAdConversions ? metaAdSpend / metaAdConversions : 0)],
+    ["Tx. conversão", conversionRate(metaAdConversions, metaAdClicks)],
+    ["ROAS", roasText(metaAdRevenue, metaAdSpend)]
   ];
   const metaAdMediaCards = document.getElementById("metaAdMediaCards");
   if (metaAdMediaCards) {
@@ -574,7 +586,9 @@ function renderMedia(media) {
     ["Conversões", media.metaConnected ? formatNumber.format(media.metaConversions || 0) : "--"],
     ["Valor conv.", media.metaConnected ? formatCurrency.format(media.metaConversionValue || 0) : "--"],
     ["CPC médio", media.metaConnected ? formatCurrencyDetailed.format(media.metaCostPerClick || 0) : "--"],
-    ["Custo/conv.", media.metaConnected ? formatCurrencyDetailed.format(media.metaCostPerConversion || 0) : "--"]
+    ["Custo/conv.", media.metaConnected ? formatCurrencyDetailed.format(media.metaCostPerConversion || 0) : "--"],
+    ["Tx. conversão", media.metaConnected ? conversionRate(media.metaConversions, media.metaClicks) : "--"],
+    ["ROAS", media.metaConnected ? roasText(media.metaConversionValue, media.metaSpend) : "--"]
   ];
   document.getElementById("metaMediaCards").innerHTML = metaCards.map(([label, value]) => `
     <div class="mini-kpi">
