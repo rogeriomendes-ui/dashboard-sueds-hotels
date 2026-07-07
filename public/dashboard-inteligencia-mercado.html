@@ -351,7 +351,35 @@
           <div id="investmentSuggestions" class="investment-suggestions"></div>
         </article>
       </section>
+
+      <section class="market-grid one-col commercial-funnel-section">
+        <article class="panel commercial-funnel-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Funil Comercial</p>
+              <h2>Jornada até a reserva</h2>
+              <small>GA4, mídia paga, Asksuite e vendas confirmadas conforme integrações disponíveis.</small>
+            </div>
+            <div id="commercialFunnelTabs" class="funnel-tabs" aria-label="Origem do funil"></div>
+          </div>
+          <div class="commercial-funnel-layout">
+            <div id="commercialFunnel" class="commercial-funnel" aria-label="Funil comercial"></div>
+            <aside id="commercialFunnelKpis" class="commercial-funnel-kpis" aria-label="Indicadores do funil"></aside>
+          </div>
+        </article>
+      </section>
     </main>
+
+    <div id="commercialFunnelDrawer" class="funnel-drawer" aria-hidden="true">
+      <div class="funnel-drawer-backdrop" data-funnel-close></div>
+      <aside class="funnel-drawer-panel" aria-label="Segmentação da etapa do funil">
+        <button class="drawer-close" type="button" data-funnel-close aria-label="Fechar painel">Fechar</button>
+        <p id="funnelDrawerSource" class="eyebrow"></p>
+        <h2 id="funnelDrawerTitle"></h2>
+        <div id="funnelDrawerSummary" class="drawer-summary"></div>
+        <div id="funnelDrawerSegments" class="drawer-segments"></div>
+      </aside>
+    </div>
 
     <script src="inteligencia-mercado.js"></script>
   </body>

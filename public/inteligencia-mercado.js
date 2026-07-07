@@ -1,5 +1,6 @@
 const state = {
   payload: null,
+  funnelSource: "geral",
   filters: {
     months: [],
     date: "",
@@ -16,6 +17,15 @@ const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
 let dashboardRequestId = 0;
 let currentKeywordExportRows = [];
 let currentMetaAdExportRows = [];
+
+const COMMERCIAL_FUNNEL_STAGES = [
+  { key: "visitors", label: "Visitantes do site", detail: "GA4", color: "#1677b8" },
+  { key: "viewContent", label: "Visualizações de hotel", detail: "ViewContent", color: "#1d8fd1" },
+  { key: "search", label: "Pesquisa de disponibilidade", detail: "Search", color: "#22a7df" },
+  { key: "initiateCheckout", label: "Início da reserva", detail: "InitiateCheckout", color: "#f1c84b" },
+  { key: "addPaymentInfo", label: "Informações de pagamento", detail: "AddPaymentInfo", color: "#ff9f1a" },
+  { key: "purchase", label: "Reserva confirmada", detail: "Purchase", color: "#169755" }
+];
 
 const formatCurrency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -442,6 +452,7 @@ function renderDashboard(payload) {
   renderMedia(payload.media);
   renderCompetitiveness(payload.competitiveness);
   renderOpportunities(payload.opportunities);
+  renderCommercialFunnel(payload);
   const updated = new Date(payload.generatedAt);
   setText("lastUpdate", `Atualizado ${updated.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}, ${updated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`);
 }
@@ -698,8 +709,14 @@ function renderMedia(media) {
   const metaOriginRows = media.byMetaOrigin || [];
   const metaOriginSpend = metaOriginRows.reduce((total, row) => total + Number(row.spend || 0), 0);
   const metaOriginClicks = metaOriginRows.reduce((total, row) => total + Number(row.clicks || 0), 0);
-  const metaOriginConversions = metaOriginRows.reduce((total, row) => total + Number(row.conversions || row.sales || 0), 0);
-  const metaOriginRevenue = metaOriginRows.reduce((total, row) => total + Number(row.revenue || row.conversionValue || 0), 0);
+  const metaOriginConversionsFromRows = metaOriginRows.reduce((total, row) => total + Number(row.conversions || row.sales || 0), 0);
+  const metaOriginRevenueFromRows = metaOriginRows.reduce((total, row) => total + Number(row.revenue || row.conversionValue || 0), 0);
+  const metaTotalConversions = Number(media.metaConversions || 0);
+  const metaTotalRevenue = Number(media.metaConversionValue || 0);
+  const metaUnattributedConversions = Math.max(0, metaTotalConversions - metaOriginConversionsFromRows);
+  const metaUnattributedRevenue = Math.max(0, metaTotalRevenue - metaOriginRevenueFromRows);
+  const metaOriginConversions = metaOriginConversionsFromRows || metaTotalConversions;
+  const metaOriginRevenue = metaOriginRevenueFromRows || metaTotalRevenue;
   const metaOriginCards = [
     ["Investimento", formatCurrency.format(metaOriginSpend)],
     ["Cliques", formatNumber.format(metaOriginClicks)],
@@ -721,7 +738,7 @@ function renderMedia(media) {
   }
   const metaOriginTable = document.getElementById("metaOriginTable");
   if (metaOriginTable) {
-    metaOriginTable.innerHTML = metaOriginRows.length ? metaOriginRows.map((row) => {
+    const metaOriginRowsHtml = metaOriginRows.map((row) => {
       const clicks = Number(row.clicks || 0);
       const conversions = Number(row.conversions || row.sales || 0);
       const spend = Number(row.spend || 0);
@@ -739,7 +756,23 @@ function renderMedia(media) {
           <td>${roasText(revenue, spend)}</td>
         </tr>
       `;
-    }).join("") : `<tr><td colspan="9">Sem dados de origem dos cliques da Meta para este filtro.</td></tr>`;
+    }).join("");
+    const metaUnattributedHtml = metaUnattributedConversions > 0 ? `
+        <tr class="attribution-note-row">
+          <td>Conversões sem origem atribuída</td>
+          <td>--</td>
+          <td>--</td>
+          <td>${formatNumber.format(metaUnattributedConversions)}</td>
+          <td>--</td>
+          <td>${formatCurrency.format(metaUnattributedRevenue)}</td>
+          <td>--</td>
+          <td>--</td>
+          <td>--</td>
+        </tr>
+      ` : "";
+    metaOriginTable.innerHTML = (metaOriginRowsHtml || metaUnattributedHtml)
+      ? `${metaOriginRowsHtml}${metaUnattributedHtml}`
+      : `<tr><td colspan="9">Sem dados de origem dos cliques da Meta para este filtro.</td></tr>`;
   }
 
   const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];
@@ -853,6 +886,340 @@ function renderOpportunities(opportunities) {
   `;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function numberOrNull(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function firstNumber(...values) {
+  for (const value of values) {
+    const numeric = numberOrNull(value);
+    if (numeric !== null) return numeric;
+  }
+  return null;
+}
+
+function sumKnown(...values) {
+  const known = values.map(numberOrNull).filter((value) => value !== null);
+  return known.length ? known.reduce((total, value) => total + value, 0) : null;
+}
+
+function valueText(value, formatter = formatNumber.format.bind(formatNumber)) {
+  const numeric = numberOrNull(value);
+  return numeric === null ? "--" : formatter(numeric);
+}
+
+function formatFunnelPct(value) {
+  const numeric = numberOrNull(value);
+  return numeric === null ? "--" : formatPct(numeric);
+}
+
+function getConversionToNext(values, index) {
+  const current = numberOrNull(values[COMMERCIAL_FUNNEL_STAGES[index].key]);
+  if (current === null || current <= 0) return { conversion: null, loss: null };
+  const nextStage = COMMERCIAL_FUNNEL_STAGES
+    .slice(index + 1)
+    .map((stage) => numberOrNull(values[stage.key]))
+    .find((value) => value !== null);
+  if (nextStage === undefined || nextStage === null) return { conversion: null, loss: null };
+  const conversion = Math.min(100, (nextStage / current) * 100);
+  return { conversion, loss: Math.max(0, 100 - conversion) };
+}
+
+function buildCommercialFunnels(payload = {}) {
+  const summary = payload.summary || {};
+  const media = payload.media || {};
+  const conversion = payload.conversion || {};
+  const analytics = payload.analytics || {};
+  const ga4 = payload.ga4 || analytics.ga4 || {};
+  const site = analytics.site || ga4.site || {};
+  const organic = analytics.organic || ga4.organic || {};
+
+  const asksuiteValues = {
+    visitors: firstNumber(summary.dialogues),
+    viewContent: null,
+    search: firstNumber(summary.reservations),
+    initiateCheckout: null,
+    addPaymentInfo: null,
+    purchase: firstNumber(summary.sales)
+  };
+
+  const googleValues = {
+    visitors: firstNumber(media.googleVisitors, media.googleClicks),
+    viewContent: firstNumber(media.googleViewContent, media.googleViewContentEvents, media.googleHotelViews),
+    search: firstNumber(media.googleSearch, media.googleSearchEvents, media.googleAvailabilitySearches),
+    initiateCheckout: firstNumber(media.googleInitiateCheckout, media.googleCheckoutStarts),
+    addPaymentInfo: firstNumber(media.googleAddPaymentInfo, media.googlePaymentInfo),
+    purchase: firstNumber(media.googleConversions)
+  };
+
+  const metaValues = {
+    visitors: firstNumber(media.metaVisitors, media.metaClicks),
+    viewContent: firstNumber(media.metaViewContent, media.metaViewContentEvents, media.metaHotelViews),
+    search: firstNumber(media.metaSearch, media.metaSearchEvents, media.metaAvailabilitySearches),
+    initiateCheckout: firstNumber(media.metaInitiateCheckout, media.metaCheckoutStarts),
+    addPaymentInfo: firstNumber(media.metaAddPaymentInfo, media.metaPaymentInfo),
+    purchase: firstNumber(media.metaConversions)
+  };
+
+  const organicValues = {
+    visitors: firstNumber(organic.visitors, organic.activeUsers, site.organicUsers),
+    viewContent: firstNumber(organic.viewContent, organic.hotelViews),
+    search: firstNumber(organic.search, organic.availabilitySearches),
+    initiateCheckout: firstNumber(organic.initiateCheckout, organic.checkoutStarts),
+    addPaymentInfo: firstNumber(organic.addPaymentInfo, organic.paymentInfo),
+    purchase: firstNumber(organic.purchase, organic.purchases)
+  };
+
+  const geralValues = {};
+  COMMERCIAL_FUNNEL_STAGES.forEach((stage) => {
+    geralValues[stage.key] = sumKnown(organicValues[stage.key], googleValues[stage.key], metaValues[stage.key], asksuiteValues[stage.key]);
+  });
+
+  const salesRevenue = firstNumber(summary.revenue);
+  return {
+    geral: {
+      label: "Geral",
+      description: "Soma das origens conectadas disponíveis.",
+      values: geralValues,
+      revenue: sumKnown(salesRevenue, media.googleConversionValue, media.metaConversionValue),
+      segments: commercialSegments(payload, "Geral", conversion.byHotel, conversion.byChannel, conversion.byStateDdd)
+    },
+    organico: {
+      label: "Site orgânico",
+      description: "Origem orgânica sem investimento. Exibe apenas eventos já conectados no GA4.",
+      values: organicValues,
+      revenue: firstNumber(organic.revenue),
+      segments: commercialSegments(payload, "Orgânico", [], [], [])
+    },
+    google: {
+      label: "Google patrocinado",
+      description: "Mídia paga Google Ads e eventos associados quando disponíveis.",
+      values: googleValues,
+      revenue: firstNumber(media.googleConversionValue),
+      segments: commercialSegments(payload, "Google Ads", [], [{ label: "Google Ads", dialogues: media.googleClicks, sales: media.googleConversions, revenue: media.googleConversionValue }], media.byCity)
+    },
+    meta: {
+      label: "Meta Ads",
+      description: "Mídia paga Meta Ads e eventos associados quando disponíveis.",
+      values: metaValues,
+      revenue: firstNumber(media.metaConversionValue),
+      segments: commercialSegments(payload, "Meta Ads", [], [{ label: "Meta Ads", dialogues: media.metaClicks, sales: media.metaConversions, revenue: media.metaConversionValue }], media.byMetaOrigin)
+    },
+    asksuite: {
+      label: "Asksuite",
+      description: "Atendimentos, oportunidades, reservas e vendas vindos da planilha Asksuite.",
+      values: asksuiteValues,
+      revenue: salesRevenue,
+      segments: commercialSegments(payload, "Asksuite", conversion.byHotel, conversion.byChannel, conversion.byStateDdd)
+    }
+  };
+}
+
+function commercialSegments(payload, sourceLabel, hotelRows = [], originRows = [], stateRows = []) {
+  const filters = payload.filters || {};
+  const selected = filters.selected || {};
+  const selectedMonths = normalizeMonthValues(state.filters.months);
+  const periodLabel = state.filters.date
+    ? formatDateBr(state.filters.date)
+    : (selectedMonths.length ? monthSelectionLabel(selectedMonths) : "Período selecionado");
+  const originFallback = originRows?.length ? originRows : [{ label: sourceLabel, dialogues: null, clicks: null, sales: null }];
+  return {
+    hotels: (hotelRows || []).slice(0, 8).map((row) => ({
+      label: row.label || row.hotel || "Não informado",
+      value: row.sales ?? row.conversions ?? row.dialogues ?? row.clicks ?? null
+    })),
+    origins: (originFallback || []).slice(0, 8).map((row) => ({
+      label: row.label || row.channel || row.city || row.region || "Não informado",
+      value: row.dialogues ?? row.clicks ?? row.sales ?? row.conversions ?? null
+    })),
+    devices: [
+      { label: "Desktop", value: null },
+      { label: "Mobile", value: null }
+    ],
+    states: (stateRows || payload.demand?.stateTable || []).slice(0, 8).map((row) => ({
+      label: row.state || row.label || row.city || row.region || "Não informado",
+      value: row.dialogues ?? row.clicks ?? row.sales ?? row.conversions ?? null
+    })),
+    period: [
+      { label: "Período", value: periodLabel },
+      { label: "Hotel", value: selected.hotel || state.filters.hotel || "Todos os hotéis" },
+      { label: "Canal", value: selected.channel || state.filters.channel || "Todos os canais" }
+    ]
+  };
+}
+
+function funnelFirstKnownValue(values) {
+  for (const stage of COMMERCIAL_FUNNEL_STAGES) {
+    const value = numberOrNull(values[stage.key]);
+    if (value !== null && value > 0) return value;
+  }
+  return null;
+}
+
+function funnelTicketAverage(funnel) {
+  const purchase = numberOrNull(funnel.values.purchase);
+  const revenue = numberOrNull(funnel.revenue);
+  return purchase && revenue !== null ? revenue / purchase : null;
+}
+
+function funnelPotentialAbandoned(funnel) {
+  const checkout = firstNumber(funnel.values.addPaymentInfo, funnel.values.initiateCheckout);
+  const purchase = numberOrNull(funnel.values.purchase);
+  const ticket = funnelTicketAverage(funnel);
+  if (checkout === null || purchase === null || ticket === null || checkout <= purchase) return null;
+  return (checkout - purchase) * ticket;
+}
+
+function funnelCheckoutAbandonment(funnel) {
+  const checkout = firstNumber(funnel.values.addPaymentInfo, funnel.values.initiateCheckout);
+  const purchase = numberOrNull(funnel.values.purchase);
+  if (checkout === null || checkout <= 0 || purchase === null) return null;
+  return Math.max(0, (1 - purchase / checkout) * 100);
+}
+
+function funnelGeneralConversion(funnel) {
+  const first = funnelFirstKnownValue(funnel.values);
+  const purchase = numberOrNull(funnel.values.purchase);
+  if (!first || purchase === null) return null;
+  return (purchase / first) * 100;
+}
+
+function renderCommercialFunnel(payload = {}) {
+  const tabs = document.getElementById("commercialFunnelTabs");
+  const funnelElement = document.getElementById("commercialFunnel");
+  const kpiElement = document.getElementById("commercialFunnelKpis");
+  if (!tabs || !funnelElement || !kpiElement) return;
+
+  const funnels = buildCommercialFunnels(payload);
+  if (!funnels[state.funnelSource]) state.funnelSource = "geral";
+  const active = funnels[state.funnelSource];
+  tabs.innerHTML = Object.entries(funnels).map(([key, funnel]) => `
+    <button type="button" class="funnel-tab ${key === state.funnelSource ? "is-active" : ""}" data-funnel-source="${key}">
+      ${escapeHtml(funnel.label)}
+    </button>
+  `).join("");
+  tabs.querySelectorAll("[data-funnel-source]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.funnelSource = button.dataset.funnelSource || "geral";
+      renderCommercialFunnel(payload);
+    });
+  });
+
+  funnelElement.innerHTML = COMMERCIAL_FUNNEL_STAGES.map((stage, index) => {
+    const value = numberOrNull(active.values[stage.key]);
+    const { conversion, loss } = getConversionToNext(active.values, index);
+    const width = Math.max(42, 100 - index * 9);
+    const isEmpty = value === null;
+    return `
+      <button
+        type="button"
+        class="commercial-funnel-stage ${isEmpty ? "is-empty" : ""}"
+        style="--stage-width:${width}%; --stage-color:${stage.color}"
+        data-funnel-stage="${stage.key}">
+        <span class="commercial-funnel-stage-inner">
+          <span>
+            ${escapeHtml(stage.label)}
+            <small>${escapeHtml(stage.detail)}</small>
+            <strong>${valueText(value)}</strong>
+            <em class="stage-loss">Perda ${formatFunnelPct(loss)}</em>
+          </span>
+          <span class="stage-next">Próxima etapa ${formatFunnelPct(conversion)}</span>
+        </span>
+      </button>
+    `;
+  }).join("");
+  funnelElement.querySelectorAll("[data-funnel-stage]").forEach((button) => {
+    button.addEventListener("click", () => openFunnelDrawer(active, button.dataset.funnelStage));
+  });
+
+  const potential = funnelPotentialAbandoned(active);
+  const abandonment = funnelCheckoutAbandonment(active);
+  const generalConversion = funnelGeneralConversion(active);
+  const ticket = funnelTicketAverage(active);
+  const kpis = [
+    ["Receita gerada", valueText(active.revenue, formatCurrency.format.bind(formatCurrency)), "revenue"],
+    ["Receita potencial abandonada", valueText(potential, formatCurrency.format.bind(formatCurrency)), "warning"],
+    ["Ticket médio", valueText(ticket, formatCurrency.format.bind(formatCurrency)), ""],
+    ["Taxa de abandono do checkout", formatFunnelPct(abandonment), "warning"],
+    ["Conversão geral do funil", formatFunnelPct(generalConversion), "revenue"]
+  ];
+  kpiElement.innerHTML = `
+    ${kpis.map(([label, value, className]) => `
+      <div class="funnel-kpi ${className}">
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </div>
+    `).join("")}
+    <div class="funnel-note">${escapeHtml(active.description)} Etapas sem evento conectado aparecem como "--".</div>
+  `;
+}
+
+function openFunnelDrawer(funnel, stageKey) {
+  const drawer = document.getElementById("commercialFunnelDrawer");
+  if (!drawer || !funnel) return;
+  const stage = COMMERCIAL_FUNNEL_STAGES.find((item) => item.key === stageKey) || COMMERCIAL_FUNNEL_STAGES[0];
+  const value = numberOrNull(funnel.values[stage.key]);
+  const stageIndex = COMMERCIAL_FUNNEL_STAGES.findIndex((item) => item.key === stage.key);
+  const { conversion, loss } = getConversionToNext(funnel.values, stageIndex);
+
+  setText("funnelDrawerSource", funnel.label);
+  setText("funnelDrawerTitle", stage.label);
+  const summary = document.getElementById("funnelDrawerSummary");
+  if (summary) {
+    summary.innerHTML = `
+      <div class="mini-kpi"><span>Quantidade</span><strong>${valueText(value)}</strong></div>
+      <div class="mini-kpi"><span>Conversão para próxima</span><strong>${formatFunnelPct(conversion)}</strong></div>
+      <div class="mini-kpi"><span>Perda</span><strong>${formatFunnelPct(loss)}</strong></div>
+      <div class="mini-kpi"><span>Período</span><strong>${escapeHtml(funnel.segments?.period?.[0]?.value || monthSelectionLabel(state.filters.months))}</strong></div>
+    `;
+  }
+
+  const segmentElement = document.getElementById("funnelDrawerSegments");
+  if (segmentElement) {
+    const cards = [
+      ["Hotel", funnel.segments?.hotels || []],
+      ["Origem", funnel.segments?.origins || []],
+      ["Dispositivo", funnel.segments?.devices || []],
+      ["Estado do cliente", funnel.segments?.states || []],
+      ["Período selecionado", funnel.segments?.period || []]
+    ];
+    segmentElement.innerHTML = cards.map(([title, rows]) => `
+      <section class="segment-card">
+        <h3>${title}</h3>
+        <ul>
+          ${(rows && rows.length ? rows : [{ label: "Sem dados para esta segmentação", value: null }]).map((row) => `
+            <li>
+              <span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+              <strong>${typeof row.value === "string" ? escapeHtml(row.value) : valueText(row.value)}</strong>
+            </li>
+          `).join("")}
+        </ul>
+      </section>
+    `).join("");
+  }
+  drawer.setAttribute("aria-hidden", "false");
+}
+
+function bindFunnelDrawer() {
+  document.querySelectorAll("[data-funnel-close]").forEach((element) => {
+    element.addEventListener("click", () => {
+      const drawer = document.getElementById("commercialFunnelDrawer");
+      if (drawer) drawer.setAttribute("aria-hidden", "true");
+    });
+  });
+}
+
 bindExportButtons();
+bindFunnelDrawer();
 bindFilters();
 loadDashboard();
