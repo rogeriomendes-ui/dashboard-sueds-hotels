@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUEDS Hotels | Inteligência de Redes Sociais</title>
+    <link rel="stylesheet" href="redes-sociais.css">
+  </head>
+  <body>
+    <main class="social-shell">
+      <header class="social-topbar">
+        <div>
+          <p class="eyebrow">Gestores</p>
+          <h1>Inteligência de Redes Sociais</h1>
+          <span class="subtitle">Tendências, concorrentes, conteúdo e oportunidades para vendas</span>
+        </div>
+        <nav class="social-nav" aria-label="Navegacao de gestores">
+          <a href="dashboard-gestores.html">Comercial</a>
+          <a href="dashboard-inteligencia-mercado.html">Inteligência Comercial</a>
+          <a href="dashboard-operacional-tv.html">Operacional</a>
+        </nav>
+      </header>
+
+      <section class="top-status-grid">
+        <article class="status-card">
+          <span>Ultima atualizacao</span>
+          <strong id="lastUpdate">Atualizando...</strong>
+        </article>
+        <article class="status-card">
+          <span>Perfis monitorados</span>
+          <strong id="profileCount">0</strong>
+        </article>
+        <article class="status-card">
+          <span>Posts analisados</span>
+          <strong id="postCount">0</strong>
+        </article>
+        <article class="status-card">
+          <span>Periodo</span>
+          <strong id="periodLabel">30 dias</strong>
+        </article>
+        <button id="refreshButton" class="action-button" type="button">Atualizar</button>
+        <button id="settingsButton" class="action-button ghost" type="button">Configuracoes</button>
+      </section>
+
+      <section class="filters-panel" aria-label="Filtros">
+        <label>
+          <span>Cidade</span>
+          <select id="cityFilter"></select>
+        </label>
+        <label>
+          <span>Estado</span>
+          <select id="stateFilter"></select>
+        </label>
+        <label>
+          <span>Categoria</span>
+          <select id="categoryFilter"></select>
+        </label>
+        <label>
+          <span>Periodo</span>
+          <select id="periodFilter"></select>
+        </label>
+        <label>
+          <span>Tipo</span>
+          <select id="typeFilter"></select>
+        </label>
+        <label>
+          <span>Tema</span>
+          <select id="themeFilter"></select>
+        </label>
+        <label>
+          <span>Perfil</span>
+          <select id="profileFilter"></select>
+        </label>
+        <div class="export-actions">
+          <button id="exportExcel" class="action-button" type="button">Exportar Excel</button>
+          <button id="exportPdf" class="action-button ghost" type="button">Exportar PDF</button>
+        </div>
+      </section>
+
+      <section id="kpiGrid" class="kpi-grid"></section>
+
+      <section class="social-grid two-cols">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Grafico 1</p>
+              <h2>Evolucao diaria</h2>
+            </div>
+            <div id="chartRange" class="segmented-control" aria-label="Periodo do grafico"></div>
+          </div>
+          <div id="dailyChart" class="daily-chart"></div>
+          <div class="chart-legend">
+            <span><i class="legend-posts"></i>Posts</span>
+            <span><i class="legend-reels"></i>Reels</span>
+            <span><i class="legend-engagement"></i>Engajamento medio</span>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">IA - Insights</p>
+              <h2>Leitura automatica</h2>
+              <small>Preparado para integrar OpenAI ou Gemini.</small>
+            </div>
+          </div>
+          <div id="aiInsights" class="insight-list"></div>
+        </article>
+      </section>
+
+      <section class="social-grid two-cols">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Top Posts</p>
+              <h2>Melhores publicacoes</h2>
+            </div>
+            <label class="sort-control">
+              <span>Ordenar</span>
+              <select id="postSort"></select>
+            </label>
+          </div>
+          <div class="table-wrap tall-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Miniatura</th>
+                  <th>Perfil</th>
+                  <th>Data</th>
+                  <th>Tipo</th>
+                  <th>Tema</th>
+                  <th>Curtidas</th>
+                  <th>Comentarios</th>
+                  <th>Compart.</th>
+                  <th>Visualiz.</th>
+                  <th>Engaj.</th>
+                  <th>Link</th>
+                </tr>
+              </thead>
+              <tbody id="topPostsTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Top Reels</p>
+              <h2>Reels com melhor desempenho</h2>
+            </div>
+          </div>
+          <div id="topReels" class="reel-list"></div>
+        </article>
+      </section>
+
+      <section class="social-grid two-cols">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Tendencias</p>
+              <h2>Temas mais utilizados</h2>
+            </div>
+          </div>
+          <div id="themeTrends" class="trend-grid"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">IA - Sugestoes para SUEDS</p>
+              <h2>Ideias acionaveis</h2>
+            </div>
+          </div>
+          <div id="contentSuggestions" class="suggestion-list"></div>
+        </article>
+      </section>
+
+      <section class="social-grid two-cols">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Hashtags</p>
+              <h2>Top hashtags</h2>
+            </div>
+          </div>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Hashtag</th>
+                  <th>Quantidade</th>
+                  <th>Crescimento</th>
+                  <th>Engajamento</th>
+                </tr>
+              </thead>
+              <tbody id="hashtagsTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Audios em alta</p>
+              <h2>Sons e tendencias</h2>
+            </div>
+          </div>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Audio</th>
+                  <th>Utilizacao</th>
+                  <th>Visualizacoes</th>
+                  <th>Tendencia</th>
+                </tr>
+              </thead>
+              <tbody id="audiosTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="social-grid two-cols">
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Horarios</p>
+              <h2>Mapa de calor</h2>
+            </div>
+          </div>
+          <div id="heatmap" class="heatmap"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Comparativo</p>
+              <h2>Entre perfis</h2>
+              <small>Selecione ate 5 perfis.</small>
+            </div>
+          </div>
+          <div id="compareSelector" class="compare-selector"></div>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Perfil</th>
+                  <th>Seguidores</th>
+                  <th>Posts</th>
+                  <th>Reels</th>
+                  <th>Curtidas</th>
+                  <th>Comentarios</th>
+                  <th>Engaj.</th>
+                  <th>Crescimento</th>
+                </tr>
+              </thead>
+              <tbody id="compareTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Perfis Monitorados</p>
+            <h2>Concorrentes e referencias</h2>
+          </div>
+          <button id="addProfile" class="action-button" type="button">Adicionar</button>
+        </div>
+        <div class="table-wrap profile-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Instagram</th>
+                <th>Categoria</th>
+                <th>Cidade</th>
+                <th>Estado</th>
+                <th>Status</th>
+                <th>Ultima atualizacao</th>
+                <th>Acoes</th>
+              </tr>
+            </thead>
+            <tbody id="profilesTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Agente Diario de IA</p>
+            <h2>Relatorio executivo</h2>
+            <small>Segunda etapa: rotina diaria com 5 oportunidades, 5 ameacas e 10 ideias de conteudo.</small>
+          </div>
+        </div>
+        <div id="agentReport" class="agent-report"></div>
+      </section>
+    </main>
+
+    <script src="redes-sociais.js"></script>
+  </body>
+</html>
