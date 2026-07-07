@@ -4,14 +4,9 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const inputArg = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
-const INPUT_FILE = inputArg || path.join(
-  process.env.USERPROFILE || "C:\\Users\\roger",
-  ".codex",
-  "attachments",
-  "e9f665a1-fbf3-42c7-b2ef-03aca4c8818a",
-  "pasted-text.txt"
-);
+const INPUT_FILE = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
+const APPLY = process.argv.includes("--apply");
+const MONTH = getArg("--month");
 
 loadEnvFile(path.join(ROOT, ".env"));
 
@@ -20,6 +15,13 @@ const RANGE = "Lancamento_Vendas!A2:T5000";
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const PYTHON = process.env.PYTHON_EXE
   || "C:\\Users\\roger\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
+
+function getArg(name) {
+  const inline = process.argv.find((arg) => arg.startsWith(`${name}=`));
+  if (inline) return inline.slice(name.length + 1);
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : "";
+}
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -153,12 +155,13 @@ function normalizeName(value) {
 function normalizeSeller(value) {
   const raw = String(value || "").trim().toLocaleUpperCase("pt-BR");
   const map = {
-    "SITE": "Site",
+    SITE: "Site",
     "ALINE NUNES": "Aline Nunes",
     "AMANDA MELGAÇO": "Amanda Melgaco",
     "AMANDA MELGACO": "Amanda Melgaco",
     "JULIA RECHE": "Julia Reche",
-    "EMANOEL CESAR": "Emanoel Cesar"
+    "EMANOEL CESAR": "Emanoel Cesar",
+    LEONARDO: "Leonardo"
   };
   return map[raw] || normalizeName(value);
 }
@@ -181,24 +184,22 @@ function parseInstallments(payment) {
   return match ? match[1] : "";
 }
 
-function makeKey(record) {
-  if (record.codigo) return `codigo:${String(record.codigo).toLocaleUpperCase("pt-BR")}`;
-  return [
-    "manual",
-    record.dataVenda,
-    record.hotel,
-    record.cliente,
-    record.checkin,
-    record.checkout,
-    record.valorTotal,
-    record.vendedor,
-    record.formaPagamento
-  ].join("|").toLocaleUpperCase("pt-BR");
+function dateKey(value) {
+  if (!value) return "";
+  if (typeof value === "number") return "";
+  const text = String(value).trim();
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return "";
 }
 
-function parseInput(text) {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim());
-  return parseRows(lines.slice(1).map((line) => line.split("\t")));
+function monthKey(value) {
+  const key = dateKey(value);
+  return key ? key.slice(0, 7) : "";
 }
 
 function readWorkbookRows(filePath) {
@@ -231,14 +232,6 @@ print(json.dumps(rows, ensure_ascii=False))
   });
   if (result.status !== 0) throw new Error(`Falha ao ler Excel: ${result.stderr || result.stdout}`);
   return JSON.parse(result.stdout);
-}
-
-function readInputRecords(filePath) {
-  if (/\.xlsx$/i.test(filePath)) {
-    const rows = readWorkbookRows(filePath);
-    return parseRows(rows.slice(1));
-  }
-  return parseInput(fs.readFileSync(filePath, "utf8"));
 }
 
 function parseRows(rows) {
@@ -282,108 +275,130 @@ function parseRows(rows) {
       formaPagamento,
       parcelas: parseInstallments(formaPagamento),
       status: "Confirmada",
-      observacoes: aReceber && parseMoney(aReceber) > 0 ? `A receber informado na origem: ${aReceber}` : ""
+      observacoes: ""
     });
   });
   return records;
 }
 
-function existingKeys(rows) {
-  const keys = new Set();
-  rows.forEach((row) => {
-    const record = {
-      dataVenda: row[0] || "",
-      codigo: row[1] || "",
-      hotel: row[2] || "",
-      canal: row[3] || "",
-      vendedor: row[4] || "",
-      cliente: row[5] || "",
-      checkin: row[6] || "",
-      checkout: row[7] || "",
-      valorTotal: row[12] || "",
-      formaPagamento: row[15] || ""
-    };
-    if (record.dataVenda || record.codigo || record.cliente) keys.add(makeKey(record));
-  });
-  return keys;
+function readInputRecords(filePath) {
+  if (!filePath) throw new Error("Informe o arquivo Excel.");
+  if (!/\.xlsx$/i.test(filePath)) throw new Error("Este sincronizador aceita apenas .xlsx.");
+  return parseRows(readWorkbookRows(filePath).slice(1));
 }
 
-function firstEmptyRows(rows, count) {
-  const result = [];
-  rows.forEach((row, index) => {
-    if (!row[0] && result.length < count) result.push(index + 2);
-  });
-  return result;
+function totals(records) {
+  return {
+    count: records.length,
+    total: round(records.reduce((sum, record) => sum + (Number(record.valorTotal) || 0), 0)),
+    received: round(records.reduce((sum, record) => sum + (Number(record.recebido) || 0), 0)),
+    remaining: round(records.reduce((sum, record) => sum + (Number(record.aReceber) || 0), 0))
+  };
+}
+
+function round(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function rowToRecord(row, rowNumber) {
+  return {
+    rowNumber,
+    dataVenda: row[0] || "",
+    codigo: row[1] || "",
+    hotel: row[2] || "",
+    canal: row[3] || "",
+    vendedor: row[4] || "",
+    cliente: row[5] || "",
+    checkin: row[6] || "",
+    checkout: row[7] || "",
+    valorTotal: parseMoney(row[12]),
+    recebido: parseMoney(row[13]),
+    aReceber: parseMoney(row[14])
+  };
+}
+
+function buildWriteRow(record, rowNumber) {
+  return [
+    record.dataVenda,
+    record.codigo,
+    record.hotel,
+    record.canal,
+    record.vendedor,
+    record.cliente,
+    record.checkin,
+    record.checkout,
+    `=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`,
+    record.uhs,
+    record.adultos,
+    record.criancas,
+    record.valorTotal,
+    record.recebido,
+    record.aReceber,
+    record.formaPagamento,
+    record.parcelas,
+    record.status,
+    "",
+    record.observacoes
+  ];
 }
 
 async function main() {
-  const parsed = readInputRecords(INPUT_FILE);
-  const current = (await sheetsRequest("GET", RANGE)).values || [];
-  const keys = existingKeys(current);
-  const pending = parsed.filter((record) => !keys.has(makeKey(record)));
-  const targetRows = firstEmptyRows(current, pending.length);
+  if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado.");
+  const sourceRecords = readInputRecords(INPUT_FILE);
+  const targetMonth = MONTH || monthKey(sourceRecords.find((record) => monthKey(record.dataVenda))?.dataVenda);
+  if (!targetMonth) throw new Error("Nao foi possivel identificar o mes. Use --month=AAAA-MM.");
+  const records = sourceRecords.filter((record) => monthKey(record.dataVenda) === targetMonth);
+  const currentRows = (await sheetsRequest("GET", RANGE)).values || [];
+  const currentMonthRows = currentRows
+    .map((row, index) => rowToRecord(row, index + 2))
+    .filter((record) => monthKey(record.dataVenda) === targetMonth);
+  const emptyRows = currentRows
+    .map((row, index) => ({ row, rowNumber: index + 2 }))
+    .filter(({ row }) => !row.some((cell) => String(cell || "").trim()))
+    .map(({ rowNumber }) => rowNumber);
+  const reusableRows = currentMonthRows.map((record) => record.rowNumber);
+  const missingRows = Math.max(0, records.length - reusableRows.length);
+  const targetRows = reusableRows.concat(emptyRows.slice(0, missingRows));
 
-  if (targetRows.length < pending.length) {
-    throw new Error(`Linhas livres insuficientes: precisa ${pending.length}, encontrou ${targetRows.length}.`);
+  if (targetRows.length < records.length) {
+    throw new Error(`Linhas disponiveis insuficientes: precisa ${records.length}, encontrou ${targetRows.length}.`);
   }
 
-  const data = [];
-  pending.forEach((record, index) => {
-    const row = targetRows[index];
-    data.push({
-      range: `Lancamento_Vendas!A${row}:H${row}`,
-      values: [[
-        record.dataVenda,
-        record.codigo,
-        record.hotel,
-        record.canal,
-        record.vendedor,
-        record.cliente,
-        record.checkin,
-        record.checkout
-      ]]
-    });
-    data.push({
-      range: `Lancamento_Vendas!I${row}:I${row}`,
-      values: [[`=IF(OR(G${row}="";H${row}="");"";H${row}-G${row})`]]
-    });
-    data.push({
-      range: `Lancamento_Vendas!J${row}:N${row}`,
-      values: [[record.uhs, record.adultos, record.criancas, record.valorTotal, record.recebido]]
-    });
-    data.push({
-      range: `Lancamento_Vendas!O${row}:O${row}`,
-      values: [[record.aReceber]]
-    });
-    data.push({
-      range: `Lancamento_Vendas!P${row}:R${row}`,
-      values: [[record.formaPagamento, record.parcelas, record.status]]
-    });
-    data.push({
-      range: `Lancamento_Vendas!T${row}:T${row}`,
-      values: [[record.observacoes]]
-    });
-  });
+  const summary = {
+    file: INPUT_FILE,
+    month: targetMonth,
+    mode: APPLY ? "apply" : "dry-run",
+    source: totals(records),
+    current: totals(currentMonthRows),
+    rowsToClear: reusableRows.length,
+    rowsToWrite: records.length,
+    firstWriteRow: targetRows[0] || null,
+    lastWriteRow: targetRows[records.length - 1] || null
+  };
 
-  if (process.argv.includes("--dry-run")) {
-    console.log(JSON.stringify({
-      parsed: parsed.length,
-      skippedDuplicates: parsed.length - pending.length,
-      toInsert: pending.length,
-      firstTargetRow: targetRows[0] || null,
-      lastTargetRow: targetRows[targetRows.length - 1] || null,
-      sample: pending.slice(0, 3)
-    }, null, 2));
+  if (!APPLY) {
+    console.log(JSON.stringify(summary, null, 2));
     return;
   }
 
-  const result = pending.length ? await batchUpdate(data) : { totalUpdatedCells: 0 };
+  const data = [];
+  reusableRows.forEach((rowNumber) => {
+    data.push({
+      range: `Lancamento_Vendas!A${rowNumber}:T${rowNumber}`,
+      values: [Array(20).fill("")]
+    });
+  });
+  records.forEach((record, index) => {
+    const rowNumber = targetRows[index];
+    data.push({
+      range: `Lancamento_Vendas!A${rowNumber}:T${rowNumber}`,
+      values: [buildWriteRow(record, rowNumber)]
+    });
+  });
+
+  const result = await batchUpdate(data);
   console.log(JSON.stringify({
-    parsed: parsed.length,
-    skippedDuplicates: parsed.length - pending.length,
-    inserted: pending.length,
-    firstTargetRow: targetRows[0] || null,
-    lastTargetRow: targetRows[targetRows.length - 1] || null,
+    ...summary,
     updatedCells: result.totalUpdatedCells || 0
   }, null, 2));
 }

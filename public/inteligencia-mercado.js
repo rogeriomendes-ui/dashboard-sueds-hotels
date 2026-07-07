@@ -27,6 +27,37 @@ const COMMERCIAL_FUNNEL_STAGES = [
   { key: "purchase", label: "Reserva confirmada", detail: "Purchase", color: "#169755" }
 ];
 
+const FUNNEL_STAGE_SETS = {
+  geral: COMMERCIAL_FUNNEL_STAGES,
+  organico: [
+    { key: "visitors", label: "Visitantes orgânicos", detail: "GA4", color: "#1677b8" },
+    { key: "sessions", label: "Sessões orgânicas", detail: "GA4", color: "#1d8fd1" },
+    { key: "viewContent", label: "Visualizações de hotel", detail: "Evento GA4", color: "#22a7df" },
+    { key: "search", label: "Pesquisa de disponibilidade", detail: "Evento GA4", color: "#f1c84b" },
+    { key: "purchase", label: "Reserva confirmada", detail: "GA4/planilha", color: "#169755" }
+  ],
+  google: [
+    { key: "visitors", label: "Cliques Google Ads", detail: "Google Ads", color: "#1677b8" },
+    { key: "viewContent", label: "Visualizações de hotel", detail: "Evento disponível", color: "#1d8fd1" },
+    { key: "search", label: "Pesquisa de disponibilidade", detail: "Evento disponível", color: "#22a7df" },
+    { key: "initiateCheckout", label: "Início da reserva", detail: "Evento disponível", color: "#f1c84b" },
+    { key: "purchase", label: "Vendas atribuídas", detail: "Google Ads", color: "#169755" }
+  ],
+  meta: [
+    { key: "visitors", label: "Cliques Meta Ads", detail: "Meta Ads", color: "#1677b8" },
+    { key: "viewContent", label: "Visualizações de hotel", detail: "Evento disponível", color: "#1d8fd1" },
+    { key: "search", label: "Pesquisa de disponibilidade", detail: "Evento disponível", color: "#22a7df" },
+    { key: "initiateCheckout", label: "Início da reserva", detail: "Evento disponível", color: "#f1c84b" },
+    { key: "purchase", label: "Vendas atribuídas", detail: "Meta Ads", color: "#169755" }
+  ],
+  asksuite: [
+    { key: "visitors", label: "Atendimentos", detail: "Asksuite", color: "#1677b8" },
+    { key: "search", label: "Oportunidades", detail: "Asksuite", color: "#22a7df" },
+    { key: "initiateCheckout", label: "Reservas", detail: "Pré-vendas", color: "#f1c84b" },
+    { key: "purchase", label: "Vendas", detail: "Planilha", color: "#169755" }
+  ]
+};
+
 const formatCurrency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -923,10 +954,14 @@ function formatFunnelPct(value) {
   return numeric === null ? "--" : formatPct(numeric);
 }
 
-function getConversionToNext(values, index) {
-  const current = numberOrNull(values[COMMERCIAL_FUNNEL_STAGES[index].key]);
+function funnelStagesForSource(sourceKey) {
+  return FUNNEL_STAGE_SETS[sourceKey] || COMMERCIAL_FUNNEL_STAGES;
+}
+
+function getConversionToNext(values, index, stages = COMMERCIAL_FUNNEL_STAGES) {
+  const current = numberOrNull(values[stages[index].key]);
   if (current === null || current <= 0) return { conversion: null, loss: null };
-  const nextStage = COMMERCIAL_FUNNEL_STAGES
+  const nextStage = stages
     .slice(index + 1)
     .map((stage) => numberOrNull(values[stage.key]))
     .find((value) => value !== null);
@@ -948,7 +983,7 @@ function buildCommercialFunnels(payload = {}) {
     visitors: firstNumber(summary.dialogues),
     viewContent: null,
     search: firstNumber(summary.reservations),
-    initiateCheckout: null,
+    initiateCheckout: firstNumber(summary.reservations),
     addPaymentInfo: null,
     purchase: firstNumber(summary.sales)
   };
@@ -973,6 +1008,7 @@ function buildCommercialFunnels(payload = {}) {
 
   const organicValues = {
     visitors: firstNumber(organic.visitors, organic.activeUsers, site.organicUsers),
+    sessions: firstNumber(organic.sessions, site.organicSessions, site.sessions),
     viewContent: firstNumber(organic.viewContent, organic.hotelViews),
     search: firstNumber(organic.search, organic.availabilitySearches),
     initiateCheckout: firstNumber(organic.initiateCheckout, organic.checkoutStarts),
@@ -989,28 +1025,28 @@ function buildCommercialFunnels(payload = {}) {
   return {
     geral: {
       label: "Geral",
-      description: "Soma das origens conectadas disponíveis.",
+      description: "Soma das origens conectadas disponíveis. Usa as etapas que já têm dados nas integrações atuais.",
       values: geralValues,
       revenue: sumKnown(salesRevenue, media.googleConversionValue, media.metaConversionValue),
       segments: commercialSegments(payload, "Geral", conversion.byHotel, conversion.byChannel, conversion.byStateDdd)
     },
     organico: {
       label: "Site orgânico",
-      description: "Origem orgânica sem investimento. Exibe apenas eventos já conectados no GA4.",
+      description: "Origem orgânica sem investimento. Hoje temos visitantes/sessões do GA4; eventos intermediários dependem de configuração no motor.",
       values: organicValues,
       revenue: firstNumber(organic.revenue),
       segments: commercialSegments(payload, "Orgânico", [], [], [])
     },
     google: {
       label: "Google patrocinado",
-      description: "Mídia paga Google Ads e eventos associados quando disponíveis.",
+      description: "Mídia paga Google Ads. Hoje usamos cliques, conversões atribuídas e receita de conversão; eventos intermediários aparecem quando conectados.",
       values: googleValues,
       revenue: firstNumber(media.googleConversionValue),
       segments: commercialSegments(payload, "Google Ads", [], [{ label: "Google Ads", dialogues: media.googleClicks, sales: media.googleConversions, revenue: media.googleConversionValue }], media.byCity)
     },
     meta: {
       label: "Meta Ads",
-      description: "Mídia paga Meta Ads e eventos associados quando disponíveis.",
+      description: "Mídia paga Meta Ads. Hoje usamos cliques, conversões atribuídas e receita de conversão; eventos intermediários aparecem quando conectados.",
       values: metaValues,
       revenue: firstNumber(media.metaConversionValue),
       segments: commercialSegments(payload, "Meta Ads", [], [{ label: "Meta Ads", dialogues: media.metaClicks, sales: media.metaConversions, revenue: media.metaConversionValue }], media.byMetaOrigin)
@@ -1058,8 +1094,8 @@ function commercialSegments(payload, sourceLabel, hotelRows = [], originRows = [
   };
 }
 
-function funnelFirstKnownValue(values) {
-  for (const stage of COMMERCIAL_FUNNEL_STAGES) {
+function funnelFirstKnownValue(values, stages = COMMERCIAL_FUNNEL_STAGES) {
+  for (const stage of stages) {
     const value = numberOrNull(values[stage.key]);
     if (value !== null && value > 0) return value;
   }
@@ -1087,8 +1123,8 @@ function funnelCheckoutAbandonment(funnel) {
   return Math.max(0, (1 - purchase / checkout) * 100);
 }
 
-function funnelGeneralConversion(funnel) {
-  const first = funnelFirstKnownValue(funnel.values);
+function funnelGeneralConversion(funnel, stages = COMMERCIAL_FUNNEL_STAGES) {
+  const first = funnelFirstKnownValue(funnel.values, stages);
   const purchase = numberOrNull(funnel.values.purchase);
   if (!first || purchase === null) return null;
   return (purchase / first) * 100;
@@ -1103,6 +1139,7 @@ function renderCommercialFunnel(payload = {}) {
   const funnels = buildCommercialFunnels(payload);
   if (!funnels[state.funnelSource]) state.funnelSource = "geral";
   const active = funnels[state.funnelSource];
+  const activeStages = funnelStagesForSource(state.funnelSource);
   tabs.innerHTML = Object.entries(funnels).map(([key, funnel]) => `
     <button type="button" class="funnel-tab ${key === state.funnelSource ? "is-active" : ""}" data-funnel-source="${key}">
       ${escapeHtml(funnel.label)}
@@ -1115,9 +1152,9 @@ function renderCommercialFunnel(payload = {}) {
     });
   });
 
-  funnelElement.innerHTML = COMMERCIAL_FUNNEL_STAGES.map((stage, index) => {
+  funnelElement.innerHTML = activeStages.map((stage, index) => {
     const value = numberOrNull(active.values[stage.key]);
-    const { conversion, loss } = getConversionToNext(active.values, index);
+    const { conversion, loss } = getConversionToNext(active.values, index, activeStages);
     const width = Math.max(42, 100 - index * 9);
     const isEmpty = value === null;
     return `
@@ -1144,7 +1181,7 @@ function renderCommercialFunnel(payload = {}) {
 
   const potential = funnelPotentialAbandoned(active);
   const abandonment = funnelCheckoutAbandonment(active);
-  const generalConversion = funnelGeneralConversion(active);
+  const generalConversion = funnelGeneralConversion(active, activeStages);
   const ticket = funnelTicketAverage(active);
   const kpis = [
     ["Receita gerada", valueText(active.revenue, formatCurrency.format.bind(formatCurrency)), "revenue"],
@@ -1167,10 +1204,13 @@ function renderCommercialFunnel(payload = {}) {
 function openFunnelDrawer(funnel, stageKey) {
   const drawer = document.getElementById("commercialFunnelDrawer");
   if (!drawer || !funnel) return;
-  const stage = COMMERCIAL_FUNNEL_STAGES.find((item) => item.key === stageKey) || COMMERCIAL_FUNNEL_STAGES[0];
+  const sourceKey = Object.entries(buildCommercialFunnels(state.payload || {}))
+    .find(([, candidate]) => candidate === funnel)?.[0] || state.funnelSource;
+  const stages = funnelStagesForSource(sourceKey);
+  const stage = stages.find((item) => item.key === stageKey) || stages[0];
   const value = numberOrNull(funnel.values[stage.key]);
-  const stageIndex = COMMERCIAL_FUNNEL_STAGES.findIndex((item) => item.key === stage.key);
-  const { conversion, loss } = getConversionToNext(funnel.values, stageIndex);
+  const stageIndex = stages.findIndex((item) => item.key === stage.key);
+  const { conversion, loss } = getConversionToNext(funnel.values, stageIndex, stages);
 
   setText("funnelDrawerSource", funnel.label);
   setText("funnelDrawerTitle", stage.label);

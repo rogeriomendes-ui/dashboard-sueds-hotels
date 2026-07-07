@@ -240,7 +240,7 @@ function render(data) {
             ${goalGauge("Meta hoje", seller.dailyGoalPct)}
             <span class="reservations-pill">${seller.reservationsToday} reservas hoje</span>
           </div>
-          ${goalColumn("ICM MTD", seller.mtdGoalPct, "")}
+          ${goalColumn("PROJEÇÃO", seller.mtdGoalPct, "")}
           ${goalColumn("ICM mês", seller.monthlyGoalPct, "")}
           <span class="reservations-pill reservations-pill-month">${seller.reservationsMonth} no mês</span>
         </div>
