@@ -142,7 +142,7 @@ h3 {
 }
 
 .filters-panel select,
-.filters-panel input[type="date"] {
+.filters-panel input[type="text"] {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);

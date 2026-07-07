@@ -112,9 +112,37 @@ function setSelect(id, values, placeholder, selectedValue) {
   });
 }
 
+function formatDateBr(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+function parseDateBr(value) {
+  const text = String(value || "").trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!br) return "";
+  const day = String(Number(br[1])).padStart(2, "0");
+  const month = String(Number(br[2])).padStart(2, "0");
+  const year = br[3];
+  const date = new Date(`${year}-${month}-${day}T00:00:00`);
+  if (date.getFullYear() !== Number(year) || date.getMonth() + 1 !== Number(month) || date.getDate() !== Number(day)) {
+    return "";
+  }
+  return `${year}-${month}-${day}`;
+}
+
+function maskDateBr(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 function setDateInput() {
   const input = document.getElementById("dateSelect");
-  if (input) input.value = state.filters.date || "";
+  if (input) input.value = formatDateBr(state.filters.date);
 }
 
 function monthSelectionLabel(months = []) {
@@ -208,8 +236,12 @@ function updateFilters(payload) {
 function bindFilters() {
   const dateInput = document.getElementById("dateSelect");
   if (dateInput) {
+    dateInput.addEventListener("input", () => {
+      dateInput.value = maskDateBr(dateInput.value);
+    });
     dateInput.addEventListener("change", () => {
-      state.filters.date = /^\d{4}-\d{2}-\d{2}$/.test(dateInput.value) ? dateInput.value : "";
+      state.filters.date = parseDateBr(dateInput.value);
+      dateInput.value = formatDateBr(state.filters.date);
       loadDashboard();
     });
   }
