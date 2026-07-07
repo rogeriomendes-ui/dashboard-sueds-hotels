@@ -142,7 +142,9 @@ function maskDateBr(value) {
 
 function setDateInput() {
   const input = document.getElementById("dateSelect");
+  const picker = document.getElementById("datePicker");
   if (input) input.value = formatDateBr(state.filters.date);
+  if (picker) picker.value = state.filters.date || "";
 }
 
 function monthSelectionLabel(months = []) {
@@ -235,6 +237,8 @@ function updateFilters(payload) {
 
 function bindFilters() {
   const dateInput = document.getElementById("dateSelect");
+  const datePicker = document.getElementById("datePicker");
+  const datePickerButton = document.getElementById("datePickerButton");
   if (dateInput) {
     dateInput.addEventListener("input", () => {
       dateInput.value = maskDateBr(dateInput.value);
@@ -242,7 +246,26 @@ function bindFilters() {
     dateInput.addEventListener("change", () => {
       state.filters.date = parseDateBr(dateInput.value);
       dateInput.value = formatDateBr(state.filters.date);
+      if (datePicker) datePicker.value = state.filters.date || "";
       loadDashboard();
+    });
+  }
+  if (datePicker) {
+    datePicker.addEventListener("change", () => {
+      state.filters.date = datePicker.value || "";
+      setDateInput();
+      loadDashboard();
+    });
+  }
+  if (datePickerButton && datePicker) {
+    datePickerButton.addEventListener("click", () => {
+      datePicker.value = state.filters.date || "";
+      if (typeof datePicker.showPicker === "function") {
+        datePicker.showPicker();
+      } else {
+        datePicker.focus();
+        datePicker.click();
+      }
     });
   }
 

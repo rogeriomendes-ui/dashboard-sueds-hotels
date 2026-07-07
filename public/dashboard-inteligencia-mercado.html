@@ -31,7 +31,11 @@
         </label>
         <label>
           <span>Data</span>
-          <input id="dateSelect" type="text" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" aria-label="Data específica">
+          <div class="date-field">
+            <input id="dateSelect" type="text" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" aria-label="Data específica">
+            <input id="datePicker" class="date-picker-native" type="date" aria-hidden="true" tabindex="-1">
+            <button id="datePickerButton" class="date-picker-button" type="button" aria-label="Abrir calendário"></button>
+          </div>
         </label>
         <label>
           <span>Hotel</span>
