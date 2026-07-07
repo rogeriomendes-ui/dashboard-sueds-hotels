@@ -141,7 +141,8 @@ h3 {
   text-transform: uppercase;
 }
 
-.filters-panel select {
+.filters-panel select,
+.filters-panel input[type="date"] {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--line);

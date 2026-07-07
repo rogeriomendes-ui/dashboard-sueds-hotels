@@ -2,6 +2,7 @@ const state = {
   payload: null,
   filters: {
     months: [],
+    date: "",
     hotel: "",
     state: "",
     ddd: "",
@@ -111,6 +112,11 @@ function setSelect(id, values, placeholder, selectedValue) {
   });
 }
 
+function setDateInput() {
+  const input = document.getElementById("dateSelect");
+  if (input) input.value = state.filters.date || "";
+}
+
 function monthSelectionLabel(months = []) {
   const selected = normalizeMonthValues(months);
   if (selected.length === 1) return monthLabel(selected[0]);
@@ -191,6 +197,7 @@ function updateFilters(payload) {
     state.filters.checkinMonth = selected.checkinMonth;
   }
   setMonthMultiSelect(filters.periods || []);
+  setDateInput();
   setSelect("hotelSelect", filters.hotels || [], "Todos os hotéis", state.filters.hotel);
   setSelect("checkinMonthSelect", filters.checkinMonths || [], "Próximo mês", state.filters.checkinMonth);
   setSelect("stateSelect", filters.states || [], "Todos os estados", state.filters.state);
@@ -199,6 +206,14 @@ function updateFilters(payload) {
 }
 
 function bindFilters() {
+  const dateInput = document.getElementById("dateSelect");
+  if (dateInput) {
+    dateInput.addEventListener("change", () => {
+      state.filters.date = /^\d{4}-\d{2}-\d{2}$/.test(dateInput.value) ? dateInput.value : "";
+      loadDashboard();
+    });
+  }
+
   [
     ["hotelSelect", "hotel"],
     ["checkinMonthSelect", "checkinMonth"],
@@ -248,6 +263,7 @@ function downloadCsv(filename, headers, rows) {
 }
 
 function selectedPeriodForFilename() {
+  if (state.filters.date) return state.filters.date;
   const months = normalizeMonthValues(state.filters.months);
   return months.length ? months.join("_") : "periodo";
 }

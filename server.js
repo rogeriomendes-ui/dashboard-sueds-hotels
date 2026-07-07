@@ -2529,6 +2529,18 @@ function monthFromMarketValue(value) {
   return text;
 }
 
+function singleDateFromMarketValue(value) {
+  const text = String(value || "").trim();
+  const isoDate = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDate) return `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}`;
+
+  const brDates = [...text.matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g)]
+    .map((match) => `${match[3]}-${String(Number(match[2])).padStart(2, "0")}-${String(Number(match[1])).padStart(2, "0")}`);
+  if (!brDates.length) return "";
+  const uniqueDates = [...new Set(brDates)];
+  return uniqueDates.length === 1 ? uniqueDates[0] : "";
+}
+
 function dddFromPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if (!digits) return "NI";
@@ -2563,7 +2575,8 @@ function normalizeAsksuiteMarketChannel(value) {
 
 function normalizeAsksuiteMarketSheetRow(item, index = 0) {
   const start = firstFilledValue(item, ["Início do atendimento", "Inicio do atendimento"]);
-  const month = monthFromMarketValue(firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]) || start);
+  const periodValue = firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]) || start;
+  const month = monthFromMarketValue(periodValue);
   if (!month) return null;
 
   const rawDdd = String(firstFilledValue(item, ["DDD", "ddd"]) || "").replace(/\D/g, "");
@@ -2583,6 +2596,7 @@ function normalizeAsksuiteMarketSheetRow(item, index = 0) {
   return {
     sheetKey: `sheet-${month}-${rawKey || index + 1}`,
     month,
+    dateKey: singleDateFromMarketValue(periodValue || start),
     state,
     ddd,
     hotel,
@@ -2649,6 +2663,7 @@ function normalizeAsksuiteMarketRow(row, index) {
   return {
     id: `asksuite-${row.month}-${index + 1}`,
     month: row.month,
+    dateKey: row.dateKey || "",
     state: row.state || "Não informado",
     ddd: row.ddd || "NI",
     hotel: row.hotel || "Não informado",
@@ -2695,6 +2710,17 @@ function loadAsksuiteMarketRowsForMonthsFromRaw(rawRows, months = []) {
   }
 }
 
+function loadAsksuiteMarketRowsForDateFromRaw(rawRows, date) {
+  try {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return [];
+    return rawRows
+      .filter((row) => String(row.dateKey || "") === date)
+      .map(normalizeAsksuiteMarketRow);
+  } catch (error) {
+    return [];
+  }
+}
+
 function demoCompetitivenessRows(month) {
   const base = marketDateRangeForMonth(month).startDate;
   return [
@@ -2712,7 +2738,8 @@ function demoCompetitivenessRows(month) {
 
 function filterMarketRows(rows, filters) {
   return rows.filter((row) => {
-    return (!filters.hotel || marketComparable(row.hotel) === marketComparable(filters.hotel))
+    return (!filters.date || row.dateKey === filters.date)
+      && (!filters.hotel || marketComparable(row.hotel) === marketComparable(filters.hotel))
       && (!filters.state || marketComparable(row.state) === marketComparable(filters.state))
       && (!filters.ddd || marketComparable(row.ddd) === marketComparable(filters.ddd))
       && (!filters.channel || marketComparable(row.channel) === marketComparable(filters.channel))
@@ -3362,16 +3389,19 @@ async function loadVetorTradeCompetitiveness({ checkinMonth, hotel } = {}, byHot
 }
 
 async function buildMarketIntelligencePayload(filters = {}) {
+  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(String(filters.date || "")) ? filters.date : "";
   const requestedMonth = filters.month && (filters.month === "ytd" || /^\d{4}$/.test(filters.month) || /^\d{4}-\d{2}$/.test(filters.month))
     ? filters.month
     : "";
   const { month } = requestedMonth ? marketDateRangeForMonth(requestedMonth) : { month: "" };
   const allMarketRows = await loadAsksuiteMarketRawRows();
   const selectedMonths = normalizeMarketMonthList(filters.months || []);
-  const activeMonths = selectedMonths.length ? selectedMonths : normalizeMarketMonthList([month]);
-  const asksuiteMarketRows = activeMonths.length > 1
-    ? loadAsksuiteMarketRowsForMonthsFromRaw(allMarketRows, activeMonths)
-    : (activeMonths.length ? loadAsksuiteMarketRowsFromRaw(allMarketRows, activeMonths[0]) : []);
+  const activeMonths = selectedDate ? [selectedDate.slice(0, 7)] : (selectedMonths.length ? selectedMonths : normalizeMarketMonthList([month]));
+  const asksuiteMarketRows = selectedDate
+    ? loadAsksuiteMarketRowsForDateFromRaw(allMarketRows, selectedDate)
+    : (activeMonths.length > 1
+      ? loadAsksuiteMarketRowsForMonthsFromRaw(allMarketRows, activeMonths)
+      : (activeMonths.length ? loadAsksuiteMarketRowsFromRaw(allMarketRows, activeMonths[0]) : []));
   const sourceRows = asksuiteMarketRows;
   const marketSource = asksuiteMarketRows.length ? "asksuite_report" : "empty";
   const rows = filterMarketRows(sourceRows, filters);
@@ -3399,7 +3429,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
   const payload = {
     audience: "gestores-inteligencia-mercado",
     generatedAt: new Date().toISOString(),
-    period: { month: activeMonths[0] || month, months: activeMonths },
+    period: { month: activeMonths[0] || month, months: activeMonths, date: selectedDate },
     integrations: {
       asksuite: {
         configured: Boolean(asksuiteMarketRows.length),
@@ -3417,7 +3447,7 @@ async function buildMarketIntelligencePayload(filters = {}) {
       }
     },
     filters: {
-      selected: { ...filters, months: activeMonths, checkinMonth: competitiveness.checkinMonth },
+      selected: { ...filters, date: selectedDate, months: activeMonths, checkinMonth: competitiveness.checkinMonth },
       periods: marketAvailablePeriodsFromRows(allMarketRows),
       checkinMonths: marketCheckinMonthOptions(),
       hotels: selectValues(sourceRows, "hotel"),
@@ -3511,11 +3541,18 @@ async function buildMarketIntelligencePayload(filters = {}) {
     geoCities: [],
     summary: { spend: 0, clicks: 0, impressions: 0, conversions: 0, conversionValue: 0 }
   };
+  const selectedDateAdsPeriod = selectedDate
+    ? { month: selectedDate.slice(0, 7), startDate: selectedDate, endDate: selectedDate }
+    : null;
   const [googleAds, metaAds] = await Promise.all([
-    activeMonths.length > 1
+    selectedDateAdsPeriod
+      ? loadGoogleAdsMetrics(selectedDateAdsPeriod)
+      : activeMonths.length > 1
       ? loadGoogleAdsMetricsForMonths(activeMonths)
       : (activeMonths.length ? loadGoogleAdsMetrics({ month: activeMonths[0] }) : emptyAdsPayload),
-    activeMonths.length > 1
+    selectedDateAdsPeriod
+      ? loadMetaAdsMetrics(selectedDateAdsPeriod)
+      : activeMonths.length > 1
       ? loadMetaAdsMetricsForMonths(activeMonths)
       : (activeMonths.length ? loadMetaAdsMetrics({ month: activeMonths[0] }) : emptyAdsPayload)
   ]);
@@ -3530,9 +3567,11 @@ async function buildMarketIntelligencePayload(filters = {}) {
 function marketFiltersFromUrl(url) {
   const period = url.searchParams.get("month") || "";
   const months = normalizeMarketMonthList((url.searchParams.get("months") || "").split(","));
+  const date = url.searchParams.get("date") || "";
   return {
     month: period === "ytd" || /^\d{4}$/.test(period) || /^\d{4}-\d{2}$/.test(period) ? period : undefined,
     months,
+    date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
     hotel: url.searchParams.get("hotel") || "",
     state: url.searchParams.get("state") || "",
     ddd: url.searchParams.get("ddd") || "",
