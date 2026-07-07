@@ -721,7 +721,7 @@ function renderMedia(media) {
 function renderCompetitiveness(competitiveness) {
   const rows = competitiveness?.rows || [];
   const currencyOrEmpty = (value) => Number.isFinite(Number(value)) && Number(value) > 0
-    ? formatCurrency.format(Number(value))
+    ? formatCurrencyDetailed.format(Number(value))
     : "--";
   const competitorListHtml = (competitors = []) => {
     const items = (competitors || [])
@@ -733,7 +733,7 @@ function renderCompetitiveness(competitiveness) {
         ${items.map((item) => `
           <li>
             <span title="${item.name}">${item.name}</span>
-            <strong>${formatCurrency.format(Number(item.bestPrice || item.averagePrice || 0))}</strong>
+            <strong>${formatCurrencyDetailed.format(Number(item.averagePrice || item.bestPrice || 0))}</strong>
           </li>
         `).join("")}
       </ul>
