@@ -513,23 +513,38 @@ async function getGoogleAdsOAuthAccessToken() {
 async function googleAdsSearchStream(query) {
   const accessToken = await getGoogleAdsOAuthAccessToken();
   const customerId = GOOGLE_ADS_CUSTOMER_ID;
-  const response = await fetch(`https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:searchStream`, {
-    method: "POST",
-    headers: {
+  const endpoint = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}/googleAds:searchStream`;
+  const request = async (loginCustomerId = GOOGLE_ADS_LOGIN_CUSTOMER_ID) => {
+    const headers = {
       authorization: `Bearer ${accessToken}`,
       "developer-token": GOOGLE_ADS_DEVELOPER_TOKEN,
-      "login-customer-id": GOOGLE_ADS_LOGIN_CUSTOMER_ID || customerId,
       "content-type": "application/json"
-    },
-    body: JSON.stringify({ query })
-  });
+    };
+    if (loginCustomerId) headers["login-customer-id"] = loginCustomerId;
+    return fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ query })
+    });
+  };
 
-  const payload = await response.json().catch(() => ({}));
+  let response = await request();
+  let payload = await response.json().catch(() => ({}));
+  if (!response.ok && GOOGLE_ADS_LOGIN_CUSTOMER_ID && googleAdsPermissionDenied(payload)) {
+    response = await request("");
+    payload = await response.json().catch(() => ({}));
+  }
+
   if (!response.ok) {
     throw new Error(`Google Ads request failed: ${response.status} ${JSON.stringify(payload)}`);
   }
 
   return Array.isArray(payload) ? payload.flatMap((chunk) => chunk.results || []) : [];
+}
+
+function googleAdsPermissionDenied(payload) {
+  const text = JSON.stringify(payload || {});
+  return /USER_PERMISSION_DENIED|PERMISSION_DENIED/i.test(text);
 }
 
 function googleAdsMetricNumber(value) {

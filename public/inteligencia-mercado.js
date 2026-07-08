@@ -480,7 +480,7 @@ function renderDashboard(payload) {
   renderKpis(payload.summary, payload.integrations);
   renderDemand(payload.demand);
   renderConversion(payload.conversion);
-  renderMedia(payload.media);
+  renderMedia(payload.media, payload.integrations);
   renderCompetitiveness(payload.competitiveness);
   renderOpportunities(payload.opportunities);
   renderCommercialFunnel(payload);
@@ -582,12 +582,13 @@ function renderConversionTable(id, rows, maxRows = 8) {
   `;
 }
 
-function renderMedia(media) {
+function renderMedia(media, integrations = {}) {
   const conversionRate = (conversions, clicks) => formatPct(clicks ? (Number(conversions || 0) / Number(clicks || 0)) * 100 : 0);
   const roasText = (revenue, spend) => `${(spend ? Number(revenue || 0) / Number(spend || 0) : 0).toLocaleString("pt-BR", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1
   })}x`;
+  const googleErrorMessage = humanizeGoogleAdsError(integrations.googleAds?.error || media.googleError || "");
 
   const googleCards = [
     ["Investimento", formatCurrency.format(media.googleSpend || 0)],
@@ -810,6 +811,8 @@ function renderMedia(media) {
   currentKeywordExportRows = keywordRows;
   const exportButton = document.getElementById("exportKeywordTable");
   if (exportButton) exportButton.disabled = !keywordRows.length;
+  const googleKeywordEmptyMessage = googleErrorMessage
+    || "Sem dados de palavras-chave para este periodo. Algumas campanhas podem nao usar palavras-chave tradicionais.";
   document.getElementById("keywordTable").innerHTML = keywordRows.length ? keywordRows.map((row) => `
     <tr>
       <td title="${row.campaign} | ${row.adGroup}">${row.keyword || row.label}</td>
@@ -824,7 +827,7 @@ function renderMedia(media) {
     </tr>
   `).join("") : `
     <tr>
-      <td colspan="9">Sem dados de palavras-chave para este período. Algumas campanhas podem não usar palavras-chave tradicionais.</td>
+      <td colspan="9">${escapeHtml(googleKeywordEmptyMessage)}</td>
     </tr>
   `;
 }
@@ -915,6 +918,14 @@ function renderOpportunities(opportunities) {
       Sem sugestões para este filtro. Selecione um período com dados de Asksuites, Google Ads ou Meta Ads.
     </div>
   `;
+}
+
+function humanizeGoogleAdsError(error) {
+  if (!error) return "";
+  if (/invalid_grant/i.test(error)) {
+    return "Google Ads indisponivel: o refresh token OAuth expirou ou foi revogado. Gere um novo token e atualize GOOGLE_ADS_REFRESH_TOKEN no .env e na Vercel.";
+  }
+  return `Google Ads indisponivel: ${error}`;
 }
 
 function escapeHtml(value) {
