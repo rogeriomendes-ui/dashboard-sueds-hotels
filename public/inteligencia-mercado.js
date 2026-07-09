@@ -17,6 +17,37 @@ const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
 let dashboardRequestId = 0;
 let currentKeywordExportRows = [];
 let currentMetaAdExportRows = [];
+let mediaSortButtonsBound = false;
+
+const MEDIA_TABLE_SORT_COLUMNS = {
+  googleKeywords: [
+    { key: "keyword", label: "Palavra-chave", type: "text" },
+    { key: "spend", label: "Investimento", type: "number" },
+    { key: "clicks", label: "Cliques", type: "number" },
+    { key: "conversions", label: "Vendas", type: "number" },
+    { key: "conversionRate", label: "Conversão %", type: "number" },
+    { key: "revenue", label: "Receita", type: "number" },
+    { key: "costPerClick", label: "CPC", type: "number" },
+    { key: "costPerSale", label: "Custo/conv.", type: "number" },
+    { key: "roas", label: "ROAS", type: "number" }
+  ],
+  metaAds: [
+    { key: "label", label: "Anúncio", type: "text" },
+    { key: "spend", label: "Investimento", type: "number" },
+    { key: "clicks", label: "Cliques", type: "number" },
+    { key: "conversions", label: "Vendas", type: "number" },
+    { key: "conversionRate", label: "Conversão %", type: "number" },
+    { key: "revenue", label: "Receita", type: "number" },
+    { key: "costPerClick", label: "CPC", type: "number" },
+    { key: "costPerSale", label: "Custo/conv.", type: "number" },
+    { key: "roas", label: "ROAS", type: "number" }
+  ]
+};
+
+const mediaTableSort = {
+  googleKeywords: { key: "spend", direction: "desc" },
+  metaAds: { key: "spend", direction: "desc" }
+};
 
 const COMMERCIAL_FUNNEL_STAGES = [
   { key: "visitors", label: "Visitantes do site", detail: "GA4", color: "#1677b8" },
@@ -110,6 +141,85 @@ function formatPct(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}%`;
+}
+
+function mediaSortValue(row, key) {
+  if (key === "keyword") return String(row.keyword || row.label || "").toLocaleLowerCase("pt-BR");
+  if (key === "label") return String(row.label || "").toLocaleLowerCase("pt-BR");
+  if (key === "conversionRate") {
+    const clicks = Number(row.clicks || 0);
+    return clicks ? (Number(row.conversions || 0) / clicks) * 100 : 0;
+  }
+  return Number(row[key] || 0);
+}
+
+function sortMediaRows(rows, tableKey) {
+  const sort = mediaTableSort[tableKey] || { key: "spend", direction: "desc" };
+  const columns = MEDIA_TABLE_SORT_COLUMNS[tableKey] || [];
+  const column = columns.find((item) => item.key === sort.key);
+  const direction = sort.direction === "asc" ? 1 : -1;
+
+  return [...(rows || [])].sort((first, second) => {
+    const firstValue = mediaSortValue(first, sort.key);
+    const secondValue = mediaSortValue(second, sort.key);
+
+    if (column?.type === "text") {
+      return String(firstValue).localeCompare(String(secondValue), "pt-BR") * direction;
+    }
+
+    return ((Number(firstValue) || 0) - (Number(secondValue) || 0)) * direction;
+  });
+}
+
+function renderMediaTableHeader(tableBodyId, tableKey) {
+  const tableBody = document.getElementById(tableBodyId);
+  const headerRow = tableBody?.closest("table")?.querySelector("thead tr");
+  if (!headerRow) return;
+
+  const activeSort = mediaTableSort[tableKey] || {};
+  headerRow.innerHTML = (MEDIA_TABLE_SORT_COLUMNS[tableKey] || []).map((column) => {
+    const isActive = activeSort.key === column.key;
+    const indicator = isActive ? (activeSort.direction === "asc" ? "▲" : "▼") : "↕";
+
+    return `
+      <th>
+        <button
+          type="button"
+          class="sortable-table-header ${isActive ? "is-active" : ""}"
+          data-media-table="${tableKey}"
+          data-media-sort-key="${column.key}"
+          aria-sort="${isActive ? (activeSort.direction === "asc" ? "ascending" : "descending") : "none"}"
+        >
+          <span>${escapeHtml(column.label)}</span>
+          <span class="sort-indicator">${indicator}</span>
+        </button>
+      </th>
+    `;
+  }).join("");
+}
+
+function bindMediaSortButtons() {
+  if (mediaSortButtonsBound) return;
+  mediaSortButtonsBound = true;
+
+  document.addEventListener("click", (event) => {
+    const button = event.target?.closest?.("[data-media-sort-key]");
+    if (!button) return;
+
+    const tableKey = button.dataset.mediaTable;
+    const sortKey = button.dataset.mediaSortKey;
+    if (!MEDIA_TABLE_SORT_COLUMNS[tableKey]?.some((column) => column.key === sortKey)) return;
+
+    const currentSort = mediaTableSort[tableKey] || { key: "spend", direction: "desc" };
+    mediaTableSort[tableKey] = {
+      key: sortKey,
+      direction: currentSort.key === sortKey && currentSort.direction === "desc" ? "asc" : "desc"
+    };
+
+    if (state.payload?.media) {
+      renderMedia(state.payload.media, state.payload.integrations || {});
+    }
+  });
 }
 
 function setText(id, value) {
@@ -646,7 +756,7 @@ function renderMedia(media, integrations = {}) {
     </tr>
   `;
 
-  const metaAdRows = media.byMetaAd && media.byMetaAd.length ? media.byMetaAd : [];
+  const metaAdRows = sortMediaRows(media.byMetaAd && media.byMetaAd.length ? media.byMetaAd : [], "metaAds");
   currentMetaAdExportRows = metaAdRows;
   const exportMetaAdButton = document.getElementById("exportMetaAdTable");
   if (exportMetaAdButton) exportMetaAdButton.disabled = !metaAdRows.length;
@@ -675,6 +785,7 @@ function renderMedia(media, integrations = {}) {
   }
   const metaAdTable = document.getElementById("metaAdTable");
   if (metaAdTable) {
+    renderMediaTableHeader("metaAdTable", "metaAds");
     metaAdTable.innerHTML = metaAdRows.length ? metaAdRows.map((row) => `
       <tr>
         <td title="${row.campaign || ""} | ${row.adSet || ""}">${row.label}</td>
@@ -807,12 +918,13 @@ function renderMedia(media, integrations = {}) {
       : `<tr><td colspan="9">Sem dados de origem dos cliques da Meta para este filtro.</td></tr>`;
   }
 
-  const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];
+  const keywordRows = sortMediaRows(media.byKeyword && media.byKeyword.length ? media.byKeyword : [], "googleKeywords");
   currentKeywordExportRows = keywordRows;
   const exportButton = document.getElementById("exportKeywordTable");
   if (exportButton) exportButton.disabled = !keywordRows.length;
   const googleKeywordEmptyMessage = googleErrorMessage
     || "Sem dados de palavras-chave para este periodo. Algumas campanhas podem nao usar palavras-chave tradicionais.";
+  renderMediaTableHeader("keywordTable", "googleKeywords");
   document.getElementById("keywordTable").innerHTML = keywordRows.length ? keywordRows.map((row) => `
     <tr>
       <td title="${row.campaign} | ${row.adGroup}">${row.keyword || row.label}</td>
@@ -1271,6 +1383,7 @@ function bindFunnelDrawer() {
 }
 
 bindExportButtons();
+bindMediaSortButtons();
 bindFunnelDrawer();
 bindFilters();
 loadDashboard();

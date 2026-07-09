@@ -1240,6 +1240,41 @@ tr:last-child td {
   flex: 0 0 auto;
 }
 
+.sortable-table-header {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.sortable-table-header:hover,
+.sortable-table-header.is-active {
+  color: #0b2d45;
+}
+
+.sort-indicator {
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.45;
+}
+
+.sortable-table-header.is-active .sort-indicator {
+  color: #00cdb5;
+  opacity: 1;
+}
+
 @media (max-width: 1380px) {
   .kpi-grid,
   .filters-panel {
