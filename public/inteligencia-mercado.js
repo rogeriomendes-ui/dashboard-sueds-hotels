@@ -692,6 +692,56 @@ function renderConversionTable(id, rows, maxRows = 8) {
   `;
 }
 
+function renderMediaConversionDetails(media = {}) {
+  const detailConfigs = [
+    {
+      id: "googleConversionDetailTable",
+      rows: media.googleTransactions || media.googleConversionDetails || [],
+      conversions: Number(media.googleConversions || 0),
+      source: "Google Ads",
+      prerequisite: "Para preencher este quadro, precisamos receber transaction_id/codigo da reserva, data, hora e valor pelo GA4 ecommerce ou pelo motor Omnibees."
+    },
+    {
+      id: "metaConversionDetailTable",
+      rows: media.metaTransactions || media.metaConversionDetails || [],
+      conversions: Number(media.metaConversions || 0),
+      source: "Meta Ads",
+      prerequisite: "Para preencher este quadro, precisamos receber transaction_id/codigo da reserva, data, hora e valor pelo Pixel/CAPI ou pelo motor Omnibees."
+    }
+  ];
+
+  detailConfigs.forEach((config) => {
+    const body = document.getElementById(config.id);
+    if (!body) return;
+    const rows = Array.isArray(config.rows) ? config.rows : [];
+    body.innerHTML = rows.length ? rows.map((row) => {
+      const dateText = row.date || row.day || row.transactionDate || "--";
+      const timeText = row.time || row.hour || row.transactionTime || "--";
+      const reservationText = row.reservationCode || row.reservation || row.transactionId || row.id || "--";
+      const value = Number(row.value || row.revenue || row.amount || 0);
+      const label = row.keyword || row.ad || row.campaign || row.label || "--";
+      return `
+        <tr>
+          <td>${escapeHtml(dateText)}</td>
+          <td>${escapeHtml(timeText)}</td>
+          <td>${escapeHtml(reservationText)}</td>
+          <td>${value ? formatCurrencyDetailed.format(value) : "--"}</td>
+          <td>${escapeHtml(row.source || config.source)}</td>
+          <td title="${escapeHtml(label)}">${escapeHtml(label)}</td>
+          <td>${escapeHtml(row.status || "Atribuida")}</td>
+        </tr>
+      `;
+    }).join("") : `
+      <tr>
+        <td colspan="7" class="conversion-detail-empty">
+          ${config.conversions ? `${formatNumber.format(config.conversions)} conversoes atribuidas em ${config.source}, mas a API atual entrega apenas totais agregados.` : `Sem conversoes atribuidas em ${config.source} neste filtro.`}
+          ${config.prerequisite}
+        </td>
+      </tr>
+    `;
+  });
+}
+
 function renderMedia(media, integrations = {}) {
   const conversionRate = (conversions, clicks) => formatPct(clicks ? (Number(conversions || 0) / Number(clicks || 0)) * 100 : 0);
   const roasText = (revenue, spend) => `${(spend ? Number(revenue || 0) / Number(spend || 0) : 0).toLocaleString("pt-BR", {
@@ -942,6 +992,7 @@ function renderMedia(media, integrations = {}) {
       <td colspan="9">${escapeHtml(googleKeywordEmptyMessage)}</td>
     </tr>
   `;
+  renderMediaConversionDetails(media);
 }
 
 function renderCompetitiveness(competitiveness) {

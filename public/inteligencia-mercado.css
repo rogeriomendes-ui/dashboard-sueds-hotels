@@ -458,7 +458,8 @@ h3 {
 .keyword-table-wrap,
 .city-table-wrap,
 .meta-campaign-table-wrap,
-.meta-ad-table-wrap {
+.meta-ad-table-wrap,
+.conversion-detail-table-wrap {
   max-height: 790px;
   overflow: auto;
 }
@@ -467,7 +468,8 @@ h3 {
 .keyword-table-wrap thead th,
 .city-table-wrap thead th,
 .meta-campaign-table-wrap thead th,
-.meta-ad-table-wrap thead th {
+.meta-ad-table-wrap thead th,
+.conversion-detail-table-wrap thead th {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -486,7 +488,8 @@ table {
 .keyword-table-wrap table,
 .city-table-wrap table,
 .meta-campaign-table-wrap table,
-.meta-ad-table-wrap table {
+.meta-ad-table-wrap table,
+.conversion-detail-table-wrap table {
   table-layout: fixed;
   min-width: 100%;
 }
@@ -508,7 +511,9 @@ td {
 .meta-campaign-table-wrap th,
 .meta-campaign-table-wrap td,
 .meta-ad-table-wrap th,
-.meta-ad-table-wrap td {
+.meta-ad-table-wrap td,
+.conversion-detail-table-wrap th,
+.conversion-detail-table-wrap td {
   padding: 10px 7px;
   font-size: 12px;
   overflow: visible;
@@ -518,7 +523,8 @@ td {
 .keyword-table-wrap th,
 .city-table-wrap th,
 .meta-campaign-table-wrap th,
-.meta-ad-table-wrap th {
+.meta-ad-table-wrap th,
+.conversion-detail-table-wrap th {
   padding: 9px 5px;
   font-size: 9px;
 }
@@ -544,6 +550,51 @@ td {
   width: 28%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.conversion-detail-table-wrap {
+  max-height: 300px;
+}
+
+.conversion-detail-table-wrap th:nth-child(1),
+.conversion-detail-table-wrap td:nth-child(1),
+.conversion-detail-table-wrap th:nth-child(2),
+.conversion-detail-table-wrap td:nth-child(2) {
+  width: 10%;
+}
+
+.conversion-detail-table-wrap th:nth-child(3),
+.conversion-detail-table-wrap td:nth-child(3) {
+  width: 16%;
+}
+
+.conversion-detail-table-wrap th:nth-child(4),
+.conversion-detail-table-wrap td:nth-child(4) {
+  width: 13%;
+}
+
+.conversion-detail-table-wrap th:nth-child(5),
+.conversion-detail-table-wrap td:nth-child(5) {
+  width: 14%;
+}
+
+.conversion-detail-table-wrap th:nth-child(6),
+.conversion-detail-table-wrap td:nth-child(6) {
+  width: 27%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversion-detail-table-wrap th:nth-child(7),
+.conversion-detail-table-wrap td:nth-child(7) {
+  width: 10%;
+}
+
+.conversion-detail-empty {
+  color: var(--muted);
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
 }
 
 .keyword-table-wrap th:nth-child(2),
