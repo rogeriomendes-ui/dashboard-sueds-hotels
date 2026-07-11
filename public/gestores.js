@@ -133,7 +133,10 @@ async function saveTvMessage() {
     return;
   }
   if (!response.ok) {
-    feedback.textContent = "Falha ao publicar mensagem.";
+    const detail = await response
+      .json()
+      .catch(async () => ({ message: await response.text().catch(() => "") }));
+    feedback.textContent = detail.message || detail.error || "Falha ao publicar mensagem.";
     return;
   }
 
@@ -146,9 +149,9 @@ function setupTvMessageModal() {
   byId("closeTvMessageModal")?.addEventListener("click", closeTvMessageModal);
   byId("cancelTvMessage")?.addEventListener("click", closeTvMessageModal);
   byId("saveTvMessage")?.addEventListener("click", () => {
-    saveTvMessage().catch(() => {
+    saveTvMessage().catch((error) => {
       const feedback = byId("tvMessageFeedback");
-      if (feedback) feedback.textContent = "Falha ao publicar mensagem.";
+      if (feedback) feedback.textContent = error?.message || "Falha ao publicar mensagem.";
     });
   });
   byId("tvMessageModal")?.addEventListener("click", (event) => {

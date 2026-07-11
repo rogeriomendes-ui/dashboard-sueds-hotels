@@ -271,6 +271,18 @@ function isMissingSheetError(error) {
   return /Unable to parse range|not found|Cannot find/i.test(String(error?.message || ""));
 }
 
+function tvMessageErrorMessage(error) {
+  const message = String(error?.message || error || "");
+  if (/403|PERMISSION_DENIED|insufficient|The caller does not have permission/i.test(message)) {
+    return "Sem permissao para gravar na planilha. Compartilhe a planilha com a service account como Editor e tente novamente.";
+  }
+  if (isMissingSheetError(error)) {
+    return `A aba ${TV_MESSAGES_SHEET} nao foi encontrada e nao foi possivel criar automaticamente. Crie a aba ou libere permissao de editor para a service account.`;
+  }
+  if (/invalid|invalido|vazia|Payload/i.test(message)) return message;
+  return message || "Falha interna ao publicar mensagem.";
+}
+
 async function ensureTvMessagesSheet() {
   if (tvMessagesSheetReady) return;
 
@@ -3990,8 +4002,12 @@ async function handleRequest(req, res) {
 
       if (req.method === "POST") {
         if (!hasManagerAccess(req, url)) return forbidden(res);
-        const body = await readJsonBody(req);
-        return json(res, 200, { ok: true, messages: await appendTvMessage(body.message, body.expiresAt) });
+        try {
+          const body = await readJsonBody(req);
+          return json(res, 200, { ok: true, messages: await appendTvMessage(body.message, body.expiresAt) });
+        } catch (error) {
+          return json(res, 500, { ok: false, error: "tv_message_failed", message: tvMessageErrorMessage(error) });
+        }
       }
 
       return json(res, 405, { ok: false, error: "method_not_allowed" });
