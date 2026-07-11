@@ -75,6 +75,87 @@ function setupGlobalFilters() {
   byId("exportDetailedSales")?.addEventListener("click", exportDetailedSales);
 }
 
+function defaultTvMessageExpiration() {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return date.toISOString().slice(0, 10);
+}
+
+function openTvMessageModal() {
+  const modal = byId("tvMessageModal");
+  if (!modal) return;
+  byId("tvMessageText").value = "";
+  byId("tvMessageExpiresAt").value = defaultTvMessageExpiration();
+  byId("tvMessageFeedback").textContent = "";
+  modal.hidden = false;
+  byId("tvMessageText").focus();
+}
+
+function closeTvMessageModal() {
+  const modal = byId("tvMessageModal");
+  if (modal) modal.hidden = true;
+}
+
+async function saveTvMessage() {
+  const message = byId("tvMessageText").value.trim();
+  const expiresAt = byId("tvMessageExpiresAt").value;
+  const feedback = byId("tvMessageFeedback");
+
+  if (!message) {
+    feedback.textContent = "Digite a mensagem antes de publicar.";
+    return;
+  }
+  if (!expiresAt) {
+    feedback.textContent = "Informe ate quando a mensagem deve ficar no ar.";
+    return;
+  }
+
+  let token = getStoredAccessToken();
+  if (!token) token = askAccessToken();
+  if (!token) {
+    feedback.textContent = "Senha de gestor necessaria para publicar.";
+    return;
+  }
+
+  feedback.textContent = "Publicando...";
+  const response = await fetch("/api/tv-messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-dashboard-token": token
+    },
+    body: JSON.stringify({ message, expiresAt })
+  });
+
+  if (response.status === 401) {
+    clearAccessToken();
+    feedback.textContent = "Senha recusada. Tente publicar novamente.";
+    return;
+  }
+  if (!response.ok) {
+    feedback.textContent = "Falha ao publicar mensagem.";
+    return;
+  }
+
+  feedback.textContent = "Mensagem publicada na TV.";
+  setTimeout(closeTvMessageModal, 700);
+}
+
+function setupTvMessageModal() {
+  byId("openTvMessageModal")?.addEventListener("click", openTvMessageModal);
+  byId("closeTvMessageModal")?.addEventListener("click", closeTvMessageModal);
+  byId("cancelTvMessage")?.addEventListener("click", closeTvMessageModal);
+  byId("saveTvMessage")?.addEventListener("click", () => {
+    saveTvMessage().catch(() => {
+      const feedback = byId("tvMessageFeedback");
+      if (feedback) feedback.textContent = "Falha ao publicar mensagem.";
+    });
+  });
+  byId("tvMessageModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "tvMessageModal") closeTvMessageModal();
+  });
+}
+
 function pct(value) {
   return value === null || value === undefined ? "Sem meta" : `${number.format(Math.round(value))}%`;
 }
@@ -466,6 +547,7 @@ async function load() {
 
 setupMonthSelect();
 setupGlobalFilters();
+setupTvMessageModal();
 load().catch((error) => {
   byId("sellerRanking").innerHTML = `<div class="panel-error">${error.message}</div>`;
 });

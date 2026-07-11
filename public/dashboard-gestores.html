@@ -18,6 +18,7 @@
           <a class="nav-link-button" href="dashboard-redes-sociais.html">Redes Sociais</a>
           <a class="nav-link-button" href="dashboard-operacional-tv.html" target="_blank" rel="noopener">Operacional</a>
           <a class="nav-link-button" href="dashboard-vendedores.html" target="_blank" rel="noopener">Vendedores</a>
+          <button id="openTvMessageModal" class="nav-link-button manager-action-button" type="button">Mensagem TV</button>
           <label class="month-control" for="monthSelect">
             <span>Mês</span>
             <select id="monthSelect"></select>
@@ -140,6 +141,28 @@
         <div id="strategicChannels" class="strategic-grid"></div>
       </section>
     </main>
+
+    <div id="tvMessageModal" class="modal-backdrop" hidden>
+      <section class="manager-modal" role="dialog" aria-modal="true" aria-labelledby="tvMessageModalTitle">
+        <div class="manager-modal-header">
+          <h2 id="tvMessageModalTitle">Mensagem para TV</h2>
+          <button id="closeTvMessageModal" class="modal-close-button" type="button" aria-label="Fechar">&times;</button>
+        </div>
+        <label class="modal-field">
+          <span>Mensagem</span>
+          <textarea id="tvMessageText" maxlength="180" rows="4" placeholder="Ex.: Hoje esta liberado desconto extra de 5%"></textarea>
+        </label>
+        <label class="modal-field">
+          <span>Exibir ate</span>
+          <input id="tvMessageExpiresAt" type="date">
+        </label>
+        <div id="tvMessageFeedback" class="modal-feedback" aria-live="polite"></div>
+        <div class="modal-actions">
+          <button id="cancelTvMessage" class="secondary-button" type="button">Cancelar</button>
+          <button id="saveTvMessage" class="primary-button" type="button">Publicar mensagem</button>
+        </div>
+      </section>
+    </div>
 
     <script src="gestores.js"></script>
   </body>

@@ -87,6 +87,59 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+let manualTvMessages = [];
+
+function sellerFirstName(name) {
+  return String(name || "").trim().split(/\s+/)[0] || "Equipe";
+}
+
+function buildAutoMessages(sellers = []) {
+  const messages = [];
+  sellers
+    .filter((seller) => seller?.name && !isTeamSeller(seller.name))
+    .forEach((seller) => {
+      if (Number(seller.dailyGoalPct || 0) >= 100) {
+        messages.push({
+          type: "auto",
+          message: `PARABENS ${sellerFirstName(seller.name).toUpperCase()}! META DO DIA BATIDA!!!`
+        });
+      }
+
+      if (Number(seller.monthlyGoalPct || 0) >= 100) {
+        messages.push({
+          type: "auto",
+          message: `PARABENS ${sellerFirstName(seller.name).toUpperCase()}! META DO MES BATIDA!!!`
+        });
+      }
+    });
+
+  return messages;
+}
+
+function renderTvMessages(data) {
+  const ticker = byId("tvMessagesTicker");
+  const track = byId("tvMessagesTrack");
+  if (!ticker || !track) return;
+
+  const messages = [
+    ...buildAutoMessages(data.sellers || []),
+    ...manualTvMessages.map((item) => ({ type: "manual", message: item.message }))
+  ].filter((item) => item.message);
+
+  if (!messages.length) {
+    ticker.hidden = true;
+    track.innerHTML = "";
+    return;
+  }
+
+  const rendered = messages
+    .map((item) => `<span class="tv-message-chip ${item.type === "auto" ? "tv-message-auto" : ""}">${escapeHtml(item.message)}</span>`)
+    .join("");
+
+  track.innerHTML = rendered + rendered;
+  ticker.hidden = false;
+}
+
 function formatCartPct(value) {
   return value === null || value === undefined ? "0%" : `${percent.format(value)}%`;
 }
@@ -227,6 +280,7 @@ function renderAnalytics(analytics) {
 function render(data) {
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
   renderAnalytics(data.analytics);
+  renderTvMessages(data);
 
   const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [normalizedName(item.name), item]));
   const asksuiteBySeller = new Map((data.asksuite || []).map((item) => [normalizedName(item.name), item]));
@@ -253,8 +307,15 @@ function render(data) {
 
 async function load() {
   const month = byId("monthSelect").value;
-  const response = await fetch(`/api/dashboard/tv?date=${dateForMonth(month)}&month=${month}`);
+  const [response, messagesResponse] = await Promise.all([
+    fetch(`/api/dashboard/tv?date=${dateForMonth(month)}&month=${month}`),
+    fetch("/api/tv-messages").catch(() => null)
+  ]);
   if (!response.ok) throw new Error("Falha ao carregar dados da TV");
+  if (messagesResponse?.ok) {
+    const messagesPayload = await messagesResponse.json();
+    manualTvMessages = Array.isArray(messagesPayload.messages) ? messagesPayload.messages : [];
+  }
   render(await response.json());
 }
 

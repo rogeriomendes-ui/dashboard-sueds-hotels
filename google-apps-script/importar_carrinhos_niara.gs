@@ -2,6 +2,7 @@ const NIARA_IMPORT_SHEET = "Importar_Niara";
 const NIARA_TARGET_SHEET = "Recuperação de carrinhos";
 const ASKSUITE_IMPORT_SHEET = "Importar_Asksuite";
 const ASKSUITE_TARGET_SHEET = "Asksuite_Atendimentos";
+const ASKSUITE_DETAILED_SHEET = "Asksuite_Detalhado";
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
 const SENSITIVE_SHEETS_PROTECTION_NOTE = "Protecao abas sensiveis SUEDS. Apenas gestores autorizados.";
 const TEAM_INPUT_BACKGROUND = "#d9eaf7";
@@ -55,13 +56,15 @@ const ASKSUITE_TARGET_HEADERS = [
   "Vendas",
   "Receita"
 ];
+const ASKSUITE_DETAILED_VALUE_HEADER = "Valor vendido corrigido";
+const ASKSUITE_DETAILED_VALUE_FORMULA = '=ARRAYFORMULA(IF(K2:K="",,IFERROR(IF(REGEXMATCH(TO_TEXT(K2:K),",\\d{1,2}$"),NUMBERVALUE(TO_TEXT(K2:K),",","."),NUMBERVALUE(TO_TEXT(K2:K),".",",")),K2:K)))';
 
 const ASKSUITE_ALLOWED_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
 const SENSITIVE_SHEETS = [
   NIARA_IMPORT_SHEET,
   ASKSUITE_IMPORT_SHEET,
   ASKSUITE_TARGET_SHEET,
-  "Asksuite_Detalhado",
+  ASKSUITE_DETAILED_SHEET,
   "Metas"
 ];
 const MANAGER_EMAILS_PROPERTY = "SUEDS_MANAGER_EDITORS";
@@ -71,12 +74,36 @@ function onOpen() {
     .createMenu("SUEDS Dashboard")
     .addItem("Importar carrinhos da aba Importar_Niara", "importarCarrinhosNiara")
     .addItem("Importar Asksuite da aba Importar_Asksuite", "importarAsksuite")
+    .addItem("Preparar Asksuite Detalhado", "prepararAsksuiteDetalhado")
     .addSeparator()
     .addItem("Ordenar carrinhos do mais antigo ao mais recente", "ordenarCarrinhosAntigoRecente")
     .addItem("Proteger aba de carrinhos", "protegerAbaCarrinhos")
     .addItem("Configurar e-mails gestores", "configurarEmailsGestores")
     .addItem("Proteger abas sensiveis", "protegerAbasSensiveis")
     .addToUi();
+}
+
+function prepararAsksuiteDetalhado() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActive();
+  const sheet = spreadsheet.getSheetByName(ASKSUITE_DETAILED_SHEET);
+
+  if (!sheet) {
+    ui.alert(`Aba ${ASKSUITE_DETAILED_SHEET} nao encontrada.`);
+    return;
+  }
+
+  sheet.getRange("L1").setValue(ASKSUITE_DETAILED_VALUE_HEADER);
+  sheet.getRange("L2").setFormula(ASKSUITE_DETAILED_VALUE_FORMULA);
+  sheet.getRange("L:L").setNumberFormat('R$ #,##0.00');
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumn(12);
+
+  ui.alert(
+    "Asksuite_Detalhado preparado.\n\n" +
+    "Continue colando o relatorio da Asksuite em A:K.\n" +
+    "A coluna L agora calcula o Valor vendido corrigido para o dashboard."
+  );
 }
 
 function importarCarrinhosNiara() {

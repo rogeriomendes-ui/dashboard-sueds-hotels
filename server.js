@@ -12,7 +12,7 @@ const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAME
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
-const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:K";
+const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
 const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AG";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
@@ -38,6 +38,8 @@ const META_ADS_CONVERSION_ACTIONS = (process.env.META_ADS_CONVERSION_ACTIONS || 
   .filter(Boolean);
 const VETOR_TRADE_API_URL = (process.env.VETOR_TRADE_API_URL || "").replace(/\/$/, "");
 const VETOR_TRADE_SHARED_TOKEN = process.env.VETOR_TRADE_SHARED_TOKEN || "";
+const TV_MESSAGES_SHEET = process.env.GOOGLE_TV_MESSAGES_SHEET || "Mensagens_TV";
+const TV_MESSAGES_HEADERS = ["Criado Em", "Mensagem", "Valida Ate", "Status"];
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -55,6 +57,7 @@ let analyticsCache = { expiresAt: 0, payload: null };
 let operationalCache = { expiresAt: 0, payload: null };
 let googleAdsCache = { expiresAt: 0, key: "", payload: null };
 let metaAdsCache = { expiresAt: 0, key: "", payload: null };
+let tvMessagesSheetReady = false;
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -202,6 +205,159 @@ async function getSheetValues(range, sheetId = SHEET_ID) {
 
   const payload = await response.json();
   return payload.values || [];
+}
+
+function sheetRange(range) {
+  return encodeURIComponent(range);
+}
+
+async function sheetsRequest(pathname, options = {}, scope = "https://www.googleapis.com/auth/spreadsheets") {
+  if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado");
+  const token = await getAccessToken(scope);
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}${pathname}`, {
+    ...options,
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Sheets request failed: ${response.status} ${text}`);
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+function todayIsoSaoPaulo() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+function nowLabelSaoPaulo() {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date());
+}
+
+function normalizeIsoDate(value) {
+  const text = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  return "";
+}
+
+function formatIsoDateBr(value) {
+  const iso = normalizeIsoDate(value);
+  if (!iso) return "";
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function isMissingSheetError(error) {
+  return /Unable to parse range|not found|Cannot find/i.test(String(error?.message || ""));
+}
+
+async function ensureTvMessagesSheet() {
+  if (tvMessagesSheetReady) return;
+
+  const workbook = await sheetsRequest("?fields=sheets.properties.title", {}, "https://www.googleapis.com/auth/spreadsheets.readonly");
+  const exists = (workbook.sheets || []).some((sheet) => sheet.properties?.title === TV_MESSAGES_SHEET);
+
+  if (!exists) {
+    await sheetsRequest(":batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({
+        requests: [{ addSheet: { properties: { title: TV_MESSAGES_SHEET } } }]
+      })
+    });
+  }
+
+  await sheetsRequest(`/values/${sheetRange(`${TV_MESSAGES_SHEET}!A1:D1`)}?valueInputOption=RAW`, {
+    method: "PUT",
+    body: JSON.stringify({ values: [TV_MESSAGES_HEADERS] })
+  });
+
+  tvMessagesSheetReady = true;
+}
+
+async function readTvMessages(includeExpired = false) {
+  let rows = [];
+  try {
+    rows = await getSheetValues(`${TV_MESSAGES_SHEET}!A2:D`, SHEET_ID);
+  } catch (error) {
+    if (isMissingSheetError(error)) return [];
+    throw error;
+  }
+
+  const today = todayIsoSaoPaulo();
+  return rows
+    .map((row, index) => {
+      const message = String(row[1] || "").trim();
+      const expiresAt = normalizeIsoDate(row[2]);
+      const status = String(row[3] || "Ativa").trim() || "Ativa";
+      const active = Boolean(message) && status.toLowerCase() !== "inativa" && (!expiresAt || expiresAt >= today);
+      return {
+        id: index + 2,
+        createdAt: row[0] || "",
+        message,
+        expiresAt,
+        expiresAtLabel: formatIsoDateBr(expiresAt),
+        status,
+        active
+      };
+    })
+    .filter((item) => item.message && (includeExpired || item.active));
+}
+
+async function appendTvMessage(message, expiresAt) {
+  const cleanMessage = String(message || "").replace(/\s+/g, " ").trim();
+  if (!cleanMessage) throw new Error("Mensagem vazia");
+  if (cleanMessage.length > 180) throw new Error("Mensagem deve ter ate 180 caracteres");
+
+  await ensureTvMessagesSheet();
+  await sheetsRequest(`/values/${sheetRange(`${TV_MESSAGES_SHEET}!A:D`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    method: "POST",
+    body: JSON.stringify({
+      values: [[nowLabelSaoPaulo(), cleanMessage, normalizeIsoDate(expiresAt), "Ativa"]]
+    })
+  });
+
+  return readTvMessages(true);
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 20000) {
+        reject(new Error("Payload muito grande"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(new Error("JSON invalido"));
+      }
+    });
+    req.on("error", reject);
+  });
 }
 
 async function getFirstAvailableSheetValues(ranges, sheetId = SHEET_ID) {
@@ -2660,7 +2816,7 @@ function normalizeAsksuiteMarketSheetRow(item, index = 0) {
     quotes: parseDecimalNumber(firstFilledValue(item, ["Cotações", "Cotacoes", "quotes", "Oportunidades"])),
     reservations: parseDecimalNumber(firstFilledValue(item, ["Reservas", "reservations", "Cotações", "Cotacoes", "Oportunidades"])),
     sales: parseDecimalNumber(firstFilledValue(item, ["Vendas", "sales"])),
-    revenue: parseDecimalNumber(firstFilledValue(item, ["Receita", "revenue", "Valor vendido"])),
+    revenue: parseDecimalNumber(firstFilledValue(item, ["Valor vendido corrigido", "Receita", "revenue", "Valor vendido"])),
     googleSpend: parseDecimalNumber(firstFilledValue(item, ["Investimento Google", "Google Ads", "googleSpend"])),
     metaSpend: parseDecimalNumber(firstFilledValue(item, ["Investimento Meta", "Meta Ads", "metaSpend"]))
   };
@@ -3824,6 +3980,21 @@ async function handleRequest(req, res) {
       if (!range) return json(res, 400, { error: "missing_range" });
       const rows = await getSheetValues(range);
       return json(res, 200, { range, rowCount: rows.length, rows });
+    }
+
+    if (url.pathname === "/api/tv-messages") {
+      if (req.method === "GET") {
+        const includeExpired = url.searchParams.get("includeExpired") === "1" && hasManagerAccess(req, url);
+        return json(res, 200, { ok: true, messages: await readTvMessages(includeExpired) });
+      }
+
+      if (req.method === "POST") {
+        if (!hasManagerAccess(req, url)) return forbidden(res);
+        const body = await readJsonBody(req);
+        return json(res, 200, { ok: true, messages: await appendTvMessage(body.message, body.expiresAt) });
+      }
+
+      return json(res, 405, { ok: false, error: "method_not_allowed" });
     }
 
     if (url.pathname === "/api/dashboard/gestores") {

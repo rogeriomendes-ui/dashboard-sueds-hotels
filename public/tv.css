@@ -61,6 +61,72 @@
   padding: 0 12px;
 }
 
+.tv-messages-ticker {
+  position: relative;
+  flex: 1 1 420px;
+  min-width: 260px;
+  max-width: 620px;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 209, 102, 0.62);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.tv-messages-ticker[hidden] {
+  display: none;
+}
+
+.tv-messages-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: max-content;
+  height: 100%;
+  padding-left: 100%;
+  animation: tvTicker 32s linear infinite;
+  white-space: nowrap;
+}
+
+.tv-message-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(44, 62, 80, 0.92);
+  font-size: clamp(13px, 1vw, 17px);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tv-message-auto {
+  color: #08213a;
+  background: var(--yellow);
+  animation: tvBlink 1.2s ease-in-out infinite;
+}
+
+@keyframes tvTicker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes tvBlink {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.25);
+  }
+}
+
 .seller-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -511,5 +577,10 @@
   .tv-online-group,
   .analytics-strip {
     grid-template-columns: 1fr;
+  }
+
+  .tv-messages-ticker {
+    flex-basis: 100%;
+    max-width: none;
   }
 }

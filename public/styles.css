@@ -80,6 +80,120 @@ body {
   border-color: rgba(255, 255, 255, 0.34);
 }
 
+.manager-action-button {
+  cursor: pointer;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 15, 25, 0.58);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.manager-modal {
+  width: min(520px, 100%);
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 20px;
+  color: var(--card-text);
+  background: var(--panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.manager-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.manager-modal-header h2 {
+  color: var(--card-text);
+  font-size: 22px;
+}
+
+.modal-close-button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--card-text);
+  background: #e8edf2;
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.modal-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  color: var(--card-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.modal-field textarea,
+.modal-field input {
+  width: 100%;
+  border: 1px solid var(--card-line);
+  border-radius: 6px;
+  padding: 11px 12px;
+  color: var(--card-text);
+  background: #fff;
+  font: inherit;
+  text-transform: none;
+}
+
+.modal-field textarea {
+  resize: vertical;
+}
+
+.modal-feedback {
+  min-height: 20px;
+  margin-bottom: 12px;
+  color: var(--card-muted);
+  font-weight: 700;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 40px;
+  border-radius: 6px;
+  padding: 0 16px;
+  cursor: pointer;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.primary-button {
+  border: 0;
+  color: #fff;
+  background: var(--panel-soft);
+}
+
+.secondary-button {
+  border: 1px solid var(--card-line);
+  color: var(--card-text);
+  background: #fff;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--cyan);
@@ -896,6 +1010,15 @@ h2 {
     min-height: 42px;
     padding: 0 12px;
     font-size: 11px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .primary-button,
+  .secondary-button {
+    width: 100%;
   }
 
   .month-control select {

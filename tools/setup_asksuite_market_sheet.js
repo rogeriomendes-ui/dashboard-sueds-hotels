@@ -21,8 +21,11 @@ const HEADERS = [
   "Final do atendimento",
   "Oportunidades",
   "Vendas",
-  "Valor vendido"
+  "Valor vendido",
+  "Valor vendido corrigido"
 ];
+
+const CORRECTED_REVENUE_FORMULA = '=ARRAYFORMULA(IF(K2:K="",,IFERROR(IF(REGEXMATCH(TO_TEXT(K2:K),",\\d{1,2}$"),NUMBERVALUE(TO_TEXT(K2:K),",","."),NUMBERVALUE(TO_TEXT(K2:K),".",",")),K2:K)))';
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -149,7 +152,8 @@ async function main() {
     sheetId = created.replies?.[0]?.addSheet?.properties?.sheetId;
   }
 
-  await updateValues(`'${SHEET_NAME}'!A1:K1`, [HEADERS]);
+  await updateValues(`'${SHEET_NAME}'!A1:L1`, [HEADERS]);
+  await updateValues(`'${SHEET_NAME}'!L2:L2`, [[CORRECTED_REVENUE_FORMULA]]);
 
   if (sheetId !== undefined) {
     await batchUpdate([
@@ -183,6 +187,17 @@ async function main() {
       {
         autoResizeDimensions: {
           dimensions: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: HEADERS.length }
+        }
+      },
+      {
+        repeatCell: {
+          range: { sheetId, startRowIndex: 1, startColumnIndex: 11, endColumnIndex: 12 },
+          cell: {
+            userEnteredFormat: {
+              numberFormat: { type: "CURRENCY", pattern: "R$ #,##0.00" }
+            }
+          },
+          fields: "userEnteredFormat.numberFormat"
         }
       }
     ]);
