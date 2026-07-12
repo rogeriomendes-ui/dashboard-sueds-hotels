@@ -1,10 +1,21 @@
-# Dashboard SUEDS Hotels
+# Ecossistema Sueds Hotels
 
-Base profissional para a Sala de Comando Comercial da SUEDS Hotels.
+Plataforma própria da Sueds Hotels para integrar conhecimento, gestão, operação, comercial, marketing, revenue, treinamento e inteligência artificial.
 
-## Objetivo
+> O dashboard comercial existente é um módulo do Ecossistema. A visão, os princípios e a arquitetura alvo estão em [ECOSSISTEMA_SUEDS_HOTELS.md](ECOSSISTEMA_SUEDS_HOTELS.md).
 
-Centralizar em uma tela os principais indicadores de vendas, funil, site, canais, atendentes e hotéis, com visual adequado para TV da central de vendas e versão responsiva para celular.
+## Módulo atual
+
+O módulo atual centraliza indicadores de vendas, funil, site, canais, atendentes e hotéis, com visual para TV, gestores e celular. Ele será migrado gradualmente para consumir cadastros e conteúdos canônicos da Central de Conhecimento.
+
+## Arquitetura do Ecossistema
+
+- [Visão e regras](ECOSSISTEMA_SUEDS_HOTELS.md)
+- [Arquitetura alvo](docs/ecossistema/ARQUITETURA.md)
+- [Catálogo de módulos](docs/ecossistema/MODULOS.md)
+- [Central de Conhecimento](docs/ecossistema/CENTRAL_DE_CONHECIMENTO.md)
+- [Roadmap](docs/ecossistema/ROADMAP.md)
+- [Modelo SQL inicial](supabase/ecosystem_knowledge.sql)
 
 ## Fontes previstas
 

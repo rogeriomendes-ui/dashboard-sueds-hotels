@@ -1,4 +1,6 @@
-# Arquitetura profissional do dashboard SUEDS
+# Arquitetura do módulo Dashboard SUEDS
+
+> Documento do módulo legado. A arquitetura da plataforma está em [docs/ecossistema/ARQUITETURA.md](docs/ecossistema/ARQUITETURA.md). Novos cadastros e conteúdos devem seguir a Central de Conhecimento e não podem ser adicionados como hardcode neste módulo.
 
 ## Fluxo
 
