@@ -108,6 +108,9 @@ function importarVendasSite() {
   const sourceValues = sourceSheet
     .getRange(1, 1, sourceSheet.getLastRow(), sourceSheet.getLastColumn())
     .getValues();
+  const sourceDisplayValues = sourceSheet
+    .getRange(1, 1, sourceSheet.getLastRow(), sourceSheet.getLastColumn())
+    .getDisplayValues();
   const headers = sourceValues[0];
   const indexes = {
     hotel: findHeaderIndex_(headers, "Hotel"),
@@ -144,7 +147,8 @@ function importarVendasSite() {
   const pending = [];
   const existingUpdates = [];
 
-  sourceValues.slice(1).forEach((row) => {
+  sourceValues.slice(1).forEach((row, sourceIndex) => {
+    const displayRow = sourceDisplayValues[sourceIndex + 1] || [];
     // A aba Site segue o layout fixo A:K exportado pelo motor de reservas.
     // Usar as posicoes fixas evita deslocamentos quando o titulo de uma coluna muda.
     const reservationCode = String(row[1] || "").trim();
@@ -157,14 +161,14 @@ function importarVendasSite() {
     const record = {
       reservationCode,
       values: [
-        row[3] || "",
+        parseBrazilianDate_(displayRow[3] || row[3]),
         reservationCode,
         row[0] || "",
         "SITE",
         "",
         row[6] || "",
-        row[4] || "",
-        row[5] || "",
+        parseBrazilianDate_(displayRow[4] || row[4]),
+        parseBrazilianDate_(displayRow[5] || row[5]),
         "",
         row[7] || "",
         "",
@@ -294,6 +298,7 @@ function organizeSalesSheet_(sheet) {
     sheet.getRange(futureStartRow, 13, futureRowCount, 3).clearContent();
     sheet.getRange(futureStartRow, 16, futureRowCount, 1).setValue("Selecione");
     sheet.getRange(futureStartRow, 17, futureRowCount, 1).clearContent();
+    sheet.getRange(futureStartRow, 18, futureRowCount, 1).setValue("Selecione");
   }
 
   const dataRows = Math.max(lastDataRow - 1, 0);
@@ -309,12 +314,34 @@ function organizeSalesSheet_(sheet) {
 
 function isSalesDataRow_(row) {
   if (!row || !row.length) return false;
-  const importantColumns = [0, 1, 2, 5, 12]; // Data, codigo, hotel, cliente e valor.
-  return importantColumns.some((index) => {
-    const value = row[index];
-    if (value instanceof Date && !isNaN(value.getTime())) return true;
-    return String(value === null || value === undefined ? "" : value).trim() !== "";
-  });
+  const date = row[0];
+  const hasDate = (date instanceof Date && !isNaN(date.getTime()))
+    || /^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$/.test(String(date || "").trim());
+  const hasCode = normalizeReservationCode_(row[1]) !== "";
+  const hotel = normalizeHeader_(row[2]);
+  const client = String(row[5] || "").trim();
+  const total = parseNumericValue_(row[12]);
+  const hasCompleteSaleDetails = hotel && hotel !== "SELECIONE" && client && Number.isFinite(total);
+  return Boolean(hasDate || hasCode || hasCompleteSaleDetails);
+}
+
+function parseNumericValue_(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
+  const text = String(value || "").trim();
+  if (!text || text.indexOf("#") >= 0) return NaN;
+  const normalized = text.replace(/R\$/gi, "").replace(/\s+/g, "").replace(/\./g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function parseBrazilianDate_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!match) return "";
+  let year = Number(match[3]);
+  if (year < 100) year += 2000;
+  return new Date(year, Number(match[2]) - 1, Number(match[1]));
 }
 
 function salesDateSortKey_(value) {
