@@ -143,29 +143,31 @@ function importarVendasSite() {
   const existingUpdates = [];
 
   sourceValues.slice(1).forEach((row) => {
-    const reservationCode = String(row[indexes.reservation] || "").trim();
+    // A aba Site segue o layout fixo A:K exportado pelo motor de reservas.
+    // Usar as posicoes fixas evita deslocamentos quando o titulo de uma coluna muda.
+    const reservationCode = String(row[1] || "").trim();
     const normalizedCode = normalizeReservationCode_(reservationCode);
     if (!normalizedCode) return;
     const notes = [];
-    if (indexes.origin >= 0 && row[indexes.origin]) notes.push(`Origem: ${row[indexes.origin]}`);
-    if (indexes.campaign >= 0 && row[indexes.campaign]) notes.push(`Campanha: ${row[indexes.campaign]}`);
+    if (row[9]) notes.push(`Origem: ${row[9]}`);
+    if (row[10]) notes.push(`Campanha: ${row[10]}`);
 
     const record = {
       reservationCode,
       values: [
-        row[indexes.createdAt] || "",
+        row[3] || "",
         reservationCode,
-        row[indexes.hotel] || "",
+        row[0] || "",
         "SITE",
         "",
-        row[indexes.guest] || "",
-        row[indexes.checkin] || "",
-        row[indexes.checkout] || "",
+        row[6] || "",
+        row[4] || "",
+        row[5] || "",
         "",
-        row[indexes.rooms] || "",
+        row[7] || "",
         "",
         "",
-        row[indexes.total] || "",
+        row[8] || "",
         "",
         "",
         "Cartao credito",
@@ -212,7 +214,7 @@ function importarVendasSite() {
   targetSheet.setActiveRange(targetSheet.getRange(Math.min.apply(null, affectedRows), 1));
 
   const confirmedSiteRows = affectedRows.filter((rowNumber) => {
-    return normalizeText_(targetSheet.getRange(rowNumber, 4).getDisplayValue()) === "SITE";
+    return normalizeHeader_(targetSheet.getRange(rowNumber, 4).getDisplayValue()) === "SITE";
   });
   if (confirmedSiteRows.length !== affectedRows.length) {
     ui.alert(
