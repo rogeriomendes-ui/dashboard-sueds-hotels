@@ -581,7 +581,9 @@
   }
 
   .tv-messages-ticker {
-    flex-basis: 100%;
+    flex: 0 0 44px;
+    width: 100%;
+    min-width: 0;
     max-width: none;
     margin-left: 0;
   }
