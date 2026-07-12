@@ -132,11 +132,13 @@ function importarVendasSite() {
   const targetLastRow = Math.max(targetSheet.getLastRow(), 1);
   const existingRowsByCode = new Map();
   if (targetLastRow > 1) {
-    targetSheet.getRange(2, 2, targetLastRow - 1, 1).getDisplayValues()
-      .flat()
-      .forEach((value, index) => {
-        const code = normalizeReservationCode_(value);
-        if (code && !existingRowsByCode.has(code)) existingRowsByCode.set(code, index + 2);
+    targetSheet.getRange(2, 2, targetLastRow - 1, 3).getDisplayValues()
+      .forEach((row, index) => {
+        const code = normalizeReservationCode_(row[0]);
+        const channel = normalizeHeader_(row[2]);
+        if (code && channel === "SITE" && !existingRowsByCode.has(code)) {
+          existingRowsByCode.set(code, index + 2);
+        }
       });
   }
   const pending = [];
@@ -247,31 +249,35 @@ function organizeSalesSheet_(sheet) {
     // Linhas ocultas por um filtro voltam a aparecer quando os criterios sao removidos.
   }
 
-  const codes = sheet.getRange(2, 2, maxRows - 1, 1).getDisplayValues().flat();
+  const rows = sheet.getRange(2, 1, maxRows - 1, 20).getValues();
   let lastDataRow = 1;
-  codes.forEach((code, index) => {
-    if (normalizeReservationCode_(code)) lastDataRow = index + 2;
+  rows.forEach((row, index) => {
+    if (isSalesDataRow_(row)) lastDataRow = index + 2;
   });
 
   if (lastDataRow > 2) {
-    const helperColumn = maxColumns + 1;
-    if (sheet.getMaxColumns() < helperColumn) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), helperColumn - sheet.getMaxColumns());
+    const dataHelperColumn = maxColumns + 1;
+    const dateHelperColumn = maxColumns + 2;
+    if (sheet.getMaxColumns() < dateHelperColumn) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), dateHelperColumn - sheet.getMaxColumns());
     }
-    const sortKeys = codes.slice(0, lastDataRow - 1).map((code) => [normalizeReservationCode_(code) ? 1 : 0]);
-    sheet.getRange(2, helperColumn, sortKeys.length, 1).setValues(sortKeys);
-    sheet.getRange(2, 1, lastDataRow - 1, helperColumn).sort([
-      { column: helperColumn, ascending: false },
-      { column: 1, ascending: true }
+    const sortKeys = rows.slice(0, lastDataRow - 1).map((row) => [
+      isSalesDataRow_(row) ? 1 : 0,
+      salesDateSortKey_(row[0])
     ]);
-    sheet.getRange(2, helperColumn, lastDataRow - 1, 1).clearContent();
+    sheet.getRange(2, dataHelperColumn, sortKeys.length, 2).setValues(sortKeys);
+    sheet.getRange(2, 1, lastDataRow - 1, dateHelperColumn).sort([
+      { column: dataHelperColumn, ascending: false },
+      { column: dateHelperColumn, ascending: true }
+    ]);
+    sheet.getRange(2, dataHelperColumn, lastDataRow - 1, 2).clearContent();
   }
 
-  // A ordenacao leva registros vazios para o final. Recalcular a ultima venda preenchida.
-  const sortedCodes = sheet.getRange(2, 2, maxRows - 1, 1).getDisplayValues().flat();
+  // A ordenacao leva registros sem venda para o final. Recalcular a ultima venda preenchida.
+  const sortedRows = sheet.getRange(2, 1, maxRows - 1, 20).getValues();
   lastDataRow = 1;
-  sortedCodes.forEach((code, index) => {
-    if (normalizeReservationCode_(code)) lastDataRow = index + 2;
+  sortedRows.forEach((row, index) => {
+    if (isSalesDataRow_(row)) lastDataRow = index + 2;
   });
 
   if (lastDataRow > 1) {
@@ -301,6 +307,28 @@ function organizeSalesSheet_(sheet) {
   return { dataRows, firstSiteRow };
 }
 
+function isSalesDataRow_(row) {
+  if (!row || !row.length) return false;
+  const importantColumns = [0, 1, 2, 5, 12]; // Data, codigo, hotel, cliente e valor.
+  return importantColumns.some((index) => {
+    const value = row[index];
+    if (value instanceof Date && !isNaN(value.getTime())) return true;
+    return String(value === null || value === undefined ? "" : value).trim() !== "";
+  });
+}
+
+function salesDateSortKey_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) return value.getTime();
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+  if (match) {
+    let year = Number(match[3] || 9999);
+    if (year < 100) year += 2000;
+    return new Date(year, Number(match[2]) - 1, Number(match[1])).getTime();
+  }
+  return 8640000000000000;
+}
+
 function clearSheetFilterCriteria_(sheet) {
   const filter = sheet.getFilter();
   if (!filter) return;
@@ -321,10 +349,10 @@ function findEmptySalesRows_(sheet, count) {
   }
 
   const scanRows = Math.max(minimumRows - 1, count);
-  const keys = sheet.getRange(2, 1, scanRows, 2).getDisplayValues();
+  const rows = sheet.getRange(2, 1, scanRows, 20).getValues();
   const available = [];
-  keys.forEach((row, index) => {
-    if (!String(row[0] || "").trim() && !String(row[1] || "").trim() && available.length < count) {
+  rows.forEach((row, index) => {
+    if (!isSalesDataRow_(row) && available.length < count) {
       available.push(index + 2);
     }
   });
