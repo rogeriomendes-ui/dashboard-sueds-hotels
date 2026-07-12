@@ -2052,7 +2052,9 @@ function buildMetrics(records, goals, period = {}) {
     ...goals.filter((goal) => ytdMonths.includes(goal.month) && goal.hotel).map((goal) => goal.hotel)
   ]);
 
-  const recordsByHotel = groupBy(summaryRecords, (record) => record.hotel);
+  // Hotel performance combines team and imported Site sales. Team summaries and
+  // seller rankings continue to use summaryRecords, which excludes Site sales.
+  const recordsByHotel = groupBy(filteredRecords, (record) => record.hotel);
   const hotels = [...hotelLabels]
     .map((label) => {
       const rows = recordsByHotel.get(label) || [];
