@@ -130,29 +130,27 @@ function importarVendasSite() {
   }
 
   const targetLastRow = Math.max(targetSheet.getLastRow(), 1);
-  const existingCodes = targetLastRow > 1
-    ? new Set(targetSheet.getRange(2, 2, targetLastRow - 1, 1).getDisplayValues()
+  const existingRowsByCode = new Map();
+  if (targetLastRow > 1) {
+    targetSheet.getRange(2, 2, targetLastRow - 1, 1).getDisplayValues()
       .flat()
-      .map(normalizeReservationCode_)
-      .filter(Boolean))
-    : new Set();
+      .forEach((value, index) => {
+        const code = normalizeReservationCode_(value);
+        if (code && !existingRowsByCode.has(code)) existingRowsByCode.set(code, index + 2);
+      });
+  }
   const pending = [];
-  let skippedDuplicates = 0;
+  const existingUpdates = [];
 
   sourceValues.slice(1).forEach((row) => {
     const reservationCode = String(row[indexes.reservation] || "").trim();
     const normalizedCode = normalizeReservationCode_(reservationCode);
     if (!normalizedCode) return;
-    if (existingCodes.has(normalizedCode)) {
-      skippedDuplicates += 1;
-      return;
-    }
-
     const notes = [];
     if (indexes.origin >= 0 && row[indexes.origin]) notes.push(`Origem: ${row[indexes.origin]}`);
     if (indexes.campaign >= 0 && row[indexes.campaign]) notes.push(`Campanha: ${row[indexes.campaign]}`);
 
-    pending.push({
+    const record = {
       reservationCode,
       values: [
         row[indexes.createdAt] || "",
@@ -176,18 +174,30 @@ function importarVendasSite() {
         "Site",
         notes.join(" | ")
       ]
-    });
-    existingCodes.add(normalizedCode);
+    };
+
+    if (existingRowsByCode.has(normalizedCode)) {
+      record.rowNumber = existingRowsByCode.get(normalizedCode);
+      existingUpdates.push(record);
+      return;
+    }
+
+    pending.push(record);
+    existingRowsByCode.set(normalizedCode, null);
   });
 
-  if (!pending.length) {
-    ui.alert(`Nenhuma venda nova para importar.\nDuplicadas ignoradas: ${skippedDuplicates}`);
+  if (!pending.length && !existingUpdates.length) {
+    ui.alert("Nenhuma venda valida encontrada na aba Site.");
     return;
   }
 
-  const targetRows = findEmptySalesRows_(targetSheet, pending.length);
+  const targetRows = pending.length ? findEmptySalesRows_(targetSheet, pending.length) : [];
   pending.forEach((record, index) => {
-    const rowNumber = targetRows[index];
+    record.rowNumber = targetRows[index];
+  });
+
+  existingUpdates.concat(pending).forEach((record) => {
+    const rowNumber = record.rowNumber;
     targetSheet.getRange(rowNumber, 1, 1, 20).setValues([record.values]);
     targetSheet.getRange(rowNumber, 9).setFormula(`=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`);
     targetSheet.getRange(rowNumber, 1).setNumberFormat("dd/mm/yyyy");
@@ -195,10 +205,15 @@ function importarVendasSite() {
     targetSheet.getRange(rowNumber, 13, 1, 3).setNumberFormat('R$ #,##0.00');
   });
 
+  SpreadsheetApp.flush();
+  targetSheet.activate();
+  const affectedRows = existingUpdates.concat(pending).map((record) => record.rowNumber);
+  targetSheet.setActiveRange(targetSheet.getRange(Math.min.apply(null, affectedRows), 1));
+
   ui.alert(
     "Importacao de vendas do Site concluida.\n\n" +
     `Novas vendas: ${pending.length}\n` +
-    `Duplicadas ignoradas: ${skippedDuplicates}\n` +
+    `Reservas existentes atualizadas como Site: ${existingUpdates.length}\n` +
     "As vendas foram registradas sem vendedor e serao exibidas apenas no canal Site."
   );
 }
