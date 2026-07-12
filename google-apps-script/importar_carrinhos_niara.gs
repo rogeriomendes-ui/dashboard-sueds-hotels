@@ -3,6 +3,8 @@ const NIARA_TARGET_SHEET = "Recuperação de carrinhos";
 const ASKSUITE_IMPORT_SHEET = "Importar_Asksuite";
 const ASKSUITE_TARGET_SHEET = "Asksuite_Atendimentos";
 const ASKSUITE_DETAILED_SHEET = "Asksuite_Detalhado";
+const SITE_IMPORT_SHEET = "Site";
+const SITE_SALES_TARGET_SHEET = "Lancamento_Vendas";
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
 const SENSITIVE_SHEETS_PROTECTION_NOTE = "Protecao abas sensiveis SUEDS. Apenas gestores autorizados.";
 const TEAM_INPUT_BACKGROUND = "#d9eaf7";
@@ -74,6 +76,7 @@ function onOpen() {
     .createMenu("SUEDS Dashboard")
     .addItem("Importar carrinhos da aba Importar_Niara", "importarCarrinhosNiara")
     .addItem("Importar Asksuite da aba Importar_Asksuite", "importarAsksuite")
+    .addItem("Importar vendas da aba Site", "importarVendasSite")
     .addItem("Preparar Asksuite Detalhado", "prepararAsksuiteDetalhado")
     .addSeparator()
     .addItem("Ordenar carrinhos do mais antigo ao mais recente", "ordenarCarrinhosAntigoRecente")
@@ -81,6 +84,151 @@ function onOpen() {
     .addItem("Configurar e-mails gestores", "configurarEmailsGestores")
     .addItem("Proteger abas sensiveis", "protegerAbasSensiveis")
     .addToUi();
+}
+
+function importarVendasSite() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActive();
+  const sourceSheet = spreadsheet.getSheetByName(SITE_IMPORT_SHEET);
+  const targetSheet = spreadsheet.getSheetByName(SITE_SALES_TARGET_SHEET);
+
+  if (!sourceSheet) {
+    ui.alert(`Aba ${SITE_IMPORT_SHEET} nao encontrada.`);
+    return;
+  }
+  if (!targetSheet) {
+    ui.alert(`Aba ${SITE_SALES_TARGET_SHEET} nao encontrada.`);
+    return;
+  }
+  if (sourceSheet.getLastRow() < 2) {
+    ui.alert("A aba Site nao tem vendas para importar.");
+    return;
+  }
+
+  const sourceValues = sourceSheet
+    .getRange(1, 1, sourceSheet.getLastRow(), sourceSheet.getLastColumn())
+    .getValues();
+  const headers = sourceValues[0];
+  const indexes = {
+    hotel: findHeaderIndex_(headers, "Hotel"),
+    reservation: findHeaderIndexAny_(headers, ["N DA RESERVA", "Nº DA RESERVA", "N° DA RESERVA", "NUMERO DA RESERVA"]),
+    createdAt: findHeaderIndex_(headers, "DATA DE CRIACAO"),
+    checkin: findHeaderIndex_(headers, "CHECK-IN"),
+    checkout: findHeaderIndex_(headers, "CHECK-OUT"),
+    guest: findHeaderIndex_(headers, "NOME DO HOSPEDE"),
+    rooms: findHeaderIndex_(headers, "QUARTOS"),
+    total: findHeaderIndex_(headers, "TOTAL (R$)"),
+    origin: findHeaderIndex_(headers, "Origem"),
+    campaign: findHeaderIndex_(headers, "Campanha")
+  };
+  const required = ["hotel", "reservation", "createdAt", "checkin", "checkout", "guest", "rooms", "total"];
+  const missing = required.filter((key) => indexes[key] < 0);
+
+  if (missing.length) {
+    ui.alert(`Colunas obrigatorias ausentes na aba Site: ${missing.join(", ")}`);
+    return;
+  }
+
+  const targetLastRow = Math.max(targetSheet.getLastRow(), 1);
+  const existingCodes = targetLastRow > 1
+    ? new Set(targetSheet.getRange(2, 2, targetLastRow - 1, 1).getDisplayValues()
+      .flat()
+      .map(normalizeReservationCode_)
+      .filter(Boolean))
+    : new Set();
+  const pending = [];
+  let skippedDuplicates = 0;
+
+  sourceValues.slice(1).forEach((row) => {
+    const reservationCode = String(row[indexes.reservation] || "").trim();
+    const normalizedCode = normalizeReservationCode_(reservationCode);
+    if (!normalizedCode) return;
+    if (existingCodes.has(normalizedCode)) {
+      skippedDuplicates += 1;
+      return;
+    }
+
+    const notes = [];
+    if (indexes.origin >= 0 && row[indexes.origin]) notes.push(`Origem: ${row[indexes.origin]}`);
+    if (indexes.campaign >= 0 && row[indexes.campaign]) notes.push(`Campanha: ${row[indexes.campaign]}`);
+
+    pending.push({
+      reservationCode,
+      values: [
+        row[indexes.createdAt] || "",
+        reservationCode,
+        row[indexes.hotel] || "",
+        "SITE",
+        "",
+        row[indexes.guest] || "",
+        row[indexes.checkin] || "",
+        row[indexes.checkout] || "",
+        "",
+        row[indexes.rooms] || "",
+        "",
+        "",
+        row[indexes.total] || "",
+        "",
+        "",
+        "Cartao credito",
+        "",
+        "Confirmada",
+        "Site",
+        notes.join(" | ")
+      ]
+    });
+    existingCodes.add(normalizedCode);
+  });
+
+  if (!pending.length) {
+    ui.alert(`Nenhuma venda nova para importar.\nDuplicadas ignoradas: ${skippedDuplicates}`);
+    return;
+  }
+
+  const targetRows = findEmptySalesRows_(targetSheet, pending.length);
+  pending.forEach((record, index) => {
+    const rowNumber = targetRows[index];
+    targetSheet.getRange(rowNumber, 1, 1, 20).setValues([record.values]);
+    targetSheet.getRange(rowNumber, 9).setFormula(`=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`);
+    targetSheet.getRange(rowNumber, 1).setNumberFormat("dd/mm/yyyy");
+    targetSheet.getRange(rowNumber, 7, 1, 2).setNumberFormat("dd/mm/yyyy");
+    targetSheet.getRange(rowNumber, 13, 1, 3).setNumberFormat('R$ #,##0.00');
+  });
+
+  ui.alert(
+    "Importacao de vendas do Site concluida.\n\n" +
+    `Novas vendas: ${pending.length}\n` +
+    `Duplicadas ignoradas: ${skippedDuplicates}\n` +
+    "As vendas foram registradas sem vendedor e serao exibidas apenas no canal Site."
+  );
+}
+
+function normalizeReservationCode_(value) {
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function findEmptySalesRows_(sheet, count) {
+  const minimumRows = Math.max(sheet.getMaxRows(), sheet.getLastRow() + count + 10);
+  if (sheet.getMaxRows() < minimumRows) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), minimumRows - sheet.getMaxRows());
+  }
+
+  const scanRows = Math.max(minimumRows - 1, count);
+  const keys = sheet.getRange(2, 1, scanRows, 2).getDisplayValues();
+  const available = [];
+  keys.forEach((row, index) => {
+    if (!String(row[0] || "").trim() && !String(row[1] || "").trim() && available.length < count) {
+      available.push(index + 2);
+    }
+  });
+
+  if (available.length < count) {
+    const missing = count - available.length;
+    const start = sheet.getMaxRows() + 1;
+    sheet.insertRowsAfter(sheet.getMaxRows(), missing);
+    for (let offset = 0; offset < missing; offset += 1) available.push(start + offset);
+  }
+  return available;
 }
 
 function prepararAsksuiteDetalhado() {
@@ -687,6 +835,14 @@ function ensureAsksuiteHeaders_(sheet) {
 function findHeaderIndex_(headers, expectedHeader) {
   const expected = normalizeHeader_(expectedHeader);
   return headers.findIndex((header) => normalizeHeader_(header) === expected);
+}
+
+function findHeaderIndexAny_(headers, expectedHeaders) {
+  for (const expectedHeader of expectedHeaders) {
+    const index = findHeaderIndex_(headers, expectedHeader);
+    if (index >= 0) return index;
+  }
+  return -1;
 }
 
 function findAllHeaderIndexes_(headers, expectedHeader) {

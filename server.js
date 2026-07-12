@@ -1804,6 +1804,12 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   return "";
 }
 
+function isImportedSiteSale(record) {
+  return !record.seller
+    && comparableKey(record.source) === comparableKey("Site")
+    && comparableKey(record.channel) === comparableKey("SITE");
+}
+
 function buildCartRecoveryMetrics(carts, period = {}) {
   const today = period.date || todayKey();
   const month = period.month || today.slice(0, 7);
@@ -1934,9 +1940,12 @@ function buildMetrics(records, goals, period = {}) {
     const matchesChannel = !selectedChannel || comparableKey(channelLabelForRecord(record)) === comparableKey(selectedChannel);
     return matchesDay && matchesHotel && matchesChannel;
   });
-  const todayRecords = filteredRecords.filter((record) => record.dateKey === today);
-  const selectedDayRecords = selectedDay ? filteredRecords : todayRecords;
-  const monthToDateRecords = filteredRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
+  const summaryRecords = comparableKey(selectedChannel) === comparableKey("SITE")
+    ? filteredRecords
+    : filteredRecords.filter((record) => !isImportedSiteSale(record));
+  const todayRecords = summaryRecords.filter((record) => record.dateKey === today);
+  const selectedSummaryDayRecords = selectedDay ? summaryRecords : todayRecords;
+  const monthToDateRecords = summaryRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
   const workdaysInMonth = isYearToDate ? businessDaysElapsed(activeMonth, goalDate) : businessDaysInMonth(month);
   const workdaysElapsed = isYearToDate ? workdaysInMonth : businessDaysElapsed(month, goalDate);
   const workdaysRemaining = isYearToDate ? 1 : businessDaysRemaining(month, goalDate);
@@ -2043,7 +2052,7 @@ function buildMetrics(records, goals, period = {}) {
     ...goals.filter((goal) => ytdMonths.includes(goal.month) && goal.hotel).map((goal) => goal.hotel)
   ]);
 
-  const recordsByHotel = groupBy(filteredRecords, (record) => record.hotel);
+  const recordsByHotel = groupBy(summaryRecords, (record) => record.hotel);
   const hotels = [...hotelLabels]
     .map((label) => {
       const rows = recordsByHotel.get(label) || [];
@@ -2062,7 +2071,7 @@ function buildMetrics(records, goals, period = {}) {
     })
     .sort((a, b) => b.value - a.value);
 
-  const dailySales = [...groupBy(filteredRecords, (record) => record.dateKey).entries()]
+  const dailySales = [...groupBy(summaryRecords, (record) => record.dateKey).entries()]
     .map(([date, rows]) => ({
       date,
       sales: sum(rows, (record) => record.total),
@@ -2093,16 +2102,16 @@ function buildMetrics(records, goals, period = {}) {
       channels: OFFICIAL_SALES_CHANNELS
     },
     summary: {
-      salesToday: sum(selectedDayRecords, (record) => record.total),
+      salesToday: sum(selectedSummaryDayRecords, (record) => record.total),
       salesMtd: sum(monthToDateRecords, (record) => record.total),
-      salesMonth: sum(filteredRecords, (record) => record.total),
-      receivedMonth: sum(filteredRecords, (record) => record.received),
-      remainingMonth: sum(filteredRecords, (record) => record.remaining),
-      reservationsToday: selectedDayRecords.length,
-      reservationsMonth: filteredRecords.length,
+      salesMonth: sum(summaryRecords, (record) => record.total),
+      receivedMonth: sum(summaryRecords, (record) => record.received),
+      remainingMonth: sum(summaryRecords, (record) => record.remaining),
+      reservationsToday: selectedSummaryDayRecords.length,
+      reservationsMonth: summaryRecords.length,
       dailyGoal: teamSummarySeller?.dailyGoal || 0,
       monthlyGoal: teamSummarySeller?.monthlyGoal || 0,
-      ticketAverageMonth: filteredRecords.length ? sum(filteredRecords, (record) => record.total) / filteredRecords.length : 0
+      ticketAverageMonth: summaryRecords.length ? sum(summaryRecords, (record) => record.total) / summaryRecords.length : 0
     },
     sellers,
     channels,

@@ -24,6 +24,14 @@ Fluxo diario Asksuite:
 1. Exporte o arquivo .xlsx por atendente do Asksuite.
 2. Importe ou cole os dados na aba Importar_Asksuite.
 3. Rode o menu SUEDS Dashboard > Importar Asksuite da aba Importar_Asksuite.
+
+IMPORTAR VENDAS DO SITE
+
+1. Cole diariamente o relatorio do motor na aba Site, mantendo os cabecalhos originais.
+2. Rode SUEDS Dashboard > Importar vendas da aba Site.
+3. A rotina usa o numero da reserva para nao duplicar vendas ja importadas.
+4. As vendas entram em Lancamento_Vendas com Canal SITE, sem vendedor, pagamento Cartao credito e status Confirmada.
+5. Origem e Campanha sao preservadas em Observacoes quando estiverem preenchidas.
 4. Informe a data do relatorio no formato AAAA-MM-DD.
 
 O script atualiza a aba Asksuite_Atendimentos usando Data + Atendente como chave.
