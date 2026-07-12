@@ -168,8 +168,8 @@ function importarVendasSite() {
         "",
         "",
         row[8] || "",
-        "",
-        "",
+        row[8] || "",
+        0,
         "Cartao credito",
         "",
         "Confirmada",
@@ -209,9 +209,7 @@ function importarVendasSite() {
 
   SpreadsheetApp.flush();
   clearSheetFilterCriteria_(targetSheet);
-  targetSheet.activate();
   const affectedRows = existingUpdates.concat(pending).map((record) => record.rowNumber);
-  targetSheet.setActiveRange(targetSheet.getRange(Math.min.apply(null, affectedRows), 1));
 
   const confirmedSiteRows = affectedRows.filter((rowNumber) => {
     return normalizeHeader_(targetSheet.getRange(rowNumber, 4).getDisplayValue()) === "SITE";
@@ -225,13 +223,82 @@ function importarVendasSite() {
     return;
   }
 
+  const organization = organizeSalesSheet_(targetSheet);
+  targetSheet.activate();
+  targetSheet.setActiveRange(targetSheet.getRange(organization.firstSiteRow || 2, 1));
+
   ui.alert(
     "Importacao de vendas do Site concluida.\n\n" +
     `Novas vendas: ${pending.length}\n` +
     `Reservas existentes atualizadas como Site: ${existingUpdates.length}\n` +
-    `Linhas atualizadas: ${affectedRows.slice(0, 20).join(", ")}\n` +
+    `Total de vendas organizadas: ${organization.dataRows}\n` +
     "As vendas foram registradas sem vendedor e serao exibidas apenas no canal Site."
   );
+}
+
+function organizeSalesSheet_(sheet) {
+  const maxRows = sheet.getMaxRows();
+  const maxColumns = Math.max(sheet.getLastColumn(), 20);
+  if (maxRows < 2) return { dataRows: 0, firstSiteRow: 0 };
+
+  try {
+    sheet.showRows(1, maxRows);
+  } catch (error) {
+    // Linhas ocultas por um filtro voltam a aparecer quando os criterios sao removidos.
+  }
+
+  const codes = sheet.getRange(2, 2, maxRows - 1, 1).getDisplayValues().flat();
+  let lastDataRow = 1;
+  codes.forEach((code, index) => {
+    if (normalizeReservationCode_(code)) lastDataRow = index + 2;
+  });
+
+  if (lastDataRow > 2) {
+    const helperColumn = maxColumns + 1;
+    if (sheet.getMaxColumns() < helperColumn) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), helperColumn - sheet.getMaxColumns());
+    }
+    const sortKeys = codes.slice(0, lastDataRow - 1).map((code) => [normalizeReservationCode_(code) ? 1 : 0]);
+    sheet.getRange(2, helperColumn, sortKeys.length, 1).setValues(sortKeys);
+    sheet.getRange(2, 1, lastDataRow - 1, helperColumn).sort([
+      { column: helperColumn, ascending: false },
+      { column: 1, ascending: true }
+    ]);
+    sheet.getRange(2, helperColumn, lastDataRow - 1, 1).clearContent();
+  }
+
+  // A ordenacao leva registros vazios para o final. Recalcular a ultima venda preenchida.
+  const sortedCodes = sheet.getRange(2, 2, maxRows - 1, 1).getDisplayValues().flat();
+  lastDataRow = 1;
+  sortedCodes.forEach((code, index) => {
+    if (normalizeReservationCode_(code)) lastDataRow = index + 2;
+  });
+
+  if (lastDataRow > 1) {
+    sheet.getRange(2, 9, lastDataRow - 1, 1)
+      .setFormulaR1C1('=IF(OR(RC[-2]="";RC[-1]="");"";RC[-1]-RC[-2])');
+  }
+
+  const futureStartRow = lastDataRow + 1;
+  const futureRowCount = Math.max(maxRows - lastDataRow, 0);
+  if (futureRowCount > 0) {
+    sheet.getRange(futureStartRow, 7, futureRowCount, 2).clearContent();
+    sheet.getRange(futureStartRow, 9, futureRowCount, 1)
+      .setFormulaR1C1('=IF(OR(RC[-2]="";RC[-1]="");"";RC[-1]-RC[-2])');
+    sheet.getRange(futureStartRow, 13, futureRowCount, 3).clearContent();
+    sheet.getRange(futureStartRow, 16, futureRowCount, 1).setValue("Selecione");
+    sheet.getRange(futureStartRow, 17, futureRowCount, 1).clearContent();
+  }
+
+  const dataRows = Math.max(lastDataRow - 1, 0);
+  let firstSiteRow = 0;
+  if (dataRows > 0) {
+    const channels = sheet.getRange(2, 4, dataRows, 1).getDisplayValues().flat();
+    const siteIndex = channels.findIndex((channel) => normalizeHeader_(channel) === "SITE");
+    if (siteIndex >= 0) firstSiteRow = siteIndex + 2;
+  }
+
+  return { dataRows, firstSiteRow };
 }
 
 function clearSheetFilterCriteria_(sheet) {
