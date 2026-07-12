@@ -206,16 +206,39 @@ function importarVendasSite() {
   });
 
   SpreadsheetApp.flush();
+  clearSheetFilterCriteria_(targetSheet);
   targetSheet.activate();
   const affectedRows = existingUpdates.concat(pending).map((record) => record.rowNumber);
   targetSheet.setActiveRange(targetSheet.getRange(Math.min.apply(null, affectedRows), 1));
+
+  const confirmedSiteRows = affectedRows.filter((rowNumber) => {
+    return normalizeText_(targetSheet.getRange(rowNumber, 4).getDisplayValue()) === "SITE";
+  });
+  if (confirmedSiteRows.length !== affectedRows.length) {
+    ui.alert(
+      "A importacao foi executada, mas algumas linhas nao confirmaram o canal SITE.\n" +
+      `Confirmadas: ${confirmedSiteRows.length} de ${affectedRows.length}.\n` +
+      "Verifique as protecoes e validacoes da aba Lancamento_Vendas."
+    );
+    return;
+  }
 
   ui.alert(
     "Importacao de vendas do Site concluida.\n\n" +
     `Novas vendas: ${pending.length}\n` +
     `Reservas existentes atualizadas como Site: ${existingUpdates.length}\n` +
+    `Linhas atualizadas: ${affectedRows.slice(0, 20).join(", ")}\n` +
     "As vendas foram registradas sem vendedor e serao exibidas apenas no canal Site."
   );
+}
+
+function clearSheetFilterCriteria_(sheet) {
+  const filter = sheet.getFilter();
+  if (!filter) return;
+  const range = filter.getRange();
+  for (let column = 1; column <= range.getNumColumns(); column += 1) {
+    filter.removeColumnFilterCriteria(column);
+  }
 }
 
 function normalizeReservationCode_(value) {
