@@ -285,6 +285,8 @@ function organizeSalesSheet_(sheet) {
   });
 
   if (lastDataRow > 1) {
+    sheet.getRange(2, 1, lastDataRow - 1, 1).setNumberFormat("dd/mm/yyyy");
+    sheet.getRange(2, 7, lastDataRow - 1, 2).setNumberFormat("dd/mm/yyyy");
     sheet.getRange(2, 9, lastDataRow - 1, 1)
       .setFormulaR1C1('=IF(OR(RC[-2]="";RC[-1]="");"";RC[-1]-RC[-2])');
   }
