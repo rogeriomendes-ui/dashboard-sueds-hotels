@@ -1,0 +1,242 @@
+===== server.js =====
+    5: 
+    6: loadEnvFile(path.join(__dirname, ".env"));
+    7: 
+    8: const PORT = Number(process.env.PORT || 3000);
+    9: const SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
+   10: const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
+   11: const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAMENTOS_RANGE || "Lancamento_Vendas!A:Y";
+   12: const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
+   13: const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
+   14: const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
+   15: const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
+   16: const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
+   17: const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AG";
+   18: const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
+   19: const TIME_ZONE = "America/Sao_Paulo";
+   20: const SUPABASE_URL = process.env.SUPABASE_URL || "";
+   21: const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+   22: const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
+   23: const GA4_SITE_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_SITE_PROPERTY_ID || process.env.GOOGLE_ANALYTICS_PROPERTY_ID || "";
+   24: const GA4_OMNIBEES_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_OMNIBEES_PROPERTY_ID || "";
+   25: const GOOGLE_ADS_API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v24";
+   26: const GOOGLE_ADS_CUSTOMER_ID = (process.env.GOOGLE_ADS_CUSTOMER_ID || "").replace(/\D/g, "");
+   27: const GOOGLE_ADS_LOGIN_CUSTOMER_ID = (process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID || "").replace(/\D/g, "");
+   28: const GOOGLE_ADS_DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || "";
+   29: const GOOGLE_ADS_CLIENT_ID = process.env.GOOGLE_ADS_CLIENT_ID || "";
+   30: const GOOGLE_ADS_CLIENT_SECRET = process.env.GOOGLE_ADS_CLIENT_SECRET || "";
+   31: const GOOGLE_ADS_REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN || "";
+   32: const META_ADS_API_VERSION = process.env.META_ADS_API_VERSION || "v23.0";
+   33: const META_ADS_ACCOUNT_ID = (process.env.META_ADS_ACCOUNT_ID || "").replace(/^act_/i, "").replace(/\D/g, "");
+
+ 1510:   const map = {
+ 1511:     "SITE": "Site",
+ 1512:     "ALINE NUNES": "Aline Nunes",
+ 1513:     "AMANDA MELGACO": "Amanda Melgaco",
+ 1514:     "JULIA RECHE": "Julia Reche",
+ 1515:     "EMANOEL CESAR": "Emanoel Cesar",
+ 1516:     "BETE GERENTE": "Equipe Sueds",
+ 1517:     "EQUIPE SUEDS": "Equipe Sueds",
+ 1518:     "OPERADORAS": "Operadoras",
+ 1519:     "OTAS": "OTAs",
+ 1520:     "ROBO": "Robo"
+ 1521:   };
+ 1522:   if (key.includes("ALINE NUNES")) return "Aline Nunes";
+ 1523:   if (key.includes("AMANDA MELGACO")) return "Amanda Melgaco";
+ 1524:   if (key.includes("JULIA RECHE")) return "Julia Reche";
+ 1525:   if (key.includes("EMANOEL CESAR")) return "Emanoel Cesar";
+ 1526:   return map[key] || raw;
+ 1527: }
+ 1528: 
+ 1529: function normalizeGoal(item) {
+ 1530:   return {
+ 1531:     month: String(item.Mes || "").trim(),
+ 1532:     date: String(item.Data || item.Dia || "").trim(),
+ 1533:     type: String(item["Tipo Meta"] || "").trim(),
+ 1534:     hotel: normalizeHotelName(item.Hotel || ""),
+ 1535:     channel: String(item.Canal || "").trim(),
+ 1536:     seller: normalizeSellerName(item.Responsavel || item.Vendedor || ""),
+ 1537:     revenueGoal: parseNumber(item["Meta Receita"]),
+ 1538:     reservationGoal: parseNumber(item["Meta Reservas"])
+
+ 1744:   return Math.max(1, businessDays);
+ 1745: }
+ 1746: 
+ 1747: function isOnOrBeforeDateKey(record, key) {
+ 1748:   return record.dateKey && key && record.dateKey <= key;
+ 1749: }
+ 1750: 
+ 1751: const TEAM_CARD_NAME = "Equipe Sueds";
+ 1752: const TEAM_CARD_DISPLAY_NAME = "EQUIPE SUEDS";
+ 1753: const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
+ 1754: const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
+ 1755: const OFFICIAL_SALES_CHANNELS = [
+ 1756:   "SITE",
+ 1757:   "CENTRAL DE RESERVAS",
+ 1758:   "INDIVIDUAL",
+ 1759:   "BALCÃO",
+ 1760:   "GRUPOS",
+ 1761:   "RECEPÇÃO"
+ 1762: ];
+ 1763: 
+ 1764: function isTeamCardName(value) {
+ 1765:   return comparableKey(value) === comparableKey(TEAM_CARD_NAME);
+ 1766: }
+ 1767: 
+ 1768: function sellerRankingSort(a, b) {
+ 1769:   const aIsTeam = isTeamCardName(a.name);
+ 1770:   const bIsTeam = isTeamCardName(b.name);
+ 1771:   if (aIsTeam !== bIsTeam) return aIsTeam ? -1 : 1;
+ 1772:   return b.salesMonth - a.salesMonth;
+
+ 2178: 
+ 2179: const TV_SELLER_ORDER = [
+ 2180:   TEAM_CARD_NAME,
+ 2181:   "Aline Nunes",
+ 2182:   "Emanoel Cesar",
+ 2183:   "Julia Reche",
+ 2184:   "Amanda Melgaco",
+ 2185:   "Site",
+ 2186:   "Operadoras",
+ 2187:   "OTAs",
+ 2188:   "Robo"
+ 2189: ];
+ 2190: 
+ 2191: function tvOrder(name) {
+ 2192:   const index = TV_SELLER_ORDER.findIndex((item) => comparableKey(item) === comparableKey(name));
+ 2193:   return index === -1 ? TV_SELLER_ORDER.length : index;
+ 2194: }
+ 2195: 
+ 2196: function buildTvPayload(metrics) {
+ 2197:   return {
+ 2198:     audience: "tv-vendas",
+ 2199:     generatedAt: metrics.generatedAt,
+ 2200:     period: metrics.period,
+ 2201:     sellers: [...metrics.sellers]
+ 2202:       .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
+ 2203:       .sort((a, b) => tvOrder(a.name) - tvOrder(b.name))
+ 2204:       .map((seller) => ({
+ 2205:         name: seller.name,
+ 2206:         reservationsToday: seller.reservationsToday,
+
+ 2792:   return text;
+ 2793: }
+ 2794: 
+ 2795: function normalizeAsksuiteMarketChannel(value) {
+ 2796:   const text = String(value || "").trim();
+ 2797:   const key = marketComparable(text);
+ 2798:   if (!key) return "Não informado";
+ 2799:   if (key.includes("whatsapp")) return "WhatsApp";
+ 2800:   if (key.includes("chat")) return "Chat web";
+ 2801:   if (key.includes("instagram")) return "Instagram";
+ 2802:   if (key.includes("robo")) return "Robo";
+ 2803:   return text;
+ 2804: }
+ 2805: 
+ 2806: function normalizeAsksuiteMarketSheetRow(item, index = 0) {
+ 2807:   const start = firstFilledValue(item, ["Início do atendimento", "Inicio do atendimento"]);
+ 2808:   const periodValue = firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]) || start;
+ 2809:   const month = monthFromMarketValue(periodValue);
+ 2810:   if (!month) return null;
+ 2811: 
+ 2812:   const rawDdd = String(firstFilledValue(item, ["DDD", "ddd"]) || "").replace(/\D/g, "");
+ 2813:   const ddd = rawDdd || dddFromPhone(firstFilledValue(item, ["Telefone", "phone"]));
+ 2814:   const state = firstFilledValue(item, ["Estado", "UF", "state"]) || MARKET_DDD_STATE[ddd] || "Não informado";
+ 2815:   const channel = normalizeAsksuiteMarketChannel(firstFilledValue(item, ["Canal", "channel"]));
+ 2816:   const hotel = normalizeMarketHotelName(firstFilledValue(item, ["Hotel", "hotel", "Empresa"]));
+ 2817:   const dialoguesValue = firstFilledValue(item, ["Diálogos", "Dialogos", "dialogues", "Atendimentos"]);
+ 2818:   const rawKey = [
+ 2819:     firstFilledValue(item, ["Telefone", "phone"]),
+ 2820:     start,
+
+ 3656:   const summary = summarizeMarketGroup("Total", rows);
+ 3657:   const googleSpend = marketSum(rows, "googleSpend");
+ 3658:   const metaSpend = marketSum(rows, "metaSpend");
+ 3659:   const googleRows = rows.filter((row) => marketComparable(row.source) === "google ads");
+ 3660:   const demoGoogleClicks = marketSum(googleRows, "dialogues");
+ 3661:   const demoGoogleConversions = marketSum(googleRows, "sales");
+ 3662:   const demoGoogleConversionValue = marketSum(googleRows, "revenue");
+ 3663:   const byState = rankedMarketGroups(rows, "state", 27);
+ 3664:   const byDdd = rankedMarketGroups(rows, "ddd", 30);
+ 3665:   const byHotel = rankedMarketGroups(rows, "hotel", 12);
+ 3666:   const byChannel = ensureMarketGroupRows(rankedMarketGroups(rows, "channel", 12), ["Robo"]);
+ 3667:   const byCampaign = rankedMarketGroups(rows, "campaign", 12);
+ 3668:   const byOrigin = rankedMarketGroups(rows, "origin", 12);
+ 3669:   const byStateDdd = [...marketGroupBy(rows, (row) => marketDddLabel(row.state, row.ddd)).entries()]
+ 3670:     .map(([label, groupRows]) => summarizeMarketGroup(label, groupRows))
+ 3671:     .sort((a, b) => b.dialogues - a.dialogues);
+ 3672:   const checkinMonth = /^\d{4}-\d{2}$/.test(String(filters.checkinMonth || ""))
+ 3673:     ? filters.checkinMonth
+ 3674:     : nextCheckinMonthKey();
+ 3675:   const competitiveness = await loadVetorTradeCompetitiveness({ checkinMonth, hotel: filters.hotel }, byHotel);
+ 3676: 
+ 3677:   const payload = {
+ 3678:     audience: "gestores-inteligencia-mercado",
+ 3679:     generatedAt: new Date().toISOString(),
+ 3680:     period: { month: activeMonths[0] || month, months: activeMonths, date: selectedDate },
+ 3681:     integrations: {
+ 3682:       asksuite: {
+ 3683:         configured: Boolean(asksuiteMarketRows.length),
+ 3684:         source: marketSource,
+
+ 3694:         message: competitiveness.message || ""
+ 3695:       }
+ 3696:     },
+ 3697:     filters: {
+ 3698:       selected: { ...filters, date: selectedDate, months: activeMonths, checkinMonth: competitiveness.checkinMonth },
+ 3699:       periods: marketAvailablePeriodsFromRows(allMarketRows),
+ 3700:       checkinMonths: marketCheckinMonthOptions(),
+ 3701:       hotels: selectValues(sourceRows, "hotel"),
+ 3702:       states: selectValues(sourceRows, "state"),
+ 3703:       ddds: selectValues(sourceRows, "ddd"),
+ 3704:       channels: ensureSelectValues(selectValues(sourceRows, "channel"), ["Robo"]),
+ 3705:       campaigns: selectValues(sourceRows, "campaign"),
+ 3706:       origins: selectValues(sourceRows, "origin"),
+ 3707:       devices: selectValues(sourceRows, "device")
+ 3708:     },
+ 3709:     summary: {
+ 3710:       dialogues: summary.dialogues,
+ 3711:       reservations: summary.reservations,
+ 3712:       sales: summary.sales,
+ 3713:       revenue: summary.revenue,
+ 3714:       dialogueToSaleConversion: summary.conversion,
+ 3715:       mediaSpend: googleSpend + metaSpend,
+ 3716:       googleSpend,
+ 3717:       metaSpend,
+ 3718:       costPerDialogue: summary.costPerDialogue,
+ 3719:       costPerReservation: summary.costPerReservation,
+ 3720:       costPerSale: summary.costPerSale,
+ 3721:       roas: summary.roas
+ 3722:     },
+
+===== public\dashboard-gestores.html =====
+  128:             <h2>Tráfego do site</h2>
+  129:           </div>
+  130:         </div>
+  131:         <div id="analyticsOverview"></div>
+  132:       </section>
+  133: 
+  134:       <section class="panel strategic-panel">
+  135:         <div class="panel-header">
+  136:           <div>
+  137:             <p class="eyebrow">Canais estratégicos</p>
+  138:             <h2>Site, Operadoras, OTAs e Robô</h2>
+  139:           </div>
+  140:         </div>
+  141:         <div id="strategicChannels" class="strategic-grid"></div>
+  142:       </section>
+  143:     </main>
+  144: 
+  145:     <div id="tvMessageModal" class="modal-backdrop" hidden>
+  146:       <section class="manager-modal" role="dialog" aria-modal="true" aria-labelledby="tvMessageModalTitle">
+  147:         <div class="manager-modal-header">
+  148:           <h2 id="tvMessageModalTitle">Mensagem para TV</h2>
+  149:           <button id="closeTvMessageModal" class="modal-close-button" type="button" aria-label="Fechar">&times;</button>
+  150:         </div>
+  151:         <label class="modal-field">
+  152:           <span>Mensagem</span>
+  153:           <textarea id="tvMessageText" maxlength="180" rows="4" placeholder="Ex.: Hoje esta liberado desconto extra de 5%"></textarea>
+  154:         </label>
+  155:         <label class="modal-field">
+  156:           <span>Exibir ate</span>
+

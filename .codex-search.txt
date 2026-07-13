@@ -1,0 +1,180 @@
+server.js-10-const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
+server.js-11-const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAMENTOS_RANGE || "Lancamento_Vendas!A:Y";
+server.js-12-const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
+server.js-13-const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
+server.js:14:const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
+server.js:15:const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
+server.js-16-const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
+server.js-17-const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AG";
+server.js-18-const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
+server.js-19-const TIME_ZONE = "America/Sao_Paulo";
+--
+server.js-1516-    "BETE GERENTE": "Equipe Sueds",
+server.js-1517-    "EQUIPE SUEDS": "Equipe Sueds",
+server.js-1518-    "OPERADORAS": "Operadoras",
+server.js-1519-    "OTAS": "OTAs",
+server.js:1520:    "ROBO": "Robo"
+server.js-1521-  };
+server.js-1522-  if (key.includes("ALINE NUNES")) return "Aline Nunes";
+server.js-1523-  if (key.includes("AMANDA MELGACO")) return "Amanda Melgaco";
+server.js-1524-  if (key.includes("JULIA RECHE")) return "Julia Reche";
+--
+server.js-1566-    contacted: contactValues.some(isMeaningfulValue)
+server.js-1567-  };
+server.js-1568-}
+server.js-1569-
+server.js:1570:function normalizeAsksuiteRecord(item) {
+server.js-1571-  const parsedRange = parseDateRange(item.Data);
+server.js-1572-  const parsedDate = parsedRange.start || parseDate(item.Data);
+server.js-1573-  const parsedEndDate = parsedRange.end;
+server.js-1574-  const parsedMonth = parsedDate ? monthKey(parsedDate) : "";
+--
+server.js-1589-    revenue: parseDecimalNumber(item.Receita)
+server.js-1590-  };
+server.js-1591-}
+server.js-1592-
+server.js:1593:function dedupeAsksuiteRecords(rows) {
+server.js-1594-  const byKey = new Map();
+server.js-1595-  rows.forEach((row) => {
+server.js-1596-    const periodKey = row.isMonthlyTotal ? `${row.monthKey}|mensal` : `${row.dateKey}|diario`;
+server.js-1597-    const key = `${periodKey}|${comparableKey(row.seller)}`;
+--
+server.js-1750-
+server.js-1751-const TEAM_CARD_NAME = "Equipe Sueds";
+server.js-1752-const TEAM_CARD_DISPLAY_NAME = "EQUIPE SUEDS";
+server.js-1753-const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
+server.js:1754:const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
+server.js-1755-const OFFICIAL_SALES_CHANNELS = [
+server.js-1756-  "SITE",
+server.js-1757-  "CENTRAL DE RESERVAS",
+server.js-1758-  "INDIVIDUAL",
+--
+server.js-1847-    metricsFromCarts(TEAM_CARD_NAME, teamCarts)
+server.js-1848-  ];
+server.js-1849-}
+server.js-1850-
+server.js:1851:function buildAsksuiteMetrics(asksuite, period = {}) {
+server.js-1852-  const today = period.date || todayKey();
+server.js-1853-  const month = period.month || today.slice(0, 7);
+server.js-1854-  const monthRows = asksuite.filter((row) => row.monthKey === month);
+server.js-1855-
+--
+server.js-2184-  "Amanda Melgaco",
+server.js-2185-  "Site",
+server.js-2186-  "Operadoras",
+server.js-2187-  "OTAs",
+server.js:2188:  "Robo"
+server.js-2189-];
+server.js-2190-
+server.js-2191-function tvOrder(name) {
+server.js-2192-  const index = TV_SELLER_ORDER.findIndex((item) => comparableKey(item) === comparableKey(name));
+--
+server.js-2727-    .filter((month) => /^\d{4}-\d{2}$/.test(month)))]
+server.js-2728-    .sort((a, b) => b.localeCompare(a));
+server.js-2729-}
+server.js-2730-
+server.js:2731:function loadAsksuiteMarketFileRawRows() {
+server.js-2732-  const filePath = path.join(__dirname, "data", "asksuite-market.json");
+server.js-2733-  if (!fs.existsSync(filePath)) return [];
+server.js-2734-
+server.js-2735-  try {
+--
+server.js-2791-  if (key.includes("sueds")) return "SUEDS Hotels";
+server.js-2792-  return text;
+server.js-2793-}
+server.js-2794-
+server.js:2795:function normalizeAsksuiteMarketChannel(value) {
+server.js-2796-  const text = String(value || "").trim();
+server.js-2797-  const key = marketComparable(text);
+server.js-2798-  if (!key) return "Não informado";
+server.js-2799-  if (key.includes("whatsapp")) return "WhatsApp";
+server.js-2800-  if (key.includes("chat")) return "Chat web";
+server.js-2801-  if (key.includes("instagram")) return "Instagram";
+server.js:2802:  if (key.includes("robo")) return "Robo";
+server.js-2803-  return text;
+server.js-2804-}
+server.js-2805-
+server.js:2806:function normalizeAsksuiteMarketSheetRow(item, index = 0) {
+server.js-2807-  const start = firstFilledValue(item, ["Início do atendimento", "Inicio do atendimento"]);
+server.js-2808-  const periodValue = firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]) || start;
+server.js-2809-  const month = monthFromMarketValue(periodValue);
+server.js-2810-  if (!month) return null;
+server.js-2811-
+server.js-2812-  const rawDdd = String(firstFilledValue(item, ["DDD", "ddd"]) || "").replace(/\D/g, "");
+server.js-2813-  const ddd = rawDdd || dddFromPhone(firstFilledValue(item, ["Telefone", "phone"]));
+server.js-2814-  const state = firstFilledValue(item, ["Estado", "UF", "state"]) || MARKET_DDD_STATE[ddd] || "Não informado";
+server.js:2815:  const channel = normalizeAsksuiteMarketChannel(firstFilledValue(item, ["Canal", "channel"]));
+server.js-2816-  const hotel = normalizeMarketHotelName(firstFilledValue(item, ["Hotel", "hotel", "Empresa"]));
+server.js-2817-  const dialoguesValue = firstFilledValue(item, ["Diálogos", "Dialogos", "dialogues", "Atendimentos"]);
+server.js-2818-  const rawKey = [
+server.js-2819-    firstFilledValue(item, ["Telefone", "phone"]),
+--
+server.js-2830-    state,
+server.js-2831-    ddd,
+server.js-2832-    hotel,
+server.js-2833-    channel,
+server.js:2834:    campaign: firstFilledValue(item, ["Campanha", "campaign"]) || `Asksuite ${channel}`,
+server.js:2835:    source: firstFilledValue(item, ["Fonte", "Origem Sistema", "source"]) || "Asksuite",
+server.js-2836-    origin: firstFilledValue(item, ["Origem", "origin"]) || channel,
+server.js-2837-    device: firstFilledValue(item, ["Dispositivo", "device"]) || "Não informado",
+server.js-2838-    dialogues: dialoguesValue === "" ? 1 : parseDecimalNumber(dialoguesValue),
+server.js-2839-    quotes: parseDecimalNumber(firstFilledValue(item, ["Cotações", "Cotacoes", "quotes", "Oportunidades"])),
+--
+server.js-2859-    row.device
+server.js-2860-  ].map((value) => marketComparable(value)).join("|");
+server.js-2861-}
+server.js-2862-
+server.js:2863:function mergeAsksuiteMarketRows(fileRows = [], sheetRows = []) {
+server.js-2864-  const rowsByKey = new Map();
+server.js-2865-  [...fileRows, ...sheetRows].forEach((row) => {
+server.js-2866-    if (!row?.month) return;
+server.js-2867-    rowsByKey.set(marketRowKey(row), row);
+server.js-2868-  });
+server.js-2869-  return [...rowsByKey.values()];
+server.js-2870-}
+server.js-2871-
+server.js:2872:async function loadAsksuiteMarketSheetRawRows() {
+server.js-2873-  if (!SHEET_ID || !getServiceAccount()) return [];
+server.js-2874-  try {
+server.js-2875-    const rows = await getSheetValues(ASKSUITE_MARKET_RANGE);
+server.js-2876-    return rowsToObjectsAny(rows)
+server.js:2877:      .map((row, index) => normalizeAsksuiteMarketSheetRow(row, index))
+server.js-2878-      .filter(Boolean);
+server.js-2879-  } catch (error) {
+server.js-2880-    return [];
+server.js-2881-  }
+server.js-2882-}
+server.js-2883-
+server.js:2884:async function loadAsksuiteMarketRawRows() {
+server.js-2885-  const [fileRows, sheetRows] = await Promise.all([
+server.js:2886:    Promise.resolve(loadAsksuiteMarketFileRawRows()),
+server.js:2887:    loadAsksuiteMarketSheetRawRows()
+server.js-2888-  ]);
+server.js:2889:  return mergeAsksuiteMarketRows(fileRows, sheetRows);
+server.js-2890-}
+server.js-2891-
+server.js:2892:function normalizeAsksuiteMarketRow(row, index) {
+server.js-2893-  return {
+server.js-2894-    id: `asksuite-${row.month}-${index + 1}`,
+server.js-2895-    month: row.month,
+server.js-2896-    dateKey: row.dateKey || "",
+server.js-2897-    state: row.state || "Não informado",
+server.js-2898-    ddd: row.ddd || "NI",
+server.js-2899-    hotel: row.hotel || "Não informado",
+server.js-2900-    channel: row.channel || "Não informado",
+server.js:2901:    campaign: row.campaign || `Asksuite ${row.channel || ""}`.trim(),
+server.js:2902:    source: row.source || "Asksuite",
+server.js-2903-    origin: row.origin || row.channel || "Não informado",
+server.js-2904-    device: row.device || "Não informado",
+server.js-2905-    dialogues: Number(row.dialogues || 0),
+server.js-2906-    quotes: Number(row.quotes || 0),
+--
+server.js-2911-    metaSpend: Number(row.metaSpend || 0)
+server.js-2912-  };
+server.js-2913-}
+server.js-2914-
+server.js:2915:function loadAsksuiteMarketRowsFromRaw(rawRows, month) {
+server.js-2916-  try {
+server.js-2917-    const targetYear = todayKey().slice(0, 4);
+server.js-2918-    return rawRows
+server.js-2919-      .filter((row) => {
