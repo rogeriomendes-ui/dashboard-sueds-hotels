@@ -383,6 +383,15 @@ function advancePurchaseBlock(data) {
             <strong class="advp-revenue">${money.format(band.revenue)}</strong>
           </div>
         `).join("")}
+        <div class="advp-row advp-summary-row">
+          <div class="advp-period">
+            <strong>TOTAL SITE + EQUIPE SUEDS</strong>
+            <span>Total vendido no período</span>
+          </div>
+          <strong class="advp-share">${data?.totalRevenue ? "100%" : "0%"}</strong>
+          <span class="advp-reservations">${number.format(data?.totalReservations || 0)} reservas</span>
+          <strong class="advp-revenue">${money.format(data?.totalRevenue || 0)}</strong>
+        </div>
       </div>
     </section>
   `;
