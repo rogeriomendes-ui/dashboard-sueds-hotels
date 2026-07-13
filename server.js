@@ -2131,7 +2131,10 @@ function buildManagerPayload(metrics) {
     summary: metrics.summary,
     filters: metrics.filters,
     sellers: metrics.sellers,
-    strategicChannels: metrics.sellers.filter((seller) => STRATEGIC_CHANNEL_SELLERS.includes(seller.name)),
+    strategicChannels: metrics.sellers.filter((seller) => (
+      STRATEGIC_CHANNEL_SELLERS.includes(seller.name) &&
+      comparableKey(seller.name) !== comparableKey("Robo")
+    )),
     channels: metrics.channels,
     hotels: metrics.hotels,
     dailySales: metrics.dailySales,
