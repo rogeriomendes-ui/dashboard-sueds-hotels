@@ -1605,6 +1605,49 @@ function sum(records, getter) {
   return records.reduce((total, record) => total + getter(record), 0);
 }
 
+function daysBetweenDateKeys(startKey, endKey) {
+  const start = String(startKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const end = String(endKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!start || !end) return null;
+
+  const startTime = Date.UTC(Number(start[1]), Number(start[2]) - 1, Number(start[3]));
+  const endTime = Date.UTC(Number(end[1]), Number(end[2]) - 1, Number(end[3]));
+  return Math.round((endTime - startTime) / 86400000);
+}
+
+function buildAdvancePurchase(records) {
+  const bands = [
+    { key: "veryShort", label: "Muito Curto Prazo", range: "0 a 7 dias", minDays: 0, maxDays: 7 },
+    { key: "short", label: "Curto Prazo", range: "8 a 30 dias", minDays: 8, maxDays: 30 },
+    { key: "medium", label: "Médio Prazo", range: "31 a 60 dias", minDays: 31, maxDays: 60 },
+    { key: "long", label: "Longo Prazo", range: "61 a 90 dias", minDays: 61, maxDays: 90 },
+    { key: "superEarly", label: "Super Antecipado", range: "Mais de 90 dias", minDays: 91, maxDays: Infinity }
+  ].map((band) => ({ ...band, reservations: 0, revenue: 0 }));
+
+  records.forEach((record) => {
+    const checkinDate = parseDate(record.checkin);
+    const checkinKey = checkinDate ? dateKey(checkinDate) : "";
+    const advanceDays = daysBetweenDateKeys(record.dateKey, checkinKey);
+    if (advanceDays === null || advanceDays < 0) return;
+
+    const band = bands.find((item) => advanceDays >= item.minDays && advanceDays <= item.maxDays);
+    if (!band) return;
+    band.reservations += 1;
+    band.revenue += record.total;
+  });
+
+  const totalReservations = sum(bands, (band) => band.reservations);
+  const totalRevenue = sum(bands, (band) => band.revenue);
+  return {
+    totalReservations,
+    totalRevenue,
+    bands: bands.map(({ minDays, maxDays, ...band }) => ({
+      ...band,
+      sharePct: totalRevenue ? Math.round((band.revenue / totalRevenue) * 1000) / 10 : 0
+    }))
+  };
+}
+
 function uniqueSummary(rows, getter) {
   const values = Array.from(new Set(
     rows
@@ -2118,6 +2161,7 @@ function buildMetrics(records, goals, period = {}) {
     sellers,
     channels,
     hotels,
+    advancePurchase: buildAdvancePurchase(filteredRecords),
     dailySales,
     detailedSales
   };
@@ -2137,6 +2181,7 @@ function buildManagerPayload(metrics) {
     )),
     channels: metrics.channels,
     hotels: metrics.hotels,
+    advancePurchase: metrics.advancePurchase,
     dailySales: metrics.dailySales,
     detailedSales: metrics.detailedSales,
     analytics: metrics.analytics || null

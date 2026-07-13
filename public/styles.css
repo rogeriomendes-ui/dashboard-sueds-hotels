@@ -464,6 +464,74 @@ h2 {
   line-height: 1.05;
 }
 
+.advp-block {
+  grid-column: 1 / -1;
+}
+
+.advp-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.advp-heading h3 {
+  margin: 2px 0 0;
+  font-size: 22px;
+}
+
+.advp-total {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  color: var(--muted);
+}
+
+.advp-total strong {
+  color: var(--text);
+}
+
+.advp-table {
+  border-top: 1px solid var(--line);
+}
+
+.advp-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.5fr) minmax(72px, 0.45fr) minmax(120px, 0.7fr) minmax(130px, 0.8fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.advp-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.advp-period {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.advp-period span,
+.advp-reservations {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.advp-share {
+  color: var(--green);
+  font-size: 20px;
+}
+
+.advp-revenue {
+  text-align: right;
+  font-size: 17px;
+}
+
 .seller-pills {
   display: flex;
   flex-wrap: wrap;
@@ -963,7 +1031,8 @@ h2 {
 
   .topbar,
   .panel-header,
-  .alert-band {
+  .alert-band,
+  .advp-heading {
     align-items: flex-start;
     flex-direction: column;
     gap: 10px;
@@ -1060,6 +1129,26 @@ h2 {
 
   .metric-card strong {
     font-size: 36px;
+  }
+
+  .advp-total {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .advp-row {
+    grid-template-columns: 1fr auto;
+    gap: 6px 14px;
+    padding: 12px 4px;
+  }
+
+  .advp-period {
+    grid-column: 1 / -1;
+  }
+
+  .advp-revenue {
+    grid-column: 1 / -1;
+    text-align: right;
   }
 
   .bar-row,

@@ -357,6 +357,37 @@ function renderGlobalFilters(filters) {
   channelSelect.innerHTML = optionList(filters.channels || [], filters.selectedChannel || "", "Todos os canais");
 }
 
+function advancePurchaseBlock(data) {
+  const bands = data?.bands || [];
+  return `
+    <section class="advp-block" aria-labelledby="advpTitle">
+      <div class="advp-heading">
+        <div>
+          <p class="eyebrow">ADVP</p>
+          <h3 id="advpTitle">Antecipação de vendas</h3>
+        </div>
+        <div class="advp-total">
+          <strong>${number.format(data?.totalReservations || 0)} reservas</strong>
+          <span>${money.format(data?.totalRevenue || 0)}</span>
+        </div>
+      </div>
+      <div class="advp-table">
+        ${bands.map((band) => `
+          <div class="advp-row">
+            <div class="advp-period">
+              <strong>${band.label}</strong>
+              <span>${band.range}</span>
+            </div>
+            <strong class="advp-share">${number.format(band.sharePct)}%</strong>
+            <span class="advp-reservations">${number.format(band.reservations)} reservas</span>
+            <strong class="advp-revenue">${money.format(band.revenue)}</strong>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function render(data) {
   currentDashboardData = data;
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
@@ -376,7 +407,7 @@ function render(data) {
   byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
 
-  byId("strategicChannels").innerHTML = (data.strategicChannels || [])
+  const strategicCards = (data.strategicChannels || [])
     .map((item) => `
       <article class="strategic-card">
         <h3>${item.name}</h3>
@@ -396,6 +427,7 @@ function render(data) {
       </article>
     `)
     .join("");
+  byId("strategicChannels").innerHTML = `${advancePurchaseBlock(data.advancePurchase)}${strategicCards}`;
 
   const rankingSellers = (data.sellers || []).filter((seller) => seller.name !== "Site");
 
