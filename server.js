@@ -2101,7 +2101,7 @@ function buildMetrics(records, goals, period = {}) {
       selectedChannel,
       days: sortLabels(new Set(monthRecords.map((record) => record.dateKey))),
       hotels: sortLabels(new Set(monthRecords.map((record) => record.hotel))),
-      channels: OFFICIAL_SALES_CHANNELS
+      channels: [...OFFICIAL_SALES_CHANNELS, "Robo"]
     },
     summary: {
       salesToday: sum(selectedSummaryDayRecords, (record) => record.total),
@@ -2803,6 +2803,11 @@ function normalizeAsksuiteMarketChannel(value) {
   return text;
 }
 
+function isRobotAsksuiteAttendant(value) {
+  const key = marketComparable(value);
+  return key === "robo";
+}
+
 function normalizeAsksuiteMarketSheetRow(item, index = 0) {
   const start = firstFilledValue(item, ["Início do atendimento", "Inicio do atendimento"]);
   const periodValue = firstFilledValue(item, ["Mês", "Mes", "month", "Data", "Período", "Periodo"]) || start;
@@ -2812,13 +2817,16 @@ function normalizeAsksuiteMarketSheetRow(item, index = 0) {
   const rawDdd = String(firstFilledValue(item, ["DDD", "ddd"]) || "").replace(/\D/g, "");
   const ddd = rawDdd || dddFromPhone(firstFilledValue(item, ["Telefone", "phone"]));
   const state = firstFilledValue(item, ["Estado", "UF", "state"]) || MARKET_DDD_STATE[ddd] || "Não informado";
-  const channel = normalizeAsksuiteMarketChannel(firstFilledValue(item, ["Canal", "channel"]));
+  const attendant = firstFilledValue(item, ["Atendente", "attendant"]);
+  const channel = isRobotAsksuiteAttendant(attendant)
+    ? "Robo"
+    : normalizeAsksuiteMarketChannel(firstFilledValue(item, ["Canal", "channel"]));
   const hotel = normalizeMarketHotelName(firstFilledValue(item, ["Hotel", "hotel", "Empresa"]));
   const dialoguesValue = firstFilledValue(item, ["Diálogos", "Dialogos", "dialogues", "Atendimentos"]);
   const rawKey = [
     firstFilledValue(item, ["Telefone", "phone"]),
     start,
-    firstFilledValue(item, ["Atendente"]),
+    attendant,
     firstFilledValue(item, ["Empresa"]),
     firstFilledValue(item, ["Canal", "channel"])
   ].join("|");
@@ -2949,6 +2957,81 @@ function loadAsksuiteMarketRowsForDateFromRaw(rawRows, date) {
   } catch (error) {
     return [];
   }
+}
+
+function buildRobotSellerFromAsksuiteMarketRows(rawRows = [], period = {}) {
+  const today = period.date || todayKey();
+  const requestedMonth = period.month || today.slice(0, 7);
+  const isYearToDate = requestedMonth === "ytd";
+  const activeMonth = isYearToDate ? today.slice(0, 7) : requestedMonth;
+  const selectedDay = period.day || "";
+  const selectedHotel = period.hotel || "";
+  const selectedChannel = period.channel || "";
+  const goalDate = selectedDay || today;
+  const ytdStart = `${today.slice(0, 4)}-01-01`;
+
+  const periodRows = rawRows.filter((row) => {
+    const rowMonth = String(row.month || "");
+    if (isYearToDate) return rowMonth.startsWith(today.slice(0, 4)) && (!row.dateKey || row.dateKey >= ytdStart);
+    return rowMonth === activeMonth;
+  });
+
+  const rows = periodRows.filter((row) => {
+    if (comparableKey(row.channel) !== comparableKey("Robo")) return false;
+    if (selectedDay && row.dateKey !== selectedDay) return false;
+    if (selectedHotel && comparableKey(row.hotel) !== comparableKey(selectedHotel)) return false;
+    if (selectedChannel && comparableKey(row.channel) !== comparableKey(selectedChannel)) return false;
+    return true;
+  });
+
+  if (!rows.length) return null;
+
+  const dayRows = selectedDay ? rows : rows.filter((row) => row.dateKey === today);
+  const mtdRows = rows.filter((row) => !row.dateKey || isOnOrBeforeDateKey(row, goalDate));
+  const salesToday = sum(dayRows, (row) => row.revenue);
+  const salesMtd = sum(mtdRows, (row) => row.revenue);
+  const salesMonth = sum(rows, (row) => row.revenue);
+  const reservationsToday = sum(dayRows, (row) => row.sales);
+  const reservationsMtd = sum(mtdRows, (row) => row.sales);
+  const reservationsMonth = sum(rows, (row) => row.sales);
+
+  return {
+    name: "Robo",
+    salesToday,
+    salesMtd,
+    salesMonth,
+    reservationsToday,
+    reservationsMtd,
+    reservationsMonth,
+    dailyGoal: 0,
+    mtdGoal: 0,
+    monthlyGoal: 0,
+    dailyGoalPct: null,
+    mtdGoalPct: null,
+    monthlyGoalPct: null
+  };
+}
+
+function mergeRobotSeller(sellers = [], robotSeller) {
+  if (!robotSeller) return sellers;
+  const existingIndex = sellers.findIndex((seller) => comparableKey(seller.name) === comparableKey(robotSeller.name));
+  if (existingIndex === -1) return [...sellers, robotSeller].sort(sellerRankingSort);
+
+  return sellers.map((seller, index) => {
+    if (index !== existingIndex) return seller;
+    return {
+      ...seller,
+      salesToday: robotSeller.salesToday,
+      salesMtd: robotSeller.salesMtd,
+      salesMonth: robotSeller.salesMonth,
+      reservationsToday: robotSeller.reservationsToday,
+      reservationsMtd: robotSeller.reservationsMtd,
+      reservationsMonth: robotSeller.reservationsMonth,
+      dailyGoalPct: pct(robotSeller.salesToday, seller.dailyGoal),
+      mtdGoalPct: pct(robotSeller.salesMtd, seller.mtdGoal),
+      monthlyGoalPct: pct(robotSeller.salesMonth, seller.monthlyGoal)
+    };
+  }).sort(sellerRankingSort);
 }
 
 function demoCompetitivenessRows(month) {
@@ -3927,11 +4010,13 @@ async function loadDataset() {
 }
 
 async function loadMetrics(period) {
-  const [dataset, analytics] = await Promise.all([
+  const [dataset, analytics, asksuiteMarketRows] = await Promise.all([
     loadDataset(),
-    loadAnalyticsMetrics(period)
+    loadAnalyticsMetrics(period),
+    loadAsksuiteMarketRawRows()
   ]);
   const metrics = buildMetrics(dataset.records, dataset.goals, period);
+  metrics.sellers = mergeRobotSeller(metrics.sellers, buildRobotSellerFromAsksuiteMarketRows(asksuiteMarketRows, period));
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
   metrics.asksuite = buildAsksuiteMetrics(dataset.asksuite || [], period);
   metrics.analytics = analytics;
