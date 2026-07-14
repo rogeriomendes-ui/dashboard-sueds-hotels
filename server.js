@@ -2134,6 +2134,9 @@ function buildMetrics(records, goals, period = {}) {
     .slice()
     .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.reservationCode.localeCompare(b.reservationCode))
     .map((record) => salesDetailRow(record, channelLabelForRecord));
+  const advancePurchaseWithoutGroups = filteredRecords.filter((record) => (
+    comparableKey(channelLabelForRecord(record)) !== comparableKey("GRUPOS")
+  ));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -2161,7 +2164,10 @@ function buildMetrics(records, goals, period = {}) {
     sellers,
     channels,
     hotels,
-    advancePurchase: buildAdvancePurchase(filteredRecords),
+    advancePurchase: {
+      withGroups: buildAdvancePurchase(filteredRecords),
+      withoutGroups: buildAdvancePurchase(advancePurchaseWithoutGroups)
+    },
     dailySales,
     detailedSales
   };
