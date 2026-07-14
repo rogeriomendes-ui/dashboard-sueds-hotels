@@ -471,7 +471,9 @@ function render(data) {
       .map((seller, index) => `
         <div class="seller-table-row">
           <span class="rank-position">${index + 1}</span>
-          <span class="row-label">${seller.name}</span>
+          <span class="row-label ${seller.name === "Robo" ? "seller-label-robot" : ""}">
+            ${seller.name}${seller.name === "Robo" ? " <small class=\"seller-note\">(não somado na EQUIPE)</small>" : ""}
+          </span>
           <strong data-label="Reservas">${number.format(seller.reservationsMonth)}</strong>
           <strong data-label="Venda">${money.format(seller.salesMonth)}</strong>
           <strong data-label="Meta">${money.format(seller.monthlyGoal || 0)}</strong>

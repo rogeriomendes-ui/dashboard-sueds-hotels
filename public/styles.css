@@ -910,6 +910,20 @@ h2 {
   color: var(--muted);
 }
 
+.seller-label-robot {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  overflow: visible;
+}
+
+.seller-label-robot .seller-note {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .icm-value {
   color: var(--green);
 }
