@@ -1620,8 +1620,9 @@ function buildAdvancePurchase(records) {
     { key: "veryShort", label: "Muito Curto Prazo", range: "0 a 7 dias", minDays: 0, maxDays: 7 },
     { key: "short", label: "Curto Prazo", range: "8 a 30 dias", minDays: 8, maxDays: 30 },
     { key: "medium", label: "Médio Prazo", range: "31 a 60 dias", minDays: 31, maxDays: 60 },
-    { key: "long", label: "Longo Prazo", range: "61 a 90 dias", minDays: 61, maxDays: 90 },
-    { key: "superEarly", label: "Super Antecipado", range: "Mais de 90 dias", minDays: 91, maxDays: Infinity }
+    { key: "long", label: "Longo Prazo", range: "61 a 89 dias", minDays: 61, maxDays: 89 },
+    { key: "superLong", label: "Super Longo Prazo", range: "90 a 180 dias", minDays: 90, maxDays: 180 },
+    { key: "megaLong", label: "Mega Longo Prazo", range: "Mais de 180 dias", minDays: 181, maxDays: Infinity }
   ].map((band) => ({ ...band, reservations: 0, revenue: 0 }));
 
   records.forEach((record) => {
