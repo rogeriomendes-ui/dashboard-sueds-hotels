@@ -2093,6 +2093,13 @@ function buildMetrics(records, goals, period = {}) {
       };
     })
     .sort((a, b) => OFFICIAL_SALES_CHANNELS.indexOf(a.label) - OFFICIAL_SALES_CHANNELS.indexOf(b.label));
+  const selectedChannelMetrics = selectedChannel
+    ? channels.find((channel) => comparableKey(channel.label) === comparableKey(selectedChannel))
+    : null;
+  const siteChannelMetrics = channels.find((channel) => comparableKey(channel.label) === comparableKey("SITE"));
+  const managerMonthlyGoal = selectedChannel
+    ? selectedChannelMetrics?.monthlyGoal || 0
+    : (teamSummarySeller?.monthlyGoal || 0) + (siteChannelMetrics?.monthlyGoal || 0);
 
   const hotelLabels = new Set([
     ...filteredRecords.map((record) => record.hotel).filter(Boolean),
@@ -2174,7 +2181,7 @@ function buildMetrics(records, goals, period = {}) {
       reservationsToday: selectedManagerDayRecords.length,
       reservationsMonth: filteredRecords.length,
       dailyGoal: teamSummarySeller?.dailyGoal || 0,
-      monthlyGoal: teamSummarySeller?.monthlyGoal || 0,
+      monthlyGoal: managerMonthlyGoal,
       ticketAverageMonth: filteredRecords.length ? sum(filteredRecords, (record) => record.total) / filteredRecords.length : 0
     },
     sellers,
