@@ -422,7 +422,9 @@ function render(data) {
   const hasDayFilter = Boolean(data.filters?.selectedDay);
   const hasGlobalFilter = hasDayFilter || Boolean(data.filters?.selectedHotel) || Boolean(data.filters?.selectedChannel);
   byId("salesTodayLabel").textContent = hasDayFilter ? "Vendas no dia" : "Vendas hoje";
-  byId("salesMonthLabel").textContent = hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês";
+  byId("salesMonthLabel").textContent = hasGlobalFilter
+    ? "Vendas no recorte ( Equipe + Site )"
+    : "Vendas no mês ( Equipe + Site )";
   byId("salesToday").textContent = money.format(data.summary.salesToday);
   byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
   byId("dailyGoal").textContent = `Meta do dia ${money.format(data.summary.dailyGoal || 0)}`;

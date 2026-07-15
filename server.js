@@ -1990,6 +1990,9 @@ function buildMetrics(records, goals, period = {}) {
   const todayRecords = summaryRecords.filter((record) => record.dateKey === today);
   const selectedSummaryDayRecords = selectedDay ? summaryRecords : todayRecords;
   const monthToDateRecords = summaryRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
+  const managerTodayRecords = filteredRecords.filter((record) => record.dateKey === today);
+  const selectedManagerDayRecords = selectedDay ? filteredRecords : managerTodayRecords;
+  const managerMonthToDateRecords = filteredRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
   const workdaysInMonth = isYearToDate ? businessDaysElapsed(activeMonth, goalDate) : businessDaysInMonth(month);
   const workdaysElapsed = isYearToDate ? workdaysInMonth : businessDaysElapsed(month, goalDate);
   const workdaysRemaining = isYearToDate ? 1 : businessDaysRemaining(month, goalDate);
@@ -2162,6 +2165,18 @@ function buildMetrics(records, goals, period = {}) {
       monthlyGoal: teamSummarySeller?.monthlyGoal || 0,
       ticketAverageMonth: summaryRecords.length ? sum(summaryRecords, (record) => record.total) / summaryRecords.length : 0
     },
+    managerSummary: {
+      salesToday: sum(selectedManagerDayRecords, (record) => record.total),
+      salesMtd: sum(managerMonthToDateRecords, (record) => record.total),
+      salesMonth: sum(filteredRecords, (record) => record.total),
+      receivedMonth: sum(filteredRecords, (record) => record.received),
+      remainingMonth: sum(filteredRecords, (record) => record.remaining),
+      reservationsToday: selectedManagerDayRecords.length,
+      reservationsMonth: filteredRecords.length,
+      dailyGoal: teamSummarySeller?.dailyGoal || 0,
+      monthlyGoal: teamSummarySeller?.monthlyGoal || 0,
+      ticketAverageMonth: filteredRecords.length ? sum(filteredRecords, (record) => record.total) / filteredRecords.length : 0
+    },
     sellers,
     channels,
     hotels,
@@ -2179,7 +2194,7 @@ function buildManagerPayload(metrics) {
     audience: "gestores",
     generatedAt: metrics.generatedAt,
     period: metrics.period,
-    summary: metrics.summary,
+    summary: metrics.managerSummary || metrics.summary,
     filters: metrics.filters,
     sellers: metrics.sellers,
     strategicChannels: metrics.sellers.filter((seller) => (
