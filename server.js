@@ -2241,6 +2241,7 @@ function buildSellersPayload(metrics) {
         salesMonth: seller.salesMonth,
         dailyGoal: seller.dailyGoal,
         monthlyGoal: seller.monthlyGoal,
+        projectionPct: seller.mtdGoalPct,
         monthlyGoalPct: seller.monthlyGoalPct
       }))
   };

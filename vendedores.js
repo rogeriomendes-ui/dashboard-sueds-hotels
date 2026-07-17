@@ -112,7 +112,10 @@ function renderSellers(sellers = []) {
 
   const rows = sellers.map((seller, index) => {
     const icmValue = seller.monthlyGoalPct;
+    const projectionValue = seller.projectionPct;
     const icmText = formatPct(icmValue);
+    const projectionText = formatPct(projectionValue);
+    const projectionTone = icmClass(projectionValue);
     const icmTone = icmClass(icmValue);
     return `
       <div class="ranking-row">
@@ -122,6 +125,7 @@ function renderSellers(sellers = []) {
         <span class="metric-cell" data-label="Venda">${money.format(seller.salesMonth || 0)}</span>
         <span class="metric-cell" data-label="Meta do mês">${money.format(seller.monthlyGoal || 0)}</span>
         <span class="metric-cell" data-label="Meta do dia">${money.format(seller.dailyGoal || 0)}</span>
+        <span class="metric-cell projection ${projectionTone}" data-label="Projeção %">${projectionText}</span>
         <span class="metric-cell icm ${icmTone}" data-label="ICM %">${icmText}</span>
       </div>
     `;
@@ -135,6 +139,7 @@ function renderSellers(sellers = []) {
       <span>Venda</span>
       <span>Meta do mês</span>
       <span>Meta do dia</span>
+      <span>Projeção %</span>
       <span>ICM %</span>
     </div>
     ${rows}
