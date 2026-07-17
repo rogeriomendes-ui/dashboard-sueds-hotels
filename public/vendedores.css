@@ -165,7 +165,7 @@ h2 {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 44px minmax(170px, 1.3fr) repeat(5, minmax(90px, 1fr));
+  grid-template-columns: 44px minmax(170px, 1.3fr) repeat(6, minmax(90px, 1fr));
   gap: 12px;
   align-items: center;
   min-height: 54px;
@@ -202,15 +202,18 @@ h2 {
   font-weight: 800;
 }
 
-.icm.good {
+.icm.good,
+.projection.good {
   color: var(--good);
 }
 
-.icm.bad {
+.icm.bad,
+.projection.bad {
   color: var(--bad);
 }
 
-.icm.muted {
+.icm.muted,
+.projection.muted {
   color: var(--muted);
 }
 
