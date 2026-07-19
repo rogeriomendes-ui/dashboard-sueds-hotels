@@ -14,6 +14,33 @@ Automatizar a captura dos opiniarios em papel recebidos nas recepcoes dos hoteis
 6. Registros com baixa confianca ficam em `Revisao_Opinarios`.
 7. O dashboard operacional le a planilha e exibe visoes para gestores e TV.
 
+## Piloto SUEDS Plaza
+
+Pastas criadas no Google Drive:
+
+```text
+OPINARIOS
+ID: 1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8
+Link: https://drive.google.com/drive/folders/1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8
+
+SUEDS PLAZA OPINARIOS
+ID: 16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG
+Link: https://drive.google.com/drive/folders/16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG
+```
+
+Configuracao inicial do Apps Script para o piloto:
+
+```text
+OPINARIOS_ROOT_FOLDER_ID = 1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8
+OPINARIOS_SOURCE_FOLDER_ID = 16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG
+OPINARIOS_ACTIVE_HOTEL = SUEDS PLAZA
+OPINARIOS_FORM_VERSION = 20260719
+OPINARIOS_MIN_CONFIDENCE = 80
+OPINARIOS_MIN_FILLED_RATINGS = 1
+```
+
+Para o primeiro teste, subir 3 fotos reais preenchidas na pasta `SUEDS PLAZA OPINARIOS` e rodar manualmente o menu `SUEDS Operacional > Processar novas fotos do Drive`.
+
 ## QR Code por hotel
 
 Cada formulario impresso deve ter um QR Code exclusivo por hotel e por versao do formulario. O QR deve apontar para uma URL com parametros, para que a pagina digital e a IA saibam qual unidade e qual conjunto de perguntas deve ser usado.
@@ -72,16 +99,13 @@ DEMAIS HOTEIS
 ## Pastas sugeridas no Drive
 
 ```text
-SUEDS Operacional
-  Opinarios - Entrada
-    SUEDS Cabrália
-    SUEDS Segundo Sol
-    SUEDS Plaza
-    SUEDS Premium
-    SUEDS Trancoso
-    Casas Sueds Arraial
-  Opinarios - Processados
-  Opinarios - Erro
+OPINARIOS
+  SUEDS PLAZA OPINARIOS
+  SUEDS CABRALIA OPINARIOS
+  SUEDS SEGUNDO SOL OPINARIOS
+  SUEDS PREMIUM OPINARIOS
+  SUEDS TRANCOSO OPINARIOS
+  CASAS SUEDS ARRAIAL OPINARIOS
 ```
 
 ## Abas da planilha
@@ -135,6 +159,18 @@ Status
 Responsavel Revisao
 Observacao Revisao
 Data Revisao
+Origem
+Hotel Slug
+Form Version
+Idioma
+Reserva
+Qualidade do Wi-fi
+Area de lazer / piscina
+Atendimento da equipe do Beach Club
+Alimentos Almoco
+Consentimento Contato
+Data Entrada
+Data Saida
 ```
 
 ### `Revisao_Opinarios`
@@ -167,9 +203,12 @@ Chaves iniciais:
 
 ```text
 OPINARIOS_SOURCE_FOLDER_ID
+OPINARIOS_ACTIVE_HOTEL
+OPINARIOS_FORM_VERSION
 OPINARIOS_PROCESSED_FOLDER_ID
 OPINARIOS_ERROR_FOLDER_ID
 OPINARIOS_MIN_CONFIDENCE
+OPINARIOS_MIN_FILLED_RATINGS
 OPENAI_MODEL
 OPINARIOS_MAX_IMAGE_MB
 ```

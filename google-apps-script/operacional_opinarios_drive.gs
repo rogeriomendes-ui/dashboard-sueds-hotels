@@ -2,6 +2,10 @@ const OPINARIOS_SHEET = "Opinarios";
 const OPINARIOS_REVIEW_SHEET = "Revisao_Opinarios";
 const OPINARIOS_CONFIG_SHEET = "Config_Operacional";
 const OPINARIOS_HOTELS_SHEET = "Hoteis_Operacional";
+const OPINARIOS_ROOT_FOLDER_ID = "1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8";
+const OPINARIOS_PLAZA_FOLDER_ID = "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG";
+const OPINARIOS_OFFICIAL_FORM_VERSION = "20260719";
+const OPINARIOS_ACTIVE_HOTEL = "SUEDS PLAZA";
 
 const OPINARIOS_HOTELS = [
   ["SUEDS CABRALIA", "Ativo", 1, ""],
@@ -45,7 +49,19 @@ const OPINARIOS_HEADERS = [
   "Status",
   "Responsavel Revisao",
   "Observacao Revisao",
-  "Data Revisao"
+  "Data Revisao",
+  "Origem",
+  "Hotel Slug",
+  "Form Version",
+  "Idioma",
+  "Reserva",
+  "Qualidade do Wi-fi",
+  "Area de lazer / piscina",
+  "Atendimento da equipe do Beach Club",
+  "Alimentos Almoco",
+  "Consentimento Contato",
+  "Data Entrada",
+  "Data Saida"
 ];
 
 const OPINARIOS_REVIEW_HEADERS = [
@@ -61,13 +77,17 @@ const OPINARIOS_REVIEW_HEADERS = [
 ];
 
 const OPINARIOS_CONFIG_DEFAULTS = [
-  ["OPINARIOS_SOURCE_FOLDER_ID", "", "Pasta do Drive onde os hoteis colocam as fotos novas."],
+  ["OPINARIOS_ROOT_FOLDER_ID", OPINARIOS_ROOT_FOLDER_ID, "Pasta raiz OPINARIOS no Drive."],
+  ["OPINARIOS_SOURCE_FOLDER_ID", OPINARIOS_PLAZA_FOLDER_ID, "Pasta do Drive onde o SUEDS Plaza coloca as fotos novas."],
   ["OPINARIOS_PROCESSED_FOLDER_ID", "", "Opcional. Pasta para mover fotos processadas."],
   ["OPINARIOS_ERROR_FOLDER_ID", "", "Opcional. Pasta para mover fotos com erro."],
   ["OPINARIOS_MIN_CONFIDENCE", "80", "Confianca minima para aprovar automaticamente."],
+  ["OPINARIOS_MIN_FILLED_RATINGS", "1", "Minimo de itens avaliados para aprovar automaticamente."],
   ["OPINARIOS_AI_PROVIDER", "OpenAI", "Provedor de IA de visao. Primeira versao usando OpenAI Vision."],
   ["OPENAI_MODEL", "gpt-4o-mini", "Modelo OpenAI usado para ler os opiniarios."],
-  ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."]
+  ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."],
+  ["OPINARIOS_ACTIVE_HOTEL", OPINARIOS_ACTIVE_HOTEL, "Piloto oficial atual. Demais hoteis serao configurados depois."],
+  ["OPINARIOS_FORM_VERSION", OPINARIOS_OFFICIAL_FORM_VERSION, "Versao oficial do formulario impresso Plaza."]
 ];
 
 function onOpen() {
@@ -103,7 +123,9 @@ function prepararOpinariosOperacional() {
 
   SpreadsheetApp.getUi().alert(
     "Abas preparadas.\n\n" +
-    "Agora preencha OPINARIOS_SOURCE_FOLDER_ID na aba Config_Operacional com o ID da pasta do Drive."
+    "Piloto SUEDS Plaza configurado.\n\n" +
+    `OPINARIOS_SOURCE_FOLDER_ID: ${OPINARIOS_PLAZA_FOLDER_ID}\n` +
+    "Agora configure a OPENAI_API_KEY no menu SUEDS Operacional."
   );
 }
 
@@ -142,7 +164,7 @@ function processarNovosOpinariosDrive() {
       return;
     }
 
-    const hotel = inferHotelFromFile_(file, sourceFolderId);
+    const hotel = inferHotelFromFile_(file, sourceFolderId, config);
     const extracted = analyzeOpinionImage_(file, hotel, config);
     const status = extracted.status || "Pendente IA";
     const now = new Date();
@@ -331,11 +353,18 @@ function analyzeOpinionImage_(file, hotel, config) {
     const extracted = callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey);
     const confidence = Number(extracted.confidence || 0);
     const minConfidence = Number(config.OPINARIOS_MIN_CONFIDENCE || 80);
-    const completeness = validateOpinionCompleteness_(extracted);
-    extracted.status = confidence >= minConfidence && completeness.ok ? "Aprovado" : "Revisao";
+    const completeness = validateOpinionCompleteness_(extracted, config);
+    const expectedVersion = String(config.OPINARIOS_FORM_VERSION || OPINARIOS_OFFICIAL_FORM_VERSION).trim();
+    const versionOk = String(extracted.formVersion || "").replace(/\D/g, "") === expectedVersion;
+    extracted.status = confidence >= minConfidence && completeness.ok && versionOk ? "Aprovado" : "Revisao";
     extracted.reviewReason = extracted.status === "Aprovado"
       ? ""
-      : [extracted.reviewReason, confidence < minConfidence ? `Confianca ${confidence}% abaixo do minimo ${minConfidence}%.` : "", completeness.reason]
+      : [
+          extracted.reviewReason,
+          confidence < minConfidence ? `Confianca ${confidence}% abaixo do minimo ${minConfidence}%.` : "",
+          completeness.reason,
+          versionOk ? "" : `Versao do formulario nao confirmada como ${expectedVersion}.`
+        ]
         .filter(Boolean)
         .join(" ");
     if (completeness.missingFields) extracted.uncertainFields = [extracted.uncertainFields, completeness.missingFields].filter(Boolean).join(", ");
@@ -351,23 +380,20 @@ function analyzeOpinionImage_(file, hotel, config) {
   }
 }
 
-function validateOpinionCompleteness_(extracted) {
+function validateOpinionCompleteness_(extracted, config) {
   const ratingFields = [
     ["generalImpression", "Impressao Geral"],
-    ["apartmentLevel", "Nivel Apartamentos"],
+    ["reservation", "Reserva"],
+    ["frontDesk", "Recepcao / Check-in / Check-out"],
+    ["teamService", "Atendimento da equipe"],
+    ["roomComfort", "Conforto do quarto"],
+    ["roomCleaning", "Limpeza do quarto"],
+    ["wifi", "Qualidade do Wi-fi"],
+    ["pool", "Area de lazer / piscina"],
+    ["beachClub", "Atendimento da equipe do Beach Club"],
     ["foodBreakfast", "Alimentos Cafe da Manha"],
-    ["foodPoolBar", "Alimentos Bar da Piscina"],
-    ["foodDinner", "Alimentos Jantar"],
-    ["serviceBreakfast", "Atendimento Cafe da Manha"],
-    ["servicePoolBar", "Atendimento Bar da Piscina"],
-    ["serviceDinner", "Atendimento Jantar"],
-    ["roomCleaning", "Apartamento Limpeza Diaria"],
-    ["roomComfort", "Apartamento Conforto Geral"],
-    ["roomEquipment", "Apartamento Equipamentos"],
-    ["frontDesk", "Servicos Recepcao"],
-    ["generalService", "Servicos Atendimento"],
-    ["externalArea", "Servicos Area Externa"],
-    ["pool", "Servicos Piscina"]
+    ["foodLunch", "Alimentos Almoco"],
+    ["foodDinner", "Alimentos Jantar"]
   ];
 
   const filled = ratingFields.filter(([field]) => String(extracted[field] || "").trim()).length;
@@ -375,10 +401,11 @@ function validateOpinionCompleteness_(extracted) {
     .filter(([field]) => !String(extracted[field] || "").trim())
     .map(([, label]) => label);
 
-  if (filled < 8) {
+  const minFilled = Number(config.OPINARIOS_MIN_FILLED_RATINGS || 1);
+  if (filled < minFilled) {
     return {
       ok: false,
-      reason: `Poucos campos de nota preenchidos (${filled}/15). Conferir marcacoes.`,
+      reason: `Poucos campos de nota preenchidos (${filled}/${ratingFields.length}). Conferir marcacoes.`,
       missingFields: missing.join(", ")
     };
   }
@@ -447,44 +474,55 @@ function callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey) {
 
 function buildOpenAiOpinionPrompt_(hotel) {
   return [
-    "Voce esta lendo uma foto de um opiniario em papel da SUEDS Hotels.",
+    "Voce esta lendo uma foto de um opiniario impresso da SUEDS Plaza.",
     "Extraia apenas o que estiver visivel. Se um campo nao estiver legivel, use string vazia e inclua o campo em uncertainFields.",
-    "As opcoes possiveis de avaliacao sao: Excelente, Muito bom, Otimo, Bom, Regular.",
-    "Quando houver marcacao com X, risco, circulo, rabisco claro ou linha dentro dos parenteses, considere aquela opcao selecionada.",
-    "Se nao houver nenhuma marcacao visivel em uma linha, deixe o campo vazio. Nao chute Regular, Bom ou Otimo apenas por proximidade visual.",
+    "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260719, LANG=PT-BR.",
+    "No rodape pode aparecer texto semelhante a SUED'S PLAZA Versao190726 ou FORM_VERSION=20260719. Extraia formVersion como 20260719 quando a versao for esta.",
+    "As opcoes possiveis de avaliacao sao exatamente: Excelente, Muito bom, Bom, Regular.",
+    "Quando houver marcacao com X, risco, circulo, rabisco claro ou preenchimento dentro do quadrado, considere aquela opcao selecionada.",
+    "Se nao houver nenhuma marcacao visivel em uma linha, deixe o campo vazio. Nao chute uma nota apenas por proximidade visual.",
     "Trate cada linha como independente. Nunca copie a resposta de uma linha para a proxima apenas porque estao no mesmo bloco.",
     "Nao preencha uma avaliacao por simetria, padrao ou suposicao. Preencha somente quando houver marca visivel naquela linha.",
-    "Se houver uma linha vertical ou traco continuo atravessando varios parenteses de uma mesma coluna, aplique a opcao daquela coluna somente aos itens cujos parenteses foram claramente cruzados pela linha.",
-    "A regra da linha vertical e mais comum no bloco 'Qual sua opiniao quanto aos servicos'. Nao use essa regra para alimentos, atendimento ou apartamento sem evidencia clara.",
-    "Antes de responder, faca uma segunda varredura visual somente nas marcacoes dos parenteses, linha por linha.",
-    "Checklist de alimentos: Cafe da Manha, Bar da Piscina e Jantar devem ser avaliados separadamente. Se Bar da Piscina nao tiver marca propria, foodPoolBar deve ficar vazio.",
-    "Checklist de atendimento: Cafe da Manha, Bar da Piscina e Jantar devem ser avaliados separadamente. Se Bar da Piscina nao tiver marca propria, servicePoolBar deve ficar vazio.",
-    "Checklist de apartamento: Limpeza Diaria, Conforto Geral e Equipamentos devem ser avaliados separadamente; se cada uma das tres linhas tiver X em Regular, preencha as tres como Regular.",
-    "Checklist de servicos: Recepcao, Atendimento, Area externa e Piscina devem ser avaliados separadamente; se uma linha vertical cruzar a coluna Bom nas quatro linhas, preencha as quatro como Bom.",
+    "Antes de responder, faca uma segunda varredura visual somente nos quadrados, linha por linha.",
+    "Itens oficiais do formulario SUEDS Plaza 20260719:",
+    "1. Impressao geral: Como voce avalia sua hospedagem?",
+    "2. Reserva: Como foi sua experiencia para reservar?",
+    "3. Recepcao / Check-in / Check-out",
+    "4. Atendimento da equipe",
+    "5. Conforto do quarto",
+    "6. Limpeza do quarto",
+    "7. Qualidade do Wi-fi",
+    "8. Area de lazer / piscina",
+    "9. Atendimento da equipe do Beach Club",
+    "10. Cafe da manha",
+    "11. Almoco",
+    "12. Jantar",
+    "Leia tambem nome, numero do quarto, data de entrada, data de saida e comentarios/elogios/sugestoes quando estiverem preenchidos.",
     "Padronize acentos e caixa baixa/alta naturalmente em portugues.",
     `Hotel esperado pela pasta: ${hotel}.`,
     "Responda somente JSON valido, sem markdown, neste formato:",
     "{",
+    '  "hotel": "SUEDS PLAZA",',
+    '  "hotelSlug": "sueds-plaza",',
+    '  "formVersion": "20260719",',
+    '  "lang": "pt-BR",',
     '  "guestName": "",',
     '  "apartment": "",',
+    '  "entryDate": "",',
+    '  "exitDate": "",',
     '  "generalImpression": "",',
-    '  "apartmentLevel": "",',
-    '  "foodBreakfast": "",',
-    '  "foodPoolBar": "",',
-    '  "foodDinner": "",',
-    '  "serviceBreakfast": "",',
-    '  "servicePoolBar": "",',
-    '  "serviceDinner": "",',
-    '  "roomCleaning": "",',
-    '  "roomComfort": "",',
-    '  "roomEquipment": "",',
+    '  "reservation": "",',
     '  "frontDesk": "",',
-    '  "generalService": "",',
-    '  "externalArea": "",',
+    '  "teamService": "",',
+    '  "roomComfort": "",',
+    '  "roomCleaning": "",',
+    '  "wifi": "",',
     '  "pool": "",',
-    '  "foodNotes": "",',
-    '  "serviceNotes": "",',
-    '  "roomNotes": "",',
+    '  "beachClub": "",',
+    '  "foodBreakfast": "",',
+    '  "foodLunch": "",',
+    '  "foodDinner": "",',
+    '  "comments": "",',
     '  "highlights": "",',
     '  "issues": "",',
     '  "score": 0,',
@@ -492,7 +530,8 @@ function buildOpenAiOpinionPrompt_(hotel) {
     '  "uncertainFields": "",',
     '  "reviewReason": ""',
     "}",
-    "Calcule score como media percentual dos campos de nota lidos: Excelente/Otimo=100, Muito bom=85, Bom=70, Regular=40.",
+    "Calcule score como media percentual dos campos de nota lidos: Excelente=100, Muito bom=85, Bom=70, Regular=40.",
+    "Se o comentario tiver elogio, coloque resumo em highlights. Se tiver reclamacao/problema, coloque resumo em issues. O comentario completo deve ir em comments.",
     "confidence deve ser 0 a 100 considerando qualidade da foto, legibilidade e clareza das marcacoes."
   ].join("\n");
 }
@@ -511,26 +550,26 @@ function extractOpenAiOutputText_(response) {
 function normalizeOpenAiOpinionResult_(data, hotel) {
   const result = {
     hotel,
+    hotelSlug: data.hotelSlug || "sueds-plaza",
+    formVersion: String(data.formVersion || "").replace(/\D/g, ""),
+    lang: data.lang || "pt-BR",
     guestName: data.guestName || "",
     apartment: data.apartment || "",
+    entryDate: data.entryDate || "",
+    exitDate: data.exitDate || "",
     generalImpression: normalizeRating_(data.generalImpression),
-    apartmentLevel: normalizeRating_(data.apartmentLevel),
-    foodBreakfast: normalizeRating_(data.foodBreakfast),
-    foodPoolBar: normalizeRating_(data.foodPoolBar),
-    foodDinner: normalizeRating_(data.foodDinner),
-    serviceBreakfast: normalizeRating_(data.serviceBreakfast),
-    servicePoolBar: normalizeRating_(data.servicePoolBar),
-    serviceDinner: normalizeRating_(data.serviceDinner),
-    roomCleaning: normalizeRating_(data.roomCleaning),
-    roomComfort: normalizeRating_(data.roomComfort),
-    roomEquipment: normalizeRating_(data.roomEquipment),
+    reservation: normalizeRating_(data.reservation),
     frontDesk: normalizeRating_(data.frontDesk),
-    generalService: normalizeRating_(data.generalService),
-    externalArea: normalizeRating_(data.externalArea),
+    teamService: normalizeRating_(data.teamService),
+    roomComfort: normalizeRating_(data.roomComfort),
+    roomCleaning: normalizeRating_(data.roomCleaning),
+    wifi: normalizeRating_(data.wifi),
     pool: normalizeRating_(data.pool),
-    foodNotes: data.foodNotes || "",
-    serviceNotes: data.serviceNotes || "",
-    roomNotes: data.roomNotes || "",
+    beachClub: normalizeRating_(data.beachClub),
+    foodBreakfast: normalizeRating_(data.foodBreakfast),
+    foodLunch: normalizeRating_(data.foodLunch),
+    foodDinner: normalizeRating_(data.foodDinner),
+    comments: data.comments || "",
     highlights: data.highlights || "",
     issues: data.issues || "",
     score: Number(data.score || 0),
@@ -557,20 +596,17 @@ function normalizeRating_(value) {
 function calculateOpinionScore_(result) {
   const ratingFields = [
     "generalImpression",
-    "apartmentLevel",
-    "foodBreakfast",
-    "foodPoolBar",
-    "foodDinner",
-    "serviceBreakfast",
-    "servicePoolBar",
-    "serviceDinner",
-    "roomCleaning",
-    "roomComfort",
-    "roomEquipment",
+    "reservation",
     "frontDesk",
-    "generalService",
-    "externalArea",
-    "pool"
+    "teamService",
+    "roomComfort",
+    "roomCleaning",
+    "wifi",
+    "pool",
+    "beachClub",
+    "foodBreakfast",
+    "foodLunch",
+    "foodDinner"
   ];
   const scores = ratingFields
     .map((field) => ratingToScore_(result[field]))
@@ -599,23 +635,23 @@ function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
     "Nome Hospede": extracted.guestName || "",
     "Apartamento": extracted.apartment || "",
     "Impressao Geral": extracted.generalImpression || "",
-    "Nivel Apartamentos": extracted.apartmentLevel || "",
+    "Nivel Apartamentos": extracted.reservation || "",
     "Alimentos Cafe da Manha": extracted.foodBreakfast || "",
-    "Alimentos Bar da Piscina": extracted.foodPoolBar || "",
+    "Alimentos Bar da Piscina": "",
     "Alimentos Jantar": extracted.foodDinner || "",
-    "Atendimento Cafe da Manha": extracted.serviceBreakfast || "",
-    "Atendimento Bar da Piscina": extracted.servicePoolBar || "",
-    "Atendimento Jantar": extracted.serviceDinner || "",
+    "Atendimento Cafe da Manha": "",
+    "Atendimento Bar da Piscina": "",
+    "Atendimento Jantar": "",
     "Apartamento Limpeza Diaria": extracted.roomCleaning || "",
     "Apartamento Conforto Geral": extracted.roomComfort || "",
-    "Apartamento Equipamentos": extracted.roomEquipment || "",
+    "Apartamento Equipamentos": "",
     "Servicos Recepcao": extracted.frontDesk || "",
-    "Servicos Atendimento": extracted.generalService || "",
-    "Servicos Area Externa": extracted.externalArea || "",
+    "Servicos Atendimento": extracted.teamService || "",
+    "Servicos Area Externa": extracted.beachClub || "",
     "Servicos Piscina": extracted.pool || "",
-    "Obs Alimentos": extracted.foodNotes || "",
-    "Obs Atendimento": extracted.serviceNotes || "",
-    "Obs Apartamento": extracted.roomNotes || "",
+    "Obs Alimentos": extracted.comments || "",
+    "Obs Atendimento": "",
+    "Obs Apartamento": "",
     "Destaques": extracted.highlights || "",
     "Problemas Identificados": extracted.issues || "",
     "Nota Calculada %": extracted.score || "",
@@ -623,7 +659,19 @@ function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
     "Status": status,
     "Responsavel Revisao": "",
     "Observacao Revisao": extracted.reviewReason || "",
-    "Data Revisao": ""
+    "Data Revisao": "",
+    "Origem": "Foto Drive",
+    "Hotel Slug": extracted.hotelSlug || "sueds-plaza",
+    "Form Version": extracted.formVersion || "",
+    "Idioma": extracted.lang || "pt-BR",
+    "Reserva": extracted.reservation || "",
+    "Qualidade do Wi-fi": extracted.wifi || "",
+    "Area de lazer / piscina": extracted.pool || "",
+    "Atendimento da equipe do Beach Club": extracted.beachClub || "",
+    "Alimentos Almoco": extracted.foodLunch || "",
+    "Consentimento Contato": "",
+    "Data Entrada": extracted.entryDate || "",
+    "Data Saida": extracted.exitDate || ""
   };
 
   return OPINARIOS_HEADERS.map((header) => values[header]);
@@ -702,13 +750,16 @@ function listImageFilesRecursive_(folder) {
   return files;
 }
 
-function inferHotelFromFile_(file, rootFolderId) {
+function inferHotelFromFile_(file, rootFolderId, config) {
   const parents = file.getParents();
-  if (!parents.hasNext()) return "Nao identificado";
+  if (!parents.hasNext()) return String(config.OPINARIOS_ACTIVE_HOTEL || OPINARIOS_ACTIVE_HOTEL);
 
   const parent = parents.next();
   if (parent.getId() === rootFolderId) {
-    return inferHotelFromText_(file.getName());
+    const parentHotel = inferHotelFromText_(parent.getName());
+    if (parentHotel !== "Nao identificado") return parentHotel;
+    const fileHotel = inferHotelFromText_(file.getName());
+    return fileHotel !== "Nao identificado" ? fileHotel : String(config.OPINARIOS_ACTIVE_HOTEL || OPINARIOS_ACTIVE_HOTEL);
   }
 
   return inferHotelFromText_(parent.getName());
