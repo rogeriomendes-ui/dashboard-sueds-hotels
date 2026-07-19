@@ -16,6 +16,14 @@ Automatizar a captura dos opiniarios em papel recebidos nas recepcoes dos hoteis
 
 ## Piloto SUEDS Plaza
 
+Planilha operacional criada:
+
+```text
+SUEDS Operacional - Opinarios
+ID: 18PXw4BpneBJUlL_EtPQv_aM1G__ZCIm71RPByZlI6uk
+Link: https://docs.google.com/spreadsheets/d/18PXw4BpneBJUlL_EtPQv_aM1G__ZCIm71RPByZlI6uk/edit
+```
+
 Pastas criadas no Google Drive:
 
 ```text
