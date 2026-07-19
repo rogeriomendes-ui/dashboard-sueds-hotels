@@ -33,86 +33,6 @@ const HOTEL_CONFIG = {
       "foodLunch",
       "foodDinner"
     ]
-  },
-  "sueds-trancoso": {
-    brand: "TRANCOSO",
-    name: "SUEDS TRANCOSO",
-    fields: [
-      "generalImpression",
-      "reservation",
-      "frontDesk",
-      "teamService",
-      "roomComfort",
-      "roomCleaning",
-      "wifi",
-      "pool",
-      "foodBreakfast"
-    ]
-  },
-  "casas-sueds-arraial": {
-    brand: "CASAS",
-    name: "CASAS SUEDS ARRAIAL",
-    fields: [
-      "generalImpression",
-      "reservation",
-      "frontDesk",
-      "teamService",
-      "roomComfort",
-      "roomCleaning",
-      "wifi",
-      "foodBreakfast"
-    ]
-  },
-  "sueds-cabralia": {
-    brand: "CABRÁLIA",
-    name: "SUEDS CABRÁLIA",
-    fields: [
-      "generalImpression",
-      "reservation",
-      "frontDesk",
-      "teamService",
-      "roomComfort",
-      "roomCleaning",
-      "wifi",
-      "pool",
-      "foodBreakfast",
-      "foodLunch",
-      "foodDinner"
-    ]
-  },
-  "sueds-segundo-sol": {
-    brand: "SEGUNDO SOL",
-    name: "SUEDS SEGUNDO SOL",
-    fields: [
-      "generalImpression",
-      "reservation",
-      "frontDesk",
-      "teamService",
-      "roomComfort",
-      "roomCleaning",
-      "wifi",
-      "pool",
-      "foodBreakfast",
-      "foodLunch",
-      "foodDinner"
-    ]
-  },
-  "sueds-premium": {
-    brand: "PREMIUM",
-    name: "SUEDS PREMIUM",
-    fields: [
-      "generalImpression",
-      "reservation",
-      "frontDesk",
-      "teamService",
-      "roomComfort",
-      "roomCleaning",
-      "wifi",
-      "pool",
-      "foodBreakfast",
-      "foodLunch",
-      "foodDinner"
-    ]
   }
 };
 
@@ -122,8 +42,7 @@ function byId(id) {
 
 function slugFromParams() {
   const params = new URLSearchParams(window.location.search);
-  const requested = params.get("hotel") || "sueds-plaza";
-  return HOTEL_CONFIG[requested] ? requested : "sueds-plaza";
+  return params.get("hotel") || "sueds-plaza";
 }
 
 function formMeta() {
@@ -235,6 +154,14 @@ async function submitOpinion(event) {
 function init() {
   const meta = formMeta();
   const config = HOTEL_CONFIG[meta.hotelSlug];
+  if (!config) {
+    byId("hotelBrand").textContent = "HOTELS";
+    byId("opinionForm").hidden = true;
+    byId("successPanel").hidden = false;
+    byId("successPanel").querySelector("strong").textContent = "Formulário em configuração.";
+    byId("successPanel").querySelector("p").textContent = "Este opinário ainda não está ativo para este hotel.";
+    return;
+  }
   byId("hotelSlug").value = meta.hotelSlug;
   byId("formVersion").value = meta.formVersion;
   byId("formLang").value = meta.lang;

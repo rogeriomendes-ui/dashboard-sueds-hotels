@@ -47,6 +47,8 @@ python tools/generate_opinario_qr.py --hotel "sueds-trancoso" --version "2026071
 
 A versao final do formulario deve manter a mesma estrutura visual, mas os campos ativos podem variar por hotel. Campos que nao existem em uma unidade nao devem entrar no calculo de nota, nem ir para revisao como "nao preenchidos".
 
+No momento, apenas o SUEDS Plaza esta ativo como formulario oficial. Dados anteriores e modelos de teste devem ser desconsiderados; o painel operacional considera apenas registros com `Form Version` igual ou posterior a `20260719`.
+
 ```text
 SUEDS PLAZA
 - Impressao geral
@@ -62,14 +64,9 @@ SUEDS PLAZA
 - Almoco
 - Jantar
 
-SUEDS TRANCOSO
-- Nao usar Almoco
-- Nao usar Jantar
-- Demais campos a validar no formulario final do hotel
-
-CASAS SUEDS ARRAIAL
-- Nao usar Piscina
-- Demais campos a validar no formulario final do hotel
+DEMAIS HOTEIS
+- Aguardando configuracao individual do opinario final.
+- Nao assumir campos ausentes ate validarmos o formulario de cada hotel.
 ```
 
 ## Pastas sugeridas no Drive

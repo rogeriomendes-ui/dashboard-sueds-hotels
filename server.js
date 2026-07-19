@@ -2387,6 +2387,8 @@ const OPINION_FORM_HOTELS = {
   "sueds-trancoso": { hotel: "SUEDS TRANCOSO" },
   "casas-sueds-arraial": { hotel: "CASAS SUEDS ARRAIAL" }
 };
+const OPINION_ACTIVE_FORM_SLUGS = new Set(["sueds-plaza"]);
+const OPINION_MIN_FORM_VERSION = "20260719";
 
 function ratingScore(value) {
   const key = comparableKey(value);
@@ -2432,8 +2434,16 @@ function normalizeOperationalOpinion(item) {
     issues: String(item["Problemas Identificados"] || "").trim(),
     status: String(item.Status || "").trim(),
     confidence: parseDecimalNumber(item["Confianca %"]),
+    origin: String(item.Origem || "").trim(),
+    formVersion: String(item["Form Version"] || "").trim(),
     fieldScores
   };
+}
+
+function isCurrentOperationalOpinion(opinion) {
+  const version = String(opinion.formVersion || "").replace(/\D/g, "");
+  if (!version) return false;
+  return version >= OPINION_MIN_FORM_VERSION;
 }
 
 function summarizeOperationalHotel(hotel, opinions) {
@@ -2578,6 +2588,9 @@ async function appendDigitalOpinion(body = {}) {
   }
 
   const hotelSlug = normalizeOpinionHotelSlug(body.hotel || body.hotelSlug);
+  if (!OPINION_ACTIVE_FORM_SLUGS.has(hotelSlug)) {
+    throw new Error("Formulario deste hotel ainda nao configurado.");
+  }
   const hotel = OPINION_FORM_HOTELS[hotelSlug]?.hotel || normalizeHotelName(body.hotel) || "Nao identificado";
   const ratings = body.ratings && typeof body.ratings === "object" ? body.ratings : {};
   const normalizedRatings = Object.fromEntries(
@@ -2698,7 +2711,9 @@ async function loadOperationalOpinions() {
     opinions = demoOperationalOpinions();
   } else {
     const rows = await getSheetValues(OPINIONS_RANGE, OPERATIONAL_SHEET_ID);
-    opinions = rowsToObjectsAny(rows).map(normalizeOperationalOpinion);
+    opinions = rowsToObjectsAny(rows)
+      .map(normalizeOperationalOpinion)
+      .filter(isCurrentOperationalOpinion);
   }
 
   operationalCache = { payload: opinions, expiresAt: Date.now() + CACHE_TTL_MS };
