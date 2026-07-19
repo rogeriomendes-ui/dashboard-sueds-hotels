@@ -14,6 +14,64 @@ Automatizar a captura dos opiniarios em papel recebidos nas recepcoes dos hoteis
 6. Registros com baixa confianca ficam em `Revisao_Opinarios`.
 7. O dashboard operacional le a planilha e exibe visoes para gestores e TV.
 
+## QR Code por hotel
+
+Cada formulario impresso deve ter um QR Code exclusivo por hotel e por versao do formulario. O QR deve apontar para uma URL com parametros, para que a pagina digital e a IA saibam qual unidade e qual conjunto de perguntas deve ser usado.
+
+Padrao sugerido:
+
+```text
+https://dashboard-sueds-hotels.vercel.app/opinario.html?hotel=sueds-plaza&form_version=20260719&lang=pt-BR
+```
+
+Identificacao impressa no rodape:
+
+```text
+HOTEL=SUEDS_PLAZA | FORM_VERSION=20260719 | LANG=PT-BR
+```
+
+O QR Code do SUEDS Plaza desta versao fica em:
+
+```text
+assets/qrcodes/sueds-plaza-opinario-20260719.svg
+assets/qrcodes/sueds-plaza-opinario-20260719.png
+```
+
+Para gerar novos QRs:
+
+```text
+python tools/generate_opinario_qr.py --hotel "sueds-trancoso" --version "20260719"
+```
+
+## Matriz de campos por hotel
+
+A versao final do formulario deve manter a mesma estrutura visual, mas os campos ativos podem variar por hotel. Campos que nao existem em uma unidade nao devem entrar no calculo de nota, nem ir para revisao como "nao preenchidos".
+
+```text
+SUEDS PLAZA
+- Impressao geral
+- Reserva
+- Recepcao / Check-in / Check-out
+- Atendimento da equipe
+- Conforto do quarto
+- Limpeza do quarto
+- Qualidade do Wi-fi
+- Area de lazer / piscina
+- Atendimento da equipe do Beach Club
+- Cafe da manha
+- Almoco
+- Jantar
+
+SUEDS TRANCOSO
+- Nao usar Almoco
+- Nao usar Jantar
+- Demais campos a validar no formulario final do hotel
+
+CASAS SUEDS ARRAIAL
+- Nao usar Piscina
+- Demais campos a validar no formulario final do hotel
+```
+
 ## Pastas sugeridas no Drive
 
 ```text

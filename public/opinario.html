@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SUEDS Hotels | Opiniário</title>
+    <link rel="stylesheet" href="opinario.css">
+  </head>
+  <body>
+    <main class="opinion-shell">
+      <header class="opinion-header">
+        <div class="brand-mark">
+          <span class="brand-symbol">S</span>
+          <div>
+            <strong>SUED'S</strong>
+            <span id="hotelBrand">HOTELS</span>
+          </div>
+        </div>
+        <div class="header-copy">
+          <h1>Sua experiência é o que mais importa para nós.</h1>
+          <p>Queremos saber o que fizemos bem e onde podemos melhorar.</p>
+        </div>
+      </header>
+
+      <form id="opinionForm" class="opinion-form">
+        <input type="hidden" id="hotelSlug" name="hotelSlug">
+        <input type="hidden" id="formVersion" name="formVersion">
+        <input type="hidden" id="formLang" name="lang">
+
+        <section class="guest-strip" aria-label="Identificação opcional">
+          <label>
+            <span>Nome</span>
+            <input id="guestName" name="guestName" autocomplete="name" maxlength="120">
+          </label>
+          <label>
+            <span>Nº do quarto</span>
+            <input id="apartment" name="apartment" inputmode="numeric" maxlength="30">
+          </label>
+        </section>
+
+        <section id="questions" class="question-list" aria-label="Avaliações"></section>
+
+        <section class="comment-block">
+          <label for="comments">Comentários, elogios e sugestões</label>
+          <textarea id="comments" name="comments" rows="5" maxlength="1200"></textarea>
+        </section>
+
+        <label class="consent-row">
+          <input id="contactConsent" type="checkbox">
+          <span>Autorizo contato da equipe SUEDS, caso seja necessário entender melhor minha experiência.</span>
+        </label>
+
+        <div class="form-footer">
+          <p id="formMessage" role="status"></p>
+          <button id="submitButton" type="submit">Enviar avaliação</button>
+        </div>
+      </form>
+
+      <section id="successPanel" class="success-panel" hidden>
+        <strong>Avaliação enviada.</strong>
+        <p>Obrigado por ajudar a SUEDS Hotels a cuidar melhor da sua hospedagem.</p>
+      </section>
+    </main>
+
+    <script src="opinario.js"></script>
+  </body>
+</html>

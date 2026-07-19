@@ -14,7 +14,7 @@ const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinh
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
 const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
-const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AG";
+const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AZ";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -213,8 +213,13 @@ function sheetRange(range) {
 
 async function sheetsRequest(pathname, options = {}, scope = "https://www.googleapis.com/auth/spreadsheets") {
   if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado");
+  return sheetsRequestForSpreadsheet(SHEET_ID, pathname, options, scope);
+}
+
+async function sheetsRequestForSpreadsheet(sheetId, pathname, options = {}, scope = "https://www.googleapis.com/auth/spreadsheets") {
+  if (!sheetId) throw new Error("GOOGLE_SHEET_ID nao configurado");
   const token = await getAccessToken(scope);
-  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}${pathname}`, {
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}${pathname}`, {
     ...options,
     headers: {
       authorization: `Bearer ${token}`,
@@ -2298,21 +2303,24 @@ function buildTvPayload(metrics) {
 }
 
 const OPERATIONAL_RATING_FIELDS = [
-  { key: "generalImpression", header: "Impressao Geral", block: "Geral" },
-  { key: "apartmentLevel", header: "Nivel Apartamentos", block: "Geral" },
-  { key: "foodBreakfast", header: "Alimentos Cafe da Manha", block: "Alimentos" },
-  { key: "foodPoolBar", header: "Alimentos Bar da Piscina", block: "Alimentos" },
-  { key: "foodDinner", header: "Alimentos Jantar", block: "Alimentos" },
-  { key: "serviceBreakfast", header: "Atendimento Cafe da Manha", block: "Atendimento" },
-  { key: "servicePoolBar", header: "Atendimento Bar da Piscina", block: "Atendimento" },
-  { key: "serviceDinner", header: "Atendimento Jantar", block: "Atendimento" },
-  { key: "roomCleaning", header: "Apartamento Limpeza Diaria", block: "Apartamento" },
-  { key: "roomComfort", header: "Apartamento Conforto Geral", block: "Apartamento" },
-  { key: "roomEquipment", header: "Apartamento Equipamentos", block: "Apartamento" },
-  { key: "frontDesk", header: "Servicos Recepcao", block: "Serviços" },
-  { key: "generalService", header: "Servicos Atendimento", block: "Serviços" },
-  { key: "externalArea", header: "Servicos Area Externa", block: "Serviços" },
-  { key: "pool", header: "Servicos Piscina", block: "Serviços" }
+  { key: "generalImpression", headers: ["Impressao Geral"], block: "Geral" },
+  { key: "reservation", headers: ["Reserva", "Nivel Apartamentos"], block: "Geral" },
+  { key: "foodBreakfast", headers: ["Alimentos Cafe da Manha", "Cafe da manha"], block: "Alimentos" },
+  { key: "foodLunch", headers: ["Alimentos Almoco", "Almoco"], block: "Alimentos" },
+  { key: "foodPoolBar", headers: ["Alimentos Bar da Piscina"], block: "Alimentos" },
+  { key: "foodDinner", headers: ["Alimentos Jantar", "Jantar"], block: "Alimentos" },
+  { key: "serviceBreakfast", headers: ["Atendimento Cafe da Manha"], block: "Atendimento" },
+  { key: "servicePoolBar", headers: ["Atendimento Bar da Piscina"], block: "Atendimento" },
+  { key: "serviceDinner", headers: ["Atendimento Jantar"], block: "Atendimento" },
+  { key: "teamService", headers: ["Atendimento da equipe", "Servicos Atendimento"], block: "Atendimento" },
+  { key: "beachClub", headers: ["Atendimento da equipe do Beach Club"], block: "Atendimento" },
+  { key: "roomCleaning", headers: ["Apartamento Limpeza Diaria", "Limpeza do quarto"], block: "Apartamento" },
+  { key: "roomComfort", headers: ["Apartamento Conforto Geral", "Conforto do quarto"], block: "Apartamento" },
+  { key: "roomEquipment", headers: ["Apartamento Equipamentos"], block: "Apartamento" },
+  { key: "frontDesk", headers: ["Servicos Recepcao", "Recepcao / Check-in / Check-out"], block: "Serviços" },
+  { key: "wifi", headers: ["Qualidade do Wi-fi"], block: "Serviços" },
+  { key: "externalArea", headers: ["Servicos Area Externa"], block: "Serviços" },
+  { key: "pool", headers: ["Servicos Piscina", "Area de lazer / piscina"], block: "Serviços" }
 ];
 
 const OPERATIONAL_BLOCKS = ["Geral", "Alimentos", "Atendimento", "Apartamento", "Serviços"];
@@ -2324,6 +2332,61 @@ const OPERATIONAL_HOTEL_ORDER = [
   "SUEDS TRANCOSO",
   "CASAS SUEDS ARRAIAL"
 ];
+
+const OPINION_SUBMISSION_HEADERS = [
+  "ID Arquivo",
+  "Data Processamento",
+  "Hotel",
+  "Nome Arquivo",
+  "Link Foto",
+  "Nome Hospede",
+  "Apartamento",
+  "Impressao Geral",
+  "Nivel Apartamentos",
+  "Alimentos Cafe da Manha",
+  "Alimentos Bar da Piscina",
+  "Alimentos Jantar",
+  "Atendimento Cafe da Manha",
+  "Atendimento Bar da Piscina",
+  "Atendimento Jantar",
+  "Apartamento Limpeza Diaria",
+  "Apartamento Conforto Geral",
+  "Apartamento Equipamentos",
+  "Servicos Recepcao",
+  "Servicos Atendimento",
+  "Servicos Area Externa",
+  "Servicos Piscina",
+  "Obs Alimentos",
+  "Obs Atendimento",
+  "Obs Apartamento",
+  "Destaques",
+  "Problemas Identificados",
+  "Nota Calculada %",
+  "Confianca %",
+  "Status",
+  "Responsavel Revisao",
+  "Observacao Revisao",
+  "Data Revisao",
+  "Origem",
+  "Hotel Slug",
+  "Form Version",
+  "Idioma",
+  "Reserva",
+  "Qualidade do Wi-fi",
+  "Area de lazer / piscina",
+  "Atendimento da equipe do Beach Club",
+  "Alimentos Almoco",
+  "Consentimento Contato"
+];
+
+const OPINION_FORM_HOTELS = {
+  "sueds-cabralia": { hotel: "SUEDS CABRALIA" },
+  "sueds-segundo-sol": { hotel: "SUEDS SEGUNDO SOL" },
+  "sueds-plaza": { hotel: "SUEDS PLAZA" },
+  "sueds-premium": { hotel: "SUEDS PREMIUM" },
+  "sueds-trancoso": { hotel: "SUEDS TRANCOSO" },
+  "casas-sueds-arraial": { hotel: "CASAS SUEDS ARRAIAL" }
+};
 
 function ratingScore(value) {
   const key = comparableKey(value);
@@ -2353,7 +2416,7 @@ function normalizeOperationalOpinion(item) {
   const processedAt = parseDate(item["Data Processamento"]);
   const fieldScores = {};
   OPERATIONAL_RATING_FIELDS.forEach((field) => {
-    fieldScores[field.key] = ratingScore(item[field.header]);
+    fieldScores[field.key] = ratingScore(firstFilledValue(item, field.headers));
   });
 
   return {
@@ -2438,6 +2501,152 @@ function emptyOperationalHotel(hotel) {
     highlights: [],
     issues: []
   };
+}
+
+function opinionSheetId() {
+  return OPERATIONAL_SHEET_ID || SHEET_ID;
+}
+
+function normalizeOpinionHotelSlug(value) {
+  const text = comparableKey(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (OPINION_FORM_HOTELS[text]) return text;
+  const hotel = normalizeHotelName(value);
+  const match = Object.entries(OPINION_FORM_HOTELS)
+    .find(([, config]) => comparableKey(config.hotel) === comparableKey(hotel));
+  return match ? match[0] : text;
+}
+
+function cleanOpinionRating(value) {
+  const score = ratingScore(value);
+  if (score === 100 && comparableKey(value).includes("muito")) return "Muito bom";
+  if (score === 100) return "Excelente";
+  if (score === 85) return "Muito bom";
+  if (score === 70) return "Bom";
+  if (score === 40) return "Regular";
+  return "";
+}
+
+function opinionScoreFromRatings(ratings = {}) {
+  const scores = Object.values(ratings)
+    .map(ratingScore)
+    .filter((score) => Number.isFinite(score));
+  return average(scores) || "";
+}
+
+function opinionCommentBuckets(ratings = {}, comments = "") {
+  const text = String(comments || "").trim();
+  if (!text) return { highlights: "", issues: "" };
+  const hasLowRating = Object.values(ratings).some((rating) => {
+    const score = ratingScore(rating);
+    return Number.isFinite(score) && score <= 40;
+  });
+  return hasLowRating
+    ? { highlights: "", issues: text }
+    : { highlights: text, issues: "" };
+}
+
+async function ensureOperationalOpinionHeaders(sheetId) {
+  let rows = [];
+  try {
+    rows = await getSheetValues("Opinarios!A1:AZ1", sheetId);
+  } catch (error) {
+    if (!isMissingSheetError(error)) throw error;
+  }
+
+  const current = rows[0] || [];
+  const headers = current.length ? current.map((header) => String(header || "").trim()) : [];
+  OPINION_SUBMISSION_HEADERS.forEach((header) => {
+    if (!headers.includes(header)) headers.push(header);
+  });
+
+  if (!current.length || headers.length !== current.length) {
+    await sheetsRequestForSpreadsheet(sheetId, `/values/${sheetRange("Opinarios!A1:AZ1")}?valueInputOption=RAW`, {
+      method: "PUT",
+      body: JSON.stringify({ values: [headers] })
+    });
+  }
+
+  return headers;
+}
+
+async function appendDigitalOpinion(body = {}) {
+  const sheetId = opinionSheetId();
+  if (!sheetId || !getServiceAccount()) {
+    throw new Error("Planilha operacional ou credenciais Google nao configuradas.");
+  }
+
+  const hotelSlug = normalizeOpinionHotelSlug(body.hotel || body.hotelSlug);
+  const hotel = OPINION_FORM_HOTELS[hotelSlug]?.hotel || normalizeHotelName(body.hotel) || "Nao identificado";
+  const ratings = body.ratings && typeof body.ratings === "object" ? body.ratings : {};
+  const normalizedRatings = Object.fromEntries(
+    Object.entries(ratings).map(([key, value]) => [key, cleanOpinionRating(value)])
+  );
+  const score = opinionScoreFromRatings(normalizedRatings);
+  if (!score) throw new Error("Selecione pelo menos uma avaliacao antes de enviar.");
+
+  const headers = await ensureOperationalOpinionHeaders(sheetId);
+  const comments = String(body.comments || "").trim().slice(0, 1200);
+  const buckets = opinionCommentBuckets(normalizedRatings, comments);
+  const now = new Date();
+  const generatedId = `digital-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+  const formVersion = String(body.formVersion || "").trim().slice(0, 20);
+  const lang = String(body.lang || "pt-BR").trim().slice(0, 12);
+
+  const values = {
+    "ID Arquivo": generatedId,
+    "Data Processamento": todayIsoSaoPaulo(),
+    "Hotel": hotel,
+    "Nome Arquivo": `Opinario digital ${formVersion || todayIsoSaoPaulo()}`,
+    "Link Foto": "",
+    "Nome Hospede": String(body.guestName || "").trim().slice(0, 120),
+    "Apartamento": String(body.apartment || "").trim().slice(0, 30),
+    "Impressao Geral": normalizedRatings.generalImpression || "",
+    "Nivel Apartamentos": normalizedRatings.reservation || "",
+    "Alimentos Cafe da Manha": normalizedRatings.foodBreakfast || "",
+    "Alimentos Bar da Piscina": normalizedRatings.foodPoolBar || "",
+    "Alimentos Jantar": normalizedRatings.foodDinner || "",
+    "Atendimento Cafe da Manha": normalizedRatings.serviceBreakfast || "",
+    "Atendimento Bar da Piscina": normalizedRatings.servicePoolBar || "",
+    "Atendimento Jantar": normalizedRatings.serviceDinner || "",
+    "Apartamento Limpeza Diaria": normalizedRatings.roomCleaning || "",
+    "Apartamento Conforto Geral": normalizedRatings.roomComfort || "",
+    "Apartamento Equipamentos": normalizedRatings.roomEquipment || "",
+    "Servicos Recepcao": normalizedRatings.frontDesk || "",
+    "Servicos Atendimento": normalizedRatings.teamService || "",
+    "Servicos Area Externa": normalizedRatings.externalArea || normalizedRatings.beachClub || "",
+    "Servicos Piscina": normalizedRatings.pool || "",
+    "Obs Alimentos": comments,
+    "Obs Atendimento": "",
+    "Obs Apartamento": "",
+    "Destaques": buckets.highlights,
+    "Problemas Identificados": buckets.issues,
+    "Nota Calculada %": score,
+    "Confianca %": 100,
+    "Status": "Digital",
+    "Responsavel Revisao": "",
+    "Observacao Revisao": "",
+    "Data Revisao": "",
+    "Origem": "QR Code",
+    "Hotel Slug": hotelSlug,
+    "Form Version": formVersion,
+    "Idioma": lang,
+    "Reserva": normalizedRatings.reservation || "",
+    "Qualidade do Wi-fi": normalizedRatings.wifi || "",
+    "Area de lazer / piscina": normalizedRatings.pool || "",
+    "Atendimento da equipe do Beach Club": normalizedRatings.beachClub || "",
+    "Alimentos Almoco": normalizedRatings.foodLunch || "",
+    "Consentimento Contato": body.contactConsent ? "Sim" : "Nao"
+  };
+
+  await sheetsRequestForSpreadsheet(sheetId, `/values/${sheetRange("Opinarios!A:AZ")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    method: "POST",
+    body: JSON.stringify({ values: [headers.map((header) => values[header] ?? "")] })
+  });
+
+  operationalCache = { expiresAt: 0, payload: null };
+  return { id: generatedId, hotel, score, submittedAt: now.toISOString() };
 }
 
 function demoOperationalOpinions() {
@@ -4120,16 +4329,25 @@ function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const requested = url.pathname === "/" ? "/dashboard-tv.html" : url.pathname;
   const safePath = path.normalize(requested).replace(/^(\.\.[/\\])+/, "");
-  const filePath = path.join(__dirname, safePath);
+  const relativePath = safePath.replace(/^[/\\]+/, "");
+  const candidates = [
+    path.join(__dirname, relativePath),
+    path.join(__dirname, "public", relativePath)
+  ];
 
-  if (!filePath.startsWith(__dirname)) return notFound(res);
+  function readCandidate(index = 0) {
+    const filePath = candidates[index];
+    if (!filePath || !filePath.startsWith(__dirname)) return notFound(res);
 
-  fs.readFile(filePath, (error, content) => {
-    if (error) return notFound(res);
-    const ext = path.extname(filePath);
-    res.writeHead(200, { "content-type": MIME_TYPES[ext] || "application/octet-stream" });
-    res.end(content);
-  });
+    fs.readFile(filePath, (error, content) => {
+      if (error) return readCandidate(index + 1);
+      const ext = path.extname(filePath);
+      res.writeHead(200, { "content-type": MIME_TYPES[ext] || "application/octet-stream" });
+      res.end(content);
+    });
+  }
+
+  readCandidate();
 }
 
 async function handleRequest(req, res) {
@@ -4205,6 +4423,12 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/operacional/tv") {
       return json(res, 200, await buildOperationalTvPayload(periodFromUrl(url)));
+    }
+
+    if (url.pathname === "/api/operacional/opinarios") {
+      if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      const body = await readJsonBody(req);
+      return json(res, 200, { ok: true, opinion: await appendDigitalOpinion(body) });
     }
 
     if (url.pathname === "/api/inteligencia/mercado") {
