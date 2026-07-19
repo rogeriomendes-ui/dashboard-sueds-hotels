@@ -1,0 +1,1 @@
+https://dashboard-sueds-hotels.vercel.app/opinario.html?hotel=sueds-plaza&form_version=20260719&lang=pt-BR
