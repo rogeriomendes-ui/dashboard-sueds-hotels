@@ -2504,7 +2504,7 @@ function emptyOperationalHotel(hotel) {
 }
 
 function opinionSheetId() {
-  return OPERATIONAL_SHEET_ID || SHEET_ID;
+  return OPERATIONAL_SHEET_ID;
 }
 
 function normalizeOpinionHotelSlug(value) {
