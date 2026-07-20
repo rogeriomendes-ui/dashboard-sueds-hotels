@@ -139,26 +139,27 @@ Data Processamento
 Hotel
 Nome Arquivo
 Link Foto
+Origem
+Hotel Slug
+Form Version
+Idioma
 Nome Hospede
 Apartamento
+Data Entrada
+Data Saida
 Impressao Geral
-Nivel Apartamentos
+Reserva
+Recepcao / Check-in / Check-out
+Atendimento da equipe
+Conforto do quarto
+Limpeza do quarto
+Qualidade do Wi-fi
+Area de lazer / piscina
+Atendimento da equipe do Beach Club
 Alimentos Cafe da Manha
-Alimentos Bar da Piscina
+Alimentos Almoco
 Alimentos Jantar
-Atendimento Cafe da Manha
-Atendimento Bar da Piscina
-Atendimento Jantar
-Apartamento Limpeza Diaria
-Apartamento Conforto Geral
-Apartamento Equipamentos
-Servicos Recepcao
-Servicos Atendimento
-Servicos Area Externa
-Servicos Piscina
-Obs Alimentos
-Obs Atendimento
-Obs Apartamento
+Comentarios
 Destaques
 Problemas Identificados
 Nota Calculada %
@@ -167,18 +168,6 @@ Status
 Responsavel Revisao
 Observacao Revisao
 Data Revisao
-Origem
-Hotel Slug
-Form Version
-Idioma
-Reserva
-Qualidade do Wi-fi
-Area de lazer / piscina
-Atendimento da equipe do Beach Club
-Alimentos Almoco
-Consentimento Contato
-Data Entrada
-Data Saida
 ```
 
 ### `Revisao_Opinarios`

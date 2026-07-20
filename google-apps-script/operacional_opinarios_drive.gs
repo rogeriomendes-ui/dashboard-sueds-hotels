@@ -22,26 +22,27 @@ const OPINARIOS_HEADERS = [
   "Hotel",
   "Nome Arquivo",
   "Link Foto",
+  "Origem",
+  "Hotel Slug",
+  "Form Version",
+  "Idioma",
   "Nome Hospede",
   "Apartamento",
+  "Data Entrada",
+  "Data Saida",
   "Impressao Geral",
-  "Nivel Apartamentos",
+  "Reserva",
+  "Recepcao / Check-in / Check-out",
+  "Atendimento da equipe",
+  "Conforto do quarto",
+  "Limpeza do quarto",
+  "Qualidade do Wi-fi",
+  "Area de lazer / piscina",
+  "Atendimento da equipe do Beach Club",
   "Alimentos Cafe da Manha",
-  "Alimentos Bar da Piscina",
+  "Alimentos Almoco",
   "Alimentos Jantar",
-  "Atendimento Cafe da Manha",
-  "Atendimento Bar da Piscina",
-  "Atendimento Jantar",
-  "Apartamento Limpeza Diaria",
-  "Apartamento Conforto Geral",
-  "Apartamento Equipamentos",
-  "Servicos Recepcao",
-  "Servicos Atendimento",
-  "Servicos Area Externa",
-  "Servicos Piscina",
-  "Obs Alimentos",
-  "Obs Atendimento",
-  "Obs Apartamento",
+  "Comentarios",
   "Destaques",
   "Problemas Identificados",
   "Nota Calculada %",
@@ -49,19 +50,7 @@ const OPINARIOS_HEADERS = [
   "Status",
   "Responsavel Revisao",
   "Observacao Revisao",
-  "Data Revisao",
-  "Origem",
-  "Hotel Slug",
-  "Form Version",
-  "Idioma",
-  "Reserva",
-  "Qualidade do Wi-fi",
-  "Area de lazer / piscina",
-  "Atendimento da equipe do Beach Club",
-  "Alimentos Almoco",
-  "Consentimento Contato",
-  "Data Entrada",
-  "Data Saida"
+  "Data Revisao"
 ];
 
 const OPINARIOS_REVIEW_HEADERS = [
@@ -221,12 +210,13 @@ function reprocessarOpinariosPendentesOpenAI() {
   let processed = 0;
   let approved = 0;
   let sentToReview = 0;
+  const headerIndexes = getHeaderIndexes_(opinionsSheet);
 
   for (let rowNumber = 2; rowNumber <= lastRow; rowNumber += 1) {
     const row = opinionsSheet.getRange(rowNumber, 1, 1, OPINARIOS_HEADERS.length).getValues()[0];
-    const fileId = String(row[0] || "").trim();
-    const hotel = String(row[2] || "").trim() || "Nao identificado";
-    const status = String(row[29] || "").trim();
+    const fileId = String(row[headerIndexes["ID Arquivo"]] || "").trim();
+    const hotel = String(row[headerIndexes.Hotel] || "").trim() || "Nao identificado";
+    const status = String(row[headerIndexes.Status] || "").trim();
 
     if (!fileId || status === "Aprovado") continue;
 
@@ -632,26 +622,27 @@ function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
     "Hotel": hotel,
     "Nome Arquivo": file.getName(),
     "Link Foto": file.getUrl(),
+    "Origem": "Foto Drive",
+    "Hotel Slug": extracted.hotelSlug || "sueds-plaza",
+    "Form Version": extracted.formVersion || "",
+    "Idioma": extracted.lang || "pt-BR",
     "Nome Hospede": extracted.guestName || "",
     "Apartamento": extracted.apartment || "",
+    "Data Entrada": extracted.entryDate || "",
+    "Data Saida": extracted.exitDate || "",
     "Impressao Geral": extracted.generalImpression || "",
-    "Nivel Apartamentos": extracted.reservation || "",
+    "Reserva": extracted.reservation || "",
+    "Recepcao / Check-in / Check-out": extracted.frontDesk || "",
+    "Atendimento da equipe": extracted.teamService || "",
+    "Conforto do quarto": extracted.roomComfort || "",
+    "Limpeza do quarto": extracted.roomCleaning || "",
+    "Qualidade do Wi-fi": extracted.wifi || "",
+    "Area de lazer / piscina": extracted.pool || "",
+    "Atendimento da equipe do Beach Club": extracted.beachClub || "",
     "Alimentos Cafe da Manha": extracted.foodBreakfast || "",
-    "Alimentos Bar da Piscina": "",
+    "Alimentos Almoco": extracted.foodLunch || "",
     "Alimentos Jantar": extracted.foodDinner || "",
-    "Atendimento Cafe da Manha": "",
-    "Atendimento Bar da Piscina": "",
-    "Atendimento Jantar": "",
-    "Apartamento Limpeza Diaria": extracted.roomCleaning || "",
-    "Apartamento Conforto Geral": extracted.roomComfort || "",
-    "Apartamento Equipamentos": "",
-    "Servicos Recepcao": extracted.frontDesk || "",
-    "Servicos Atendimento": extracted.teamService || "",
-    "Servicos Area Externa": extracted.beachClub || "",
-    "Servicos Piscina": extracted.pool || "",
-    "Obs Alimentos": extracted.comments || "",
-    "Obs Atendimento": "",
-    "Obs Apartamento": "",
+    "Comentarios": extracted.comments || "",
     "Destaques": extracted.highlights || "",
     "Problemas Identificados": extracted.issues || "",
     "Nota Calculada %": extracted.score || "",
@@ -659,19 +650,7 @@ function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
     "Status": status,
     "Responsavel Revisao": "",
     "Observacao Revisao": extracted.reviewReason || "",
-    "Data Revisao": "",
-    "Origem": "Foto Drive",
-    "Hotel Slug": extracted.hotelSlug || "sueds-plaza",
-    "Form Version": extracted.formVersion || "",
-    "Idioma": extracted.lang || "pt-BR",
-    "Reserva": extracted.reservation || "",
-    "Qualidade do Wi-fi": extracted.wifi || "",
-    "Area de lazer / piscina": extracted.pool || "",
-    "Atendimento da equipe do Beach Club": extracted.beachClub || "",
-    "Alimentos Almoco": extracted.foodLunch || "",
-    "Consentimento Contato": "",
-    "Data Entrada": extracted.entryDate || "",
-    "Data Saida": extracted.exitDate || ""
+    "Data Revisao": ""
   };
 
   return OPINARIOS_HEADERS.map((header) => values[header]);
@@ -731,6 +710,15 @@ function getExistingOpinionIds_(sheet) {
       .map((row) => String(row[0] || "").trim())
       .filter(Boolean)
   );
+}
+
+function getHeaderIndexes_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, OPINARIOS_HEADERS.length).getValues()[0];
+  const indexes = {};
+  headers.forEach((header, index) => {
+    if (header) indexes[String(header).trim()] = index;
+  });
+  return indexes;
 }
 
 function listImageFilesRecursive_(folder) {
