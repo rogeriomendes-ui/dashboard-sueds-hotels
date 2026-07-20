@@ -50,6 +50,10 @@ OPINARIOS_MIN_FILLED_RATINGS = 8
 Para o primeiro teste, subir 3 fotos reais preenchidas na pasta `SUEDS PLAZA OPINARIOS` e rodar manualmente o menu `SUEDS Operacional > Processar novas fotos do Drive`.
 No piloto, registros com menos de 8 campos de nota lidos ou confianca abaixo de 90% devem ficar em revisao antes de alimentar o dashboard como dados aprovados.
 
+Depois de validar o processamento manual, criar o gatilho pelo menu `SUEDS Operacional > Criar gatilho a cada 15 minutos`.
+O processamento automatico registra cada execucao na aba `Log_Opinarios`, porque gatilhos de tempo rodam sem janela de alerta do Google Sheets.
+Use `SUEDS Operacional > Verificar gatilhos ativos` para confirmar se ha gatilho instalado.
+
 ## QR Code por hotel
 
 Cada formulario impresso deve ter um QR Code exclusivo por hotel e por versao do formulario. O QR deve apontar para uma URL com parametros, para que a pagina digital e a IA saibam qual unidade e qual conjunto de perguntas deve ser usado.

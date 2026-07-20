@@ -2,6 +2,7 @@ const OPINARIOS_SHEET = "Opinarios";
 const OPINARIOS_REVIEW_SHEET = "Revisao_Opinarios";
 const OPINARIOS_CONFIG_SHEET = "Config_Operacional";
 const OPINARIOS_HOTELS_SHEET = "Hoteis_Operacional";
+const OPINARIOS_LOG_SHEET = "Log_Opinarios";
 const OPINARIOS_ROOT_FOLDER_ID = "1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8";
 const OPINARIOS_PLAZA_FOLDER_ID = "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG";
 const OPINARIOS_OFFICIAL_FORM_VERSION = "20260719";
@@ -65,6 +66,13 @@ const OPINARIOS_REVIEW_HEADERS = [
   "Data Revisao"
 ];
 
+const OPINARIOS_LOG_HEADERS = [
+  "Data",
+  "Nivel",
+  "Rotina",
+  "Mensagem"
+];
+
 const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPINARIOS_ROOT_FOLDER_ID", OPINARIOS_ROOT_FOLDER_ID, "Pasta raiz OPINARIOS no Drive."],
   ["OPINARIOS_SOURCE_FOLDER_ID", OPINARIOS_PLAZA_FOLDER_ID, "Pasta do Drive onde o SUEDS Plaza coloca as fotos novas."],
@@ -89,19 +97,22 @@ function onOpen() {
     .addItem("Configurar OpenAI API Key", "configurarOpenAiApiKey")
     .addItem("Testar OpenAI API Key", "testarOpenAiApiKey")
     .addItem("Criar gatilho a cada 15 minutos", "criarGatilhoOpinarios15Min")
+    .addItem("Verificar gatilhos ativos", "verificarGatilhosOpinarios")
     .addItem("Remover gatilhos de opiniarios", "removerGatilhosOpinarios")
     .addToUi();
 }
 
 function prepararOpinariosOperacional() {
-  const spreadsheet = SpreadsheetApp.getActive();
+  const spreadsheet = getOpinionSpreadsheet_();
   const opinionsSheet = getOrCreateSheet_(spreadsheet, OPINARIOS_SHEET);
   const reviewSheet = getOrCreateSheet_(spreadsheet, OPINARIOS_REVIEW_SHEET);
   const configSheet = getOrCreateSheet_(spreadsheet, OPINARIOS_CONFIG_SHEET);
   const hotelsSheet = getOrCreateSheet_(spreadsheet, OPINARIOS_HOTELS_SHEET);
+  const logSheet = getOrCreateSheet_(spreadsheet, OPINARIOS_LOG_SHEET);
 
   ensureHeader_(opinionsSheet, OPINARIOS_HEADERS);
   ensureHeader_(reviewSheet, OPINARIOS_REVIEW_HEADERS);
+  ensureHeader_(logSheet, OPINARIOS_LOG_HEADERS);
   ensureConfig_(configSheet);
   ensureHotels_(hotelsSheet);
 
@@ -109,6 +120,7 @@ function prepararOpinariosOperacional() {
   formatSheet_(reviewSheet, OPINARIOS_REVIEW_HEADERS.length);
   formatSheet_(configSheet, 3);
   formatSheet_(hotelsSheet, 4);
+  formatSheet_(logSheet, OPINARIOS_LOG_HEADERS.length);
 
   SpreadsheetApp.getUi().alert(
     "Abas preparadas.\n\n" +
@@ -119,22 +131,39 @@ function prepararOpinariosOperacional() {
 }
 
 function processarNovosOpinariosDrive() {
-  const ui = SpreadsheetApp.getUi();
-  const spreadsheet = SpreadsheetApp.getActive();
+  let spreadsheet = null;
+  try {
+    spreadsheet = getOpinionSpreadsheet_();
+    const result = processarNovosOpinariosDrive_(spreadsheet);
+    const message = [
+      "Processamento concluido.",
+      `Novos registros: ${result.inserted}`,
+      `Enviados para revisao: ${result.review}`,
+      `Ignorados por ja existir: ${result.ignored}`
+    ].join("\n");
+    appendOpinionLog_(spreadsheet, "INFO", "processarNovosOpinariosDrive", message);
+    safeUiAlert_(message);
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    if (spreadsheet) appendOpinionLog_(spreadsheet, "ERRO", "processarNovosOpinariosDrive", message);
+    safeUiAlert_("Falha ao processar opinarios.\n\n" + message);
+    throw err;
+  }
+}
+
+function processarNovosOpinariosDrive_(spreadsheet) {
   const opinionsSheet = spreadsheet.getSheetByName(OPINARIOS_SHEET);
   const reviewSheet = spreadsheet.getSheetByName(OPINARIOS_REVIEW_SHEET);
   const configSheet = spreadsheet.getSheetByName(OPINARIOS_CONFIG_SHEET);
 
   if (!opinionsSheet || !reviewSheet || !configSheet) {
-    ui.alert("Prepare as abas primeiro em SUEDS Operacional > Preparar abas de opiniarios.");
-    return;
+    throw new Error("Prepare as abas primeiro em SUEDS Operacional > Preparar abas de opiniarios.");
   }
 
   const config = readConfig_(configSheet);
   const sourceFolderId = String(config.OPINARIOS_SOURCE_FOLDER_ID || "").trim();
   if (!sourceFolderId) {
-    ui.alert("Preencha OPINARIOS_SOURCE_FOLDER_ID na aba Config_Operacional.");
-    return;
+    throw new Error("Preencha OPINARIOS_SOURCE_FOLDER_ID na aba Config_Operacional.");
   }
 
   ensureHeader_(opinionsSheet, OPINARIOS_HEADERS);
@@ -180,12 +209,7 @@ function processarNovosOpinariosDrive() {
     moveProcessedFileIfConfigured_(file, config);
   });
 
-  ui.alert(
-    "Processamento concluido.\n\n" +
-    `Novos registros: ${inserted}\n` +
-    `Enviados para revisao: ${review}\n` +
-    `Ignorados por ja existir: ${ignored}`
-  );
+  return { inserted, review, ignored };
 }
 
 function reprocessarOpinariosPendentesOpenAI() {
@@ -306,6 +330,17 @@ function criarGatilhoOpinarios15Min() {
     .everyMinutes(15)
     .create();
   SpreadsheetApp.getUi().alert("Gatilho criado para processar novas fotos a cada 15 minutos.");
+}
+
+function verificarGatilhosOpinarios() {
+  const triggers = ScriptApp.getProjectTriggers()
+    .filter((trigger) => trigger.getHandlerFunction() === "processarNovosOpinariosDrive");
+
+  const message = triggers.length
+    ? `Gatilhos ativos para processar opiniarios: ${triggers.length}`
+    : "Nao ha gatilho ativo para processar opiniarios.";
+
+  safeUiAlert_(message);
 }
 
 function removerGatilhosOpinarios() {
@@ -695,6 +730,30 @@ function formatSheet_(sheet, columns) {
     .setFontColor("#ffffff")
     .setFontWeight("bold");
   sheet.autoResizeColumns(1, columns);
+}
+
+function getOpinionSpreadsheet_() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+  if (!spreadsheet) throw new Error("Nao foi possivel localizar a planilha ativa do Apps Script.");
+  return spreadsheet;
+}
+
+function safeUiAlert_(message) {
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (err) {
+    console.log(message);
+  }
+}
+
+function appendOpinionLog_(spreadsheet, level, routine, message) {
+  try {
+    const sheet = getOrCreateSheet_(spreadsheet, OPINARIOS_LOG_SHEET);
+    ensureHeader_(sheet, OPINARIOS_LOG_HEADERS);
+    sheet.appendRow([new Date(), level, routine, message]);
+  } catch (err) {
+    console.log(`Falha ao registrar log: ${err.message || err}`);
+  }
 }
 
 function readConfig_(sheet) {
