@@ -6,6 +6,7 @@ const OPINARIOS_LOG_SHEET = "Log_Opinarios";
 const OPINARIOS_ROOT_FOLDER_ID = "1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8";
 const OPINARIOS_PLAZA_FOLDER_ID = "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG";
 const OPINARIOS_OFFICIAL_FORM_VERSION = "20260719";
+const OPINARIOS_ACCEPTED_FORM_VERSIONS = ["20260719", "20260720"];
 const OPINARIOS_ACTIVE_HOTEL = "SUEDS PLAZA";
 
 const OPINARIOS_HOTELS = [
@@ -84,7 +85,8 @@ const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPENAI_MODEL", "gpt-4o-mini", "Modelo OpenAI usado para ler os opiniarios."],
   ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."],
   ["OPINARIOS_ACTIVE_HOTEL", OPINARIOS_ACTIVE_HOTEL, "Piloto oficial atual. Demais hoteis serao configurados depois."],
-  ["OPINARIOS_FORM_VERSION", OPINARIOS_OFFICIAL_FORM_VERSION, "Versao oficial do formulario impresso Plaza."]
+  ["OPINARIOS_FORM_VERSION", OPINARIOS_OFFICIAL_FORM_VERSION, "Versao oficial do formulario impresso Plaza."],
+  ["OPINARIOS_ACCEPTED_FORM_VERSIONS", OPINARIOS_ACCEPTED_FORM_VERSIONS.join(","), "Versoes aceitas no piloto Plaza, separadas por virgula."]
 ];
 
 function onOpen() {
@@ -379,8 +381,9 @@ function analyzeOpinionImage_(file, hotel, config) {
     const confidence = Number(extracted.confidence || 0);
     const minConfidence = Math.max(Number(config.OPINARIOS_MIN_CONFIDENCE || 90), 90);
     const completeness = validateOpinionCompleteness_(extracted, config);
-    const expectedVersion = String(config.OPINARIOS_FORM_VERSION || OPINARIOS_OFFICIAL_FORM_VERSION).trim();
-    const versionOk = String(extracted.formVersion || "").replace(/\D/g, "") === expectedVersion;
+    const acceptedVersions = getAcceptedFormVersions_(config);
+    const extractedVersion = String(extracted.formVersion || "").replace(/\D/g, "");
+    const versionOk = acceptedVersions.indexOf(extractedVersion) !== -1;
     extracted.status = confidence >= minConfidence && completeness.ok && versionOk ? "Aprovado" : "Revisao";
     extracted.reviewReason = extracted.status === "Aprovado"
       ? ""
@@ -388,7 +391,7 @@ function analyzeOpinionImage_(file, hotel, config) {
           extracted.reviewReason,
           confidence < minConfidence ? `Confianca ${confidence}% abaixo do minimo ${minConfidence}%.` : "",
           completeness.reason,
-          versionOk ? "" : `Versao do formulario nao confirmada como ${expectedVersion}.`
+          versionOk ? "" : `Versao do formulario nao confirmada. Lida: ${extractedVersion || "vazia"}. Aceitas: ${acceptedVersions.join(", ")}.`
         ]
         .filter(Boolean)
         .join(" ");
@@ -436,6 +439,20 @@ function validateOpinionCompleteness_(extracted, config) {
   }
 
   return { ok: true, reason: "", missingFields: "" };
+}
+
+function getAcceptedFormVersions_(config) {
+  const configuredVersions = String(config.OPINARIOS_ACCEPTED_FORM_VERSIONS || "")
+    .split(",")
+    .map((version) => String(version || "").replace(/\D/g, ""))
+    .filter(Boolean);
+
+  const primaryVersion = String(config.OPINARIOS_FORM_VERSION || OPINARIOS_OFFICIAL_FORM_VERSION)
+    .replace(/\D/g, "");
+
+  const versions = configuredVersions.length ? configuredVersions : [primaryVersion];
+  if (primaryVersion && versions.indexOf(primaryVersion) === -1) versions.push(primaryVersion);
+  return versions;
 }
 
 function callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey) {
@@ -501,13 +518,13 @@ function buildOpenAiOpinionPrompt_(hotel) {
   return [
     "Voce esta lendo uma foto de um opiniario impresso da SUEDS Plaza.",
     "Extraia apenas o que estiver visivel. Se um campo nao estiver legivel, use string vazia e inclua o campo em uncertainFields.",
-    "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260719, LANG=PT-BR.",
-    "No rodape pode aparecer texto semelhante a SUED'S PLAZA Versao190726 ou FORM_VERSION=20260719. Extraia formVersion como 20260719 quando a versao for esta.",
+    "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260719 ou FORM_VERSION=20260720, LANG=PT-BR.",
+    "No rodape pode aparecer texto semelhante a SUED'S PLAZA, FORM_VERSION=20260719, FORM_VERSION=20260720 ou Versao190726. Extraia formVersion como os 8 digitos visiveis da versao impressa.",
     "As colunas de avaliacao aparecem sempre nesta ordem, da esquerda para a direita: Excelente, Muito bom, Bom, Regular.",
     "O modelo mais recente usa bolinhas/circulos grandes para preenchimento. Fotos antigas podem ter quadrados; trate ambos como campos de marcacao.",
     "Para cada item, localize primeiro o texto da pergunta na esquerda e leia apenas os 4 circulos ou quadrados da mesma linha horizontal.",
-    "Quando houver bolinha preenchida, X, risco diagonal simples, traco, circulo, rabisco claro ou preenchimento dentro do campo, considere aquela opcao selecionada.",
-    "Uma bolinha parcialmente preenchida ou um risco diagonal unico dentro do campo conta como resposta valida. Nao exija preenchimento perfeito.",
+    "Quando houver bolinha preenchida, bolinha parcialmente pintada, X, risco diagonal simples, traco horizontal, traco vertical, circulo reforcado, rabisco claro ou qualquer marca de caneta dentro do campo, considere aquela opcao selecionada.",
+    "Nao exija que o hospede pinte toda a bolinha. Um X, um traco simples ou um risco diagonal dentro da bolinha conta como resposta valida.",
     "Se houver marca encostando na borda do campo, considere selecionado quando o centro da marca estiver dentro daquele circulo ou quadrado.",
     "Se nao houver nenhuma marcacao visivel em uma linha, deixe o campo vazio. Nao chute uma nota apenas por proximidade visual.",
     "Se duas opcoes parecerem marcadas na mesma linha, use string vazia para aquele campo e registre o item em uncertainFields.",

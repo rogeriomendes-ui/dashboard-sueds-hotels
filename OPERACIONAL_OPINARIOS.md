@@ -43,6 +43,7 @@ OPINARIOS_ROOT_FOLDER_ID = 1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8
 OPINARIOS_SOURCE_FOLDER_ID = 16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG
 OPINARIOS_ACTIVE_HOTEL = SUEDS PLAZA
 OPINARIOS_FORM_VERSION = 20260719
+OPINARIOS_ACCEPTED_FORM_VERSIONS = 20260719,20260720
 OPINARIOS_MIN_CONFIDENCE = 90
 OPINARIOS_MIN_FILLED_RATINGS = 8
 ```
@@ -73,6 +74,7 @@ HOTEL=SUEDS_PLAZA | FORM_VERSION=20260719 | LANG=PT-BR
 Para o modelo impresso melhorado do Plaza, a grade deve usar bolinhas/circulos grandes e linhas horizontais por pergunta.
 Na foto de teste, capturar apenas uma ficha preenchida por imagem. A folha pode ter duas fichas para impressao, mas o processamento OCR/IA deve receber uma ficha individual por arquivo.
 Quando o layout mudar para uso oficial, idealmente atualizar tambem o `FORM_VERSION` para uma nova data/versao, evitando misturar resultados de layouts diferentes.
+Na leitura das bolinhas, considerar como marcacao valida: bolinha pintada, bolinha parcialmente pintada, X, traco horizontal, traco vertical, risco diagonal ou rabisco claro dentro da bolinha.
 
 O QR Code do SUEDS Plaza desta versao fica em:
 
@@ -211,6 +213,7 @@ Chaves iniciais:
 OPINARIOS_SOURCE_FOLDER_ID
 OPINARIOS_ACTIVE_HOTEL
 OPINARIOS_FORM_VERSION
+OPINARIOS_ACCEPTED_FORM_VERSIONS
 OPINARIOS_PROCESSED_FOLDER_ID
 OPINARIOS_ERROR_FOLDER_ID
 OPINARIOS_MIN_CONFIDENCE
