@@ -8,6 +8,7 @@ const OPINARIOS_PLAZA_FOLDER_ID = "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG";
 const OPINARIOS_OFFICIAL_FORM_VERSION = "20260719";
 const OPINARIOS_ACCEPTED_FORM_VERSIONS = ["20260719", "20260720"];
 const OPINARIOS_ACTIVE_HOTEL = "SUEDS PLAZA";
+const OPINARIOS_UPLOAD_MAX_BYTES = 4000000;
 
 const OPINARIOS_HOTELS = [
   ["SUEDS CABRALIA", "Ativo", 1, ""],
@@ -101,12 +102,123 @@ function onOpen() {
     .addItem("Reprocessar pendentes com OpenAI", "reprocessarOpinariosPendentesOpenAI")
     .addItem("Reprocessar ultimas 4 fotos com OMR", "reprocessarUltimas4OpinariosOpenAI")
     .addSeparator()
+    .addItem("Configurar codigo de upload", "configurarCodigoUploadOpinarios")
     .addItem("Configurar OpenAI API Key", "configurarOpenAiApiKey")
     .addItem("Testar OpenAI API Key", "testarOpenAiApiKey")
     .addItem("Criar gatilho a cada 15 minutos", "criarGatilhoOpinarios15Min")
     .addItem("Verificar gatilhos ativos", "verificarGatilhosOpinarios")
     .addItem("Remover gatilhos de opiniarios", "removerGatilhosOpinarios")
     .addToUi();
+}
+
+function configurarCodigoUploadOpinarios() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.prompt(
+    "Configurar codigo de upload",
+    "Informe o mesmo codigo definido em OPINION_UPLOAD_TOKEN na Vercel.",
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+
+  const token = String(response.getResponseText() || "").trim();
+  if (token.length < 8) {
+    ui.alert("Use um codigo com pelo menos 8 caracteres.");
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty("OPINION_UPLOAD_TOKEN", token);
+  ui.alert("Codigo de upload salvo com sucesso.");
+}
+
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const body = JSON.parse(String(e && e.postData && e.postData.contents || "{}"));
+    const expectedToken = String(PropertiesService.getScriptProperties().getProperty("OPINION_UPLOAD_TOKEN") || "");
+    if (!expectedToken || String(body.token || "") !== expectedToken) {
+      return opinionUploadJson_({ ok: false, message: "Codigo de upload invalido." });
+    }
+
+    const hotelSlug = String(body.hotelSlug || "").trim().toLowerCase();
+    if (hotelSlug !== "sueds-plaza") {
+      return opinionUploadJson_({ ok: false, message: "Hotel ainda nao configurado para upload." });
+    }
+
+    const mimeType = String(body.mimeType || "").toLowerCase();
+    const extensions = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp"
+    };
+    if (!extensions[mimeType]) {
+      return opinionUploadJson_({ ok: false, message: "Formato de imagem nao aceito." });
+    }
+
+    const uploadId = String(body.uploadId || "").trim();
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(uploadId)) {
+      return opinionUploadJson_({ ok: false, message: "Identificador de upload invalido." });
+    }
+
+    const imageBase64 = String(body.imageBase64 || "").replace(/^data:[^;]+;base64,/, "");
+    const bytes = Utilities.base64Decode(imageBase64);
+    if (!bytes.length || bytes.length > OPINARIOS_UPLOAD_MAX_BYTES) {
+      return opinionUploadJson_({ ok: false, message: "Imagem vazia ou acima do limite de 4 MB." });
+    }
+
+    const periodFrom = safeOpinionUploadText_(body.periodFrom, 10);
+    const periodTo = safeOpinionUploadText_(body.periodTo, 10);
+    const datePart = /^\d{4}-\d{2}-\d{2}$/.test(periodFrom)
+      ? periodFrom.replace(/-/g, "")
+      : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "America/Sao_Paulo", "yyyyMMdd");
+    const fileName = `SUEDS_PLAZA_${datePart}_${uploadId}.${extensions[mimeType]}`;
+    const folder = DriveApp.getFolderById(OPINARIOS_PLAZA_FOLDER_ID);
+    const existingFiles = folder.getFilesByName(fileName);
+    if (existingFiles.hasNext()) {
+      return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(existingFiles.next(), uploadId, true) });
+    }
+
+    const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
+    const uploader = safeOpinionUploadText_(body.uploader, 80);
+    const originalName = safeOpinionUploadText_(body.originalName, 160);
+    file.setDescription([
+      "Opinario impresso enviado pela pagina da recepcao do SUEDS Plaza.",
+      uploader ? `Responsavel: ${uploader}.` : "",
+      periodFrom ? `Periodo informado: ${periodFrom}${periodTo && periodTo !== periodFrom ? ` a ${periodTo}` : ""}.` : "",
+      originalName ? `Arquivo original: ${originalName}.` : "",
+      `Upload ID: ${uploadId}.`
+    ].filter(Boolean).join(" "));
+
+    return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(file, uploadId, false) });
+  } catch (err) {
+    return opinionUploadJson_({ ok: false, message: err && err.message ? err.message : String(err) });
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (err) {
+      // O lock pode nao ter sido adquirido quando a espera expira.
+    }
+  }
+}
+
+function safeOpinionUploadText_(value, maxLength) {
+  return String(value || "").replace(/[\r\n\0]/g, " ").trim().slice(0, maxLength);
+}
+
+function opinionUploadPhoto_(file, uploadId, duplicate) {
+  return {
+    id: file.getId(),
+    name: file.getName(),
+    webViewLink: file.getUrl(),
+    size: file.getSize(),
+    createdTime: file.getDateCreated().toISOString(),
+    duplicate,
+    uploadId
+  };
+}
+
+function opinionUploadJson_(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function prepararOpinariosOperacional() {

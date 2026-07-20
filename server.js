@@ -17,6 +17,7 @@ const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
 const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AH";
 const OPINION_OMR_TOKEN = process.env.OPINION_OMR_TOKEN || "";
 const OPINION_UPLOAD_TOKEN = process.env.OPINION_UPLOAD_TOKEN || "";
+const OPINION_APPS_SCRIPT_UPLOAD_URL = process.env.OPINION_APPS_SCRIPT_UPLOAD_URL || "";
 const OPINION_UPLOAD_MAX_BYTES = Math.min(Number(process.env.OPINION_UPLOAD_MAX_BYTES || 4000000), 4200000);
 const OPINION_UPLOAD_FOLDERS = {
   "sueds-plaza": process.env.GOOGLE_OPINIONS_PLAZA_FOLDER_ID || "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG"
@@ -2627,6 +2628,29 @@ async function findUploadedOpinionPhoto(folderId, uploadId, token) {
   return payload.files?.[0] || null;
 }
 
+async function uploadOpinionPhotoViaAppsScript(details, buffer) {
+  const response = await fetch(OPINION_APPS_SCRIPT_UPLOAD_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      token: OPINION_UPLOAD_TOKEN,
+      ...details,
+      imageBase64: buffer.toString("base64")
+    })
+  });
+  const responseText = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(responseText);
+  } catch (error) {
+    throw new Error(`Apps Script retornou uma resposta invalida: HTTP ${response.status}.`);
+  }
+  if (!response.ok || !payload.ok || !payload.photo) {
+    throw new Error(payload.message || `Falha no Apps Script: HTTP ${response.status}.`);
+  }
+  return payload.photo;
+}
+
 async function uploadOpinionPhoto(req, buffer) {
   if (!buffer.length) throw new Error("A foto recebida esta vazia.");
   const hotelSlug = String(getHeader(req, "x-hotel-slug") || "sueds-plaza").trim().toLowerCase();
@@ -2642,6 +2666,19 @@ async function uploadOpinionPhoto(req, buffer) {
   const uploader = safeDecodedHeader(req, "x-uploader", 80);
   const periodFrom = safeDecodedHeader(req, "x-period-from", 10);
   const periodTo = safeDecodedHeader(req, "x-period-to", 10);
+  if (OPINION_APPS_SCRIPT_UPLOAD_URL) {
+    return uploadOpinionPhotoViaAppsScript({
+      hotelSlug,
+      folderId,
+      mimeType,
+      uploadId,
+      originalName,
+      uploader,
+      periodFrom,
+      periodTo
+    }, buffer);
+  }
+
   const accessToken = await getAccessToken("https://www.googleapis.com/auth/drive");
   const existing = await findUploadedOpinionPhoto(folderId, uploadId, accessToken);
   if (existing) return { ...existing, duplicate: true, uploadId };
