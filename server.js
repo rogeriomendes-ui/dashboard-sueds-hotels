@@ -2702,6 +2702,199 @@ function detectOmrFormBox(gray, width, height) {
   return detectOmrFormBoxByLines(gray, width, height) || detectOmrFormBoxByDarkBounds(gray, width, height);
 }
 
+function clusterValues(items, valueGetter, tolerance) {
+  const sorted = [...items].sort((a, b) => valueGetter(a) - valueGetter(b));
+  const clusters = [];
+
+  sorted.forEach((item) => {
+    const value = valueGetter(item);
+    const current = clusters[clusters.length - 1];
+    if (current && Math.abs(value - current.center) <= tolerance) {
+      current.items.push(item);
+      current.center = current.items.reduce((sum, entry) => sum + valueGetter(entry), 0) / current.items.length;
+    } else {
+      clusters.push({ center: value, items: [item] });
+    }
+  });
+
+  return clusters;
+}
+
+function detectOmrBubbleCandidates(gray, width, height) {
+  const threshold = 125;
+  const visited = new Uint8Array(width * height);
+  const stack = new Int32Array(width * height);
+  const candidates = [];
+  const minY = Math.round(height * 0.04);
+  const maxY = Math.round(height * 0.86);
+  const minX = Math.round(width * 0.34);
+
+  for (let y = minY; y < maxY; y += 1) {
+    for (let x = minX; x < width; x += 1) {
+      const start = y * width + x;
+      if (visited[start] || gray[start] >= threshold) continue;
+
+      let size = 0;
+      let stackLength = 0;
+      let area = 0;
+      let darkSum = 0;
+      let componentMinX = x;
+      let componentMaxX = x;
+      let componentMinY = y;
+      let componentMaxY = y;
+      stack[stackLength++] = start;
+      visited[start] = 1;
+
+      while (stackLength) {
+        const index = stack[--stackLength];
+        const px = index % width;
+        const py = Math.floor(index / width);
+        area += 1;
+        darkSum += 255 - gray[index];
+        if (px < componentMinX) componentMinX = px;
+        if (px > componentMaxX) componentMaxX = px;
+        if (py < componentMinY) componentMinY = py;
+        if (py > componentMaxY) componentMaxY = py;
+
+        const neighbors = [index - 1, index + 1, index - width, index + width];
+        for (const next of neighbors) {
+          if (next < 0 || next >= visited.length || visited[next]) continue;
+          const nx = next % width;
+          if ((next === index - 1 && nx > px) || (next === index + 1 && nx < px)) continue;
+          if (gray[next] >= threshold) continue;
+          visited[next] = 1;
+          stack[stackLength++] = next;
+        }
+
+        size += 1;
+      }
+
+      const componentWidth = componentMaxX - componentMinX + 1;
+      const componentHeight = componentMaxY - componentMinY + 1;
+      const aspect = componentWidth / componentHeight;
+      if (
+        componentWidth >= 7 &&
+        componentWidth <= 48 &&
+        componentHeight >= 7 &&
+        componentHeight <= 48 &&
+        area >= 16 &&
+        area <= 850 &&
+        aspect >= 0.55 &&
+        aspect <= 1.75
+      ) {
+        candidates.push({
+          x: (componentMinX + componentMaxX) / 2,
+          y: (componentMinY + componentMaxY) / 2,
+          width: componentWidth,
+          height: componentHeight,
+          area,
+          weight: Math.max(area, darkSum / 255)
+        });
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function chooseOmrColumnCenters(candidates, width) {
+  const xClusters = clusterValues(candidates, (item) => item.x, 20)
+    .map((cluster) => ({
+      center: cluster.center,
+      count: cluster.items.length,
+      items: cluster.items
+    }))
+    .filter((cluster) => cluster.center > width * 0.42 && cluster.count >= 5)
+    .sort((a, b) => b.count - a.count);
+
+  const usable = xClusters.slice(0, 10).sort((a, b) => a.center - b.center);
+  let best = null;
+  for (let start = 0; start <= usable.length - 4; start += 1) {
+    const group = usable.slice(start, start + 4);
+    const gaps = [group[1].center - group[0].center, group[2].center - group[1].center, group[3].center - group[2].center];
+    const gapMedian = median(gaps);
+    if (gapMedian < 40) continue;
+    const gapSpread = Math.max(...gaps) - Math.min(...gaps);
+    const score = group.reduce((sum, cluster) => sum + cluster.count, 0) - gapSpread * 0.08;
+    if (!best || score > best.score) best = { score, group };
+  }
+
+  return best ? best.group.map((cluster) => cluster.center).sort((a, b) => a - b) : [];
+}
+
+function chooseOmrRowCenters(candidates, columnCenters, width) {
+  if (columnCenters.length !== 4) return [];
+  const columnTolerance = Math.max(18, Math.round(width * 0.018));
+  const nearGrid = candidates
+    .map((candidate) => {
+      const columnIndex = columnCenters.findIndex((center) => Math.abs(candidate.x - center) <= columnTolerance);
+      return columnIndex === -1 ? null : { ...candidate, columnIndex };
+    })
+    .filter(Boolean);
+
+  const yClusters = clusterValues(nearGrid, (item) => item.y, 18)
+    .map((cluster) => ({
+      center: cluster.center,
+      count: cluster.items.length,
+      columns: new Set(cluster.items.map((item) => item.columnIndex)).size,
+      items: cluster.items
+    }))
+    .filter((cluster) => cluster.columns >= 2)
+    .sort((a, b) => a.center - b.center);
+
+  if (yClusters.length < 12) return [];
+
+  let best = null;
+  for (let start = 0; start <= yClusters.length - 12; start += 1) {
+    const group = yClusters.slice(start, start + 12);
+    const gaps = [];
+    for (let index = 1; index < group.length; index += 1) {
+      gaps.push(group[index].center - group[index - 1].center);
+    }
+    const gapMedian = median(gaps);
+    if (gapMedian < 22 || gapMedian > 95) continue;
+    const spacingPenalty = gaps.reduce((sum, gap) => sum + Math.abs(gap - gapMedian), 0);
+    const markStrength = group.reduce((sum, cluster) => {
+      const rowScores = columnCenters.map((center) => {
+        const item = cluster.items.find((candidate) => Math.abs(candidate.x - center) <= columnTolerance);
+        return item ? item.weight : 0;
+      });
+      return sum + Math.max(...rowScores);
+    }, 0);
+    const structureScore = group.reduce((sum, cluster) => sum + cluster.columns * 20 + cluster.count, 0);
+    const score = markStrength + structureScore - spacingPenalty * 4;
+    if (!best || score > best.score) best = { score, group };
+  }
+
+  return best ? best.group.map((cluster) => cluster.center) : [];
+}
+
+function detectOmrBubbleGrid(gray, width, height) {
+  const candidates = detectOmrBubbleCandidates(gray, width, height);
+  const columns = chooseOmrColumnCenters(candidates, width);
+  const rows = chooseOmrRowCenters(candidates, columns, width);
+  if (columns.length !== 4 || rows.length !== 12) return null;
+
+  const minX = Math.min(...columns);
+  const maxX = Math.max(...columns);
+  const minY = Math.min(...rows);
+  const maxY = Math.max(...rows);
+  return {
+    columns,
+    rows,
+    method: "bubble-grid",
+    candidateCount: candidates.length,
+    box: {
+      x: Math.max(0, Math.round(minX - (maxX - minX) * 0.42)),
+      y: Math.max(0, Math.round(minY - (maxY - minY) * 0.22)),
+      width: Math.round((maxX - minX) * 1.52),
+      height: Math.round((maxY - minY) * 1.18),
+      method: "bubble-grid",
+      candidateCount: candidates.length
+    }
+  };
+}
+
 function omrDarkRatio(gray, width, height, cx, cy, radius) {
   const minX = Math.max(0, Math.floor(cx - radius));
   const maxX = Math.min(width - 1, Math.ceil(cx + radius));
@@ -2772,6 +2965,54 @@ function analyzeOmrRow(gray, width, height, box, rowRatio) {
   };
 }
 
+function analyzeOmrGridRow(gray, width, height, grid, rowIndex) {
+  const gaps = [];
+  for (let index = 1; index < grid.columns.length; index += 1) {
+    gaps.push(grid.columns[index] - grid.columns[index - 1]);
+  }
+  const outerRadius = Math.max(7, Math.round(median(gaps) * 0.18));
+  const innerRadius = Math.max(5, Math.round(median(gaps) * 0.095));
+  const cy = grid.rows[rowIndex];
+  const measurements = grid.columns.map((cx) => {
+    const inner = omrDarkRatio(gray, width, height, cx, cy, innerRadius);
+    const outer = omrDarkRatio(gray, width, height, cx, cy, outerRadius);
+    return { cx: Math.round(cx), cy: Math.round(cy), inner, outer };
+  });
+
+  const minInner = Math.min(...measurements.map((item) => item.inner));
+  const scores = measurements.map((item) => ({
+    ...item,
+    excess: Math.max(0, item.inner - minInner),
+    score: item.inner
+  }));
+
+  const selected = scores
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => item.inner >= 0.028 && item.excess >= 0.014)
+    .sort((a, b) => b.score - a.score);
+
+  if (!selected.length) {
+    return { value: "", selectedIndexes: [], scores };
+  }
+
+  const best = selected[0];
+  const competitors = selected.filter((item) => item.index !== best.index && item.score >= Math.max(0.035, best.score * 0.72));
+  if (competitors.length) {
+    return {
+      value: "",
+      selectedIndexes: selected.map((item) => item.index),
+      uncertain: true,
+      scores
+    };
+  }
+
+  return {
+    value: PLAZA_OMR_RATING_OPTIONS[best.index],
+    selectedIndexes: [best.index],
+    scores
+  };
+}
+
 async function readPlazaOpinionOmr(body) {
   const sharp = require("sharp");
   const imageBuffer = imageBufferFromOmrBody(body);
@@ -2790,16 +3031,21 @@ async function readPlazaOpinionOmr(body) {
   const { data, info } = image;
   const width = info.width;
   const height = info.height;
-  const box = detectOmrFormBox(data, width, height);
+  const bubbleGrid = detectOmrBubbleGrid(data, width, height);
+  const box = bubbleGrid ? bubbleGrid.box : detectOmrFormBox(data, width, height);
   const aspect = box.height / box.width;
-  const boxLooksValid = aspect > 1.15 && aspect < 1.8 && box.width > width * 0.45 && box.height > height * 0.45;
+  const boxLooksValid = bubbleGrid
+    ? true
+    : aspect > 1.15 && aspect < 1.8 && box.width > width * 0.45 && box.height > height * 0.45;
 
   const ratings = {};
   const uncertain = [];
   const debugRows = [];
 
   PLAZA_OMR_FIELDS.forEach(([field, label], index) => {
-    const row = analyzeOmrRow(data, width, height, box, PLAZA_OMR_TEMPLATE.rows[index]);
+    const row = bubbleGrid
+      ? analyzeOmrGridRow(data, width, height, bubbleGrid, index)
+      : analyzeOmrRow(data, width, height, box, PLAZA_OMR_TEMPLATE.rows[index]);
     ratings[field] = row.value;
     if (row.uncertain) uncertain.push(label);
     debugRows.push({
@@ -2819,7 +3065,7 @@ async function readPlazaOpinionOmr(body) {
   });
 
   const answered = Object.values(ratings).filter(Boolean).length;
-  const confidence = boxLooksValid ? 95 : 72;
+  const confidence = bubbleGrid ? 92 : (boxLooksValid ? 95 : 72);
   const reviewReason = boxLooksValid ? "" : "OMR nao confirmou proporcao/posicao esperada da ficha. Conferir enquadramento da foto.";
 
   return {
@@ -2835,7 +3081,14 @@ async function readPlazaOpinionOmr(body) {
       imageWidth: width,
       imageHeight: height,
       box,
-      method: box.method || "",
+      method: bubbleGrid ? bubbleGrid.method : (box.method || ""),
+      bubbleGrid: bubbleGrid
+        ? {
+            candidateCount: bubbleGrid.candidateCount,
+            columns: bubbleGrid.columns.map((value) => Math.round(value)),
+            rows: bubbleGrid.rows.map((value) => Math.round(value))
+          }
+        : undefined,
       boxLooksValid
     },
     debugRows: body.debug ? debugRows : undefined
