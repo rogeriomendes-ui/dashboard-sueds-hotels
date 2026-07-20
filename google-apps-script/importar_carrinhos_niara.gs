@@ -19,6 +19,8 @@ const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", 
 const NIARA_STATUS_OPTIONS = ["Selecione", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
 const NIARA_DEFAULT_STATUS = "Selecione";
+const GOOGLE_SHEETS_DATE_EPOCH_MS = Date.UTC(1899, 11, 30);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const NIARA_SOURCE_HEADERS = [
   "ID",
@@ -337,23 +339,33 @@ function parseNumericValue_(value) {
 }
 
 function parseBrazilianDate_(value) {
-  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    const formatted = Utilities.formatDate(value, Session.getScriptTimeZone(), "dd/MM/yyyy");
+    return parseBrazilianDate_(formatted);
+  }
   const text = String(value || "").trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return dateSerialFromParts_(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (!match) return "";
   let year = Number(match[3]);
   if (year < 100) year += 2000;
-  return new Date(year, Number(match[2]) - 1, Number(match[1]));
+  return dateSerialFromParts_(year, Number(match[2]), Number(match[1]));
+}
+
+function dateSerialFromParts_(year, month, day) {
+  return Math.round((Date.UTC(year, month - 1, day) - GOOGLE_SHEETS_DATE_EPOCH_MS) / DAY_MS);
 }
 
 function salesDateSortKey_(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
   if (value instanceof Date && !isNaN(value.getTime())) return value.getTime();
   const text = String(value || "").trim();
   const match = text.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
   if (match) {
     let year = Number(match[3] || 9999);
     if (year < 100) year += 2000;
-    return new Date(year, Number(match[2]) - 1, Number(match[1])).getTime();
+    return dateSerialFromParts_(year, Number(match[2]), Number(match[1]));
   }
   return 8640000000000000;
 }
