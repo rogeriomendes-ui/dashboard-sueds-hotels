@@ -2798,6 +2798,8 @@ function detectOmrBubbleCandidates(gray, width, height) {
 }
 
 function chooseOmrColumnCenters(candidates, width) {
+  const minColumnGap = Math.max(70, Math.round(width * 0.06));
+  const maxColumnGap = Math.round(width * 0.22);
   const xClusters = clusterValues(candidates, (item) => item.x, 20)
     .map((cluster) => ({
       center: cluster.center,
@@ -2813,7 +2815,7 @@ function chooseOmrColumnCenters(candidates, width) {
     const group = usable.slice(start, start + 4);
     const gaps = [group[1].center - group[0].center, group[2].center - group[1].center, group[3].center - group[2].center];
     const gapMedian = median(gaps);
-    if (gapMedian < 40) continue;
+    if (gapMedian < minColumnGap || gapMedian > maxColumnGap) continue;
     const gapSpread = Math.max(...gaps) - Math.min(...gaps);
     const score = group.reduce((sum, cluster) => sum + cluster.count, 0) - gapSpread * 0.08;
     if (!best || score > best.score) best = { score, group };
@@ -2879,16 +2881,20 @@ function detectOmrBubbleGrid(gray, width, height) {
   const maxX = Math.max(...columns);
   const minY = Math.min(...rows);
   const maxY = Math.max(...rows);
+  const gridWidth = maxX - minX;
+  const gridHeight = maxY - minY;
+  if (gridWidth < width * 0.18 || gridHeight < height * 0.32) return null;
+
   return {
     columns,
     rows,
     method: "bubble-grid",
     candidateCount: candidates.length,
     box: {
-      x: Math.max(0, Math.round(minX - (maxX - minX) * 0.42)),
-      y: Math.max(0, Math.round(minY - (maxY - minY) * 0.22)),
-      width: Math.round((maxX - minX) * 1.52),
-      height: Math.round((maxY - minY) * 1.18),
+      x: Math.max(0, Math.round(minX - gridWidth * 0.42)),
+      y: Math.max(0, Math.round(minY - gridHeight * 0.22)),
+      width: Math.round(gridWidth * 1.52),
+      height: Math.round(gridHeight * 1.18),
       method: "bubble-grid",
       candidateCount: candidates.length
     }
