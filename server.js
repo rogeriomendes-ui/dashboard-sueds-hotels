@@ -2537,7 +2537,7 @@ function imageBufferFromOmrBody(body) {
   return Buffer.from(raw.replace(/^data:[^;]+;base64,/, ""), "base64");
 }
 
-function detectOmrFormBox(gray, width, height) {
+function detectOmrFormBoxByDarkBounds(gray, width, height) {
   const threshold = 95;
   let minX = width;
   let minY = height;
@@ -2574,8 +2574,132 @@ function detectOmrFormBox(gray, width, height) {
     y: minY,
     width: maxX - minX + 1,
     height: maxY - minY + 1,
-    darkPixelRatio: dark / (width * height)
+    darkPixelRatio: dark / (width * height),
+    method: "dark-bounds"
   };
+}
+
+function findLongOmrLineBands(gray, width, height, axis) {
+  const threshold = 110;
+  const minRun = Math.round((axis === "horizontal" ? width : height) * 0.48);
+  const maxGap = Math.max(6, Math.round((axis === "horizontal" ? width : height) * 0.006));
+  const limit = axis === "horizontal" ? height : width;
+  const span = axis === "horizontal" ? width : height;
+  const bands = [];
+  let current = null;
+
+  for (let fixed = 0; fixed < limit; fixed += 1) {
+    let bestRun = 0;
+    let bestStart = 0;
+    let bestEnd = 0;
+    let runStart = 0;
+    let runLength = 0;
+    let gap = 0;
+
+    for (let moving = 0; moving < span; moving += 1) {
+      const x = axis === "horizontal" ? moving : fixed;
+      const y = axis === "horizontal" ? fixed : moving;
+      const dark = gray[y * width + x] < threshold;
+
+      if (dark) {
+        if (!runLength) runStart = moving;
+        runLength += 1 + gap;
+        gap = 0;
+      } else if (runLength && gap < maxGap) {
+        gap += 1;
+      } else {
+        if (runLength > bestRun) {
+          bestRun = runLength;
+          bestStart = runStart;
+          bestEnd = moving - gap - 1;
+        }
+        runLength = 0;
+        gap = 0;
+      }
+    }
+
+    if (runLength > bestRun) {
+      bestRun = runLength;
+      bestStart = runStart;
+      bestEnd = span - gap - 1;
+    }
+
+    if (bestRun < minRun) {
+      current = null;
+      continue;
+    }
+
+    const candidate = {
+      at: fixed,
+      start: Math.max(0, bestStart),
+      end: Math.min(span - 1, bestEnd),
+      run: bestRun
+    };
+
+    if (current && fixed <= current.endAt + 2) {
+      current.endAt = fixed;
+      if (candidate.run > current.best.run) current.best = candidate;
+    } else {
+      current = { startAt: fixed, endAt: fixed, best: candidate };
+      bands.push(current);
+    }
+  }
+
+  return bands.map((band) => band.best);
+}
+
+function median(values) {
+  const sorted = values
+    .map(Number)
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+function detectOmrFormBoxByLines(gray, width, height) {
+  const horizontal = findLongOmrLineBands(gray, width, height, "horizontal");
+  if (horizontal.length < 2) return null;
+
+  const topCandidates = horizontal.filter((line) => line.at > height * 0.01 && line.at < height * 0.35);
+  const bottomCandidates = horizontal.filter((line) => line.at > height * 0.45 && line.at < height * 0.98);
+  const top = (topCandidates[0] || horizontal[0]);
+  const bottom = (bottomCandidates[bottomCandidates.length - 1] || horizontal[horizontal.length - 1]);
+  if (!top || !bottom || bottom.at - top.at < height * 0.35) return null;
+
+  const candidateLines = horizontal.filter((line) => line.at >= top.at && line.at <= bottom.at);
+  let left = Math.max(0, Math.round(median(candidateLines.map((line) => line.start))));
+  let right = Math.min(width - 1, Math.round(median(candidateLines.map((line) => line.end))));
+
+  const vertical = findLongOmrLineBands(gray, width, height, "vertical")
+    .filter((line) => line.start <= top.at + 10 && line.end >= bottom.at - 10);
+  if (vertical.length >= 2) {
+    left = vertical[0].at;
+    right = vertical[vertical.length - 1].at;
+  }
+
+  const boxWidth = right - left + 1;
+  const boxHeight = bottom.at - top.at + 1;
+  if (boxWidth < width * 0.40 || boxHeight < height * 0.35) return null;
+
+  const padX = Math.round(boxWidth * 0.003);
+  const padY = Math.round(boxHeight * 0.003);
+  return {
+    x: Math.max(0, left - padX),
+    y: Math.max(0, top.at - padY),
+    width: Math.min(width - 1, right + padX) - Math.max(0, left - padX) + 1,
+    height: Math.min(height - 1, bottom.at + padY) - Math.max(0, top.at - padY) + 1,
+    darkPixelRatio: null,
+    method: "line-bands",
+    lineCount: {
+      horizontal: horizontal.length,
+      vertical: vertical.length
+    }
+  };
+}
+
+function detectOmrFormBox(gray, width, height) {
+  return detectOmrFormBoxByLines(gray, width, height) || detectOmrFormBoxByDarkBounds(gray, width, height);
 }
 
 function omrDarkRatio(gray, width, height, cx, cy, radius) {
@@ -2711,6 +2835,7 @@ async function readPlazaOpinionOmr(body) {
       imageWidth: width,
       imageHeight: height,
       box,
+      method: box.method || "",
       boxLooksValid
     },
     debugRows: body.debug ? debugRows : undefined

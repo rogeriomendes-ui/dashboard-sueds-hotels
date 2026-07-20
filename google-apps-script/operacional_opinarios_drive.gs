@@ -596,6 +596,7 @@ function buildOmrDebugSummary_(omr) {
 
   const summary = [
     `OMR_DEBUG engine=${omr.engine || ""}`,
+    `method=${layout.method || ""}`,
     `box=${Math.round(Number(box.x || 0))},${Math.round(Number(box.y || 0))},${Math.round(Number(box.width || 0))}x${Math.round(Number(box.height || 0))}`,
     `valid=${layout.boxLooksValid === true}`,
     rows
