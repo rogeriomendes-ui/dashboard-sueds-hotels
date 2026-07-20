@@ -97,6 +97,7 @@ function onOpen() {
     .addItem("Preparar abas de opiniarios", "prepararOpinariosOperacional")
     .addItem("Processar novas fotos do Drive", "processarNovosOpinariosDrive")
     .addItem("Reprocessar pendentes com OpenAI", "reprocessarOpinariosPendentesOpenAI")
+    .addItem("Reprocessar ultimas 4 fotos com OMR", "reprocessarUltimas4OpinariosOpenAI")
     .addSeparator()
     .addItem("Configurar OpenAI API Key", "configurarOpenAiApiKey")
     .addItem("Testar OpenAI API Key", "testarOpenAiApiKey")
@@ -217,6 +218,26 @@ function processarNovosOpinariosDrive_(spreadsheet) {
 }
 
 function reprocessarOpinariosPendentesOpenAI() {
+  reprocessarOpinariosPorFiltro_("Reprocessamento concluido", function(rowNumber, row, headerIndexes) {
+    const fileId = String(row[headerIndexes["ID Arquivo"]] || "").trim();
+    const status = String(row[headerIndexes.Status] || "").trim();
+    return Boolean(fileId && status !== "Aprovado");
+  });
+}
+
+function reprocessarUltimas4OpinariosOpenAI() {
+  const spreadsheet = getOpinionSpreadsheet_();
+  const opinionsSheet = spreadsheet.getSheetByName(OPINARIOS_SHEET);
+  const lastRow = opinionsSheet ? opinionsSheet.getLastRow() : 0;
+  const firstRow = Math.max(2, lastRow - 3);
+
+  reprocessarOpinariosPorFiltro_("Reprocessamento das ultimas 4 fotos concluido", function(rowNumber, row, headerIndexes) {
+    const fileId = String(row[headerIndexes["ID Arquivo"]] || "").trim();
+    return Boolean(fileId && rowNumber >= firstRow && rowNumber <= lastRow);
+  });
+}
+
+function reprocessarOpinariosPorFiltro_(title, shouldProcess) {
   const ui = SpreadsheetApp.getUi();
   const spreadsheet = SpreadsheetApp.getActive();
   const opinionsSheet = spreadsheet.getSheetByName(OPINARIOS_SHEET);
@@ -246,7 +267,7 @@ function reprocessarOpinariosPendentesOpenAI() {
     const hotel = String(row[headerIndexes.Hotel] || "").trim() || "Nao identificado";
     const status = String(row[headerIndexes.Status] || "").trim();
 
-    if (!fileId || status === "Aprovado") continue;
+    if (!shouldProcess(rowNumber, row, headerIndexes)) continue;
 
     const file = DriveApp.getFileById(fileId);
     const extracted = analyzeOpinionImage_(file, hotel, config);
@@ -275,7 +296,7 @@ function reprocessarOpinariosPendentesOpenAI() {
   }
 
   ui.alert(
-    "Reprocessamento concluido.\n\n" +
+    `${title}.\n\n` +
     `Processados: ${processed}\n` +
     `Aprovados automaticamente: ${approved}\n` +
     `Enviados para revisao: ${sentToReview}`

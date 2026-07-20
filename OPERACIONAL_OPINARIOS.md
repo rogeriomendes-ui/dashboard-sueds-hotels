@@ -57,6 +57,7 @@ Fotos com baixa confianca geral de leitura ainda devem ficar em revisao.
 Depois de validar o processamento manual, criar o gatilho pelo menu `SUEDS Operacional > Criar gatilho a cada 15 minutos`.
 O processamento automatico registra cada execucao na aba `Log_Opinarios`, porque gatilhos de tempo rodam sem janela de alerta do Google Sheets.
 Use `SUEDS Operacional > Verificar gatilhos ativos` para confirmar se ha gatilho instalado.
+Para testar apenas os quatro formularios mais recentes, use `SUEDS Operacional > Reprocessar ultimas 4 fotos com OMR`.
 
 ## QR Code por hotel
 
