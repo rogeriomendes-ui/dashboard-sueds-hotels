@@ -85,6 +85,8 @@ const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPENAI_MODEL", "gpt-4o-mini", "Modelo OpenAI usado para ler os opiniarios."],
   ["OPINARIOS_OMR_ENDPOINT", "https://dashboard-sueds-hotels.vercel.app/api/operacional/opinarios-omr", "Endpoint que le as bolinhas do formulario por pixels/OMR."],
   ["OPINARIOS_OMR_TOKEN", "", "Opcional. Token compartilhado para proteger o endpoint OMR."],
+  ["OPINARIOS_OMR_AUTO_APPROVE", "NAO", "Enquanto NAO, formularios impressos lidos por OMR ficam em Revisao ate calibragem final."],
+  ["OPINARIOS_OMR_DEBUG", "SIM", "Enquanto SIM, grava diagnostico resumido da leitura OMR na observacao de revisao."],
   ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."],
   ["OPINARIOS_ACTIVE_HOTEL", OPINARIOS_ACTIVE_HOTEL, "Piloto oficial atual. Demais hoteis serao configurados depois."],
   ["OPINARIOS_FORM_VERSION", OPINARIOS_OFFICIAL_FORM_VERSION, "Versao oficial do formulario impresso Plaza."],
@@ -409,11 +411,13 @@ function analyzeOpinionImage_(file, hotel, config) {
     const acceptedVersions = getAcceptedFormVersions_(config);
     const extractedVersion = String(extracted.formVersion || "").replace(/\D/g, "");
     const versionOk = acceptedVersions.indexOf(extractedVersion) !== -1;
-    extracted.status = confidence >= minConfidence && completeness.ok && versionOk ? "Aprovado" : "Revisao";
+    const omrAutoApprove = isConfigYes_(config.OPINARIOS_OMR_AUTO_APPROVE);
+    extracted.status = confidence >= minConfidence && completeness.ok && versionOk && omrAutoApprove ? "Aprovado" : "Revisao";
     extracted.reviewReason = extracted.status === "Aprovado"
       ? ""
       : [
           extracted.reviewReason,
+          omrAutoApprove ? "" : "Aprovacao automatica do OMR desativada durante calibragem.",
           confidence < minConfidence ? `Confianca ${confidence}% abaixo do minimo ${minConfidence}%.` : "",
           completeness.reason,
           versionOk ? "" : `Versao do formulario nao confirmada. Lida: ${extractedVersion || "vazia"}. Aceitas: ${acceptedVersions.join(", ")}.`
@@ -496,7 +500,8 @@ function callOpinionOmrReader_(file, config, bytes) {
     hotel: OPINARIOS_ACTIVE_HOTEL,
     fileName: file.getName(),
     mimeType: blob.getContentType() || "image/jpeg",
-    imageBase64: Utilities.base64Encode(bytes)
+    imageBase64: Utilities.base64Encode(bytes),
+    debug: !isConfigNo_(config.OPINARIOS_OMR_DEBUG)
   };
 
   const headers = {};
@@ -573,8 +578,40 @@ function applyOmrRatings_(extracted, omr) {
 
   extracted.confidence = Math.min(Number(extracted.confidence || 100), Number(omr.confidence || 0));
   extracted.score = calculateOpinionScore_(extracted);
-  extracted.reviewReason = [extracted.reviewReason, omr.reviewReason || ""].filter(Boolean).join(" ");
+  extracted.reviewReason = [extracted.reviewReason, omr.reviewReason || "", buildOmrDebugSummary_(omr)].filter(Boolean).join(" ");
   extracted.uncertainFields = [extracted.uncertainFields, omr.uncertainFields || ""].filter(Boolean).join(", ");
+}
+
+function buildOmrDebugSummary_(omr) {
+  if (!omr || !omr.debugRows) return "";
+  const layout = omr.layout || {};
+  const box = layout.box || {};
+  const optionCodes = ["E", "MB", "B", "R"];
+  const rows = (omr.debugRows || []).map((row) => {
+    const scores = (row.scores || []).map((score, index) => {
+      return `${optionCodes[index]}=${Number(score.score || 0).toFixed(3)}`;
+    }).join("/");
+    return `${row.field}:${row.value || "-"}[${scores}]`;
+  }).join(" | ");
+
+  const summary = [
+    `OMR_DEBUG engine=${omr.engine || ""}`,
+    `box=${Math.round(Number(box.x || 0))},${Math.round(Number(box.y || 0))},${Math.round(Number(box.width || 0))}x${Math.round(Number(box.height || 0))}`,
+    `valid=${layout.boxLooksValid === true}`,
+    rows
+  ].filter(Boolean).join(" ");
+
+  return summary.slice(0, 1400);
+}
+
+function isConfigYes_(value) {
+  const text = normalizeText_(value);
+  return text === "SIM" || text === "S" || text === "YES" || text === "TRUE" || text === "1";
+}
+
+function isConfigNo_(value) {
+  const text = normalizeText_(value);
+  return text === "NAO" || text === "N" || text === "NO" || text === "FALSE" || text === "0";
 }
 
 function callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey) {

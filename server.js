@@ -2684,6 +2684,8 @@ async function readPlazaOpinionOmr(body) {
       value: row.value,
       selectedIndexes: row.selectedIndexes,
       scores: row.scores.map((score) => ({
+        cx: score.cx,
+        cy: score.cy,
         inner: Number(score.inner.toFixed(4)),
         outer: Number(score.outer.toFixed(4)),
         excess: Number(score.excess.toFixed(4)),
