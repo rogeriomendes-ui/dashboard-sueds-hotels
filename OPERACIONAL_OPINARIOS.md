@@ -70,6 +70,10 @@ Identificacao impressa no rodape:
 HOTEL=SUEDS_PLAZA | FORM_VERSION=20260719 | LANG=PT-BR
 ```
 
+Para o modelo impresso melhorado do Plaza, a grade deve usar bolinhas/circulos grandes e linhas horizontais por pergunta.
+Na foto de teste, capturar apenas uma ficha preenchida por imagem. A folha pode ter duas fichas para impressao, mas o processamento OCR/IA deve receber uma ficha individual por arquivo.
+Quando o layout mudar para uso oficial, idealmente atualizar tambem o `FORM_VERSION` para uma nova data/versao, evitando misturar resultados de layouts diferentes.
+
 O QR Code do SUEDS Plaza desta versao fica em:
 
 ```text
