@@ -43,11 +43,12 @@ OPINARIOS_ROOT_FOLDER_ID = 1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8
 OPINARIOS_SOURCE_FOLDER_ID = 16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG
 OPINARIOS_ACTIVE_HOTEL = SUEDS PLAZA
 OPINARIOS_FORM_VERSION = 20260719
-OPINARIOS_MIN_CONFIDENCE = 80
-OPINARIOS_MIN_FILLED_RATINGS = 1
+OPINARIOS_MIN_CONFIDENCE = 90
+OPINARIOS_MIN_FILLED_RATINGS = 8
 ```
 
 Para o primeiro teste, subir 3 fotos reais preenchidas na pasta `SUEDS PLAZA OPINARIOS` e rodar manualmente o menu `SUEDS Operacional > Processar novas fotos do Drive`.
+No piloto, registros com menos de 8 campos de nota lidos ou confianca abaixo de 90% devem ficar em revisao antes de alimentar o dashboard como dados aprovados.
 
 ## QR Code por hotel
 
@@ -211,6 +212,7 @@ OPINARIOS_MAX_IMAGE_MB
 ```
 
 A chave da OpenAI nao fica na planilha. Ela deve ser salva em `SUEDS Operacional` > `Configurar OpenAI API Key`, que grava o valor nas Propriedades do Script.
+Para fotos de formularios impressos, use `OPENAI_MODEL = gpt-4o` durante o piloto se a leitura com `gpt-4o-mini` confundir marcas leves, riscos diagonais ou colunas proximas.
 
 ## Padrao de notas
 

@@ -70,8 +70,8 @@ const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPINARIOS_SOURCE_FOLDER_ID", OPINARIOS_PLAZA_FOLDER_ID, "Pasta do Drive onde o SUEDS Plaza coloca as fotos novas."],
   ["OPINARIOS_PROCESSED_FOLDER_ID", "", "Opcional. Pasta para mover fotos processadas."],
   ["OPINARIOS_ERROR_FOLDER_ID", "", "Opcional. Pasta para mover fotos com erro."],
-  ["OPINARIOS_MIN_CONFIDENCE", "80", "Confianca minima para aprovar automaticamente."],
-  ["OPINARIOS_MIN_FILLED_RATINGS", "1", "Minimo de itens avaliados para aprovar automaticamente."],
+  ["OPINARIOS_MIN_CONFIDENCE", "90", "Confianca minima para aprovar automaticamente no piloto Plaza."],
+  ["OPINARIOS_MIN_FILLED_RATINGS", "8", "Minimo de itens avaliados para aprovar automaticamente no piloto Plaza."],
   ["OPINARIOS_AI_PROVIDER", "OpenAI", "Provedor de IA de visao. Primeira versao usando OpenAI Vision."],
   ["OPENAI_MODEL", "gpt-4o-mini", "Modelo OpenAI usado para ler os opiniarios."],
   ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."],
@@ -342,7 +342,7 @@ function analyzeOpinionImage_(file, hotel, config) {
 
     const extracted = callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey);
     const confidence = Number(extracted.confidence || 0);
-    const minConfidence = Number(config.OPINARIOS_MIN_CONFIDENCE || 80);
+    const minConfidence = Math.max(Number(config.OPINARIOS_MIN_CONFIDENCE || 90), 90);
     const completeness = validateOpinionCompleteness_(extracted, config);
     const expectedVersion = String(config.OPINARIOS_FORM_VERSION || OPINARIOS_OFFICIAL_FORM_VERSION).trim();
     const versionOk = String(extracted.formVersion || "").replace(/\D/g, "") === expectedVersion;
@@ -391,7 +391,7 @@ function validateOpinionCompleteness_(extracted, config) {
     .filter(([field]) => !String(extracted[field] || "").trim())
     .map(([, label]) => label);
 
-  const minFilled = Number(config.OPINARIOS_MIN_FILLED_RATINGS || 1);
+  const minFilled = Math.max(Number(config.OPINARIOS_MIN_FILLED_RATINGS || 8), 8);
   if (filled < minFilled) {
     return {
       ok: false,
@@ -468,12 +468,17 @@ function buildOpenAiOpinionPrompt_(hotel) {
     "Extraia apenas o que estiver visivel. Se um campo nao estiver legivel, use string vazia e inclua o campo em uncertainFields.",
     "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260719, LANG=PT-BR.",
     "No rodape pode aparecer texto semelhante a SUED'S PLAZA Versao190726 ou FORM_VERSION=20260719. Extraia formVersion como 20260719 quando a versao for esta.",
-    "As opcoes possiveis de avaliacao sao exatamente: Excelente, Muito bom, Bom, Regular.",
-    "Quando houver marcacao com X, risco, circulo, rabisco claro ou preenchimento dentro do quadrado, considere aquela opcao selecionada.",
+    "As colunas de avaliacao aparecem sempre nesta ordem, da esquerda para a direita: Excelente, Muito bom, Bom, Regular.",
+    "Para cada item, localize primeiro o texto da pergunta na esquerda e leia apenas os 4 quadrados da mesma linha horizontal.",
+    "Quando houver marcacao com X, risco diagonal simples, traco, circulo, rabisco claro ou preenchimento dentro do quadrado, considere aquela opcao selecionada.",
+    "Um risco diagonal unico dentro do quadrado conta como resposta valida. Nao exija que seja um X completo.",
+    "Se houver marca encostando na borda do quadrado, considere selecionado quando o centro da marca estiver dentro daquele quadrado.",
     "Se nao houver nenhuma marcacao visivel em uma linha, deixe o campo vazio. Nao chute uma nota apenas por proximidade visual.",
+    "Se duas opcoes parecerem marcadas na mesma linha, use string vazia para aquele campo e registre o item em uncertainFields.",
     "Trate cada linha como independente. Nunca copie a resposta de uma linha para a proxima apenas porque estao no mesmo bloco.",
     "Nao preencha uma avaliacao por simetria, padrao ou suposicao. Preencha somente quando houver marca visivel naquela linha.",
-    "Antes de responder, faca uma segunda varredura visual somente nos quadrados, linha por linha.",
+    "Ignore linhas, textos e logotipos fora da grade de avaliacao. Nao use marcas do QR code ou do rodape como avaliacao.",
+    "Antes de responder, faca uma auditoria final somente nos quadrados, item por item, conferindo a coluna escolhida contra a ordem Excelente, Muito bom, Bom, Regular.",
     "Itens oficiais do formulario SUEDS Plaza 20260719:",
     "1. Impressao geral: Como voce avalia sua hospedagem?",
     "2. Reserva: Como foi sua experiencia para reservar?",
@@ -518,7 +523,8 @@ function buildOpenAiOpinionPrompt_(hotel) {
     '  "score": 0,',
     '  "confidence": 0,',
     '  "uncertainFields": "",',
-    '  "reviewReason": ""',
+    '  "reviewReason": "",',
+    '  "gridAudit": ""',
     "}",
     "Calcule score como media percentual dos campos de nota lidos: Excelente=100, Muito bom=85, Bom=70, Regular=40.",
     "Se o comentario tiver elogio, coloque resumo em highlights. Se tiver reclamacao/problema, coloque resumo em issues. O comentario completo deve ir em comments.",

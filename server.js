@@ -2428,7 +2428,9 @@ function normalizeOperationalOpinion(item) {
 function isCurrentOperationalOpinion(opinion) {
   const version = String(opinion.formVersion || "").replace(/\D/g, "");
   if (!version) return false;
-  return version >= OPINION_MIN_FORM_VERSION;
+  const status = normalizeTextKey(opinion.status);
+  const approved = status === "aprovado" || status === "digital";
+  return approved && version >= OPINION_MIN_FORM_VERSION;
 }
 
 function summarizeOperationalHotel(hotel, opinions) {
