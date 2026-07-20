@@ -2983,14 +2983,28 @@ function detectOmrGuideMarkers(gray, width, height) {
     }
   }
 
-  const pick = (predicate) => candidates
+  const pickCorner = (predicate, cornerX, cornerY, expectedSize = null) => candidates
     .filter(predicate)
-    .sort((a, b) => b.score - a.score)[0] || null;
+    .filter((item) => {
+      if (!expectedSize) return true;
+      const size = Math.sqrt(item.width * item.height);
+      return size >= expectedSize * 0.38 && size <= expectedSize * 1.6;
+    })
+    .map((item) => ({
+      ...item,
+      cornerDistance: Math.hypot((item.x - cornerX) / width, (item.y - cornerY) / height)
+    }))
+    .sort((a, b) => a.cornerDistance - b.cornerDistance || b.score - a.score)[0] || null;
+  const topLeft = pickCorner((item) => item.x < width * 0.45 && item.y < height * 0.45, 0, 0);
+  const topRight = pickCorner((item) => item.x > width * 0.55 && item.y < height * 0.45, width, 0);
+  const expectedSize = topLeft && topRight
+    ? median([Math.sqrt(topLeft.width * topLeft.height), Math.sqrt(topRight.width * topRight.height)])
+    : null;
   const markers = {
-    topLeft: pick((item) => item.x < width * 0.45 && item.y < height * 0.45),
-    topRight: pick((item) => item.x > width * 0.55 && item.y < height * 0.45),
-    bottomLeft: pick((item) => item.x < width * 0.45 && item.y > height * 0.55),
-    bottomRight: pick((item) => item.x > width * 0.55 && item.y > height * 0.55)
+    topLeft,
+    topRight,
+    bottomLeft: pickCorner((item) => item.x < width * 0.45 && item.y > height * 0.55, 0, height, expectedSize),
+    bottomRight: pickCorner((item) => item.x > width * 0.55 && item.y > height * 0.55, width, height, expectedSize)
   };
 
   if (Object.values(markers).some((marker) => !marker)) return null;
@@ -3288,6 +3302,33 @@ function omrDarkRatio(gray, width, height, cx, cy, radius, threshold = 145) {
   return total ? dark / total : 0;
 }
 
+function omrBlueInkRatio(rgb, width, height, channels, cx, cy, radius) {
+  if (!rgb || channels < 3) return 0;
+  const minX = Math.max(0, Math.floor(cx - radius));
+  const maxX = Math.min(width - 1, Math.ceil(cx + radius));
+  const minY = Math.max(0, Math.floor(cy - radius));
+  const maxY = Math.min(height - 1, Math.ceil(cy + radius));
+  const radiusSq = radius * radius;
+  let total = 0;
+  let blueInk = 0;
+
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const dx = x - cx;
+      const dy = y - cy;
+      if (dx * dx + dy * dy > radiusSq) continue;
+      total += 1;
+      const index = (y * width + x) * channels;
+      const red = rgb[index];
+      const green = rgb[index + 1];
+      const blue = rgb[index + 2];
+      if (blue - red > 18 && blue - green > 6 && blue > 45) blueInk += 1;
+    }
+  }
+
+  return total ? blueInk / total : 0;
+}
+
 function omrAdaptiveInkRatios(gray, width, height, cx, cy, innerRadius, coreRadius, bubbleRadius) {
   const reference = [];
   const minReferenceRadius = bubbleRadius * 1.22;
@@ -3320,13 +3361,16 @@ function omrAdaptiveInkRatios(gray, width, height, cx, cy, innerRadius, coreRadi
   };
 }
 
-function analyzeOmrGuideRow(gray, width, height, grid, rowIndex) {
+function analyzeOmrGuideRow(gray, width, height, grid, rowIndex, colorImage = null) {
   const innerRadius = Math.max(7, Math.round(grid.horizontalSpan * 0.0115));
   const coreRadius = Math.max(5, Math.round(grid.horizontalSpan * 0.0065));
   const bubbleRadius = Math.max(11, grid.horizontalSpan * 0.0185);
   const measurements = grid.points[rowIndex].map((point) => ({
     cx: Math.round(point.x),
     cy: Math.round(point.y),
+    blue: colorImage
+      ? omrBlueInkRatio(colorImage.data, width, height, colorImage.channels, point.x, point.y, bubbleRadius)
+      : 0,
     ...omrAdaptiveInkRatios(gray, width, height, point.x, point.y, innerRadius, coreRadius, bubbleRadius)
   }));
   const innerBaseline = median(measurements.map((item) => item.inner).sort((a, b) => a - b).slice(0, 2));
@@ -3334,31 +3378,38 @@ function analyzeOmrGuideRow(gray, width, height, grid, rowIndex) {
   const scores = measurements.map((item) => {
     const innerExcess = Math.max(0, item.inner - innerBaseline);
     const coreExcess = Math.max(0, item.core - coreBaseline);
+    const grayscaleScore = innerExcess * 0.72 + coreExcess * 0.28;
     return {
       ...item,
       outer: item.inner,
       excess: innerExcess,
-      score: innerExcess * 0.72 + coreExcess * 0.28
+      score: Math.max(grayscaleScore, Math.min(1, item.blue * 3.5))
     };
   });
   const selected = scores
     .map((item, index) => ({ ...item, index }))
-    .filter((item) => item.score >= 0.052 && (item.excess >= 0.03 || item.core - coreBaseline >= 0.055))
+    .filter((item) => item.score >= 0.052 && (
+      item.excess >= 0.03 || item.core - coreBaseline >= 0.055 || item.blue >= 0.012
+    ))
     .sort((a, b) => b.score - a.score);
 
   if (!selected.length) return { value: "", selectedIndexes: [], scores };
-  if (selected.length > 1) {
+  const best = selected[0];
+  const competitors = selected.filter((item) => (
+    item.index !== best.index && item.score >= Math.max(0.052, best.score * 0.65)
+  ));
+  if (competitors.length) {
     return {
       value: "",
-      selectedIndexes: selected.map((item) => item.index),
+      selectedIndexes: [best, ...competitors].map((item) => item.index),
       uncertain: true,
       scores
     };
   }
 
   return {
-    value: PLAZA_OMR_RATING_OPTIONS[selected[0].index],
-    selectedIndexes: [selected[0].index],
+    value: PLAZA_OMR_RATING_OPTIONS[best.index],
+    selectedIndexes: [best.index],
     scores
   };
 }
@@ -3466,13 +3517,13 @@ async function readPlazaOpinionOmr(body) {
     throw new Error("Imagem acima do limite OMR.");
   }
 
-  const image = await sharp(imageBuffer, { limitInputPixels: 60000000 })
+  const preparedImage = sharp(imageBuffer, { limitInputPixels: 60000000 })
     .rotate()
-    .resize({ width: 1600, height: 2200, fit: "inside", withoutEnlargement: true })
-    .grayscale()
-    .normalise()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+    .resize({ width: 1600, height: 2200, fit: "inside", withoutEnlargement: true });
+  const [image, colorImage] = await Promise.all([
+    preparedImage.clone().grayscale().normalise().raw().toBuffer({ resolveWithObject: true }),
+    preparedImage.clone().removeAlpha().raw().toBuffer({ resolveWithObject: true })
+  ]);
 
   const { data, info } = image;
   const width = info.width;
@@ -3493,7 +3544,10 @@ async function readPlazaOpinionOmr(body) {
 
   PLAZA_OMR_FIELDS.forEach(([field, label], index) => {
     const row = guideGrid
-      ? analyzeOmrGuideRow(data, width, height, guideGrid, index)
+      ? analyzeOmrGuideRow(data, width, height, guideGrid, index, {
+          data: colorImage.data,
+          channels: colorImage.info.channels
+        })
       : (bubbleGrid
           ? analyzeOmrGridRow(data, width, height, bubbleGrid, index)
           : analyzeOmrRow(data, width, height, box, PLAZA_OMR_TEMPLATE.rows[index]));
@@ -3510,6 +3564,7 @@ async function readPlazaOpinionOmr(body) {
         inner: Number(score.inner.toFixed(4)),
         outer: Number(score.outer.toFixed(4)),
         excess: Number(score.excess.toFixed(4)),
+        blue: Number((score.blue || 0).toFixed(4)),
         score: Number(score.score.toFixed(4))
       }))
     });
