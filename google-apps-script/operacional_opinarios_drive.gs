@@ -83,6 +83,8 @@ const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPINARIOS_MIN_FILLED_RATINGS", "0", "Campos em branco ou com multipla marcacao nao pontuam, mas nao bloqueiam o processamento."],
   ["OPINARIOS_AI_PROVIDER", "OpenAI", "Provedor de IA de visao. Primeira versao usando OpenAI Vision."],
   ["OPENAI_MODEL", "gpt-4o-mini", "Modelo OpenAI usado para ler os opiniarios."],
+  ["OPINARIOS_OMR_ENDPOINT", "https://dashboard-sueds-hotels.vercel.app/api/operacional/opinarios-omr", "Endpoint que le as bolinhas do formulario por pixels/OMR."],
+  ["OPINARIOS_OMR_TOKEN", "", "Opcional. Token compartilhado para proteger o endpoint OMR."],
   ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."],
   ["OPINARIOS_ACTIVE_HOTEL", OPINARIOS_ACTIVE_HOTEL, "Piloto oficial atual. Demais hoteis serao configurados depois."],
   ["OPINARIOS_FORM_VERSION", OPINARIOS_OFFICIAL_FORM_VERSION, "Versao oficial do formulario impresso Plaza."],
@@ -378,6 +380,8 @@ function analyzeOpinionImage_(file, hotel, config) {
     }
 
     const extracted = callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey);
+    const omr = callOpinionOmrReader_(file, config, bytes);
+    applyOmrRatings_(extracted, omr);
     const confidence = Number(extracted.confidence || 0);
     const minConfidence = Math.max(Number(config.OPINARIOS_MIN_CONFIDENCE || 90), 90);
     const completeness = validateOpinionCompleteness_(extracted, config);
@@ -455,6 +459,103 @@ function getAcceptedFormVersions_(config) {
   return versions;
 }
 
+function callOpinionOmrReader_(file, config, bytes) {
+  const endpoint = String(config.OPINARIOS_OMR_ENDPOINT || "").trim();
+  if (!endpoint) {
+    return {
+      ok: false,
+      confidence: 0,
+      ratings: {},
+      reviewReason: "OPINARIOS_OMR_ENDPOINT nao configurado. Notas nao foram lidas."
+    };
+  }
+
+  const blob = file.getBlob();
+  const payload = {
+    hotel: OPINARIOS_ACTIVE_HOTEL,
+    fileName: file.getName(),
+    mimeType: blob.getContentType() || "image/jpeg",
+    imageBase64: Utilities.base64Encode(bytes)
+  };
+
+  const headers = {};
+  const token = String(config.OPINARIOS_OMR_TOKEN || "").trim();
+  if (token) headers["x-omr-token"] = token;
+
+  const response = UrlFetchApp.fetch(endpoint, {
+    method: "post",
+    contentType: "application/json",
+    headers,
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  const statusCode = response.getResponseCode();
+  const responseText = response.getContentText();
+  if (statusCode < 200 || statusCode >= 300) {
+    return {
+      ok: false,
+      confidence: 0,
+      ratings: {},
+      reviewReason: `OMR HTTP ${statusCode}: ${responseText.slice(0, 500)}`
+    };
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch (err) {
+    return {
+      ok: false,
+      confidence: 0,
+      ratings: {},
+      reviewReason: "OMR retornou JSON invalido."
+    };
+  }
+}
+
+function applyOmrRatings_(extracted, omr) {
+  const ratingFields = [
+    "generalImpression",
+    "reservation",
+    "frontDesk",
+    "teamService",
+    "roomComfort",
+    "roomCleaning",
+    "wifi",
+    "pool",
+    "beachClub",
+    "foodBreakfast",
+    "foodLunch",
+    "foodDinner"
+  ];
+
+  ratingFields.forEach((field) => {
+    extracted[field] = "";
+  });
+
+  if (!omr || !omr.ok) {
+    extracted.confidence = 0;
+    extracted.reviewReason = [extracted.reviewReason, omr && omr.reviewReason ? omr.reviewReason : "OMR nao retornou leitura valida das bolinhas."]
+      .filter(Boolean)
+      .join(" ");
+    extracted.uncertainFields = [extracted.uncertainFields, "Todas as avaliacoes"]
+      .filter(Boolean)
+      .join(", ");
+    extracted.score = 0;
+    return;
+  }
+
+  const ratings = omr.ratings || {};
+  ratingFields.forEach((field) => {
+    extracted[field] = normalizeRating_(ratings[field]);
+  });
+
+  extracted.confidence = Math.min(Number(extracted.confidence || 100), Number(omr.confidence || 0));
+  extracted.score = calculateOpinionScore_(extracted);
+  extracted.reviewReason = [extracted.reviewReason, omr.reviewReason || ""].filter(Boolean).join(" ");
+  extracted.uncertainFields = [extracted.uncertainFields, omr.uncertainFields || ""].filter(Boolean).join(", ");
+}
+
 function callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey) {
   const blob = file.getBlob();
   const mimeType = blob.getContentType() || "image/jpeg";
@@ -518,22 +619,12 @@ function buildOpenAiOpinionPrompt_(hotel) {
   return [
     "Voce esta lendo uma foto de um opiniario impresso da SUEDS Plaza.",
     "Extraia apenas o que estiver visivel. Se um campo nao estiver legivel, use string vazia e inclua o campo em uncertainFields.",
+    "Nao leia nem estime as bolinhas/circulos de avaliacao. As avaliacoes serao lidas por OMR por pixels em outra etapa.",
+    "Nos campos de avaliacao do JSON, use string vazia. Foque em nome, apartamento, datas, comentarios, elogios, problemas, hotel e versao.",
     "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260719 ou FORM_VERSION=20260720, LANG=PT-BR.",
     "No rodape pode aparecer texto semelhante a SUED'S PLAZA, FORM_VERSION=20260719, FORM_VERSION=20260720 ou Versao190726. Extraia formVersion como os 8 digitos visiveis da versao impressa.",
-    "As colunas de avaliacao aparecem sempre nesta ordem, da esquerda para a direita: Excelente, Muito bom, Bom, Regular.",
-    "O modelo mais recente usa bolinhas/circulos grandes para preenchimento. Fotos antigas podem ter quadrados; trate ambos como campos de marcacao.",
-    "Para cada item, localize primeiro o texto da pergunta na esquerda e leia apenas os 4 circulos ou quadrados da mesma linha horizontal.",
-    "Quando houver bolinha preenchida, bolinha parcialmente pintada, X, risco diagonal simples, traco horizontal, traco vertical, circulo reforcado, rabisco claro ou qualquer marca de caneta dentro do campo, considere aquela opcao selecionada.",
-    "Nao exija que o hospede pinte toda a bolinha. Um X, um traco simples ou um risco diagonal dentro da bolinha conta como resposta valida.",
-    "Se houver marca encostando na borda do campo, considere selecionado quando o centro da marca estiver dentro daquele circulo ou quadrado.",
-    "Se nao houver nenhuma marcacao visivel em uma linha, deixe o campo vazio. Campo vazio nao entra na pontuacao.",
-    "Se duas ou mais opcoes parecerem marcadas na mesma linha, use string vazia para aquele campo, registre o item em uncertainFields e siga processando o restante do formulario.",
-    "Itens em branco ou com multipla marcacao devem ser desconsiderados na pontuacao final, nao estimados e nao divididos em meio ponto.",
-    "Trate cada linha como independente. Nunca copie a resposta de uma linha para a proxima apenas porque estao no mesmo bloco.",
-    "Nao preencha uma avaliacao por simetria, padrao ou suposicao. Preencha somente quando houver marca visivel naquela linha.",
-    "Ignore linhas, textos e logotipos fora da grade de avaliacao. Nao use marcas do QR code ou do rodape como avaliacao.",
+    "Ignore linhas, textos e logotipos da grade de avaliacao. Nao use marcas do QR code ou do rodape como avaliacao.",
     "Se a foto mostrar duas fichas identicas na mesma pagina, leia apenas uma ficha preenchida. Se as duas estiverem preenchidas, registre duvida em reviewReason.",
-    "Antes de responder, faca uma auditoria final somente nos campos de marcacao, item por item, conferindo a coluna escolhida contra a ordem Excelente, Muito bom, Bom, Regular.",
     "Itens oficiais do formulario SUEDS Plaza 20260719:",
     "1. Impressao geral: Como voce avalia sua hospedagem?",
     "2. Reserva: Como foi sua experiencia para reservar?",
@@ -581,7 +672,7 @@ function buildOpenAiOpinionPrompt_(hotel) {
     '  "reviewReason": "",',
     '  "gridAudit": ""',
     "}",
-    "Calcule score como media percentual dos campos de nota lidos: Excelente=100, Muito bom=85, Bom=70, Regular=40.",
+    "Use score 0, pois a pontuacao sera calculada depois com as notas lidas por OMR.",
     "Se o comentario tiver elogio, coloque resumo em highlights. Se tiver reclamacao/problema, coloque resumo em issues. O comentario completo deve ir em comments.",
     "confidence deve ser 0 a 100 considerando qualidade da foto, legibilidade e clareza das marcacoes."
   ].join("\n");

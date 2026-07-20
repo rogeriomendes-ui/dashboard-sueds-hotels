@@ -10,8 +10,9 @@ Automatizar a captura dos opiniarios em papel recebidos nas recepcoes dos hoteis
 2. A foto e enviada para uma pasta do Google Drive, separada por hotel ou com o hotel identificado no nome da pasta.
 3. Um Apps Script roda manualmente ou por gatilho de tempo.
 4. O script cria um registro na aba `Opinarios`, com link da foto, hotel, status e campos estruturados.
-5. A leitura por OpenAI Vision preenche os campos automaticamente quando a `OPENAI_API_KEY` estiver configurada.
-6. Registros com baixa confianca ficam em `Revisao_Opinarios`.
+5. A leitura por OpenAI Vision preenche textos livres, nome, quarto e datas quando a `OPENAI_API_KEY` estiver configurada.
+6. As bolinhas de avaliacao sao lidas por OMR/pixels no endpoint `OPINARIOS_OMR_ENDPOINT`, sem interpretacao livre da IA.
+7. Registros com baixa confianca ficam em `Revisao_Opinarios`.
 7. O dashboard operacional le a planilha e exibe visoes para gestores e TV.
 
 ## Piloto SUEDS Plaza
@@ -46,6 +47,7 @@ OPINARIOS_FORM_VERSION = 20260719
 OPINARIOS_ACCEPTED_FORM_VERSIONS = 20260719,20260720
 OPINARIOS_MIN_CONFIDENCE = 90
 OPINARIOS_MIN_FILLED_RATINGS = 0
+OPINARIOS_OMR_ENDPOINT = https://dashboard-sueds-hotels.vercel.app/api/operacional/opinarios-omr
 ```
 
 Para o primeiro teste, subir 3 fotos reais preenchidas na pasta `SUEDS PLAZA OPINARIOS` e rodar manualmente o menu `SUEDS Operacional > Processar novas fotos do Drive`.
@@ -77,6 +79,7 @@ Na foto de teste, capturar apenas uma ficha preenchida por imagem. A folha pode 
 Quando o layout mudar para uso oficial, idealmente atualizar tambem o `FORM_VERSION` para uma nova data/versao, evitando misturar resultados de layouts diferentes.
 Na leitura das bolinhas, considerar como marcacao valida: bolinha pintada, bolinha parcialmente pintada, X, traco horizontal, traco vertical, risco diagonal ou rabisco claro dentro da bolinha.
 Se o hospede marcar duas ou mais bolinhas no mesmo item, deixar aquele item em branco para a pontuacao e seguir com os demais itens do formulario.
+Essa leitura nao deve ser feita pela IA visual livre. A IA deve ler apenas campos de texto; as 12 respostas de avaliacao devem vir do OMR por coordenadas/pixels do formulario atual.
 
 O QR Code do SUEDS Plaza desta versao fica em:
 
@@ -216,6 +219,8 @@ OPINARIOS_SOURCE_FOLDER_ID
 OPINARIOS_ACTIVE_HOTEL
 OPINARIOS_FORM_VERSION
 OPINARIOS_ACCEPTED_FORM_VERSIONS
+OPINARIOS_OMR_ENDPOINT
+OPINARIOS_OMR_TOKEN
 OPINARIOS_PROCESSED_FOLDER_ID
 OPINARIOS_ERROR_FOLDER_ID
 OPINARIOS_MIN_CONFIDENCE

@@ -15,6 +15,7 @@ const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendiment
 const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
 const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AH";
+const OPINION_OMR_TOKEN = process.env.OPINION_OMR_TOKEN || "";
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -356,12 +357,12 @@ async function appendTvMessage(message, expiresAt) {
   return readTvMessages(true);
 }
 
-function readJsonBody(req) {
+function readJsonBody(req, maxBytes = 20000) {
   return new Promise((resolve, reject) => {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 20000) {
+      if (body.length > maxBytes) {
         reject(new Error("Payload muito grande"));
         req.destroy();
       }
@@ -2500,6 +2501,220 @@ function emptyOperationalHotel(hotel) {
   };
 }
 
+const PLAZA_OMR_RATING_OPTIONS = ["Excelente", "Muito bom", "Bom", "Regular"];
+const PLAZA_OMR_FIELDS = [
+  ["generalImpression", "Impressao Geral"],
+  ["reservation", "Reserva"],
+  ["frontDesk", "Recepcao / Check-in / Check-out"],
+  ["teamService", "Atendimento da equipe"],
+  ["roomComfort", "Conforto do quarto"],
+  ["roomCleaning", "Limpeza do quarto"],
+  ["wifi", "Qualidade do Wi-fi"],
+  ["pool", "Area de lazer / piscina"],
+  ["beachClub", "Atendimento da equipe do Beach Club"],
+  ["foodBreakfast", "Alimentos Cafe da Manha"],
+  ["foodLunch", "Alimentos Almoco"],
+  ["foodDinner", "Alimentos Jantar"]
+];
+
+const PLAZA_OMR_TEMPLATE = {
+  columns: [0.607, 0.724, 0.836, 0.933],
+  rows: [0.168, 0.229, 0.296, 0.339, 0.381, 0.424, 0.466, 0.509, 0.552, 0.636, 0.680, 0.721]
+};
+
+function hasOmrAccess(req, url) {
+  if (!OPINION_OMR_TOKEN) return true;
+  const provided = getHeader(req, "x-omr-token") || getHeader(req, "authorization").replace(/^Bearer\s+/i, "") || url.searchParams.get("token") || "";
+  if (!provided) return false;
+  const expectedBuffer = Buffer.from(OPINION_OMR_TOKEN);
+  const providedBuffer = Buffer.from(provided);
+  return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function imageBufferFromOmrBody(body) {
+  const raw = String(body.imageBase64 || body.image || "").trim();
+  if (!raw) throw new Error("imageBase64 ausente");
+  return Buffer.from(raw.replace(/^data:[^;]+;base64,/, ""), "base64");
+}
+
+function detectOmrFormBox(gray, width, height) {
+  const threshold = 95;
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+  let dark = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const value = gray[y * width + x];
+      if (value < threshold) {
+        dark += 1;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (!dark || minX >= maxX || minY >= maxY) {
+    throw new Error("Nao foi possivel localizar a ficha na foto.");
+  }
+
+  const padX = Math.round((maxX - minX) * 0.006);
+  const padY = Math.round((maxY - minY) * 0.006);
+  minX = Math.max(0, minX - padX);
+  minY = Math.max(0, minY - padY);
+  maxX = Math.min(width - 1, maxX + padX);
+  maxY = Math.min(height - 1, maxY + padY);
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+    darkPixelRatio: dark / (width * height)
+  };
+}
+
+function omrDarkRatio(gray, width, height, cx, cy, radius) {
+  const minX = Math.max(0, Math.floor(cx - radius));
+  const maxX = Math.min(width - 1, Math.ceil(cx + radius));
+  const minY = Math.max(0, Math.floor(cy - radius));
+  const maxY = Math.min(height - 1, Math.ceil(cy + radius));
+  let total = 0;
+  let dark = 0;
+  const radiusSq = radius * radius;
+
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const dx = x - cx;
+      const dy = y - cy;
+      if (dx * dx + dy * dy > radiusSq) continue;
+      total += 1;
+      if (gray[y * width + x] < 145) dark += 1;
+    }
+  }
+
+  return total ? dark / total : 0;
+}
+
+function analyzeOmrRow(gray, width, height, box, rowRatio) {
+  const outerRadius = Math.max(7, Math.round(box.width * 0.024));
+  const innerRadius = Math.max(5, Math.round(box.width * 0.013));
+  const cy = box.y + box.height * rowRatio;
+  const measurements = PLAZA_OMR_TEMPLATE.columns.map((columnRatio) => {
+    const cx = box.x + box.width * columnRatio;
+    const inner = omrDarkRatio(gray, width, height, cx, cy, innerRadius);
+    const outer = omrDarkRatio(gray, width, height, cx, cy, outerRadius);
+    return { cx: Math.round(cx), cy: Math.round(cy), inner, outer };
+  });
+
+  const minOuter = Math.min(...measurements.map((item) => item.outer));
+  const scores = measurements.map((item) => {
+    const excess = Math.max(0, item.outer - minOuter);
+    return {
+      ...item,
+      excess,
+      score: item.inner * 0.72 + excess * 0.28
+    };
+  });
+
+  const selected = scores
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => item.inner >= 0.035 || item.excess >= 0.055 || item.score >= 0.045)
+    .sort((a, b) => b.score - a.score);
+
+  if (!selected.length) {
+    return { value: "", selectedIndexes: [], scores };
+  }
+
+  const best = selected[0];
+  const competitors = selected.filter((item) => item.index !== best.index && item.score >= Math.max(0.045, best.score * 0.65));
+  if (competitors.length) {
+    return {
+      value: "",
+      selectedIndexes: selected.map((item) => item.index),
+      uncertain: true,
+      scores
+    };
+  }
+
+  return {
+    value: PLAZA_OMR_RATING_OPTIONS[best.index],
+    selectedIndexes: [best.index],
+    scores
+  };
+}
+
+async function readPlazaOpinionOmr(body) {
+  const sharp = require("sharp");
+  const imageBuffer = imageBufferFromOmrBody(body);
+  if (imageBuffer.length > 14 * 1024 * 1024) {
+    throw new Error("Imagem acima do limite OMR.");
+  }
+
+  const image = await sharp(imageBuffer, { limitInputPixels: 60000000 })
+    .rotate()
+    .resize({ width: 1600, height: 2200, fit: "inside", withoutEnlargement: true })
+    .grayscale()
+    .normalise()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const { data, info } = image;
+  const width = info.width;
+  const height = info.height;
+  const box = detectOmrFormBox(data, width, height);
+  const aspect = box.height / box.width;
+  const boxLooksValid = aspect > 1.15 && aspect < 1.8 && box.width > width * 0.45 && box.height > height * 0.45;
+
+  const ratings = {};
+  const uncertain = [];
+  const debugRows = [];
+
+  PLAZA_OMR_FIELDS.forEach(([field, label], index) => {
+    const row = analyzeOmrRow(data, width, height, box, PLAZA_OMR_TEMPLATE.rows[index]);
+    ratings[field] = row.value;
+    if (row.uncertain) uncertain.push(label);
+    debugRows.push({
+      field,
+      label,
+      value: row.value,
+      selectedIndexes: row.selectedIndexes,
+      scores: row.scores.map((score) => ({
+        inner: Number(score.inner.toFixed(4)),
+        outer: Number(score.outer.toFixed(4)),
+        excess: Number(score.excess.toFixed(4)),
+        score: Number(score.score.toFixed(4))
+      }))
+    });
+  });
+
+  const answered = Object.values(ratings).filter(Boolean).length;
+  const confidence = boxLooksValid ? 95 : 72;
+  const reviewReason = boxLooksValid ? "" : "OMR nao confirmou proporcao/posicao esperada da ficha. Conferir enquadramento da foto.";
+
+  return {
+    ok: true,
+    engine: "pixel-omr-v1",
+    form: "sueds-plaza-20260720",
+    confidence,
+    ratings,
+    answered,
+    uncertainFields: uncertain.join(", "),
+    reviewReason,
+    layout: {
+      imageWidth: width,
+      imageHeight: height,
+      box,
+      boxLooksValid
+    },
+    debugRows: body.debug ? debugRows : undefined
+  };
+}
+
 function opinionSheetId() {
   return OPERATIONAL_SHEET_ID;
 }
@@ -4422,6 +4637,13 @@ async function handleRequest(req, res) {
       if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
       const body = await readJsonBody(req);
       return json(res, 200, { ok: true, opinion: await appendDigitalOpinion(body) });
+    }
+
+    if (url.pathname === "/api/operacional/opinarios-omr") {
+      if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      if (!hasOmrAccess(req, url)) return forbidden(res);
+      const body = await readJsonBody(req, 18000000);
+      return json(res, 200, await readPlazaOpinionOmr(body));
     }
 
     if (url.pathname === "/api/inteligencia/mercado") {
