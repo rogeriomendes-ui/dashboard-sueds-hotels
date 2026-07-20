@@ -80,7 +80,7 @@ const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPINARIOS_PROCESSED_FOLDER_ID", "", "Opcional. Pasta para mover fotos processadas."],
   ["OPINARIOS_ERROR_FOLDER_ID", "", "Opcional. Pasta para mover fotos com erro."],
   ["OPINARIOS_MIN_CONFIDENCE", "90", "Confianca minima para aprovar automaticamente no piloto Plaza."],
-  ["OPINARIOS_MIN_FILLED_RATINGS", "8", "Minimo de itens avaliados para aprovar automaticamente no piloto Plaza."],
+  ["OPINARIOS_MIN_FILLED_RATINGS", "0", "Campos em branco ou com multipla marcacao nao pontuam, mas nao bloqueiam o processamento."],
   ["OPINARIOS_AI_PROVIDER", "OpenAI", "Provedor de IA de visao. Primeira versao usando OpenAI Vision."],
   ["OPENAI_MODEL", "gpt-4o-mini", "Modelo OpenAI usado para ler os opiniarios."],
   ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."],
@@ -429,11 +429,11 @@ function validateOpinionCompleteness_(extracted, config) {
     .filter(([field]) => !String(extracted[field] || "").trim())
     .map(([, label]) => label);
 
-  const minFilled = Math.max(Number(config.OPINARIOS_MIN_FILLED_RATINGS || 8), 8);
+  const minFilled = Math.max(Number(config.OPINARIOS_MIN_FILLED_RATINGS || 0), 0);
   if (filled < minFilled) {
     return {
       ok: false,
-      reason: `Poucos campos de nota preenchidos (${filled}/${ratingFields.length}). Conferir marcacoes.`,
+      reason: `Poucos campos de nota preenchidos (${filled}/${ratingFields.length}).`,
       missingFields: missing.join(", ")
     };
   }
@@ -526,8 +526,9 @@ function buildOpenAiOpinionPrompt_(hotel) {
     "Quando houver bolinha preenchida, bolinha parcialmente pintada, X, risco diagonal simples, traco horizontal, traco vertical, circulo reforcado, rabisco claro ou qualquer marca de caneta dentro do campo, considere aquela opcao selecionada.",
     "Nao exija que o hospede pinte toda a bolinha. Um X, um traco simples ou um risco diagonal dentro da bolinha conta como resposta valida.",
     "Se houver marca encostando na borda do campo, considere selecionado quando o centro da marca estiver dentro daquele circulo ou quadrado.",
-    "Se nao houver nenhuma marcacao visivel em uma linha, deixe o campo vazio. Nao chute uma nota apenas por proximidade visual.",
-    "Se duas opcoes parecerem marcadas na mesma linha, use string vazia para aquele campo e registre o item em uncertainFields.",
+    "Se nao houver nenhuma marcacao visivel em uma linha, deixe o campo vazio. Campo vazio nao entra na pontuacao.",
+    "Se duas ou mais opcoes parecerem marcadas na mesma linha, use string vazia para aquele campo, registre o item em uncertainFields e siga processando o restante do formulario.",
+    "Itens em branco ou com multipla marcacao devem ser desconsiderados na pontuacao final, nao estimados e nao divididos em meio ponto.",
     "Trate cada linha como independente. Nunca copie a resposta de uma linha para a proxima apenas porque estao no mesmo bloco.",
     "Nao preencha uma avaliacao por simetria, padrao ou suposicao. Preencha somente quando houver marca visivel naquela linha.",
     "Ignore linhas, textos e logotipos fora da grade de avaliacao. Nao use marcas do QR code ou do rodape como avaliacao.",

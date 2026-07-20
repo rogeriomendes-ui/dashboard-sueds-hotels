@@ -45,11 +45,12 @@ OPINARIOS_ACTIVE_HOTEL = SUEDS PLAZA
 OPINARIOS_FORM_VERSION = 20260719
 OPINARIOS_ACCEPTED_FORM_VERSIONS = 20260719,20260720
 OPINARIOS_MIN_CONFIDENCE = 90
-OPINARIOS_MIN_FILLED_RATINGS = 8
+OPINARIOS_MIN_FILLED_RATINGS = 0
 ```
 
 Para o primeiro teste, subir 3 fotos reais preenchidas na pasta `SUEDS PLAZA OPINARIOS` e rodar manualmente o menu `SUEDS Operacional > Processar novas fotos do Drive`.
-No piloto, registros com menos de 8 campos de nota lidos ou confianca abaixo de 90% devem ficar em revisao antes de alimentar o dashboard como dados aprovados.
+No piloto, campos em branco ou itens com mais de uma bolinha marcada devem ser desconsiderados na pontuacao, mas nao bloqueiam o processamento do formulario.
+Fotos com baixa confianca geral de leitura ainda devem ficar em revisao.
 
 Depois de validar o processamento manual, criar o gatilho pelo menu `SUEDS Operacional > Criar gatilho a cada 15 minutos`.
 O processamento automatico registra cada execucao na aba `Log_Opinarios`, porque gatilhos de tempo rodam sem janela de alerta do Google Sheets.
@@ -75,6 +76,7 @@ Para o modelo impresso melhorado do Plaza, a grade deve usar bolinhas/circulos g
 Na foto de teste, capturar apenas uma ficha preenchida por imagem. A folha pode ter duas fichas para impressao, mas o processamento OCR/IA deve receber uma ficha individual por arquivo.
 Quando o layout mudar para uso oficial, idealmente atualizar tambem o `FORM_VERSION` para uma nova data/versao, evitando misturar resultados de layouts diferentes.
 Na leitura das bolinhas, considerar como marcacao valida: bolinha pintada, bolinha parcialmente pintada, X, traco horizontal, traco vertical, risco diagonal ou rabisco claro dentro da bolinha.
+Se o hospede marcar duas ou mais bolinhas no mesmo item, deixar aquele item em branco para a pontuacao e seguir com os demais itens do formulario.
 
 O QR Code do SUEDS Plaza desta versao fica em:
 
