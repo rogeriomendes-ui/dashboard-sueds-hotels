@@ -2521,6 +2521,10 @@ const PLAZA_OMR_TEMPLATE = {
   columns: [0.607, 0.724, 0.836, 0.933],
   rows: [0.168, 0.229, 0.296, 0.339, 0.381, 0.424, 0.466, 0.509, 0.552, 0.636, 0.680, 0.721]
 };
+const PLAZA_OMR_GUIDE_TEMPLATE = {
+  columns: [0.584, 0.711, 0.838, 0.965],
+  rows: [0.149, 0.214, 0.283, 0.328, 0.373, 0.418, 0.463, 0.507, 0.552, 0.614, 0.659, 0.700]
+};
 
 function hasOmrAccess(req, url) {
   if (!OPINION_OMR_TOKEN) return true;
@@ -2720,6 +2724,177 @@ function clusterValues(items, valueGetter, tolerance) {
   return clusters;
 }
 
+function detectOmrGuideMarkers(gray, width, height) {
+  const threshold = 100;
+  const visited = new Uint8Array(width * height);
+  const stack = new Int32Array(width * height);
+  const candidates = [];
+  const minSize = Math.max(18, Math.round(Math.min(width, height) * 0.012));
+  const maxSize = Math.round(Math.min(width, height) * 0.11);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const start = y * width + x;
+      if (visited[start] || gray[start] >= threshold) continue;
+
+      let stackLength = 0;
+      let area = 0;
+      let minX = x;
+      let maxX = x;
+      let minY = y;
+      let maxY = y;
+      stack[stackLength++] = start;
+      visited[start] = 1;
+
+      while (stackLength) {
+        const index = stack[--stackLength];
+        const px = index % width;
+        const py = Math.floor(index / width);
+        area += 1;
+        if (px < minX) minX = px;
+        if (px > maxX) maxX = px;
+        if (py < minY) minY = py;
+        if (py > maxY) maxY = py;
+
+        const neighbors = [index - 1, index + 1, index - width, index + width];
+        for (const next of neighbors) {
+          if (next < 0 || next >= visited.length || visited[next]) continue;
+          const nx = next % width;
+          if ((next === index - 1 && nx > px) || (next === index + 1 && nx < px)) continue;
+          if (gray[next] >= threshold) continue;
+          visited[next] = 1;
+          stack[stackLength++] = next;
+        }
+      }
+
+      const markerWidth = maxX - minX + 1;
+      const markerHeight = maxY - minY + 1;
+      const aspect = markerWidth / markerHeight;
+      const solidity = area / (markerWidth * markerHeight);
+      if (
+        markerWidth >= minSize &&
+        markerWidth <= maxSize &&
+        markerHeight >= minSize &&
+        markerHeight <= maxSize &&
+        aspect >= 0.62 &&
+        aspect <= 1.62 &&
+        solidity >= 0.42
+      ) {
+        candidates.push({
+          x: (minX + maxX) / 2,
+          y: (minY + maxY) / 2,
+          width: markerWidth,
+          height: markerHeight,
+          area,
+          solidity,
+          score: area * solidity
+        });
+      }
+    }
+  }
+
+  const pick = (predicate) => candidates
+    .filter(predicate)
+    .sort((a, b) => b.score - a.score)[0] || null;
+  const markers = {
+    topLeft: pick((item) => item.x < width * 0.45 && item.y < height * 0.45),
+    topRight: pick((item) => item.x > width * 0.55 && item.y < height * 0.45),
+    bottomLeft: pick((item) => item.x < width * 0.45 && item.y > height * 0.55),
+    bottomRight: pick((item) => item.x > width * 0.55 && item.y > height * 0.55)
+  };
+
+  if (Object.values(markers).some((marker) => !marker)) return null;
+  const topSpan = Math.hypot(markers.topRight.x - markers.topLeft.x, markers.topRight.y - markers.topLeft.y);
+  const bottomSpan = Math.hypot(markers.bottomRight.x - markers.bottomLeft.x, markers.bottomRight.y - markers.bottomLeft.y);
+  const leftSpan = Math.hypot(markers.bottomLeft.x - markers.topLeft.x, markers.bottomLeft.y - markers.topLeft.y);
+  const rightSpan = Math.hypot(markers.bottomRight.x - markers.topRight.x, markers.bottomRight.y - markers.topRight.y);
+  if (
+    Math.min(topSpan, bottomSpan) < width * 0.55 ||
+    Math.min(leftSpan, rightSpan) < height * 0.55 ||
+    Math.max(topSpan, bottomSpan) / Math.min(topSpan, bottomSpan) > 1.35 ||
+    Math.max(leftSpan, rightSpan) / Math.min(leftSpan, rightSpan) > 1.35
+  ) {
+    return null;
+  }
+
+  return {
+    ...markers,
+    candidates: candidates.length,
+    method: "guide-markers"
+  };
+}
+
+function interpolateOmrGuidePoint(markers, columnRatio, rowRatio) {
+  const topX = markers.topLeft.x + (markers.topRight.x - markers.topLeft.x) * columnRatio;
+  const topY = markers.topLeft.y + (markers.topRight.y - markers.topLeft.y) * columnRatio;
+  const bottomX = markers.bottomLeft.x + (markers.bottomRight.x - markers.bottomLeft.x) * columnRatio;
+  const bottomY = markers.bottomLeft.y + (markers.bottomRight.y - markers.bottomLeft.y) * columnRatio;
+  return {
+    x: topX + (bottomX - topX) * rowRatio,
+    y: topY + (bottomY - topY) * rowRatio
+  };
+}
+
+function buildOmrGuideGrid(markers, bubbleCandidates = []) {
+  const rawPoints = PLAZA_OMR_GUIDE_TEMPLATE.rows.map((rowRatio) => (
+    PLAZA_OMR_GUIDE_TEMPLATE.columns.map((columnRatio) => (
+      interpolateOmrGuidePoint(markers, columnRatio, rowRatio)
+    ))
+  ));
+  const markerPoints = [markers.topLeft, markers.topRight, markers.bottomLeft, markers.bottomRight];
+  const minX = Math.min(...markerPoints.map((point) => point.x));
+  const maxX = Math.max(...markerPoints.map((point) => point.x));
+  const minY = Math.min(...markerPoints.map((point) => point.y));
+  const maxY = Math.max(...markerPoints.map((point) => point.y));
+  const topSpan = Math.hypot(markers.topRight.x - markers.topLeft.x, markers.topRight.y - markers.topLeft.y);
+  const bottomSpan = Math.hypot(markers.bottomRight.x - markers.bottomLeft.x, markers.bottomRight.y - markers.bottomLeft.y);
+  const horizontalSpan = (topSpan + bottomSpan) / 2;
+  const minBubbleSize = horizontalSpan * 0.022;
+  const maxBubbleSize = horizontalSpan * 0.052;
+  const matchDistance = horizontalSpan * 0.023;
+  const usableCandidates = bubbleCandidates.filter((candidate) => (
+    candidate.width >= minBubbleSize &&
+    candidate.width <= maxBubbleSize &&
+    candidate.height >= minBubbleSize &&
+    candidate.height <= maxBubbleSize &&
+    candidate.width / candidate.height >= 0.68 &&
+    candidate.width / candidate.height <= 1.48
+  ));
+  let refinedRows = 0;
+  const points = rawPoints.map((row) => {
+    const offsets = row.map((point) => {
+      const candidate = usableCandidates
+        .map((item) => ({ item, distance: Math.hypot(item.x - point.x, item.y - point.y) }))
+        .filter((entry) => entry.distance <= matchDistance)
+        .sort((a, b) => a.distance - b.distance)[0];
+      return candidate
+        ? { dx: candidate.item.x - point.x, dy: candidate.item.y - point.y }
+        : null;
+    }).filter(Boolean);
+    if (offsets.length < 2) return row;
+    refinedRows += 1;
+    const dx = median(offsets.map((offset) => offset.dx));
+    const dy = median(offsets.map((offset) => offset.dy));
+    return row.map((point) => ({ x: point.x + dx, y: point.y + dy }));
+  });
+
+  return {
+    method: "guide-markers",
+    markers,
+    points,
+    horizontalSpan,
+    refinedRows,
+    box: {
+      x: Math.round(minX),
+      y: Math.round(minY),
+      width: Math.round(maxX - minX + 1),
+      height: Math.round(maxY - minY + 1),
+      method: "guide-markers",
+      markerCandidates: markers.candidates
+    }
+  };
+}
+
 function detectOmrBubbleCandidates(gray, width, height) {
   const threshold = 125;
   const visited = new Uint8Array(width * height);
@@ -2901,7 +3076,7 @@ function detectOmrBubbleGrid(gray, width, height) {
   };
 }
 
-function omrDarkRatio(gray, width, height, cx, cy, radius) {
+function omrDarkRatio(gray, width, height, cx, cy, radius, threshold = 145) {
   const minX = Math.max(0, Math.floor(cx - radius));
   const maxX = Math.min(width - 1, Math.ceil(cx + radius));
   const minY = Math.max(0, Math.floor(cy - radius));
@@ -2916,11 +3091,86 @@ function omrDarkRatio(gray, width, height, cx, cy, radius) {
       const dy = y - cy;
       if (dx * dx + dy * dy > radiusSq) continue;
       total += 1;
-      if (gray[y * width + x] < 145) dark += 1;
+      if (gray[y * width + x] < threshold) dark += 1;
     }
   }
 
   return total ? dark / total : 0;
+}
+
+function omrAdaptiveInkRatios(gray, width, height, cx, cy, innerRadius, coreRadius, bubbleRadius) {
+  const reference = [];
+  const minReferenceRadius = bubbleRadius * 1.22;
+  const maxReferenceRadius = bubbleRadius * 1.62;
+  const maxRadius = Math.ceil(maxReferenceRadius);
+  const minX = Math.max(0, Math.floor(cx - maxRadius));
+  const maxX = Math.min(width - 1, Math.ceil(cx + maxRadius));
+  const minY = Math.max(0, Math.floor(cy - maxRadius));
+  const maxY = Math.min(height - 1, Math.ceil(cy + maxRadius));
+
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const distance = Math.hypot(x - cx, y - cy);
+      if (distance >= minReferenceRadius && distance <= maxReferenceRadius) {
+        reference.push(gray[y * width + x]);
+      }
+    }
+  }
+
+  reference.sort((a, b) => a - b);
+  const background = reference.length
+    ? reference[Math.min(reference.length - 1, Math.floor(reference.length * 0.72))]
+    : 210;
+  const threshold = Math.max(28, background - 48);
+  return {
+    inner: omrDarkRatio(gray, width, height, cx, cy, innerRadius, threshold),
+    core: omrDarkRatio(gray, width, height, cx, cy, coreRadius, threshold),
+    background,
+    threshold
+  };
+}
+
+function analyzeOmrGuideRow(gray, width, height, grid, rowIndex) {
+  const innerRadius = Math.max(7, Math.round(grid.horizontalSpan * 0.0115));
+  const coreRadius = Math.max(5, Math.round(grid.horizontalSpan * 0.0065));
+  const bubbleRadius = Math.max(11, grid.horizontalSpan * 0.0185);
+  const measurements = grid.points[rowIndex].map((point) => ({
+    cx: Math.round(point.x),
+    cy: Math.round(point.y),
+    ...omrAdaptiveInkRatios(gray, width, height, point.x, point.y, innerRadius, coreRadius, bubbleRadius)
+  }));
+  const innerBaseline = median(measurements.map((item) => item.inner).sort((a, b) => a - b).slice(0, 2));
+  const coreBaseline = median(measurements.map((item) => item.core).sort((a, b) => a - b).slice(0, 2));
+  const scores = measurements.map((item) => {
+    const innerExcess = Math.max(0, item.inner - innerBaseline);
+    const coreExcess = Math.max(0, item.core - coreBaseline);
+    return {
+      ...item,
+      outer: item.inner,
+      excess: innerExcess,
+      score: innerExcess * 0.72 + coreExcess * 0.28
+    };
+  });
+  const selected = scores
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => item.score >= 0.052 && (item.excess >= 0.03 || item.core - coreBaseline >= 0.055))
+    .sort((a, b) => b.score - a.score);
+
+  if (!selected.length) return { value: "", selectedIndexes: [], scores };
+  if (selected.length > 1) {
+    return {
+      value: "",
+      selectedIndexes: selected.map((item) => item.index),
+      uncertain: true,
+      scores
+    };
+  }
+
+  return {
+    value: PLAZA_OMR_RATING_OPTIONS[selected[0].index],
+    selectedIndexes: [selected[0].index],
+    scores
+  };
 }
 
 function analyzeOmrRow(gray, width, height, box, rowRatio) {
@@ -3037,10 +3287,13 @@ async function readPlazaOpinionOmr(body) {
   const { data, info } = image;
   const width = info.width;
   const height = info.height;
-  const bubbleGrid = detectOmrBubbleGrid(data, width, height);
-  const box = bubbleGrid ? bubbleGrid.box : detectOmrFormBox(data, width, height);
+  const guideMarkers = detectOmrGuideMarkers(data, width, height);
+  const guideBubbleCandidates = guideMarkers ? detectOmrBubbleCandidates(data, width, height) : [];
+  const guideGrid = guideMarkers ? buildOmrGuideGrid(guideMarkers, guideBubbleCandidates) : null;
+  const bubbleGrid = guideGrid ? null : detectOmrBubbleGrid(data, width, height);
+  const box = guideGrid ? guideGrid.box : (bubbleGrid ? bubbleGrid.box : detectOmrFormBox(data, width, height));
   const aspect = box.height / box.width;
-  const boxLooksValid = bubbleGrid
+  const boxLooksValid = guideGrid || bubbleGrid
     ? true
     : aspect > 1.15 && aspect < 1.8 && box.width > width * 0.45 && box.height > height * 0.45;
 
@@ -3049,9 +3302,11 @@ async function readPlazaOpinionOmr(body) {
   const debugRows = [];
 
   PLAZA_OMR_FIELDS.forEach(([field, label], index) => {
-    const row = bubbleGrid
-      ? analyzeOmrGridRow(data, width, height, bubbleGrid, index)
-      : analyzeOmrRow(data, width, height, box, PLAZA_OMR_TEMPLATE.rows[index]);
+    const row = guideGrid
+      ? analyzeOmrGuideRow(data, width, height, guideGrid, index)
+      : (bubbleGrid
+          ? analyzeOmrGridRow(data, width, height, bubbleGrid, index)
+          : analyzeOmrRow(data, width, height, box, PLAZA_OMR_TEMPLATE.rows[index]));
     ratings[field] = row.value;
     if (row.uncertain) uncertain.push(label);
     debugRows.push({
@@ -3071,12 +3326,12 @@ async function readPlazaOpinionOmr(body) {
   });
 
   const answered = Object.values(ratings).filter(Boolean).length;
-  const confidence = bubbleGrid ? 92 : (boxLooksValid ? 95 : 72);
+  const confidence = guideGrid ? 98 : (bubbleGrid ? 92 : (boxLooksValid ? 95 : 72));
   const reviewReason = boxLooksValid ? "" : "OMR nao confirmou proporcao/posicao esperada da ficha. Conferir enquadramento da foto.";
 
   return {
     ok: true,
-    engine: "pixel-omr-v1",
+    engine: guideGrid ? "pixel-omr-v2-guides" : "pixel-omr-v1",
     form: "sueds-plaza-20260720",
     confidence,
     ratings,
@@ -3087,7 +3342,12 @@ async function readPlazaOpinionOmr(body) {
       imageWidth: width,
       imageHeight: height,
       box,
-      method: bubbleGrid ? bubbleGrid.method : (box.method || ""),
+      method: guideGrid ? guideGrid.method : (bubbleGrid ? bubbleGrid.method : (box.method || "")),
+      guideMarkers: guideGrid
+        ? Object.fromEntries(Object.entries(guideGrid.markers)
+            .filter(([, value]) => value && typeof value === "object" && Number.isFinite(value.x))
+            .map(([key, value]) => [key, { x: Math.round(value.x), y: Math.round(value.y) }]))
+        : undefined,
       bubbleGrid: bubbleGrid
         ? {
             candidateCount: bubbleGrid.candidateCount,
@@ -5054,4 +5314,12 @@ if (require.main === module) {
   });
 }
 
-module.exports = { handleRequest };
+module.exports = {
+  handleRequest,
+  __test: {
+    detectOmrGuideMarkers,
+    detectOmrBubbleCandidates,
+    detectOmrBubbleGrid,
+    readPlazaOpinionOmr
+  }
+};

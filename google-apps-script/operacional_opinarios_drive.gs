@@ -138,6 +138,12 @@ function prepararOpinariosOperacional() {
 }
 
 function processarNovosOpinariosDrive() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) {
+    safeUiAlert_("O processamento de opinarios ja esta em andamento. Esta execucao foi ignorada para evitar registros duplicados.");
+    return;
+  }
+
   let spreadsheet = null;
   try {
     spreadsheet = getOpinionSpreadsheet_();
@@ -155,6 +161,8 @@ function processarNovosOpinariosDrive() {
     if (spreadsheet) appendOpinionLog_(spreadsheet, "ERRO", "processarNovosOpinariosDrive", message);
     safeUiAlert_("Falha ao processar opinarios.\n\n" + message);
     throw err;
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -196,6 +204,7 @@ function processarNovosOpinariosDrive_(spreadsheet) {
 
     const row = buildOpinionRow_(file, now, hotel, extracted, status);
     opinionsSheet.appendRow(row);
+    existingIds.add(fileId);
     inserted += 1;
 
     if (status !== "Aprovado") {
