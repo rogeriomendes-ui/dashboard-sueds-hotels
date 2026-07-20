@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#123847">
+    <title>SUED'S Plaza | Enviar opinarios</title>
+    <link rel="stylesheet" href="opinarios-upload.css">
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">S</span>
+        <div>
+          <strong>SUED'S</strong>
+          <span>PLAZA</span>
+        </div>
+      </div>
+      <div class="header-label">Recepcao</div>
+    </header>
+
+    <main class="app-main">
+      <section id="accessPanel" class="access-panel" aria-labelledby="accessTitle">
+        <div class="section-heading">
+          <span class="eyebrow">Envio seguro</span>
+          <h1 id="accessTitle">Opinarios impressos</h1>
+          <p>SUEDS Plaza</p>
+        </div>
+        <form id="accessForm" class="access-form">
+          <label for="accessCode">Codigo de acesso</label>
+          <div class="access-row">
+            <input id="accessCode" type="password" autocomplete="current-password" required>
+            <button id="accessButton" class="primary-button" type="submit">Entrar</button>
+          </div>
+          <p id="accessMessage" class="status-message" role="status"></p>
+        </form>
+      </section>
+
+      <section id="uploadPanel" class="upload-panel" hidden>
+        <div class="section-heading compact">
+          <span class="eyebrow">SUEDS Plaza</span>
+          <h1>Enviar fotos</h1>
+          <p id="batchDateLabel"></p>
+        </div>
+
+        <div class="batch-fields">
+          <label>
+            <span>Responsavel</span>
+            <input id="uploaderName" type="text" autocomplete="name" maxlength="80" placeholder="Nome (opcional)">
+          </label>
+          <div class="period-fields">
+            <label>
+              <span>De</span>
+              <input id="periodFrom" type="date">
+            </label>
+            <label>
+              <span>Ate</span>
+              <input id="periodTo" type="date">
+            </label>
+          </div>
+        </div>
+
+        <div class="picker-actions">
+          <label class="primary-button file-button" for="cameraInput">
+            <i data-lucide="camera" aria-hidden="true"></i>
+            Tirar foto
+          </label>
+          <input id="cameraInput" class="visually-hidden" type="file" accept="image/*" capture="environment">
+
+          <label class="secondary-button file-button" for="galleryInput">
+            <i data-lucide="images" aria-hidden="true"></i>
+            Selecionar varias
+          </label>
+          <input id="galleryInput" class="visually-hidden" type="file" accept="image/*" multiple>
+        </div>
+
+        <div class="queue-bar">
+          <strong id="queueCount">Nenhuma foto</strong>
+          <button id="clearButton" class="icon-button" type="button" title="Limpar fotos" aria-label="Limpar fotos" disabled>
+            <i data-lucide="trash-2" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div id="photoQueue" class="photo-queue" aria-live="polite"></div>
+
+        <div class="send-footer">
+          <div>
+            <p id="uploadMessage" class="status-message" role="status"></p>
+            <div id="progressTrack" class="progress-track" hidden>
+              <span id="progressBar"></span>
+            </div>
+          </div>
+          <button id="sendButton" class="send-button" type="button" disabled>
+            <i data-lucide="upload-cloud" aria-hidden="true"></i>
+            Enviar lote
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <template id="photoTemplate">
+      <article class="photo-item">
+        <img alt="Pre-visualizacao do opinario">
+        <div class="photo-detail">
+          <strong></strong>
+          <span></span>
+        </div>
+        <button class="icon-button remove-button" type="button" title="Remover foto" aria-label="Remover foto">
+          <i data-lucide="x" aria-hidden="true"></i>
+        </button>
+      </article>
+    </template>
+
+    <script src="opinarios-upload.js"></script>
+  </body>
+</html>

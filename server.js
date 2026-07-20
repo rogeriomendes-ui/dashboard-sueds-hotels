@@ -16,6 +16,11 @@ const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksu
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
 const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AH";
 const OPINION_OMR_TOKEN = process.env.OPINION_OMR_TOKEN || "";
+const OPINION_UPLOAD_TOKEN = process.env.OPINION_UPLOAD_TOKEN || "";
+const OPINION_UPLOAD_MAX_BYTES = Math.min(Number(process.env.OPINION_UPLOAD_MAX_BYTES || 4000000), 4200000);
+const OPINION_UPLOAD_FOLDERS = {
+  "sueds-plaza": process.env.GOOGLE_OPINIONS_PLAZA_FOLDER_ID || "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG"
+};
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -375,6 +380,36 @@ function readJsonBody(req, maxBytes = 20000) {
       }
     });
     req.on("error", reject);
+  });
+}
+
+function readBinaryBody(req, maxBytes = OPINION_UPLOAD_MAX_BYTES) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let settled = false;
+
+    req.on("data", (chunk) => {
+      if (settled) return;
+      size += chunk.length;
+      if (size > maxBytes) {
+        settled = true;
+        reject(new Error("A foto ultrapassa o limite de 4 MB apos a preparacao."));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks));
+    });
+    req.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
   });
 }
 
@@ -2533,6 +2568,124 @@ function hasOmrAccess(req, url) {
   const expectedBuffer = Buffer.from(OPINION_OMR_TOKEN);
   const providedBuffer = Buffer.from(provided);
   return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function hasOpinionUploadAccess(req, url) {
+  if (!OPINION_UPLOAD_TOKEN) return false;
+  const provided = getHeader(req, "x-upload-token") || getHeader(req, "authorization").replace(/^Bearer\s+/i, "") || url.searchParams.get("token") || "";
+  if (!provided) return false;
+  const expectedBuffer = Buffer.from(OPINION_UPLOAD_TOKEN);
+  const providedBuffer = Buffer.from(provided);
+  return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function safeDecodedHeader(req, name, maxLength = 120) {
+  const raw = String(getHeader(req, name) || "").slice(0, maxLength * 3);
+  try {
+    return decodeURIComponent(raw).replace(/[\r\n\0]/g, " ").trim().slice(0, maxLength);
+  } catch (error) {
+    return raw.replace(/[\r\n\0]/g, " ").trim().slice(0, maxLength);
+  }
+}
+
+function safeOpinionUploadId(value) {
+  const id = String(value || "").trim();
+  return /^[A-Za-z0-9_-]{8,80}$/.test(id) ? id : crypto.randomBytes(12).toString("hex");
+}
+
+function opinionUploadTimestamp() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}${value.month}${value.day}_${value.hour}${value.minute}${value.second}`;
+}
+
+function driveQueryValue(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+async function findUploadedOpinionPhoto(folderId, uploadId, token) {
+  const query = `'${driveQueryValue(folderId)}' in parents and trashed = false and appProperties has { key='uploadId' and value='${driveQueryValue(uploadId)}' }`;
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set("q", query);
+  url.searchParams.set("fields", "files(id,name,webViewLink,size,createdTime)");
+  url.searchParams.set("pageSize", "1");
+  const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Falha ao verificar o envio no Google Drive: ${response.status} ${text}`);
+  }
+  const payload = await response.json();
+  return payload.files?.[0] || null;
+}
+
+async function uploadOpinionPhoto(req, buffer) {
+  if (!buffer.length) throw new Error("A foto recebida esta vazia.");
+  const hotelSlug = String(getHeader(req, "x-hotel-slug") || "sueds-plaza").trim().toLowerCase();
+  const folderId = OPINION_UPLOAD_FOLDERS[hotelSlug];
+  if (!folderId) throw new Error("Hotel ainda nao configurado para envio de opinarios.");
+
+  const mimeType = String(getHeader(req, "content-type") || "").split(";")[0].trim().toLowerCase();
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  if (!allowedTypes.has(mimeType)) throw new Error("Formato de foto nao aceito. Use JPG, PNG ou WEBP.");
+
+  const uploadId = safeOpinionUploadId(getHeader(req, "x-upload-id"));
+  const originalName = safeDecodedHeader(req, "x-file-name", 160) || "foto-opinario";
+  const uploader = safeDecodedHeader(req, "x-uploader", 80);
+  const periodFrom = safeDecodedHeader(req, "x-period-from", 10);
+  const periodTo = safeDecodedHeader(req, "x-period-to", 10);
+  const accessToken = await getAccessToken("https://www.googleapis.com/auth/drive");
+  const existing = await findUploadedOpinionPhoto(folderId, uploadId, accessToken);
+  if (existing) return { ...existing, duplicate: true, uploadId };
+
+  const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+  const hotelPrefix = hotelSlug.replace(/[^a-z0-9]+/g, "_").toUpperCase();
+  const fileName = `${hotelPrefix}_${opinionUploadTimestamp()}_${uploadId.slice(-8)}.${extension}`;
+  const metadata = {
+    name: fileName,
+    parents: [folderId],
+    description: [
+      `Opinario impresso enviado pela recepcao do ${hotelSlug}.`,
+      uploader ? `Responsavel: ${uploader}.` : "",
+      periodFrom ? `Periodo informado: ${periodFrom}${periodTo && periodTo !== periodFrom ? ` a ${periodTo}` : ""}.` : "",
+      `Arquivo original: ${originalName}.`
+    ].filter(Boolean).join(" "),
+    appProperties: {
+      uploadId,
+      hotelSlug,
+      source: "reception-upload",
+      ...(periodFrom ? { periodFrom } : {}),
+      ...(periodTo ? { periodTo } : {})
+    }
+  };
+
+  const boundary = `sueds_${crypto.randomBytes(16).toString("hex")}`;
+  const prefix = Buffer.from(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
+  );
+  const suffix = Buffer.from(`\r\n--${boundary}--`);
+  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,size,createdTime", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": `multipart/related; boundary=${boundary}`
+    },
+    body: Buffer.concat([prefix, buffer, suffix])
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Falha ao gravar a foto no Google Drive: ${response.status} ${text}`);
+  }
+  return { ...(await response.json()), duplicate: false, uploadId };
 }
 
 function imageBufferFromOmrBody(body) {
@@ -5290,6 +5443,24 @@ async function handleRequest(req, res) {
       if (!hasOmrAccess(req, url)) return forbidden(res);
       const body = await readJsonBody(req, 18000000);
       return json(res, 200, await readPlazaOpinionOmr(body));
+    }
+
+    if (url.pathname === "/api/operacional/opinarios-upload") {
+      if (!OPINION_UPLOAD_TOKEN) {
+        return json(res, 503, { ok: false, error: "upload_not_configured", message: "Envio ainda nao configurado no Vercel." });
+      }
+      if (!hasOpinionUploadAccess(req, url)) return forbidden(res);
+      if (req.method === "GET") {
+        return json(res, 200, { ok: true, hotel: "SUEDS PLAZA", hotelSlug: "sueds-plaza", maxBytes: OPINION_UPLOAD_MAX_BYTES });
+      }
+      if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      try {
+        const photo = await uploadOpinionPhoto(req, await readBinaryBody(req));
+        return json(res, 200, { ok: true, photo });
+      } catch (error) {
+        const status = /limite|grande/i.test(error.message) ? 413 : /formato|vazia|hotel/i.test(error.message) ? 400 : 500;
+        return json(res, status, { ok: false, error: "opinion_upload_failed", message: error.message });
+      }
     }
 
     if (url.pathname === "/api/inteligencia/mercado") {

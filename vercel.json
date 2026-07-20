@@ -12,6 +12,10 @@
   ],
   "routes": [
     {
+      "src": "/plaza-opinarios",
+      "dest": "/public/enviar-opinarios-plaza.html"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1.js"
     },
