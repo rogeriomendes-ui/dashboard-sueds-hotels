@@ -4,7 +4,7 @@ const MAX_UPLOAD_BYTES = 3_800_000;
 const MAX_IMAGE_EDGE = 2400;
 
 const state = {
-  accessCode: sessionStorage.getItem("sueds-opinions-upload-token") || "",
+  accessReady: false,
   photos: [],
   sending: false
 };
@@ -46,38 +46,14 @@ function refreshIcons() {
   if (window.lucide) window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
 }
 
-function showUploadPanel() {
-  byId("accessPanel").hidden = true;
-  byId("uploadPanel").hidden = false;
-  refreshIcons();
-}
-
-async function verifyAccess(code) {
-  const response = await fetch(API_URL, { headers: { "x-upload-token": code } });
+async function startUploadSession() {
+  const response = await fetch(API_URL, { credentials: "same-origin" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.ok) {
-    if (response.status === 401) throw new Error("Codigo de acesso incorreto.");
-    throw new Error(payload.message || "Nao foi possivel validar o acesso.");
+    throw new Error(payload.message || "Nao foi possivel conectar ao envio.");
   }
-  return payload;
-}
-
-async function handleAccess(event) {
-  event.preventDefault();
-  const button = byId("accessButton");
-  const code = byId("accessCode").value.trim();
-  button.disabled = true;
-  setMessage("accessMessage", "Validando acesso...");
-  try {
-    await verifyAccess(code);
-    state.accessCode = code;
-    sessionStorage.setItem("sueds-opinions-upload-token", code);
-    showUploadPanel();
-  } catch (error) {
-    setMessage("accessMessage", error.message, "error");
-  } finally {
-    button.disabled = false;
-  }
+  state.accessReady = true;
+  renderQueue();
 }
 
 function loadImage(file) {
@@ -190,17 +166,17 @@ function renderQueue() {
   const count = state.photos.length;
   byId("queueCount").textContent = count ? `${count} foto${count === 1 ? "" : "s"}` : "Nenhuma foto";
   byId("clearButton").disabled = state.sending || count === 0;
-  byId("sendButton").disabled = state.sending || !state.photos.some((photo) => photo.status === "ready" || photo.status === "failed");
+  byId("sendButton").disabled = state.sending || !state.accessReady || !state.photos.some((photo) => photo.status === "ready" || photo.status === "failed");
   refreshIcons();
 }
 
-async function uploadPhoto(photo) {
+async function uploadPhotoRequest(photo) {
   if (!photo.blob) photo.blob = await preparePhoto(photo.source);
-  const response = await fetch(API_URL, {
+  return fetch(API_URL, {
     method: "POST",
+    credentials: "same-origin",
     headers: {
       "content-type": "image/jpeg",
-      "x-upload-token": state.accessCode,
       "x-upload-id": photo.id,
       "x-hotel-slug": HOTEL_SLUG,
       "x-file-name": encodeURIComponent(photo.originalName),
@@ -210,12 +186,17 @@ async function uploadPhoto(photo) {
     },
     body: photo.blob
   });
+}
+
+async function uploadPhoto(photo) {
+  let response = await uploadPhotoRequest(photo);
+  if (response.status === 401 || response.status === 403) {
+    state.accessReady = false;
+    await startUploadSession();
+    response = await uploadPhotoRequest(photo);
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.ok) {
-    if (response.status === 401) {
-      sessionStorage.removeItem("sueds-opinions-upload-token");
-      throw new Error("Codigo de acesso expirado ou incorreto.");
-    }
     throw new Error(payload.message || "Falha no envio desta foto.");
   }
   return payload.photo;
@@ -272,7 +253,6 @@ async function init() {
   byId("periodFrom").value = today;
   byId("periodTo").value = today;
   byId("batchDateLabel").textContent = `Lote de ${dateLabel(today)}`;
-  byId("accessForm").addEventListener("submit", handleAccess);
   bindFileInput("cameraInput");
   bindFileInput("galleryInput");
   byId("clearButton").addEventListener("click", clearPhotos);
@@ -281,17 +261,12 @@ async function init() {
     if (!byId("periodTo").value || byId("periodTo").value < byId("periodFrom").value) byId("periodTo").value = byId("periodFrom").value;
   });
   refreshIcons();
-
-  if (state.accessCode) {
-    setMessage("accessMessage", "Validando acesso salvo...");
-    try {
-      await verifyAccess(state.accessCode);
-      showUploadPanel();
-    } catch (error) {
-      sessionStorage.removeItem("sueds-opinions-upload-token");
-      state.accessCode = "";
-      setMessage("accessMessage", "Digite o codigo de acesso.");
-    }
+  setMessage("uploadMessage", "Conectando ao envio...");
+  try {
+    await startUploadSession();
+    setMessage("uploadMessage", "");
+  } catch (error) {
+    setMessage("uploadMessage", `${error.message} Recarregue a pagina para tentar novamente.`, "error");
   }
 }
 

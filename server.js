@@ -19,6 +19,7 @@ const OPINION_OMR_TOKEN = process.env.OPINION_OMR_TOKEN || "";
 const OPINION_UPLOAD_TOKEN = process.env.OPINION_UPLOAD_TOKEN || "";
 const OPINION_APPS_SCRIPT_UPLOAD_URL = process.env.OPINION_APPS_SCRIPT_UPLOAD_URL || "";
 const OPINION_UPLOAD_MAX_BYTES = Math.min(Number(process.env.OPINION_UPLOAD_MAX_BYTES || 4000000), 4200000);
+const OPINION_UPLOAD_SESSION_TTL_SECONDS = Math.min(Math.max(Number(process.env.OPINION_UPLOAD_SESSION_TTL_SECONDS || 43200), 900), 86400);
 const OPINION_UPLOAD_FOLDERS = {
   "sueds-plaza": process.env.GOOGLE_OPINIONS_PLAZA_FOLDER_ID || "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG"
 };
@@ -2574,10 +2575,51 @@ function hasOmrAccess(req, url) {
 function hasOpinionUploadAccess(req, url) {
   if (!OPINION_UPLOAD_TOKEN) return false;
   const provided = getHeader(req, "x-upload-token") || getHeader(req, "authorization").replace(/^Bearer\s+/i, "") || url.searchParams.get("token") || "";
-  if (!provided) return false;
-  const expectedBuffer = Buffer.from(OPINION_UPLOAD_TOKEN);
-  const providedBuffer = Buffer.from(provided);
+  if (provided && safeEqualText(OPINION_UPLOAD_TOKEN, provided)) return true;
+  return isValidOpinionUploadSession(readCookie(req, "sueds_opinion_upload"));
+}
+
+function safeEqualText(expected, provided) {
+  const expectedBuffer = Buffer.from(String(expected || ""));
+  const providedBuffer = Buffer.from(String(provided || ""));
   return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function readCookie(req, name) {
+  const cookieHeader = getHeader(req, "cookie");
+  if (!cookieHeader) return "";
+  for (const part of cookieHeader.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 0 || part.slice(0, separator).trim() !== name) continue;
+    return part.slice(separator + 1).trim();
+  }
+  return "";
+}
+
+function createOpinionUploadSession() {
+  const expiresAt = Math.floor(Date.now() / 1000) + OPINION_UPLOAD_SESSION_TTL_SECONDS;
+  const payload = `v1.${expiresAt}.${crypto.randomBytes(12).toString("hex")}`;
+  const signature = crypto.createHmac("sha256", OPINION_UPLOAD_TOKEN).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function isValidOpinionUploadSession(session) {
+  const parts = String(session || "").split(".");
+  if (parts.length !== 4 || parts[0] !== "v1" || !/^\d+$/.test(parts[1]) || !/^[a-f0-9]{24}$/.test(parts[2])) return false;
+  const expiresAt = Number(parts[1]);
+  const now = Math.floor(Date.now() / 1000);
+  if (expiresAt <= now || expiresAt > now + OPINION_UPLOAD_SESSION_TTL_SECONDS + 60) return false;
+  const payload = parts.slice(0, 3).join(".");
+  const expected = crypto.createHmac("sha256", OPINION_UPLOAD_TOKEN).update(payload).digest("base64url");
+  return safeEqualText(expected, parts[3]);
+}
+
+function setOpinionUploadSessionCookie(req, res) {
+  const secure = getHeader(req, "x-forwarded-proto").toLowerCase() === "https" ? "; Secure" : "";
+  res.setHeader(
+    "set-cookie",
+    `sueds_opinion_upload=${createOpinionUploadSession()}; Max-Age=${OPINION_UPLOAD_SESSION_TTL_SECONDS}; Path=/api/operacional/opinarios-upload; HttpOnly; SameSite=Strict${secure}`
+  );
 }
 
 function safeDecodedHeader(req, name, maxLength = 120) {
@@ -5541,11 +5583,12 @@ async function handleRequest(req, res) {
       if (!OPINION_UPLOAD_TOKEN) {
         return json(res, 503, { ok: false, error: "upload_not_configured", message: "Envio ainda nao configurado no Vercel." });
       }
-      if (!hasOpinionUploadAccess(req, url)) return forbidden(res);
       if (req.method === "GET") {
+        setOpinionUploadSessionCookie(req, res);
         return json(res, 200, { ok: true, hotel: "SUEDS PLAZA", hotelSlug: "sueds-plaza", maxBytes: OPINION_UPLOAD_MAX_BYTES });
       }
       if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      if (!hasOpinionUploadAccess(req, url)) return forbidden(res);
       try {
         const photo = await uploadOpinionPhoto(req, await readBinaryBody(req));
         return json(res, 200, { ok: true, photo });

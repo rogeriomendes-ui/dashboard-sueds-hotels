@@ -71,7 +71,6 @@ button,
   padding: 32px 18px max(44px, env(safe-area-inset-bottom));
 }
 
-.access-panel,
 .upload-panel {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -79,18 +78,14 @@ button,
   box-shadow: var(--shadow);
 }
 
-.access-panel { padding: clamp(26px, 7vw, 52px); }
 .upload-panel { overflow: hidden; }
 
-.section-heading { margin-bottom: 30px; }
 .section-heading.compact { padding: 28px 28px 0; margin-bottom: 24px; }
 .section-heading h1 { margin: 6px 0 5px; font-size: clamp(30px, 8vw, 44px); line-height: 1.05; letter-spacing: 0; }
 .section-heading p { margin: 0; color: var(--muted); font-size: 17px; }
 .eyebrow { color: var(--gold); font-size: 13px; font-weight: 800; text-transform: uppercase; }
 
-.access-form label,
 .batch-fields label span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 13px; font-weight: 700; }
-.access-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
 
 input {
   width: 100%;
@@ -216,7 +211,6 @@ input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(18, 56, 71, 
 
 @media (max-width: 620px) {
   .app-main { padding: 20px 12px max(32px, env(safe-area-inset-bottom)); }
-  .access-panel { padding: 28px 20px; }
   .section-heading.compact { padding: 24px 20px 0; }
   .batch-fields { padding: 0 20px 20px; grid-template-columns: 1fr; }
   .picker-actions { padding: 18px 20px; grid-template-columns: 1fr; }
@@ -228,7 +222,5 @@ input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(18, 56, 71, 
 }
 
 @media (max-width: 390px) {
-  .access-row { grid-template-columns: 1fr; }
-  .access-row .primary-button { width: 100%; }
   .header-label { display: none; }
 }
