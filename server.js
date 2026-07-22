@@ -5643,11 +5643,10 @@ async function handleRequest(req, res) {
     }
 
     if (url.pathname === "/api/operacional/tv") {
+      if (url.searchParams.get("view") === "hotel") {
+        return json(res, 200, await buildOperationalHotelPayload(periodFromUrl(url)));
+      }
       return json(res, 200, await buildOperationalTvPayload(periodFromUrl(url)));
-    }
-
-    if (url.pathname === "/api/operacional/hotel") {
-      return json(res, 200, await buildOperationalHotelPayload(periodFromUrl(url)));
     }
 
     if (url.pathname === "/api/operacional/opinarios") {

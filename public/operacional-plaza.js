@@ -232,7 +232,7 @@ function render(data) {
 async function load() {
   byId("lastUpdate").textContent = "Atualizando...";
   const month = byId("monthSelect").value;
-  const response = await fetch(`/api/operacional/hotel?hotel=${HOTEL_SLUG}&month=${month}`, { cache: "no-store" });
+  const response = await fetch(`/api/operacional/tv?view=hotel&hotel=${HOTEL_SLUG}&month=${month}`, { cache: "no-store" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.message || "Falha ao carregar dados operacionais.");
   render(payload);
