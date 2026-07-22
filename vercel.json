@@ -16,6 +16,10 @@
       "dest": "/public/enviar-opinarios-plaza.html"
     },
     {
+      "src": "/operacional/plaza",
+      "dest": "/public/dashboard-operacional-plaza.html"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1.js"
     },

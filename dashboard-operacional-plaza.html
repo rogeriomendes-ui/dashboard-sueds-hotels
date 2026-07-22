@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1f3445">
+    <title>SUEDS Plaza | TV Operacional</title>
+    <link rel="stylesheet" href="operacional-plaza.css">
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  </head>
+  <body>
+    <main class="dashboard-shell">
+      <header class="topbar">
+        <div class="page-title">
+          <span>Operacional</span>
+          <h1>Experiência dos Hóspedes</h1>
+          <strong>SUEDS Plaza</strong>
+        </div>
+
+        <section class="headline-metrics" aria-label="Resumo do hotel">
+          <div class="headline-metric">
+            <span>Nota média</span>
+            <strong id="summaryScore">--</strong>
+          </div>
+          <div class="headline-metric">
+            <span>Opiniários</span>
+            <strong id="summaryOpinions">0</strong>
+          </div>
+          <div class="headline-metric metric-warning">
+            <span>Pendências</span>
+            <strong id="summaryPending">0</strong>
+          </div>
+          <div class="headline-metric metric-danger">
+            <span>Em atraso</span>
+            <strong id="summaryOverdue">0</strong>
+          </div>
+        </section>
+
+        <div class="topbar-actions">
+          <a class="icon-link" href="dashboard-operacional-tv.html" title="Visão da rede" aria-label="Visão da rede">
+            <i data-lucide="building-2" aria-hidden="true"></i>
+            <span>Rede</span>
+          </a>
+          <label class="month-control" for="monthSelect">
+            <span>Mês</span>
+            <select id="monthSelect"></select>
+          </label>
+          <div class="update-status">
+            <i data-lucide="wifi" aria-hidden="true"></i>
+            <strong id="lastUpdate">Atualizando...</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="overview-grid">
+        <article class="quality-panel" aria-labelledby="qualityTitle">
+          <header class="panel-heading">
+            <div>
+              <span>Avaliação mensal</span>
+              <h2 id="qualityTitle">SUEDS Plaza</h2>
+              <p id="qualitySubtitle">Sem opiniários no período</p>
+            </div>
+            <div id="scoreRing" class="score-ring" style="--score:0; --score-color:#8a98a5">
+              <strong id="hotelScore">--</strong>
+            </div>
+          </header>
+
+          <div id="qualityBlocks" class="quality-blocks"></div>
+
+          <div class="quality-notes">
+            <section>
+              <div class="note-title">
+                <i data-lucide="sparkles" aria-hidden="true"></i>
+                <h3>Destaques</h3>
+              </div>
+              <p id="hotelHighlights">Sem destaques no período.</p>
+            </section>
+            <section>
+              <div class="note-title attention-title">
+                <i data-lucide="triangle-alert" aria-hidden="true"></i>
+                <h3>Pontos de atenção</h3>
+              </div>
+              <p id="hotelIssues">Sem pontos críticos no período.</p>
+            </section>
+          </div>
+        </article>
+
+        <article class="alerts-panel" aria-labelledby="alertsTitle">
+          <header class="panel-heading alerts-heading">
+            <div>
+              <span>Acompanhamento</span>
+              <h2 id="alertsTitle">Pendências e alertas</h2>
+              <p>Ocorrências do PMS e reclamações dos opiniários</p>
+            </div>
+            <div id="pmsStatus" class="integration-status">
+              <i data-lucide="plug-zap" aria-hidden="true"></i>
+              <span>KIPFULL</span>
+            </div>
+          </header>
+          <div id="alertsList" class="alerts-list" aria-live="polite"></div>
+        </article>
+      </section>
+
+      <section class="queue-section" aria-labelledby="queueTitle">
+        <header class="queue-header">
+          <div>
+            <span>Fila operacional</span>
+            <h2 id="queueTitle">Solicitações e ocorrências</h2>
+          </div>
+          <div class="queue-tools">
+            <div class="filter-control" role="group" aria-label="Filtrar ocorrências">
+              <button type="button" class="active" data-filter="all">Todas</button>
+              <button type="button" data-filter="pending">Pendentes</button>
+              <button type="button" data-filter="resolved">Resolvidas</button>
+            </div>
+            <strong id="queueCount">0 registros</strong>
+          </div>
+        </header>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Solicitado<br>Dia / Hora</th>
+                <th>Apto</th>
+                <th>Cliente</th>
+                <th>Serviços / Pedidos / Ocorrências</th>
+                <th>Resolvido<br>Dia / Hora</th>
+                <th>Tempo de<br>Solução</th>
+                <th>Origem</th>
+                <th>Solicitante</th>
+                <th>O.S.</th>
+              </tr>
+            </thead>
+            <tbody id="incidentsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="operacional-plaza.js"></script>
+  </body>
+</html>

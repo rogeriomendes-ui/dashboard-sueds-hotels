@@ -2364,6 +2364,14 @@ const OPERATIONAL_HOTEL_ORDER = [
   "SUEDS TRANCOSO",
   "CASAS SUEDS ARRAIAL"
 ];
+const OPERATIONAL_HOTELS_BY_SLUG = {
+  "sueds-cabralia": "SUEDS CABRALIA",
+  "sueds-segundo-sol": "SUEDS SEGUNDO SOL",
+  "sueds-plaza": "SUEDS PLAZA",
+  "sueds-premium": "SUEDS PREMIUM",
+  "sueds-trancoso": "SUEDS TRANCOSO",
+  "casas-sueds-arraial": "CASAS SUEDS ARRAIAL"
+};
 
 const OPINION_SUBMISSION_HEADERS = [
   "ID Arquivo",
@@ -2453,6 +2461,9 @@ function normalizeOperationalOpinion(item) {
     photoUrl: String(item["Link Foto"] || "").trim(),
     guestName: String(item["Nome Hospede"] || "").trim(),
     apartment: String(item.Apartamento || "").trim(),
+    checkIn: String(item["Data Entrada"] || "").trim(),
+    checkOut: String(item["Data Saida"] || "").trim(),
+    comments: String(item.Comentarios || "").trim(),
     highlights: String(item.Destaques || "").trim(),
     issues: String(item["Problemas Identificados"] || "").trim(),
     status: String(item.Status || "").trim(),
@@ -3880,6 +3891,75 @@ async function buildOperationalTvPayload(period = {}) {
       status: operationalStatus(average(allScores))
     },
     hotels: orderedHotels
+  };
+}
+
+function operationalHotelFromSlug(value) {
+  const slug = String(value || "sueds-plaza").trim().toLowerCase();
+  return {
+    slug: OPERATIONAL_HOTELS_BY_SLUG[slug] ? slug : "sueds-plaza",
+    name: OPERATIONAL_HOTELS_BY_SLUG[slug] || OPERATIONAL_HOTELS_BY_SLUG["sueds-plaza"]
+  };
+}
+
+function opinionOperationalIncident(opinion, index) {
+  const description = opinion.issues;
+  if (!description) return null;
+  const requestedAt = opinion.processedAt || new Date();
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - requestedAt.getTime()) / 60000));
+  return {
+    id: opinion.fileId || `opinario-${index + 1}`,
+    requestedAt: requestedAt.toISOString(),
+    apartment: opinion.apartment,
+    guestName: opinion.guestName,
+    description,
+    comments: opinion.comments,
+    status: "pending",
+    resolvedAt: null,
+    elapsedMinutes,
+    overdue: elapsedMinutes >= 60,
+    source: "Opinario",
+    requester: "Hospede",
+    orderNumber: "",
+    photoUrl: opinion.photoUrl
+  };
+}
+
+async function buildOperationalHotelPayload(period = {}) {
+  const selectedHotel = operationalHotelFromSlug(period.hotel);
+  const opinions = await loadOperationalOpinions();
+  const month = period.month || todayKey().slice(0, 7);
+  const hotelOpinions = opinions.filter((opinion) => {
+    const sameMonth = !opinion.monthKey || opinion.monthKey === month;
+    return sameMonth && comparableKey(opinion.hotel) === comparableKey(selectedHotel.name);
+  });
+  const evaluation = hotelOpinions.length ? summarizeOperationalHotel(selectedHotel.name, hotelOpinions) : emptyOperationalHotel(selectedHotel.name);
+  const opinionIncidents = hotelOpinions
+    .map(opinionOperationalIncident)
+    .filter(Boolean)
+    .sort((a, b) => new Date(a.requestedAt) - new Date(b.requestedAt));
+
+  return {
+    audience: "tv-operacional-hotel",
+    generatedAt: new Date().toISOString(),
+    period: { month },
+    hotel: selectedHotel,
+    evaluation,
+    operations: {
+      summary: {
+        pending: opinionIncidents.length,
+        overdue: opinionIncidents.filter((incident) => incident.overdue).length,
+        resolvedToday: 0,
+        resolvedUnderOneHour: 0,
+        opinionComplaints: opinionIncidents.length
+      },
+      pms: {
+        provider: "KIPFULL",
+        connected: false,
+        status: "awaiting_configuration"
+      },
+      incidents: opinionIncidents
+    }
   };
 }
 
@@ -5564,6 +5644,10 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/operacional/tv") {
       return json(res, 200, await buildOperationalTvPayload(periodFromUrl(url)));
+    }
+
+    if (url.pathname === "/api/operacional/hotel") {
+      return json(res, 200, await buildOperationalHotelPayload(periodFromUrl(url)));
     }
 
     if (url.pathname === "/api/operacional/opinarios") {
