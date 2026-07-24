@@ -88,10 +88,10 @@ body {
   gap: 6px;
 }
 
-.manager-shortcut {
+.nav-link-button.manager-shortcut {
   min-height: 48px;
   border: 2px solid #12293a;
-  color: #142838;
+  color: #174f78;
   background: #fff;
   font-size: 13px;
   line-height: 1.15;
@@ -99,13 +99,13 @@ body {
   text-transform: none;
 }
 
-.manager-shortcut:hover {
+.nav-link-button.manager-shortcut:hover {
   border-color: var(--cyan);
-  color: #142838;
+  color: #174f78;
   background: #f2fbfa;
 }
 
-.manager-shortcut.public-shortcut {
+.nav-link-button.manager-shortcut.public-shortcut {
   border-color: #0d2435;
 }
 
