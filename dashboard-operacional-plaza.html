@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#1f3445">
     <title>SUEDS Plaza | TV Operacional</title>
+    <script src="/manager-auth.js"></script>
     <link rel="stylesheet" href="/operacional-plaza.css">
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   </head>
@@ -64,6 +65,7 @@
                 <button type="button" class="active" data-filter="all">Todas</button>
                 <button type="button" data-filter="pending">Pendentes</button>
                 <button type="button" data-filter="resolved">Resolvidas</button>
+                <button type="button" data-filter="registered">Registradas</button>
               </div>
               <strong id="queueCount">0 registros</strong>
             </div>
@@ -77,7 +79,7 @@
                   <th>Apto</th>
                   <th>Cliente</th>
                   <th>Serviços / Pedidos / Ocorrências</th>
-                  <th>Resolvido<br>Dia / Hora</th>
+                  <th>Status<br>Dia / Hora</th>
                   <th>Tempo de<br>Solução</th>
                   <th>Origem</th>
                   <th>Solicitante</th>
@@ -139,6 +141,54 @@
         </aside>
       </section>
     </main>
+
+    <dialog id="incidentStatusDialog" class="incident-status-dialog" aria-labelledby="incidentStatusTitle">
+      <form id="incidentStatusForm">
+        <header>
+          <div>
+            <span>Fila operacional</span>
+            <h2 id="incidentStatusTitle">Atualizar ocorrência</h2>
+          </div>
+          <button type="button" class="dialog-close" id="incidentStatusClose" title="Fechar" aria-label="Fechar">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <p id="incidentStatusDescription" class="incident-dialog-description"></p>
+        <input type="hidden" id="incidentStatusId">
+
+        <fieldset class="status-options">
+          <legend>Novo status</legend>
+          <label>
+            <input type="radio" name="incidentStatus" value="pending">
+            <span><i data-lucide="clock-3" aria-hidden="true"></i>Pendente</span>
+          </label>
+          <label>
+            <input type="radio" name="incidentStatus" value="resolved">
+            <span><i data-lucide="circle-check" aria-hidden="true"></i>Resolvido</span>
+          </label>
+          <label>
+            <input type="radio" name="incidentStatus" value="registered">
+            <span><i data-lucide="bookmark-check" aria-hidden="true"></i>Registrado</span>
+          </label>
+        </fieldset>
+
+        <label class="leader-name-control" for="incidentLeaderName">
+          <span>Responsável</span>
+          <input id="incidentLeaderName" name="leaderName" type="text" maxlength="80" autocomplete="name" required>
+        </label>
+
+        <p id="incidentStatusMessage" class="incident-status-message" role="status"></p>
+
+        <footer>
+          <button type="button" class="button-secondary" id="incidentStatusCancel">Cancelar</button>
+          <button type="submit" class="button-primary" id="incidentStatusSave">
+            <i data-lucide="save" aria-hidden="true"></i>
+            Salvar
+          </button>
+        </footer>
+      </form>
+    </dialog>
 
     <script src="/operacional-plaza.js"></script>
   </body>

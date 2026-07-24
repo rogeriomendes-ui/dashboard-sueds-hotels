@@ -328,7 +328,7 @@ select { font: inherit; }
 .queue-header h2 { font-size: 21px; }
 .queue-tools { display: flex; align-items: center; gap: 12px; }
 .queue-tools > strong { min-width: 78px; color: var(--muted); font-size: 11px; text-align: right; }
-.filter-control { display: inline-grid; grid-template-columns: repeat(3, auto); border: 1px solid #b8c4c9; border-radius: 4px; overflow: hidden; }
+.filter-control { display: inline-grid; grid-template-columns: repeat(4, auto); border: 1px solid #b8c4c9; border-radius: 4px; overflow: hidden; }
 .filter-control button { min-height: 32px; padding: 0 11px; color: var(--muted); background: #fff; border: 0; border-right: 1px solid #cbd4d7; font-size: 11px; font-weight: 800; cursor: pointer; }
 .filter-control button:last-child { border-right: 0; }
 .filter-control button.active { color: #fff; background: var(--navy); }
@@ -349,11 +349,75 @@ td { padding: 9px 8px; color: var(--ink); border-right: 1px solid #fff; border-b
 tbody tr:nth-child(even) td { background: #d2d9dc; }
 td.description-cell { font-size: 12px; line-height: 1.3; }
 .cell-label { display: none; }
-.status-pending { color: var(--red); font-weight: 850; }
-.status-resolved { color: var(--green); font-weight: 850; }
+.incident-status-button {
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.incident-status-button strong { font-size: 11px; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.incident-status-button small { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.status-pending { color: var(--red); }
+.status-resolved { color: var(--green); }
+.status-registered { color: #176484; }
+.guest-photo-link { display: inline-flex; align-items: center; gap: 5px; color: #15516a; font-weight: 800; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.guest-photo-link svg { width: 13px; height: 13px; flex: 0 0 auto; }
 .time-overdue { color: var(--red); font-weight: 850; }
 .source-badge { display: inline-flex; min-height: 22px; padding: 0 6px; align-items: center; color: #15516a; background: #d9eef5; border-radius: 3px; font-size: 10px; font-weight: 800; }
 .empty-row td { padding: 28px; color: var(--muted); text-align: center; background: #f4f6f7; }
+
+.incident-status-dialog {
+  width: min(560px, calc(100vw - 28px));
+  padding: 0;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 24px 70px rgba(21, 39, 55, 0.28);
+}
+.incident-status-dialog::backdrop { background: rgba(21, 39, 55, 0.58); }
+.incident-status-dialog form { padding: 20px; }
+.incident-status-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.incident-status-dialog header span { color: var(--teal); font-size: 10px; font-weight: 850; text-transform: uppercase; }
+.incident-status-dialog h2 { margin: 3px 0 0; font-size: 24px; }
+.dialog-close { width: 36px; height: 36px; display: grid; place-items: center; color: var(--muted); background: transparent; border: 1px solid var(--line); cursor: pointer; }
+.dialog-close svg { width: 18px; height: 18px; }
+.incident-dialog-description { margin: 18px 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.status-options { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border: 0; }
+.status-options legend { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 850; text-transform: uppercase; }
+.status-options input { position: absolute; opacity: 0; pointer-events: none; }
+.status-options label > span {
+  min-height: 54px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid #b8c4c9;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.status-options svg { width: 17px; height: 17px; }
+.status-options input:checked + span { color: #fff; background: var(--navy); border-color: var(--navy); }
+.status-options input:focus-visible + span { outline: 3px solid rgba(32, 184, 144, 0.3); outline-offset: 2px; }
+.leader-name-control { margin-top: 16px; display: grid; gap: 6px; }
+.leader-name-control span { color: var(--muted); font-size: 10px; font-weight: 850; text-transform: uppercase; }
+.leader-name-control input { width: 100%; height: 42px; padding: 0 11px; color: var(--ink); background: #fff; border: 1px solid #aebbc0; border-radius: 3px; }
+.incident-status-message { min-height: 18px; margin: 8px 0 0; color: var(--red); font-size: 12px; }
+.incident-status-dialog footer { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.incident-status-dialog footer button { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 3px; font-weight: 800; cursor: pointer; }
+.incident-status-dialog footer svg { width: 16px; height: 16px; }
+.button-secondary { color: var(--navy); background: #fff; border: 1px solid #aebbc0; }
+.button-primary { color: #fff; background: var(--navy); border: 1px solid var(--navy); }
+.button-primary:disabled { opacity: 0.55; cursor: wait; }
 
 @media (min-width: 1500px) {
   .dashboard-shell { padding: 18px; }
@@ -422,6 +486,9 @@ td.description-cell { font-size: 12px; line-height: 1.3; }
   .empty-row { border: 0; }
   .empty-row td { display: block; padding: 26px 12px; }
   .empty-row .cell-label { display: none; }
+  .incident-status-dialog form { padding: 16px; }
+  .status-options { grid-template-columns: 1fr; }
+  .status-options label > span { min-height: 46px; }
 }
 
 @media (max-width: 390px) {

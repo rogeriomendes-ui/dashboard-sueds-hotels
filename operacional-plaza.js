@@ -1,6 +1,7 @@
 const HOTEL_SLUG = "sueds-plaza";
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
-const state = { data: null, filter: "all" };
+const LEADER_NAME_STORAGE_KEY = "sueds_operational_leader_name";
+const state = { data: null, filter: "all", token: "", savingStatus: false };
 
 function byId(id) {
   return document.getElementById(id);
@@ -87,6 +88,15 @@ function joinNotes(items, emptyText) {
   return values.length ? values.join(" • ") : emptyText;
 }
 
+function safePhotoUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
 function renderQuality(evaluation) {
   const hasData = (evaluation.opinions || 0) > 0;
   const score = safeScore(evaluation.finalScore);
@@ -158,8 +168,18 @@ function renderAlerts(operations) {
 }
 
 function incidentStatus(incident) {
-  if (incident.status === "resolved") return '<span class="status-resolved">Resolvido</span>';
-  return '<span class="status-pending">Pendente</span>';
+  const labels = {
+    pending: "Pendente",
+    resolved: "Resolvido",
+    registered: "Registrado"
+  };
+  const status = labels[incident.status] ? incident.status : "pending";
+  const date = incident.statusAt ? formatDateTime(incident.statusAt) : "";
+  return `
+    <button type="button" class="incident-status-button status-${status}" data-status-action data-incident-id="${escapeHtml(incident.id)}">
+      <strong>${labels[status]}</strong>
+      ${date ? `<small>${escapeHtml(date)}</small>` : ""}
+    </button>`;
 }
 
 function tableCell(label, content, className = "") {
@@ -167,16 +187,21 @@ function tableCell(label, content, className = "") {
 }
 
 function incidentRow(incident) {
-  const pending = incident.status !== "resolved";
+  const pending = incident.status === "pending";
   const durationClass = pending && incident.overdue ? "time-overdue" : "";
   const source = incident.source === "Opinario" ? "Opiniário" : incident.source;
+  const guestName = incident.guestName || "Hóspede";
+  const photoUrl = safePhotoUrl(incident.photoUrl);
+  const guest = photoUrl
+    ? `<a class="guest-photo-link" href="${escapeHtml(photoUrl)}" target="_blank" rel="noopener" title="Abrir foto do opinário">${escapeHtml(guestName)}<i data-lucide="image" aria-hidden="true"></i></a>`
+    : escapeHtml(guestName);
   return `
     <tr>
       ${tableCell("Solicitado", escapeHtml(formatDateTime(incident.requestedAt)))}
       ${tableCell("Apto", escapeHtml(incident.apartment || "--"))}
-      ${tableCell("Cliente", escapeHtml(incident.guestName || "Hóspede"))}
+      ${tableCell("Cliente", guest)}
       ${tableCell("Ocorrência", escapeHtml(incident.description || "--"), "description-cell")}
-      ${tableCell("Resolvido", incident.resolvedAt ? escapeHtml(formatDateTime(incident.resolvedAt)) : incidentStatus(incident))}
+      ${tableCell("Status", incidentStatus(incident))}
       ${tableCell("Tempo", `<span class="${durationClass}">${escapeHtml(formatDuration(incident.elapsedMinutes))}</span>`)}
       ${tableCell("Origem", `<span class="source-badge">${escapeHtml(source || "--")}</span>`)}
       ${tableCell("Solicitante", escapeHtml(incident.requester || "--"))}
@@ -196,6 +221,7 @@ function renderQueue() {
   byId("incidentsBody").innerHTML = incidents.length
     ? incidents.map(incidentRow).join("")
     : '<tr class="empty-row"><td colspan="9"><span class="cell-label"></span>Nenhuma ocorrência neste filtro.</td></tr>';
+  refreshIcons();
 }
 
 function render(data) {
@@ -215,11 +241,91 @@ function render(data) {
 
 async function load() {
   byId("lastUpdate").textContent = "Atualizando...";
+  const token = await window.suedsManagerAuthReady;
+  state.token = token;
   const month = byId("monthSelect").value;
-  const response = await fetch(`/api/operacional/tv?view=hotel&hotel=${HOTEL_SLUG}&month=${month}`, { cache: "no-store" });
+  const response = await fetch(`/api/operacional/tv?view=hotel&hotel=${HOTEL_SLUG}&month=${month}`, {
+    cache: "no-store",
+    headers: { "x-dashboard-token": token }
+  });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.message || "Falha ao carregar dados operacionais.");
   render(payload);
+}
+
+function findIncident(incidentId) {
+  return (state.data?.operations?.incidents || []).find((incident) => incident.id === incidentId);
+}
+
+function closeIncidentStatusDialog() {
+  const dialog = byId("incidentStatusDialog");
+  if (dialog.open) dialog.close();
+}
+
+function openIncidentStatusDialog(incidentId) {
+  const incident = findIncident(incidentId);
+  if (!incident) return;
+  byId("incidentStatusId").value = incident.id;
+  byId("incidentStatusDescription").textContent = `${incident.guestName || "Hóspede"} • ${incident.description || "Ocorrência"}`;
+  byId("incidentLeaderName").value = localStorage.getItem(LEADER_NAME_STORAGE_KEY) || "";
+  byId("incidentStatusMessage").textContent = "";
+  const statusInput = document.querySelector(`input[name="incidentStatus"][value="${incident.status || "pending"}"]`);
+  if (statusInput) statusInput.checked = true;
+  byId("incidentStatusDialog").showModal();
+  refreshIcons();
+  window.setTimeout(() => byId("incidentLeaderName").focus(), 50);
+}
+
+async function saveIncidentStatus(event) {
+  event.preventDefault();
+  if (state.savingStatus) return;
+  const incidentId = byId("incidentStatusId").value;
+  const status = document.querySelector('input[name="incidentStatus"]:checked')?.value || "";
+  const actor = byId("incidentLeaderName").value.replace(/\s+/g, " ").trim();
+  const message = byId("incidentStatusMessage");
+  if (!actor) {
+    message.textContent = "Informe o responsável pela alteração.";
+    byId("incidentLeaderName").focus();
+    return;
+  }
+
+  state.savingStatus = true;
+  byId("incidentStatusSave").disabled = true;
+  message.textContent = "Salvando...";
+  try {
+    const response = await fetch("/api/operacional/tv", {
+      method: "PATCH",
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json",
+        "x-dashboard-token": state.token
+      },
+      body: JSON.stringify({ incidentId, status, actor, hotel: HOTEL_SLUG })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.message || "Não foi possível atualizar a ocorrência.");
+    localStorage.setItem(LEADER_NAME_STORAGE_KEY, actor);
+    closeIncidentStatusDialog();
+    await load();
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    state.savingStatus = false;
+    byId("incidentStatusSave").disabled = false;
+  }
+}
+
+function setupIncidentStatusDialog() {
+  byId("incidentsBody").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-status-action]");
+    if (button) openIncidentStatusDialog(button.dataset.incidentId);
+  });
+  byId("incidentStatusForm").addEventListener("submit", saveIncidentStatus);
+  byId("incidentStatusClose").addEventListener("click", closeIncidentStatusDialog);
+  byId("incidentStatusCancel").addEventListener("click", closeIncidentStatusDialog);
+  byId("incidentStatusDialog").addEventListener("click", (event) => {
+    if (event.target === byId("incidentStatusDialog")) closeIncidentStatusDialog();
+  });
 }
 
 function setupFilters() {
@@ -234,6 +340,7 @@ function setupFilters() {
 
 setupMonthSelect();
 setupFilters();
+setupIncidentStatusDialog();
 refreshIcons();
 load().catch((error) => {
   byId("lastUpdate").textContent = "Falha na atualização";

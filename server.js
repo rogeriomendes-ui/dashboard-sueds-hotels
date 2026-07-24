@@ -14,7 +14,7 @@ const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinh
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
 const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
-const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AH";
+const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AK";
 const OPINION_OMR_TOKEN = process.env.OPINION_OMR_TOKEN || "";
 const OPINION_UPLOAD_TOKEN = process.env.OPINION_UPLOAD_TOKEN || "";
 const OPINION_APPS_SCRIPT_UPLOAD_URL = process.env.OPINION_APPS_SCRIPT_UPLOAD_URL || "";
@@ -2409,6 +2409,11 @@ const OPINION_SUBMISSION_HEADERS = [
   "Observacao Revisao",
   "Data Revisao"
 ];
+const OPINION_INCIDENT_HEADERS = [
+  "Status Ocorrencia",
+  "Data Status Ocorrencia",
+  "Responsavel Status Ocorrencia"
+];
 
 const OPINION_FORM_HOTELS = {
   "sueds-cabralia": { hotel: "SUEDS CABRALIA" },
@@ -2447,6 +2452,7 @@ function average(values) {
 
 function normalizeOperationalOpinion(item) {
   const processedAt = parseDate(item["Data Processamento"]);
+  const incidentStatusAt = parseDate(item["Data Status Ocorrencia"]);
   const fieldScores = {};
   OPERATIONAL_RATING_FIELDS.forEach((field) => {
     fieldScores[field.key] = ratingScore(firstFilledValue(item, field.headers));
@@ -2466,6 +2472,9 @@ function normalizeOperationalOpinion(item) {
     comments: String(item.Comentarios || "").trim(),
     highlights: String(item.Destaques || "").trim(),
     issues: String(item["Problemas Identificados"] || "").trim(),
+    incidentStatus: normalizeOperationalIncidentStatus(item["Status Ocorrencia"]),
+    incidentStatusAt,
+    incidentStatusActor: String(item["Responsavel Status Ocorrencia"] || "").trim(),
     status: String(item.Status || "").trim(),
     confidence: parseDecimalNumber(item["Confianca %"]),
     origin: String(item.Origem || "").trim(),
@@ -4038,6 +4047,105 @@ async function loadOperationalOpinions() {
   return opinions;
 }
 
+function normalizeOperationalIncidentStatus(value) {
+  const status = comparableKey(value);
+  if (status === "resolved" || status === "resolvido") return "resolved";
+  if (status === "registered" || status === "registrado") return "registered";
+  return "pending";
+}
+
+function operationalIncidentStatusLabel(status) {
+  if (status === "resolved") return "Resolvido";
+  if (status === "registered") return "Registrado";
+  return "Pendente";
+}
+
+async function ensureOperationalIncidentHeaders() {
+  if (!OPERATIONAL_SHEET_ID || !getServiceAccount()) {
+    throw new Error("Planilha operacional ou credenciais Google nao configuradas.");
+  }
+
+  const workbook = await sheetsRequestForSpreadsheet(
+    OPERATIONAL_SHEET_ID,
+    "?fields=sheets.properties(sheetId,title,gridProperties.columnCount)",
+    {},
+    "https://www.googleapis.com/auth/spreadsheets.readonly"
+  );
+  const sheet = (workbook.sheets || []).find((item) => item.properties?.title === "Opinarios");
+  if (!sheet) throw new Error("Aba Opinarios nao encontrada.");
+
+  const requiredColumns = OPINION_SUBMISSION_HEADERS.length + OPINION_INCIDENT_HEADERS.length;
+  const currentColumns = Number(sheet.properties?.gridProperties?.columnCount || 0);
+  if (currentColumns < requiredColumns) {
+    await sheetsRequestForSpreadsheet(OPERATIONAL_SHEET_ID, ":batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({
+        requests: [{
+          appendDimension: {
+            sheetId: sheet.properties.sheetId,
+            dimension: "COLUMNS",
+            length: requiredColumns - currentColumns
+          }
+        }]
+      })
+    });
+  }
+
+  const firstColumn = "AI";
+  const lastColumn = "AK";
+  await sheetsRequestForSpreadsheet(
+    OPERATIONAL_SHEET_ID,
+    `/values/${sheetRange(`Opinarios!${firstColumn}1:${lastColumn}1`)}?valueInputOption=RAW`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ values: [OPINION_INCIDENT_HEADERS] })
+    }
+  );
+}
+
+async function updateOperationalIncidentStatus(body = {}) {
+  const incidentId = String(body.incidentId || body.id || "").trim();
+  const status = normalizeOperationalIncidentStatus(body.status);
+  const actor = String(body.actor || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!incidentId || incidentId.length > 200) throw new Error("Ocorrencia invalida.");
+  if (!["pending", "resolved", "registered"].includes(String(body.status || "").trim().toLowerCase())) {
+    throw new Error("Status invalido.");
+  }
+  if (!actor) throw new Error("Responsavel obrigatorio.");
+
+  await ensureOperationalIncidentHeaders();
+  const rows = await getSheetValues("Opinarios!A:AK", OPERATIONAL_SHEET_ID);
+  const headers = rows[0] || [];
+  const idIndex = headers.indexOf("ID Arquivo");
+  const issuesIndex = headers.indexOf("Problemas Identificados");
+  const rowOffset = rows.slice(1).findIndex((row) => (
+    String(row[idIndex] || "").trim() === incidentId &&
+    String(row[issuesIndex] || "").trim()
+  ));
+  if (rowOffset < 0) throw new Error("Ocorrencia nao encontrada.");
+
+  const updatedAt = new Date().toISOString();
+  const rowNumber = rowOffset + 2;
+  await sheetsRequestForSpreadsheet(
+    OPERATIONAL_SHEET_ID,
+    `/values/${sheetRange(`Opinarios!AI${rowNumber}:AK${rowNumber}`)}?valueInputOption=RAW`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        values: [[operationalIncidentStatusLabel(status), updatedAt, actor]]
+      })
+    }
+  );
+
+  operationalCache = { expiresAt: 0, payload: null };
+  return {
+    id: incidentId,
+    status,
+    statusAt: updatedAt,
+    statusActor: actor
+  };
+}
+
 async function buildOperationalTvPayload(period = {}) {
   const opinions = await loadOperationalOpinions();
   const month = period.month || todayKey().slice(0, 7);
@@ -4087,7 +4195,10 @@ function opinionOperationalIncident(opinion, index) {
   const description = opinion.issues;
   if (!description) return null;
   const requestedAt = opinion.processedAt || new Date();
-  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - requestedAt.getTime()) / 60000));
+  const status = opinion.incidentStatus || "pending";
+  const statusAt = opinion.incidentStatusAt;
+  const elapsedUntil = status === "pending" || !statusAt ? new Date() : statusAt;
+  const elapsedMinutes = Math.max(0, Math.floor((elapsedUntil.getTime() - requestedAt.getTime()) / 60000));
   return {
     id: opinion.fileId || `opinario-${index + 1}`,
     requestedAt: requestedAt.toISOString(),
@@ -4095,10 +4206,12 @@ function opinionOperationalIncident(opinion, index) {
     guestName: opinion.guestName,
     description,
     comments: opinion.comments,
-    status: "pending",
-    resolvedAt: null,
+    status,
+    statusAt: statusAt ? statusAt.toISOString() : null,
+    statusActor: opinion.incidentStatusActor,
+    resolvedAt: status === "resolved" && statusAt ? statusAt.toISOString() : null,
     elapsedMinutes,
-    overdue: elapsedMinutes >= 180,
+    overdue: status === "pending" && elapsedMinutes >= 180,
     source: "Opinario",
     requester: "Hospede",
     orderNumber: "",
@@ -4119,6 +4232,9 @@ async function buildOperationalHotelPayload(period = {}) {
     .map(opinionOperationalIncident)
     .filter(Boolean)
     .sort((a, b) => new Date(a.requestedAt) - new Date(b.requestedAt));
+  const pendingIncidents = opinionIncidents.filter((incident) => incident.status === "pending");
+  const resolvedIncidents = opinionIncidents.filter((incident) => incident.status === "resolved");
+  const today = todayKey();
 
   return {
     audience: "tv-operacional-hotel",
@@ -4128,10 +4244,13 @@ async function buildOperationalHotelPayload(period = {}) {
     evaluation,
     operations: {
       summary: {
-        pending: opinionIncidents.length,
-        overdue: opinionIncidents.filter((incident) => incident.overdue).length,
-        resolvedToday: 0,
-        resolvedUnderOneHour: 0,
+        pending: pendingIncidents.length,
+        overdue: pendingIncidents.filter((incident) => incident.overdue).length,
+        registered: opinionIncidents.filter((incident) => incident.status === "registered").length,
+        resolvedToday: resolvedIncidents.filter((incident) => (
+          incident.statusAt && dateKey(new Date(incident.statusAt)) === today
+        )).length,
+        resolvedUnderOneHour: resolvedIncidents.filter((incident) => incident.elapsedMinutes <= 60).length,
         opinionComplaints: opinionIncidents.length
       },
       pms: {
@@ -5826,6 +5945,22 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/operacional/tv") {
       if (!hasManagerAccess(req, url)) return forbidden(res);
+      if (req.method === "PATCH") {
+        try {
+          return json(res, 200, {
+            ok: true,
+            incident: await updateOperationalIncidentStatus(await readJsonBody(req))
+          });
+        } catch (error) {
+          const status = /invalida|invalido|nao encontrada|obrigatorio/i.test(error.message) ? 400 : 500;
+          return json(res, status, {
+            ok: false,
+            error: "operational_incident_update_failed",
+            message: error.message
+          });
+        }
+      }
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       if (url.searchParams.get("view") === "hotel") {
         return json(res, 200, await buildOperationalHotelPayload(periodFromUrl(url)));
       }
