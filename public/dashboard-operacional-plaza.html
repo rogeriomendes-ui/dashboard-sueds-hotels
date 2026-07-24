@@ -77,6 +77,7 @@
                 <tr>
                   <th>Solicitado<br>Dia / Hora</th>
                   <th>Apto</th>
+                  <th>Check-out</th>
                   <th>Cliente</th>
                   <th>Serviços / Pedidos / Ocorrências</th>
                   <th>Status<br>Dia / Hora</th>
@@ -188,6 +189,32 @@
           </button>
         </footer>
       </form>
+    </dialog>
+
+    <dialog id="opinionPhotoDialog" class="opinion-photo-dialog" aria-labelledby="opinionPhotoTitle">
+      <article>
+        <header>
+          <div>
+            <span>Opinário fotografado</span>
+            <h2 id="opinionPhotoTitle">Ficha do hóspede</h2>
+          </div>
+          <div class="photo-dialog-tools">
+            <button type="button" id="opinionPhotoRotateLeft" title="Girar para a esquerda" aria-label="Girar para a esquerda">
+              <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+            </button>
+            <button type="button" id="opinionPhotoRotateRight" title="Girar para a direita" aria-label="Girar para a direita">
+              <i data-lucide="rotate-cw" aria-hidden="true"></i>
+            </button>
+            <button type="button" id="opinionPhotoClose" title="Fechar" aria-label="Fechar">
+              <i data-lucide="x" aria-hidden="true"></i>
+            </button>
+          </div>
+        </header>
+        <div class="opinion-photo-stage">
+          <p id="opinionPhotoMessage" role="status">Carregando foto...</p>
+          <img id="opinionPhotoImage" alt="" hidden>
+        </div>
+      </article>
     </dialog>
 
     <script src="/operacional-plaza.js"></script>

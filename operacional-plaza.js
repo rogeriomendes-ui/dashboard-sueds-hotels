@@ -1,7 +1,15 @@
 const HOTEL_SLUG = "sueds-plaza";
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const LEADER_NAME_STORAGE_KEY = "sueds_operational_leader_name";
-const state = { data: null, filter: "all", token: "", savingStatus: false };
+const state = {
+  data: null,
+  filter: "all",
+  token: "",
+  savingStatus: false,
+  photoObjectUrl: "",
+  photoRotation: 0,
+  photoRequestId: 0
+};
 
 function byId(id) {
   return document.getElementById(id);
@@ -71,6 +79,18 @@ function formatDateTime(value) {
   }).format(date);
 }
 
+function formatStayDate(value) {
+  const text = String(value || "").trim();
+  if (!text) return "--";
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1].slice(-2)}`;
+  const brazilian = text.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{2,4})$/);
+  if (brazilian) {
+    return `${brazilian[1].padStart(2, "0")}/${brazilian[2].padStart(2, "0")}/${brazilian[3].slice(-2)}`;
+  }
+  return text;
+}
+
 function formatUpdate(value) {
   if (!value) return "Atualizando...";
   return `Atualizado ${formatDateTime(value)}`;
@@ -86,15 +106,6 @@ function formatDuration(minutes) {
 function joinNotes(items, emptyText) {
   const values = (items || []).map((item) => String(item || "").trim()).filter(Boolean);
   return values.length ? values.join(" • ") : emptyText;
-}
-
-function safePhotoUrl(value) {
-  try {
-    const url = new URL(String(value || ""));
-    return url.protocol === "https:" ? url.href : "";
-  } catch {
-    return "";
-  }
 }
 
 function renderQuality(evaluation) {
@@ -191,14 +202,14 @@ function incidentRow(incident) {
   const durationClass = pending && incident.overdue ? "time-overdue" : "";
   const source = incident.source === "Opinario" ? "Opiniário" : incident.source;
   const guestName = incident.guestName || "Hóspede";
-  const photoUrl = safePhotoUrl(incident.photoUrl);
-  const guest = photoUrl
-    ? `<a class="guest-photo-link" href="${escapeHtml(photoUrl)}" target="_blank" rel="noopener" title="Abrir foto do opinário">${escapeHtml(guestName)}<i data-lucide="image" aria-hidden="true"></i></a>`
+  const guest = incident.photoUrl && incident.id
+    ? `<button type="button" class="guest-photo-link" data-photo-action data-photo-id="${escapeHtml(incident.id)}" title="Abrir foto do opinário">${escapeHtml(guestName)}<i data-lucide="image" aria-hidden="true"></i></button>`
     : escapeHtml(guestName);
   return `
     <tr>
       ${tableCell("Solicitado", escapeHtml(formatDateTime(incident.requestedAt)))}
       ${tableCell("Apto", escapeHtml(incident.apartment || "--"))}
+      ${tableCell("Check-out", escapeHtml(formatStayDate(incident.checkOut)))}
       ${tableCell("Cliente", guest)}
       ${tableCell("Ocorrência", escapeHtml(incident.description || "--"), "description-cell")}
       ${tableCell("Status", incidentStatus(incident))}
@@ -220,7 +231,7 @@ function renderQueue() {
   byId("queueCount").textContent = `${incidents.length} registro${incidents.length === 1 ? "" : "s"}`;
   byId("incidentsBody").innerHTML = incidents.length
     ? incidents.map(incidentRow).join("")
-    : '<tr class="empty-row"><td colspan="9"><span class="cell-label"></span>Nenhuma ocorrência neste filtro.</td></tr>';
+    : '<tr class="empty-row"><td colspan="10"><span class="cell-label"></span>Nenhuma ocorrência neste filtro.</td></tr>';
   refreshIcons();
 }
 
@@ -255,6 +266,68 @@ async function load() {
 
 function findIncident(incidentId) {
   return (state.data?.operations?.incidents || []).find((incident) => incident.id === incidentId);
+}
+
+function releaseOpinionPhoto() {
+  state.photoRequestId += 1;
+  if (state.photoObjectUrl) URL.revokeObjectURL(state.photoObjectUrl);
+  state.photoObjectUrl = "";
+  state.photoRotation = 0;
+  const image = byId("opinionPhotoImage");
+  image.removeAttribute("src");
+  image.hidden = true;
+  image.style.transform = "";
+}
+
+function closeOpinionPhotoDialog() {
+  const dialog = byId("opinionPhotoDialog");
+  if (dialog.open) dialog.close();
+}
+
+function rotateOpinionPhoto(direction) {
+  state.photoRotation = (state.photoRotation + direction + 360) % 360;
+  byId("opinionPhotoImage").style.transform = `rotate(${state.photoRotation}deg)`;
+}
+
+async function openOpinionPhoto(incidentId) {
+  const incident = findIncident(incidentId);
+  if (!incident?.id) return;
+
+  releaseOpinionPhoto();
+  const requestId = state.photoRequestId;
+  const dialog = byId("opinionPhotoDialog");
+  const image = byId("opinionPhotoImage");
+  const message = byId("opinionPhotoMessage");
+  const guestName = incident.guestName || "Hóspede";
+  byId("opinionPhotoTitle").textContent = guestName;
+  image.alt = `Foto do opinário de ${guestName}`;
+  message.textContent = "Carregando foto...";
+  message.hidden = false;
+  dialog.showModal();
+  refreshIcons();
+
+  try {
+    const params = new URLSearchParams({ view: "opinion-image", id: incident.id });
+    const response = await fetch(`/api/operacional/tv?${params.toString()}`, {
+      cache: "no-store",
+      headers: { "x-dashboard-token": state.token }
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.message || "Não foi possível carregar a foto.");
+    }
+    const photo = await response.blob();
+    if (!photo.type.startsWith("image/")) throw new Error("O arquivo recebido não é uma imagem.");
+    if (requestId !== state.photoRequestId || !dialog.open) return;
+    state.photoObjectUrl = URL.createObjectURL(photo);
+    image.src = state.photoObjectUrl;
+    image.hidden = false;
+    message.hidden = true;
+  } catch (error) {
+    if (requestId !== state.photoRequestId || !dialog.open) return;
+    message.textContent = error.message;
+    message.hidden = false;
+  }
 }
 
 function closeIncidentStatusDialog() {
@@ -317,6 +390,11 @@ async function saveIncidentStatus(event) {
 
 function setupIncidentStatusDialog() {
   byId("incidentsBody").addEventListener("click", (event) => {
+    const photoButton = event.target.closest("[data-photo-action]");
+    if (photoButton) {
+      openOpinionPhoto(photoButton.dataset.photoId);
+      return;
+    }
     const button = event.target.closest("[data-status-action]");
     if (button) openIncidentStatusDialog(button.dataset.incidentId);
   });
@@ -326,6 +404,16 @@ function setupIncidentStatusDialog() {
   byId("incidentStatusDialog").addEventListener("click", (event) => {
     if (event.target === byId("incidentStatusDialog")) closeIncidentStatusDialog();
   });
+}
+
+function setupOpinionPhotoDialog() {
+  byId("opinionPhotoClose").addEventListener("click", closeOpinionPhotoDialog);
+  byId("opinionPhotoRotateLeft").addEventListener("click", () => rotateOpinionPhoto(-90));
+  byId("opinionPhotoRotateRight").addEventListener("click", () => rotateOpinionPhoto(90));
+  byId("opinionPhotoDialog").addEventListener("click", (event) => {
+    if (event.target === byId("opinionPhotoDialog")) closeOpinionPhotoDialog();
+  });
+  byId("opinionPhotoDialog").addEventListener("close", releaseOpinionPhoto);
 }
 
 function setupFilters() {
@@ -341,6 +429,7 @@ function setupFilters() {
 setupMonthSelect();
 setupFilters();
 setupIncidentStatusDialog();
+setupOpinionPhotoDialog();
 refreshIcons();
 load().catch((error) => {
   byId("lastUpdate").textContent = "Falha na atualização";

@@ -4146,6 +4146,61 @@ async function updateOperationalIncidentStatus(body = {}) {
   };
 }
 
+function operationalImageError(message, statusCode = 500) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+async function sendOperationalOpinionImage(res, fileId) {
+  const normalizedFileId = String(fileId || "").trim();
+  if (!/^[A-Za-z0-9_-]{10,200}$/.test(normalizedFileId)) {
+    throw operationalImageError("Arquivo do opinario invalido.", 400);
+  }
+
+  const opinions = await loadOperationalOpinions();
+  const opinion = opinions.find((item) => item.fileId === normalizedFileId && item.photoUrl);
+  if (!opinion) throw operationalImageError("Foto do opinario nao encontrada.", 404);
+
+  const token = await getAccessToken("https://www.googleapis.com/auth/drive.readonly");
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(normalizedFileId)}?alt=media&supportsAllDrives=true`,
+    { headers: { authorization: `Bearer ${token}` } }
+  );
+  if (!response.ok) {
+    const accessNotGranted = response.status === 403 || response.status === 404;
+    throw operationalImageError(
+      accessNotGranted
+        ? "A conta do dashboard ainda nao tem acesso a pasta de fotos."
+        : "Nao foi possivel carregar a foto do opinario.",
+      502
+    );
+  }
+
+  const contentType = String(response.headers.get("content-type") || "application/octet-stream")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  if (!contentType.startsWith("image/")) {
+    throw operationalImageError("O arquivo do opinario nao e uma imagem compativel.", 415);
+  }
+
+  const image = Buffer.from(await response.arrayBuffer());
+  if (!image.length) throw operationalImageError("A foto do opinario esta vazia.", 502);
+  if (image.length > OPINION_UPLOAD_MAX_BYTES + 200000) {
+    throw operationalImageError("A foto excede o limite de visualizacao.", 413);
+  }
+
+  res.writeHead(200, {
+    "content-type": contentType,
+    "content-length": image.length,
+    "cache-control": "private, max-age=300",
+    "content-disposition": `inline; filename="opinario-${normalizedFileId}.jpg"`,
+    "x-content-type-options": "nosniff"
+  });
+  res.end(image);
+}
+
 async function buildOperationalTvPayload(period = {}) {
   const opinions = await loadOperationalOpinions();
   const month = period.month || todayKey().slice(0, 7);
@@ -4203,6 +4258,7 @@ function opinionOperationalIncident(opinion, index) {
     id: opinion.fileId || `opinario-${index + 1}`,
     requestedAt: requestedAt.toISOString(),
     apartment: opinion.apartment,
+    checkOut: opinion.checkOut,
     guestName: opinion.guestName,
     description,
     comments: opinion.comments,
@@ -5945,6 +6001,17 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/operacional/tv") {
       if (!hasManagerAccess(req, url)) return forbidden(res);
+      if (req.method === "GET" && url.searchParams.get("view") === "opinion-image") {
+        try {
+          return await sendOperationalOpinionImage(res, url.searchParams.get("id"));
+        } catch (error) {
+          return json(res, Number(error.statusCode || 500), {
+            ok: false,
+            error: "operational_opinion_image_failed",
+            message: error.message
+          });
+        }
+      }
       if (req.method === "PATCH") {
         try {
           return json(res, 200, {
