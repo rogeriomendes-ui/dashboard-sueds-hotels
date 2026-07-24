@@ -5628,6 +5628,7 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/dashboard/gestores") {
       if (!hasManagerAccess(req, url)) return forbidden(res);
+      if (url.searchParams.get("authOnly") === "1") return json(res, 200, { ok: true });
       const metrics = await loadMetrics(periodFromUrl(url));
       return json(res, 200, buildManagerPayload(metrics));
     }
@@ -5643,6 +5644,7 @@ async function handleRequest(req, res) {
     }
 
     if (url.pathname === "/api/operacional/tv") {
+      if (!hasManagerAccess(req, url)) return forbidden(res);
       if (url.searchParams.get("view") === "hotel") {
         return json(res, 200, await buildOperationalHotelPayload(periodFromUrl(url)));
       }

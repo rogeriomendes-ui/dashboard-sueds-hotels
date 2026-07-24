@@ -8,37 +8,44 @@
   </head>
   <body>
     <main class="dashboard-shell">
-      <header class="topbar">
-        <div>
+      <header class="topbar manager-topbar">
+        <div class="manager-brand">
           <p class="eyebrow">Gestores</p>
-          <h1>SUEDS Hotels</h1>
+          <img src="sueds-hotels-gold.png" alt="SUEDS Hotels">
+          <h1 class="sr-only">SUEDS Hotels - Gestores</h1>
         </div>
-        <div class="topbar-controls">
-          <a class="nav-link-button" href="dashboard-inteligencia-mercado.html">Inteligência Comercial</a>
-          <a class="nav-link-button" href="dashboard-redes-sociais.html">Redes Sociais</a>
-          <a class="nav-link-button" href="dashboard-operacional-tv.html" target="_blank" rel="noopener">Operacional</a>
-          <a class="nav-link-button" href="dashboard-vendedores.html" target="_blank" rel="noopener">Vendedores</a>
-          <button id="openTvMessageModal" class="nav-link-button manager-action-button" type="button">Mensagem TV</button>
-          <label class="month-control" for="monthSelect">
-            <span>Mês</span>
-            <select id="monthSelect"></select>
-          </label>
-          <label class="filter-control" for="daySelect">
-            <span>Dia</span>
-            <select id="daySelect"></select>
-          </label>
-          <label class="filter-control" for="hotelSelect">
-            <span>Hotel</span>
-            <select id="hotelSelect"></select>
-          </label>
-          <label class="filter-control" for="channelSelect">
-            <span>Canal</span>
-            <select id="channelSelect"></select>
-          </label>
-        </div>
-        <div class="status-strip">
-          <span class="live-dot"></span>
-          <span id="lastUpdate">Atualizando...</span>
+        <div class="manager-topbar-main">
+          <div class="topbar-controls manager-filter-row">
+            <label class="month-control" for="monthSelect">
+              <span>Mês</span>
+              <select id="monthSelect"></select>
+            </label>
+            <label class="filter-control" for="daySelect">
+              <span>Dia</span>
+              <select id="daySelect"></select>
+            </label>
+            <label class="filter-control" for="hotelSelect">
+              <span>Hotel</span>
+              <select id="hotelSelect"></select>
+            </label>
+            <label class="filter-control" for="channelSelect">
+              <span>Canal</span>
+              <select id="channelSelect"></select>
+            </label>
+            <div class="status-strip">
+              <span class="live-dot"></span>
+              <span id="lastUpdate">Atualizando...</span>
+            </div>
+          </div>
+          <nav class="manager-shortcuts" aria-label="Atalhos dos gestores">
+            <a class="nav-link-button manager-shortcut public-shortcut" href="dashboard-tv.html" target="_blank" rel="noopener">TV painel<br>Vendedor</a>
+            <button id="openTvMessageModal" class="nav-link-button manager-action-button manager-shortcut" type="button">MSG na TV<br>Vendedor</button>
+            <a class="nav-link-button manager-shortcut public-shortcut" href="dashboard-vendedores.html" target="_blank" rel="noopener">Ranking<br>Vendedor</a>
+            <button id="openHotelOpinionModal" class="nav-link-button manager-action-button manager-shortcut" type="button">Opiniário<br>Por hotel</button>
+            <a class="nav-link-button manager-shortcut" href="dashboard-operacional-tv.html" target="_blank" rel="noopener">Opiniário<br>Todos hotéis</a>
+            <a class="nav-link-button manager-shortcut" href="dashboard-redes-sociais.html" target="_blank" rel="noopener">Redes<br>Sociais</a>
+            <a class="nav-link-button manager-shortcut" href="dashboard-inteligencia-mercado.html" target="_blank" rel="noopener">Marketing</a>
+          </nav>
         </div>
       </header>
 
@@ -160,6 +167,44 @@
         <div class="modal-actions">
           <button id="cancelTvMessage" class="secondary-button" type="button">Cancelar</button>
           <button id="saveTvMessage" class="primary-button" type="button">Publicar mensagem</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="hotelOpinionModal" class="modal-backdrop" hidden>
+      <section class="manager-modal hotel-picker-modal" role="dialog" aria-modal="true" aria-labelledby="hotelOpinionModalTitle">
+        <div class="manager-modal-header">
+          <div>
+            <p class="eyebrow">Opiniários</p>
+            <h2 id="hotelOpinionModalTitle">Selecione o hotel</h2>
+          </div>
+          <button id="closeHotelOpinionModal" class="modal-close-button" type="button" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="hotel-picker-grid">
+          <a class="hotel-picker-option active" href="/operacional/plaza" target="_blank" rel="noopener">
+            <strong>SUEDS Plaza</strong>
+            <span>Abrir painel</span>
+          </a>
+          <button class="hotel-picker-option" type="button" disabled>
+            <strong>SUEDS Cabrália</strong>
+            <span>Em breve</span>
+          </button>
+          <button class="hotel-picker-option" type="button" disabled>
+            <strong>SUEDS Segundo Sol</strong>
+            <span>Em breve</span>
+          </button>
+          <button class="hotel-picker-option" type="button" disabled>
+            <strong>SUEDS Premium</strong>
+            <span>Em breve</span>
+          </button>
+          <button class="hotel-picker-option" type="button" disabled>
+            <strong>SUEDS Trancoso</strong>
+            <span>Em breve</span>
+          </button>
+          <button class="hotel-picker-option" type="button" disabled>
+            <strong>Casas SUEDS Arraial</strong>
+            <span>Em breve</span>
+          </button>
         </div>
       </section>
     </div>

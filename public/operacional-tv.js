@@ -120,8 +120,11 @@ function render(data) {
 }
 
 async function load() {
+  const token = await window.suedsManagerAuthReady;
   const month = byId("monthSelect").value;
-  const response = await fetch(`/api/operacional/tv?month=${month}`);
+  const response = await fetch(`/api/operacional/tv?month=${month}`, {
+    headers: { "x-dashboard-token": token }
+  });
   if (!response.ok) throw new Error("Falha ao carregar dados operacionais");
   render(await response.json());
 }

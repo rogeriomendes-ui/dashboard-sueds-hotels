@@ -49,6 +49,78 @@ body {
   margin-bottom: 20px;
 }
 
+.manager-topbar {
+  align-items: stretch;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--cyan);
+  background: #22394b;
+}
+
+.manager-brand {
+  display: flex;
+  flex: 0 0 210px;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.manager-brand img {
+  display: block;
+  width: 178px;
+  max-width: 100%;
+  height: auto;
+}
+
+.manager-topbar-main {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manager-filter-row {
+  min-width: 0;
+}
+
+.manager-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(92px, 1fr));
+  gap: 6px;
+}
+
+.manager-shortcut {
+  min-height: 48px;
+  border: 2px solid #12293a;
+  color: #142838;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: none;
+}
+
+.manager-shortcut:hover {
+  border-color: var(--cyan);
+  color: #142838;
+  background: #f2fbfa;
+}
+
+.manager-shortcut.public-shortcut {
+  border-color: #0d2435;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .topbar-controls {
   display: flex;
   flex-wrap: nowrap;
@@ -192,6 +264,56 @@ body {
   border: 1px solid var(--card-line);
   color: var(--card-text);
   background: #fff;
+}
+
+.hotel-picker-modal {
+  width: min(680px, 100%);
+}
+
+.hotel-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hotel-picker-option {
+  display: grid;
+  gap: 4px;
+  min-height: 78px;
+  align-content: center;
+  border: 1px solid var(--card-line);
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: var(--card-text);
+  background: #f4f7f9;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.hotel-picker-option strong {
+  font-size: 15px;
+}
+
+.hotel-picker-option span {
+  color: var(--card-muted);
+  font-size: 12px;
+}
+
+.hotel-picker-option.active {
+  border-color: #178353;
+  background: #edf8f2;
+  cursor: pointer;
+}
+
+.hotel-picker-option.active span {
+  color: #178353;
+  font-weight: 800;
+}
+
+.hotel-picker-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 
 .eyebrow {
@@ -1070,6 +1192,18 @@ h2 {
 }
 
 @media (max-width: 1180px) {
+  .manager-topbar {
+    flex-direction: column;
+  }
+
+  .manager-brand {
+    flex-basis: auto;
+  }
+
+  .manager-shortcuts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .hero-metrics,
   #analyticsOverview,
   .analytics-manager-grid,
@@ -1129,6 +1263,23 @@ h2 {
     grid-template-columns: 1fr;
     gap: 8px;
     margin-left: 0;
+  }
+
+  .manager-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .manager-shortcut {
+    min-height: 48px;
+  }
+
+  .manager-brand img {
+    width: 150px;
+  }
+
+  .hotel-picker-grid {
+    grid-template-columns: 1fr;
   }
 
   .nav-link-button {

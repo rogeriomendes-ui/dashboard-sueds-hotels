@@ -160,6 +160,30 @@ function setupTvMessageModal() {
   });
 }
 
+function openHotelOpinionModal() {
+  const modal = byId("hotelOpinionModal");
+  if (modal) modal.hidden = false;
+}
+
+function closeHotelOpinionModal() {
+  const modal = byId("hotelOpinionModal");
+  if (modal) modal.hidden = true;
+}
+
+function setupHotelOpinionModal() {
+  byId("openHotelOpinionModal")?.addEventListener("click", openHotelOpinionModal);
+  byId("closeHotelOpinionModal")?.addEventListener("click", closeHotelOpinionModal);
+  byId("hotelOpinionModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "hotelOpinionModal") closeHotelOpinionModal();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeHotelOpinionModal();
+      closeTvMessageModal();
+    }
+  });
+}
+
 function pct(value) {
   return value === null || value === undefined ? "Sem meta" : `${number.format(Math.round(value))}%`;
 }
@@ -617,6 +641,7 @@ async function load() {
 setupMonthSelect();
 setupGlobalFilters();
 setupTvMessageModal();
+setupHotelOpinionModal();
 load().catch((error) => {
   byId("sellerRanking").innerHTML = `<div class="panel-error">${error.message}</div>`;
 });
