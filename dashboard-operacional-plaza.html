@@ -52,7 +52,44 @@
         </div>
       </header>
 
-      <section class="overview-grid">
+      <section class="content-grid">
+        <section class="queue-section" aria-labelledby="queueTitle">
+          <header class="queue-header">
+            <div>
+              <span>Fila operacional</span>
+              <h2 id="queueTitle">Solicitações e ocorrências</h2>
+            </div>
+            <div class="queue-tools">
+              <div class="filter-control" role="group" aria-label="Filtrar ocorrências">
+                <button type="button" class="active" data-filter="all">Todas</button>
+                <button type="button" data-filter="pending">Pendentes</button>
+                <button type="button" data-filter="resolved">Resolvidas</button>
+              </div>
+              <strong id="queueCount">0 registros</strong>
+            </div>
+          </header>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Solicitado<br>Dia / Hora</th>
+                  <th>Apto</th>
+                  <th>Cliente</th>
+                  <th>Serviços / Pedidos / Ocorrências</th>
+                  <th>Resolvido<br>Dia / Hora</th>
+                  <th>Tempo de<br>Solução</th>
+                  <th>Origem</th>
+                  <th>Solicitante</th>
+                  <th>O.S.</th>
+                </tr>
+              </thead>
+              <tbody id="incidentsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="side-stack">
         <article class="quality-panel" aria-labelledby="qualityTitle">
           <header class="panel-heading">
             <div>
@@ -99,42 +136,7 @@
           </header>
           <div id="alertsList" class="alerts-list" aria-live="polite"></div>
         </article>
-      </section>
-
-      <section class="queue-section" aria-labelledby="queueTitle">
-        <header class="queue-header">
-          <div>
-            <span>Fila operacional</span>
-            <h2 id="queueTitle">Solicitações e ocorrências</h2>
-          </div>
-          <div class="queue-tools">
-            <div class="filter-control" role="group" aria-label="Filtrar ocorrências">
-              <button type="button" class="active" data-filter="all">Todas</button>
-              <button type="button" data-filter="pending">Pendentes</button>
-              <button type="button" data-filter="resolved">Resolvidas</button>
-            </div>
-            <strong id="queueCount">0 registros</strong>
-          </div>
-        </header>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Solicitado<br>Dia / Hora</th>
-                <th>Apto</th>
-                <th>Cliente</th>
-                <th>Serviços / Pedidos / Ocorrências</th>
-                <th>Resolvido<br>Dia / Hora</th>
-                <th>Tempo de<br>Solução</th>
-                <th>Origem</th>
-                <th>Solicitante</th>
-                <th>O.S.</th>
-              </tr>
-            </thead>
-            <tbody id="incidentsBody"></tbody>
-          </table>
-        </div>
+        </aside>
       </section>
     </main>
 
