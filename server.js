@@ -2967,6 +2967,100 @@ function clusterValues(items, valueGetter, tolerance) {
   return clusters;
 }
 
+function buildOmrDarkIntegral(gray, width, height, threshold = 110) {
+  const stride = width + 1;
+  const integral = new Uint32Array(stride * (height + 1));
+  for (let y = 1; y <= height; y += 1) {
+    let rowTotal = 0;
+    for (let x = 1; x <= width; x += 1) {
+      if (gray[(y - 1) * width + x - 1] < threshold) rowTotal += 1;
+      integral[y * stride + x] = integral[(y - 1) * stride + x] + rowTotal;
+    }
+  }
+  return { data: integral, stride };
+}
+
+function omrIntegralSum(integral, minX, minY, maxX, maxY) {
+  const { data, stride } = integral;
+  return data[maxY * stride + maxX]
+    - data[minY * stride + maxX]
+    - data[maxY * stride + minX]
+    + data[minY * stride + minX];
+}
+
+function detectOmrDenseBottomPair(gray, width, height, expectedSize, integral, leftAnchorX, rightAnchorX) {
+  if (!expectedSize) return null;
+  const windowSize = Math.max(12, Math.round(expectedSize * 0.72));
+  const half = Math.floor(windowSize / 2);
+  const step = Math.max(2, Math.round(expectedSize * 0.08));
+
+  const bestAtRow = (cy, targetX) => {
+    const minCenterX = Math.max(half, targetX - expectedSize * 1.8);
+    const maxCenterX = Math.min(width - half, targetX + expectedSize * 1.8);
+    const outerHalf = Math.max(half + 2, Math.round(expectedSize * 0.82));
+    let best = null;
+    for (let cx = Math.round(minCenterX); cx <= Math.round(maxCenterX); cx += step) {
+      const minX = Math.max(0, cx - half);
+      const maxX = Math.min(width, cx + half + 1);
+      const minY = Math.max(0, cy - half);
+      const maxY = Math.min(height, cy + half + 1);
+      const area = Math.max(1, (maxX - minX) * (maxY - minY));
+      const darkPixels = omrIntegralSum(integral, minX, minY, maxX, maxY);
+      const density = darkPixels / area;
+      const outerMinX = Math.max(0, cx - outerHalf);
+      const outerMaxX = Math.min(width, cx + outerHalf + 1);
+      const outerMinY = Math.max(0, cy - outerHalf);
+      const outerMaxY = Math.min(height, cy + outerHalf + 1);
+      const outerArea = Math.max(1, (outerMaxX - outerMinX) * (outerMaxY - outerMinY));
+      const ringArea = Math.max(1, outerArea - area);
+      const ringDarkPixels = Math.max(
+        0,
+        omrIntegralSum(integral, outerMinX, outerMinY, outerMaxX, outerMaxY) - darkPixels
+      );
+      const ringDensity = ringDarkPixels / ringArea;
+      const contrast = density - ringDensity;
+      const rank = density * 0.65 + contrast * 0.35 - Math.abs(cx - targetX) / width * 0.12;
+      if (!best || rank > best.rank) best = { x: cx, y: cy, density, contrast, rank };
+    }
+    return best;
+  };
+
+  let bestPair = null;
+  for (let cy = Math.round(height * 0.67); cy <= Math.round(height * 0.92); cy += step) {
+    const left = bestAtRow(cy, leftAnchorX);
+    const right = bestAtRow(cy, rightAnchorX);
+    if (!left || !right) continue;
+    const averageRank = (left.rank + right.rank) / 2;
+    const rank = Math.min(left.rank, right.rank) * 0.75
+      + averageRank * 0.25
+      - Math.abs(cy / height - 0.9) * 0.08
+      - (Math.abs(left.x - leftAnchorX) + Math.abs(right.x - rightAnchorX)) / width * 0.06;
+    if (!bestPair || rank > bestPair.rank) bestPair = { left, right, rank };
+  }
+
+  if (
+    !bestPair ||
+    Math.min(bestPair.left.density, bestPair.right.density) < 0.48 ||
+    Math.min(bestPair.left.contrast, bestPair.right.contrast) < 0.12
+  ) return null;
+  const toMarker = (item, targetX) => ({
+    x: item.x,
+    y: item.y,
+    width: expectedSize,
+    height: expectedSize,
+    area: Math.round(expectedSize * expectedSize * item.density),
+    solidity: item.density,
+    score: item.rank,
+    cornerDistance: Math.hypot((item.x - targetX) / width, (item.y - height * 0.9) / height),
+    method: "dense-corner-pair"
+  });
+  return {
+    left: toMarker(bestPair.left, leftAnchorX),
+    right: toMarker(bestPair.right, rightAnchorX),
+    rank: bestPair.rank
+  };
+}
+
 function detectOmrGuideMarkers(gray, width, height) {
   const threshold = 100;
   const visited = new Uint8Array(width * height);
@@ -3036,32 +3130,97 @@ function detectOmrGuideMarkers(gray, width, height) {
     }
   }
 
-  const pickCorner = (predicate, cornerX, cornerY, expectedSize = null) => candidates
+  const cornerOptions = (predicate, cornerX, cornerY, expectedSize = null) => candidates
     .filter(predicate)
     .filter((item) => {
       if (!expectedSize) return true;
       const size = Math.sqrt(item.width * item.height);
-      return size >= expectedSize * 0.38 && size <= expectedSize * 1.6;
+      return size >= expectedSize * 0.42 && size <= expectedSize * 1.6;
     })
     .map((item) => ({
       ...item,
       cornerDistance: Math.hypot((item.x - cornerX) / width, (item.y - cornerY) / height)
     }))
-    .sort((a, b) => a.cornerDistance - b.cornerDistance || b.score - a.score)[0] || null;
-  const topLeft = pickCorner((item) => item.x < width * 0.45 && item.y < height * 0.45, 0, 0);
-  const topRight = pickCorner((item) => item.x > width * 0.55 && item.y < height * 0.45, width, 0);
+    .sort((a, b) => a.cornerDistance - b.cornerDistance || b.score - a.score);
+  const pickCorner = (...args) => cornerOptions(...args)[0] || null;
+  const topLeft = pickCorner((item) => item.x < width * 0.32 && item.y < height * 0.42, 0, 0);
+  const topRight = pickCorner((item) => item.x > width * 0.68 && item.y < height * 0.42, width, 0);
   const expectedSize = topLeft && topRight
     ? median([Math.sqrt(topLeft.width * topLeft.height), Math.sqrt(topRight.width * topRight.height)])
     : null;
+  const bottomLeftOptions = cornerOptions(
+    (item) => item.x < width * 0.32 && item.y > height * 0.58,
+    0,
+    height,
+    expectedSize
+  );
+  const bottomRightOptions = cornerOptions(
+    (item) => item.x > width * 0.68 && item.y > height * 0.58,
+    width,
+    height,
+    expectedSize
+  );
+  const topSpan = topLeft && topRight
+    ? Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y)
+    : 0;
+  let bottomPair = bottomLeftOptions
+    .flatMap((left) => bottomRightOptions.map((right) => {
+      const leftSize = Math.sqrt(left.width * left.height);
+      const rightSize = Math.sqrt(right.width * right.height);
+      const sizeRatio = Math.max(leftSize, rightSize) / Math.max(1, Math.min(leftSize, rightSize));
+      const verticalDifference = Math.abs(left.y - right.y);
+      const span = Math.hypot(right.x - left.x, right.y - left.y);
+      const leftSpan = Math.hypot(left.x - topLeft.x, left.y - topLeft.y);
+      const rightSpan = Math.hypot(right.x - topRight.x, right.y - topRight.y);
+      const sideRatio = Math.max(leftSpan, rightSpan) / Math.max(1, Math.min(leftSpan, rightSpan));
+      const horizontalRatio = Math.max(topSpan, span) / Math.max(1, Math.min(topSpan, span));
+      if (
+        verticalDifference > height * 0.04 ||
+        span < width * 0.55 ||
+        Math.min(leftSpan, rightSpan) < height * 0.55 ||
+        sizeRatio > 1.8 ||
+        sideRatio > 1.35 ||
+        horizontalRatio > 1.35
+      ) return null;
+      return {
+        left,
+        right,
+        rank: left.cornerDistance
+          + right.cornerDistance
+          + verticalDifference / height
+          + (sizeRatio - 1) * 0.08
+          + (sideRatio - 1) * 0.1
+          + (horizontalRatio - 1) * 0.1
+      };
+    }))
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank)[0] || null;
+  if (expectedSize) {
+    const integral = buildOmrDarkIntegral(gray, width, height);
+    const densePair = detectOmrDenseBottomPair(
+      gray,
+      width,
+      height,
+      expectedSize,
+      integral,
+      topLeft.x,
+      topRight.x
+    );
+    if (densePair && Math.hypot(
+      densePair.right.x - densePair.left.x,
+      densePair.right.y - densePair.left.y
+    ) >= width * 0.55) {
+      if (!bottomPair) bottomPair = densePair;
+    }
+  }
   const markers = {
     topLeft,
     topRight,
-    bottomLeft: pickCorner((item) => item.x < width * 0.45 && item.y > height * 0.55, 0, height, expectedSize),
-    bottomRight: pickCorner((item) => item.x > width * 0.55 && item.y > height * 0.55, width, height, expectedSize)
+    bottomLeft: bottomPair?.left || null,
+    bottomRight: bottomPair?.right || null
   };
 
   if (Object.values(markers).some((marker) => !marker)) return null;
-  const topSpan = Math.hypot(markers.topRight.x - markers.topLeft.x, markers.topRight.y - markers.topLeft.y);
   const bottomSpan = Math.hypot(markers.bottomRight.x - markers.bottomLeft.x, markers.bottomRight.y - markers.bottomLeft.y);
   const leftSpan = Math.hypot(markers.bottomLeft.x - markers.topLeft.x, markers.bottomLeft.y - markers.topLeft.y);
   const rightSpan = Math.hypot(markers.bottomRight.x - markers.topRight.x, markers.bottomRight.y - markers.topRight.y);
@@ -3069,7 +3228,9 @@ function detectOmrGuideMarkers(gray, width, height) {
     Math.min(topSpan, bottomSpan) < width * 0.55 ||
     Math.min(leftSpan, rightSpan) < height * 0.55 ||
     Math.max(topSpan, bottomSpan) / Math.min(topSpan, bottomSpan) > 1.35 ||
-    Math.max(leftSpan, rightSpan) / Math.min(leftSpan, rightSpan) > 1.35
+    Math.max(leftSpan, rightSpan) / Math.min(leftSpan, rightSpan) > 1.35 ||
+    Math.abs(markers.topLeft.y - markers.topRight.y) > height * 0.04 ||
+    Math.abs(markers.bottomLeft.y - markers.bottomRight.y) > height * 0.04
   ) {
     return null;
   }
@@ -3355,7 +3516,7 @@ function omrDarkRatio(gray, width, height, cx, cy, radius, threshold = 145) {
   return total ? dark / total : 0;
 }
 
-function omrBlueInkRatio(rgb, width, height, channels, cx, cy, radius) {
+function omrColorInkRatio(rgb, width, height, channels, cx, cy, radius) {
   if (!rgb || channels < 3) return 0;
   const minX = Math.max(0, Math.floor(cx - radius));
   const maxX = Math.min(width - 1, Math.ceil(cx + radius));
@@ -3363,7 +3524,7 @@ function omrBlueInkRatio(rgb, width, height, channels, cx, cy, radius) {
   const maxY = Math.min(height - 1, Math.ceil(cy + radius));
   const radiusSq = radius * radius;
   let total = 0;
-  let blueInk = 0;
+  let colorInk = 0;
 
   for (let y = minY; y <= maxY; y += 1) {
     for (let x = minX; x <= maxX; x += 1) {
@@ -3375,11 +3536,14 @@ function omrBlueInkRatio(rgb, width, height, channels, cx, cy, radius) {
       const red = rgb[index];
       const green = rgb[index + 1];
       const blue = rgb[index + 2];
-      if (blue - red > 18 && blue - green > 6 && blue > 45) blueInk += 1;
+      const darkest = Math.min(red, green, blue);
+      const lightest = Math.max(red, green, blue);
+      const brightness = (red + green + blue) / 3;
+      if (lightest - darkest >= 42 && darkest <= 185 && brightness <= 220) colorInk += 1;
     }
   }
 
-  return total ? blueInk / total : 0;
+  return total ? colorInk / total : 0;
 }
 
 function omrAdaptiveInkRatios(gray, width, height, cx, cy, innerRadius, coreRadius, bubbleRadius) {
@@ -3421,8 +3585,8 @@ function analyzeOmrGuideRow(gray, width, height, grid, rowIndex, colorImage = nu
   const measurements = grid.points[rowIndex].map((point) => ({
     cx: Math.round(point.x),
     cy: Math.round(point.y),
-    blue: colorImage
-      ? omrBlueInkRatio(colorImage.data, width, height, colorImage.channels, point.x, point.y, bubbleRadius)
+    colorInk: colorImage
+      ? omrColorInkRatio(colorImage.data, width, height, colorImage.channels, point.x, point.y, bubbleRadius)
       : 0,
     ...omrAdaptiveInkRatios(gray, width, height, point.x, point.y, innerRadius, coreRadius, bubbleRadius)
   }));
@@ -3436,13 +3600,13 @@ function analyzeOmrGuideRow(gray, width, height, grid, rowIndex, colorImage = nu
       ...item,
       outer: item.inner,
       excess: innerExcess,
-      score: Math.max(grayscaleScore, Math.min(1, item.blue * 3.5))
+      score: Math.max(grayscaleScore, Math.min(1, item.colorInk * 3.5))
     };
   });
   const selected = scores
     .map((item, index) => ({ ...item, index }))
     .filter((item) => item.score >= 0.052 && (
-      item.excess >= 0.03 || item.core - coreBaseline >= 0.055 || item.blue >= 0.012
+      item.excess >= 0.03 || item.core - coreBaseline >= 0.055 || item.colorInk >= 0.012
     ))
     .sort((a, b) => b.score - a.score);
 
@@ -3617,11 +3781,28 @@ async function readPlazaOpinionOmr(body) {
         inner: Number(score.inner.toFixed(4)),
         outer: Number(score.outer.toFixed(4)),
         excess: Number(score.excess.toFixed(4)),
-        blue: Number((score.blue || 0).toFixed(4)),
+        colorInk: Number((score.colorInk || 0).toFixed(4)),
         score: Number(score.score.toFixed(4))
       }))
     });
   });
+
+  const colorMarkedRows = debugRows.filter((row) => (
+    Math.max(...row.scores.map((score) => score.colorInk || 0)) >= 0.025
+  )).length;
+  if (colorMarkedRows >= 3) {
+    debugRows.forEach((row) => {
+      if (!ratings[row.field] || row.selectedIndexes.length !== 1) return;
+      const selectedScore = row.scores[row.selectedIndexes[0]];
+      if (
+        (selectedScore?.colorInk || 0) >= 0.018 ||
+        (selectedScore?.inner || 0) >= 0.18
+      ) return;
+      ratings[row.field] = "";
+      row.value = "";
+      row.selectedIndexes = [];
+    });
+  }
 
   const answered = Object.values(ratings).filter(Boolean).length;
   const confidence = guideGrid ? 98 : (bubbleGrid ? 92 : (boxLooksValid ? 95 : 72));
