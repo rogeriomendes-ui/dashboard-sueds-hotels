@@ -124,7 +124,6 @@ function alertItem({ type = "info", icon, title, detail, value = "" }) {
 }
 
 function renderAlerts(operations) {
-  const summary = operations.summary || {};
   const incidents = operations.incidents || [];
   const pms = operations.pms || {};
   const status = byId("pmsStatus");
@@ -132,7 +131,11 @@ function renderAlerts(operations) {
   status.innerHTML = `<i data-lucide="${pms.connected ? "plug-zap" : "unplug"}" aria-hidden="true"></i><span>${pms.connected ? "KIPFULL conectado" : "KIPFULL aguardando integração"}</span>`;
 
   const alerts = [];
-  incidents.filter((incident) => incident.status === "pending" && incident.overdue).slice(0, 3).forEach((incident) => {
+  const pendingAboveThreeHours = incidents.filter((incident) => (
+    incident.status === "pending" && Number(incident.elapsedMinutes || 0) >= 180
+  ));
+
+  pendingAboveThreeHours.forEach((incident) => {
     alerts.push(alertItem({
       type: "danger",
       icon: "triangle-alert",
@@ -142,31 +145,12 @@ function renderAlerts(operations) {
     }));
   });
 
-  if (summary.opinionComplaints > 0) {
-    alerts.push(alertItem({
-      icon: "message-square-warning",
-      title: `${summary.opinionComplaints} reclamação${summary.opinionComplaints === 1 ? "" : "ões"} de opiniário`,
-      detail: "Aguardando registro e tratativa pela equipe.",
-      value: String(summary.opinionComplaints)
-    }));
-  }
-
-  if (!summary.pending) {
+  if (!pendingAboveThreeHours.length) {
     alerts.push(alertItem({
       type: "success",
-      icon: "circle-check-big",
-      title: "Nenhuma pendência registrada",
-      detail: pms.connected ? "Fila operacional sem ocorrências abertas." : "Nenhuma reclamação aberta nos opiniários deste período."
-    }));
-  }
-
-  if (summary.resolvedUnderOneHour > 0) {
-    alerts.push(alertItem({
-      type: "success",
-      icon: "timer-reset",
-      title: "Ocorrências resolvidas em menos de 1 hora",
-      detail: "Bom tempo de resposta da equipe.",
-      value: String(summary.resolvedUnderOneHour)
+      icon: "trophy",
+      title: "NENHUMA, PARABÉNS! Continuem assim!",
+      detail: "Não há pendências acima de 3 horas sem solução."
     }));
   }
 

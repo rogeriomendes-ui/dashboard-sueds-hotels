@@ -3917,7 +3917,7 @@ function opinionOperationalIncident(opinion, index) {
     status: "pending",
     resolvedAt: null,
     elapsedMinutes,
-    overdue: elapsedMinutes >= 60,
+    overdue: elapsedMinutes >= 180,
     source: "Opinario",
     requester: "Hospede",
     orderNumber: "",
