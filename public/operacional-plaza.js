@@ -114,7 +114,7 @@ const WORD_CLOUD_STOP_WORDS = new Set([
   "me", "mesmo", "muito", "na", "nas", "no", "nos", "nao", "nosso", "nossa", "o", "os", "ou", "para",
   "pela", "pelas", "pelo", "pelos", "por", "porque", "pra", "que", "se", "sem", "ser", "seu", "sua",
   "tambem", "tem", "teve", "toda", "todo", "todos", "uma", "um", "the", "and", "for", "was", "with",
-  "sr", "sra", "dia", "dias"
+  "sr", "sra", "dia", "dias", "quarto", "tudo"
 ]);
 
 const WORD_CLOUD_ALIASES = {
