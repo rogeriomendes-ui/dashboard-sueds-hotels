@@ -2425,6 +2425,7 @@ const OPINION_FORM_HOTELS = {
 };
 const OPINION_ACTIVE_FORM_SLUGS = new Set(["sueds-plaza"]);
 const OPINION_MIN_FORM_VERSION = "20260719";
+const OPINION_OPERATIONAL_START_DATE = "2026-07-24";
 
 function ratingScore(value) {
   const key = comparableKey(value);
@@ -2453,6 +2454,7 @@ function average(values) {
 function normalizeOperationalOpinion(item) {
   const processedAt = parseDate(item["Data Processamento"]);
   const incidentStatusAt = parseDate(item["Data Status Ocorrencia"]);
+  const incidentStatusValue = String(item["Status Ocorrencia"] || "").trim();
   const fieldScores = {};
   OPERATIONAL_RATING_FIELDS.forEach((field) => {
     fieldScores[field.key] = ratingScore(firstFilledValue(item, field.headers));
@@ -2472,7 +2474,8 @@ function normalizeOperationalOpinion(item) {
     comments: String(item.Comentarios || "").trim(),
     highlights: String(item.Destaques || "").trim(),
     issues: String(item["Problemas Identificados"] || "").trim(),
-    incidentStatus: normalizeOperationalIncidentStatus(item["Status Ocorrencia"]),
+    incidentStatus: normalizeOperationalIncidentStatus(incidentStatusValue),
+    hasIncidentStatus: Boolean(incidentStatusValue),
     incidentStatusAt,
     incidentStatusActor: String(item["Responsavel Status Ocorrencia"] || "").trim(),
     status: String(item.Status || "").trim(),
@@ -2483,12 +2486,28 @@ function normalizeOperationalOpinion(item) {
   };
 }
 
-function isCurrentOperationalOpinion(opinion) {
+function hasCurrentOperationalFormVersion(opinion) {
   const version = String(opinion.formVersion || "").replace(/\D/g, "");
-  if (!version) return false;
+  return Boolean(version) && version >= OPINION_MIN_FORM_VERSION;
+}
+
+function isOperationalTestOpinion(opinion) {
+  const guest = comparableKey(opinion.guestName);
+  const comments = comparableKey(opinion.comments);
+  return guest.includes("fake") || comments === "teste" || comments.startsWith("teste ");
+}
+
+function isCurrentOperationalOpinion(opinion) {
+  if (!hasCurrentOperationalFormVersion(opinion) || isOperationalTestOpinion(opinion)) return false;
   const status = normalizeTextKey(opinion.status);
-  const approved = status === "aprovado" || status === "digital";
-  return approved && version >= OPINION_MIN_FORM_VERSION;
+  return status === "aprovado" || status === "digital";
+}
+
+function isCurrentOperationalRecord(opinion) {
+  if (!hasCurrentOperationalFormVersion(opinion) || isOperationalTestOpinion(opinion)) return false;
+  const status = normalizeTextKey(opinion.status);
+  if (status === "aprovado" || status === "digital") return true;
+  return status === "revisao" && opinion.dateKey >= OPINION_OPERATIONAL_START_DATE;
 }
 
 function summarizeOperationalHotel(hotel, opinions) {
@@ -4040,7 +4059,7 @@ async function loadOperationalOpinions() {
     const rows = await getSheetValues(OPINIONS_RANGE, OPERATIONAL_SHEET_ID);
     opinions = rowsToObjectsAny(rows)
       .map(normalizeOperationalOpinion)
-      .filter(isCurrentOperationalOpinion);
+      .filter(isCurrentOperationalRecord);
   }
 
   operationalCache = { payload: opinions, expiresAt: Date.now() + CACHE_TTL_MS };
@@ -4204,7 +4223,9 @@ async function sendOperationalOpinionImage(res, fileId) {
 async function buildOperationalTvPayload(period = {}) {
   const opinions = await loadOperationalOpinions();
   const month = period.month || todayKey().slice(0, 7);
-  const monthOpinions = opinions.filter((opinion) => !opinion.monthKey || opinion.monthKey === month);
+  const monthOpinions = opinions.filter((opinion) => (
+    isCurrentOperationalOpinion(opinion) && (!opinion.monthKey || opinion.monthKey === month)
+  ));
   const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
     .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
     .sort((a, b) => b.opinions - a.opinions || a.hotel.localeCompare(b.hotel));
@@ -4247,10 +4268,14 @@ function operationalHotelFromSlug(value) {
 }
 
 function opinionOperationalIncident(opinion, index) {
-  const description = opinion.issues;
+  const description = opinion.issues || opinion.comments;
   if (!description) return null;
   const requestedAt = opinion.processedAt || new Date();
-  const status = opinion.incidentStatus || "pending";
+  const status = opinion.hasIncidentStatus
+    ? opinion.incidentStatus
+    : opinion.issues
+      ? "pending"
+      : "registered";
   const statusAt = opinion.incidentStatusAt;
   const elapsedUntil = status === "pending" || !statusAt ? new Date() : statusAt;
   const elapsedMinutes = Math.max(0, Math.floor((elapsedUntil.getTime() - requestedAt.getTime()) / 60000));
@@ -4283,7 +4308,10 @@ async function buildOperationalHotelPayload(period = {}) {
     const sameMonth = !opinion.monthKey || opinion.monthKey === month;
     return sameMonth && comparableKey(opinion.hotel) === comparableKey(selectedHotel.name);
   });
-  const evaluation = hotelOpinions.length ? summarizeOperationalHotel(selectedHotel.name, hotelOpinions) : emptyOperationalHotel(selectedHotel.name);
+  const evaluatedOpinions = hotelOpinions.filter(isCurrentOperationalOpinion);
+  const evaluation = evaluatedOpinions.length
+    ? summarizeOperationalHotel(selectedHotel.name, evaluatedOpinions)
+    : emptyOperationalHotel(selectedHotel.name);
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)
     .filter(Boolean)
