@@ -2431,9 +2431,9 @@ function ratingScore(value) {
   const key = comparableKey(value);
   if (!key) return null;
   if (key === "excelente" || key === "otimo") return 100;
-  if (key === "muito bom") return 85;
-  if (key === "bom") return 70;
-  if (key === "regular") return 30;
+  if (key === "muito bom") return 75;
+  if (key === "bom") return 50;
+  if (key === "regular") return 25;
   return null;
 }
 
@@ -3887,9 +3887,9 @@ function cleanOpinionRating(value) {
   const score = ratingScore(value);
   if (score === 100 && comparableKey(value).includes("muito")) return "Muito bom";
   if (score === 100) return "Excelente";
-  if (score === 85) return "Muito bom";
-  if (score === 70) return "Bom";
-  if (score === 30) return "Regular";
+  if (score === 75) return "Muito bom";
+  if (score === 50) return "Bom";
+  if (score === 25) return "Regular";
   return "";
 }
 

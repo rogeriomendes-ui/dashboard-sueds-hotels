@@ -533,13 +533,15 @@ function analyzeOpinionImage_(file, hotel, config) {
     const extractedVersion = String(extracted.formVersion || "").replace(/\D/g, "");
     const versionOk = acceptedVersions.indexOf(extractedVersion) !== -1;
     const omrAutoApprove = isConfigYes_(config.OPINARIOS_OMR_AUTO_APPROVE);
-    extracted.status = confidence >= minConfidence && completeness.ok && versionOk && omrAutoApprove ? "Aprovado" : "Revisao";
+    const hasCancelledRatings = Boolean(extracted.omrOk) && Number(extracted.omrAnswered || 0) < 12;
+    const confidenceOk = confidence >= minConfidence || hasCancelledRatings;
+    extracted.status = confidenceOk && completeness.ok && versionOk && omrAutoApprove ? "Aprovado" : "Revisao";
     extracted.reviewReason = extracted.status === "Aprovado"
       ? ""
       : [
           extracted.reviewReason,
           omrAutoApprove ? "" : "Aprovacao automatica do OMR desativada durante calibragem.",
-          confidence < minConfidence ? `Confianca ${confidence}% abaixo do minimo ${minConfidence}%.` : "",
+          confidenceOk ? "" : `Confianca ${confidence}% abaixo do minimo ${minConfidence}%.`,
           completeness.reason,
           versionOk ? "" : `Versao do formulario nao confirmada. Lida: ${extractedVersion || "vazia"}. Aceitas: ${acceptedVersions.join(", ")}.`
         ]
@@ -681,6 +683,8 @@ function applyOmrRatings_(extracted, omr) {
   });
 
   if (!omr || !omr.ok) {
+    extracted.omrOk = false;
+    extracted.omrAnswered = 0;
     extracted.confidence = 0;
     extracted.reviewReason = [extracted.reviewReason, omr && omr.reviewReason ? omr.reviewReason : "OMR nao retornou leitura valida das bolinhas."]
       .filter(Boolean)
@@ -697,6 +701,8 @@ function applyOmrRatings_(extracted, omr) {
     extracted[field] = normalizeRating_(ratings[field]);
   });
 
+  extracted.omrOk = true;
+  extracted.omrAnswered = ratingFields.filter((field) => String(extracted[field] || "").trim()).length;
   extracted.confidence = Math.min(Number(extracted.confidence || 100), Number(omr.confidence || 0));
   extracted.score = calculateOpinionScore_(extracted);
   extracted.reviewReason = [extracted.reviewReason, omr.reviewReason || "", buildOmrDebugSummary_(omr)].filter(Boolean).join(" ");
@@ -941,9 +947,9 @@ function ratingToScore_(rating) {
   const text = normalizeText_(rating);
   if (!text) return null;
   if (text === "EXCELENTE" || text === "OTIMO") return 100;
-  if (text === "MUITO BOM") return 85;
-  if (text === "BOM") return 70;
-  if (text === "REGULAR") return 30;
+  if (text === "MUITO BOM") return 75;
+  if (text === "BOM") return 50;
+  if (text === "REGULAR") return 25;
   return null;
 }
 
