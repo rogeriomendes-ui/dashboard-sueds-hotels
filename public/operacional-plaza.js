@@ -108,6 +108,93 @@ function joinNotes(items, emptyText) {
   return values.length ? values.join(" • ") : emptyText;
 }
 
+const WORD_CLOUD_STOP_WORDS = new Set([
+  "a", "ao", "aos", "aquela", "aquele", "as", "ate", "com", "como", "da", "das", "de", "do", "dos",
+  "e", "ela", "ele", "em", "essa", "esse", "esta", "este", "eu", "foi", "hotel", "ja", "mais", "mas",
+  "me", "mesmo", "muito", "na", "nas", "no", "nos", "nao", "nosso", "nossa", "o", "os", "ou", "para",
+  "pela", "pelas", "pelo", "pelos", "por", "porque", "pra", "que", "se", "sem", "ser", "seu", "sua",
+  "tambem", "tem", "teve", "toda", "todo", "todos", "uma", "um", "the", "and", "for", "was", "with",
+  "sr", "sra", "dia", "dias"
+]);
+
+const WORD_CLOUD_ALIASES = {
+  aguas: "agua",
+  apartamentos: "apartamento",
+  banheiros: "banheiro",
+  cafes: "cafe",
+  chuveiros: "chuveiro",
+  funcionarios: "funcionario",
+  piscinas: "piscina",
+  quartos: "quarto",
+  refeicoes: "refeicao"
+};
+
+const WORD_CLOUD_LABELS = {
+  agua: "água",
+  arcondicionado: "ar-condicionado",
+  cafe: "café",
+  funcionario: "funcionário",
+  manutencao: "manutenção",
+  refeicao: "refeição",
+  wifi: "Wi-Fi"
+};
+
+const WORD_CLOUD_COLORS = ["#176484", "#178353", "#324d67", "#c06d16", "#b23b45", "#4f8f3a"];
+
+function normalizeWordCloudText(value) {
+  return String(value || "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/wi[\s-]?fi/gi, "wifi")
+    .replace(/ar[\s-]?condicionado/gi, "arcondicionado")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function wordCloudEntries(incidents) {
+  const counts = new Map();
+  (incidents || []).forEach((incident) => {
+    const words = normalizeWordCloudText(incident.comments)
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter(Boolean);
+
+    words.forEach((word) => {
+      const key = WORD_CLOUD_ALIASES[word] || word;
+      if (key.length < 4 || WORD_CLOUD_STOP_WORDS.has(key) || /^\d+$/.test(key)) return;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+  });
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"))
+    .slice(0, 28);
+}
+
+function renderWordCloud(operations) {
+  const incidents = operations.incidents || [];
+  const entries = wordCloudEntries(incidents);
+  const comments = incidents.filter((incident) => String(incident.comments || "").trim()).length;
+  byId("wordCloudSubtitle").textContent = comments
+    ? `${integer.format(comments)} comentário${comments === 1 ? "" : "s"} no período`
+    : "Sem comentários no período";
+
+  if (!entries.length) {
+    byId("wordCloud").innerHTML = '<p class="word-cloud-empty">Nenhuma palavra disponível.</p>';
+    return;
+  }
+
+  const values = entries.map(([, count]) => count);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  byId("wordCloud").innerHTML = entries.map(([word, count], index) => {
+    const scale = max === min ? 0.5 : (count - min) / (max - min);
+    const size = Math.round(12 + Math.pow(scale, 0.72) * 18);
+    const weight = scale >= 0.58 ? 850 : scale >= 0.25 ? 750 : 650;
+    const label = WORD_CLOUD_LABELS[word] || word;
+    const mentions = `${count} ${count === 1 ? "menção" : "menções"}`;
+    return `<span class="word-cloud-item" style="--word-size:${size}px; --word-weight:${weight}; --word-color:${WORD_CLOUD_COLORS[index % WORD_CLOUD_COLORS.length]}" title="${escapeHtml(mentions)}">${escapeHtml(label)}</span>`;
+  }).join("");
+}
+
 function renderQuality(evaluation) {
   const hasData = (evaluation.opinions || 0) > 0;
   const score = safeScore(evaluation.finalScore);
@@ -245,6 +332,7 @@ function render(data) {
   byId("summaryOverdue").textContent = integer.format(summary.overdue || 0);
   byId("lastUpdate").textContent = formatUpdate(data.generatedAt);
   renderQuality(evaluation);
+  renderWordCloud(data.operations || {});
   renderAlerts(data.operations || {});
   renderQueue();
   refreshIcons();
