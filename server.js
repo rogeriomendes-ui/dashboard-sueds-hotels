@@ -3148,14 +3148,14 @@ function detectOmrDenseBottomPair(gray, width, height, expectedSize, integral, l
   };
 
   let bestPair = null;
-  for (let cy = Math.round(height * 0.67); cy <= Math.round(height * 0.92); cy += step) {
+  for (let cy = Math.round(height * 0.67); cy <= Math.round(height * 0.955); cy += step) {
     const left = bestAtRow(cy, leftAnchorX);
     const right = bestAtRow(cy, rightAnchorX);
     if (!left || !right) continue;
     const averageRank = (left.rank + right.rank) / 2;
     const rank = Math.min(left.rank, right.rank) * 0.75
       + averageRank * 0.25
-      - Math.abs(cy / height - 0.9) * 0.08
+      - Math.abs(cy / height - 0.925) * 0.4
       - (Math.abs(left.x - leftAnchorX) + Math.abs(right.x - rightAnchorX)) / width * 0.06;
     if (!bestPair || rank > bestPair.rank) bestPair = { left, right, rank };
   }
@@ -3173,7 +3173,7 @@ function detectOmrDenseBottomPair(gray, width, height, expectedSize, integral, l
     area: Math.round(expectedSize * expectedSize * item.density),
     solidity: item.density,
     score: item.rank,
-    cornerDistance: Math.hypot((item.x - targetX) / width, (item.y - height * 0.9) / height),
+    cornerDistance: Math.hypot((item.x - targetX) / width, (item.y - height * 0.925) / height),
     method: "dense-corner-pair"
   });
   return {
@@ -3265,10 +3265,12 @@ function detectOmrGuideMarkers(gray, width, height) {
     }))
     .sort((a, b) => a.cornerDistance - b.cornerDistance || b.score - a.score);
   const pickCorner = (...args) => cornerOptions(...args)[0] || null;
-  const topLeft = pickCorner((item) => item.x < width * 0.32 && item.y < height * 0.42, 0, 0);
-  const topRight = pickCorner((item) => item.x > width * 0.68 && item.y < height * 0.42, width, 0);
-  const expectedSize = topLeft && topRight
-    ? median([Math.sqrt(topLeft.width * topLeft.height), Math.sqrt(topRight.width * topRight.height)])
+  let topLeft = pickCorner((item) => item.x < width * 0.32 && item.y < height * 0.42, 0, 0);
+  let topRight = pickCorner((item) => item.x > width * 0.68 && item.y < height * 0.42, width, 0);
+  if (!topLeft && !topRight) return null;
+  const topMarkers = [topLeft, topRight].filter(Boolean);
+  const expectedSize = topMarkers.length
+    ? median(topMarkers.map((marker) => Math.sqrt(marker.width * marker.height)))
     : null;
   const bottomLeftOptions = cornerOptions(
     (item) => item.x < width * 0.32 && item.y > height * 0.58,
@@ -3282,7 +3284,7 @@ function detectOmrGuideMarkers(gray, width, height) {
     height,
     expectedSize
   );
-  const topSpan = topLeft && topRight
+  let topSpan = topLeft && topRight
     ? Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y)
     : 0;
   let bottomPair = bottomLeftOptions
@@ -3292,14 +3294,19 @@ function detectOmrGuideMarkers(gray, width, height) {
       const sizeRatio = Math.max(leftSize, rightSize) / Math.max(1, Math.min(leftSize, rightSize));
       const verticalDifference = Math.abs(left.y - right.y);
       const span = Math.hypot(right.x - left.x, right.y - left.y);
-      const leftSpan = Math.hypot(left.x - topLeft.x, left.y - topLeft.y);
-      const rightSpan = Math.hypot(right.x - topRight.x, right.y - topRight.y);
-      const sideRatio = Math.max(leftSpan, rightSpan) / Math.max(1, Math.min(leftSpan, rightSpan));
-      const horizontalRatio = Math.max(topSpan, span) / Math.max(1, Math.min(topSpan, span));
+      const leftSpan = topLeft ? Math.hypot(left.x - topLeft.x, left.y - topLeft.y) : null;
+      const rightSpan = topRight ? Math.hypot(right.x - topRight.x, right.y - topRight.y) : null;
+      const sideRatio = leftSpan && rightSpan
+        ? Math.max(leftSpan, rightSpan) / Math.max(1, Math.min(leftSpan, rightSpan))
+        : 1;
+      const horizontalRatio = topSpan
+        ? Math.max(topSpan, span) / Math.max(1, Math.min(topSpan, span))
+        : 1;
       if (
         verticalDifference > height * 0.04 ||
         span < width * 0.55 ||
-        Math.min(leftSpan, rightSpan) < height * 0.55 ||
+        (leftSpan !== null && leftSpan < height * 0.55) ||
+        (rightSpan !== null && rightSpan < height * 0.55) ||
         sizeRatio > 1.8 ||
         sideRatio > 1.35 ||
         horizontalRatio > 1.35
@@ -3325,16 +3332,35 @@ function detectOmrGuideMarkers(gray, width, height) {
       height,
       expectedSize,
       integral,
-      topLeft.x,
-      topRight.x
+      topLeft?.x || width * 0.06,
+      topRight?.x || width * 0.94
     );
     if (densePair && Math.hypot(
       densePair.right.x - densePair.left.x,
       densePair.right.y - densePair.left.y
     ) >= width * 0.55) {
-      if (!bottomPair) bottomPair = densePair;
+      bottomPair = densePair;
     }
   }
+  if (bottomPair && !topLeft && topRight) {
+    topLeft = {
+      ...topRight,
+      x: topRight.x + bottomPair.left.x - bottomPair.right.x,
+      y: topRight.y + bottomPair.left.y - bottomPair.right.y,
+      method: "inferred-from-three-markers"
+    };
+  }
+  if (bottomPair && topLeft && !topRight) {
+    topRight = {
+      ...topLeft,
+      x: topLeft.x + bottomPair.right.x - bottomPair.left.x,
+      y: topLeft.y + bottomPair.right.y - bottomPair.left.y,
+      method: "inferred-from-three-markers"
+    };
+  }
+  topSpan = topLeft && topRight
+    ? Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y)
+    : 0;
   const markers = {
     topLeft,
     topRight,
@@ -3918,7 +3944,7 @@ async function readPlazaOpinionOmr(body) {
       const selectedScore = row.scores[row.selectedIndexes[0]];
       if (
         (selectedScore?.colorInk || 0) >= 0.018 ||
-        (selectedScore?.inner || 0) >= 0.18
+        (selectedScore?.inner || 0) >= 0.28
       ) return;
       ratings[row.field] = "";
       row.value = "";
