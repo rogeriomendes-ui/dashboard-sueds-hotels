@@ -2433,7 +2433,7 @@ function ratingScore(value) {
   if (key === "excelente" || key === "otimo") return 100;
   if (key === "muito bom") return 85;
   if (key === "bom") return 70;
-  if (key === "regular") return 40;
+  if (key === "regular") return 30;
   return null;
 }
 
@@ -3889,7 +3889,7 @@ function cleanOpinionRating(value) {
   if (score === 100) return "Excelente";
   if (score === 85) return "Muito bom";
   if (score === 70) return "Bom";
-  if (score === 40) return "Regular";
+  if (score === 30) return "Regular";
   return "";
 }
 

@@ -943,7 +943,7 @@ function ratingToScore_(rating) {
   if (text === "EXCELENTE" || text === "OTIMO") return 100;
   if (text === "MUITO BOM") return 85;
   if (text === "BOM") return 70;
-  if (text === "REGULAR") return 40;
+  if (text === "REGULAR") return 30;
   return null;
 }
 
