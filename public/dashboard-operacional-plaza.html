@@ -42,10 +42,16 @@
             <i data-lucide="building-2" aria-hidden="true"></i>
             <span>Rede</span>
           </a>
-          <label class="month-control" for="monthSelect">
-            <span>Mês</span>
-            <select id="monthSelect"></select>
-          </label>
+          <div class="period-control">
+            <div class="period-mode" role="group" aria-label="Período do painel">
+              <button type="button" class="active" data-period-mode="month" aria-pressed="true">Mês</button>
+              <button type="button" data-period-mode="day" aria-pressed="false">Dia</button>
+            </div>
+            <label id="periodValueLabel" class="period-value" for="monthSelect">
+              <select id="monthSelect" aria-label="Selecionar mês"></select>
+              <input id="daySelect" type="date" aria-label="Selecionar dia" hidden>
+            </label>
+          </div>
           <div class="update-status">
             <i data-lucide="wifi" aria-hidden="true"></i>
             <strong id="lastUpdate">Atualizando...</strong>
@@ -96,7 +102,7 @@
         <article class="quality-panel" aria-labelledby="qualityTitle">
           <header class="panel-heading">
             <div>
-              <span>Avaliação mensal</span>
+              <span id="qualityPeriodLabel">Avaliação mensal</span>
               <h2 id="qualityTitle">SUEDS Plaza</h2>
               <p id="qualitySubtitle">Sem opiniários no período</p>
             </div>

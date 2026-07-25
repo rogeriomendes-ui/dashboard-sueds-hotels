@@ -4222,9 +4222,11 @@ async function sendOperationalOpinionImage(res, fileId) {
 
 async function buildOperationalTvPayload(period = {}) {
   const opinions = await loadOperationalOpinions();
-  const month = period.month || todayKey().slice(0, 7);
+  const date = period.date || "";
+  const month = date ? date.slice(0, 7) : period.month || todayKey().slice(0, 7);
   const monthOpinions = opinions.filter((opinion) => (
-    isCurrentOperationalOpinion(opinion) && (!opinion.monthKey || opinion.monthKey === month)
+    isCurrentOperationalOpinion(opinion)
+      && (date ? opinion.dateKey === date : (!opinion.monthKey || opinion.monthKey === month))
   ));
   const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
     .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
@@ -4247,7 +4249,7 @@ async function buildOperationalTvPayload(period = {}) {
   return {
     audience: "tv-operacional",
     generatedAt: new Date().toISOString(),
-    period: { month },
+    period: { month, date: date || null },
     summary: {
       opinions: monthOpinions.length,
       hotels: orderedHotels.length,
@@ -4303,10 +4305,11 @@ function opinionOperationalIncident(opinion, index) {
 async function buildOperationalHotelPayload(period = {}) {
   const selectedHotel = operationalHotelFromSlug(period.hotel);
   const opinions = await loadOperationalOpinions();
-  const month = period.month || todayKey().slice(0, 7);
+  const date = period.date || "";
+  const month = date ? date.slice(0, 7) : period.month || todayKey().slice(0, 7);
   const hotelOpinions = opinions.filter((opinion) => {
-    const sameMonth = !opinion.monthKey || opinion.monthKey === month;
-    return sameMonth && comparableKey(opinion.hotel) === comparableKey(selectedHotel.name);
+    const samePeriod = date ? opinion.dateKey === date : (!opinion.monthKey || opinion.monthKey === month);
+    return samePeriod && comparableKey(opinion.hotel) === comparableKey(selectedHotel.name);
   });
   const evaluatedOpinions = hotelOpinions.filter(isCurrentOperationalOpinion);
   const reviewOpinions = hotelOpinions.filter((opinion) => normalizeTextKey(opinion.status) === "revisao");
@@ -4330,7 +4333,7 @@ async function buildOperationalHotelPayload(period = {}) {
   return {
     audience: "tv-operacional-hotel",
     generatedAt: new Date().toISOString(),
-    period: { month },
+    period: { month, date: date || null },
     hotel: selectedHotel,
     evaluation,
     operations: {

@@ -81,7 +81,7 @@ select { font: inherit; }
 }
 
 .headline-metric,
-.month-control,
+.period-control,
 .update-status,
 .icon-link {
   min-height: 52px;
@@ -97,7 +97,7 @@ select { font: inherit; }
 }
 
 .headline-metric span,
-.month-control span {
+.period-control span {
   color: #dce7ec;
   font-size: 9px;
   font-weight: 850;
@@ -128,16 +128,44 @@ select { font: inherit; }
 .note-title i:empty,
 .integration-status i:empty { display: none; }
 
-.month-control {
-  padding: 6px 8px;
+.period-control {
+  min-width: 150px;
+  padding: 4px 6px;
   display: grid;
   align-content: center;
+  gap: 3px;
+}
+
+.period-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 2px;
 }
 
-.month-control select {
-  width: 112px;
-  height: 27px;
+.period-mode button {
+  min-height: 17px;
+  padding: 0 7px;
+  color: #dce7ec;
+  background: transparent;
+  border: 0;
+  border-radius: 2px;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.period-mode button.active {
+  color: var(--navy);
+  background: #fff;
+}
+
+.period-value { display: block; }
+
+.period-value select,
+.period-value input {
+  width: 138px;
+  height: 25px;
   padding: 0 7px;
   color: var(--ink);
   background: #fff;
@@ -145,8 +173,13 @@ select { font: inherit; }
   border-radius: 3px;
   font-size: 12px;
   font-weight: 800;
+}
+
+.period-value select {
   text-transform: uppercase;
 }
+
+.period-value input { color-scheme: light; }
 
 .update-status {
   min-width: 146px;
@@ -514,7 +547,8 @@ td.description-cell { font-size: 12px; line-height: 1.3; }
   .headline-metrics { overflow-x: auto; padding-bottom: 2px; }
   .headline-metric { min-width: 104px; }
   .topbar-actions { display: grid; grid-template-columns: 52px minmax(130px, 1fr) minmax(148px, auto); }
-  .month-control select { width: 100%; }
+  .period-control { min-width: 0; }
+  .period-value select, .period-value input { width: 100%; }
   .content-grid { margin: 10px; grid-template-columns: 1fr; }
   .side-stack { order: -1; }
   .quality-panel, .word-cloud-panel, .alerts-panel { min-height: 0; }
