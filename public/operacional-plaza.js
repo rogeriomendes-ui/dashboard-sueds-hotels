@@ -196,11 +196,14 @@ function renderWordCloud(operations) {
 }
 
 function renderQuality(evaluation) {
-  const hasData = (evaluation.opinions || 0) > 0;
+  const totalOpinions = Number(evaluation.totalOpinions ?? evaluation.opinions ?? 0);
+  const approvedOpinions = Number(evaluation.approvedOpinions ?? evaluation.opinions ?? 0);
+  const reviewOpinions = Number(evaluation.reviewOpinions || 0);
+  const hasData = totalOpinions > 0;
   const score = safeScore(evaluation.finalScore);
   const color = scoreColor(evaluation.finalScore);
   byId("qualitySubtitle").textContent = hasData
-    ? `${integer.format(evaluation.opinions)} opiniário${evaluation.opinions === 1 ? "" : "s"} • ${integer.format(evaluation.answeredItems || 0)} itens avaliados`
+    ? `${integer.format(totalOpinions)} formulários • ${integer.format(approvedOpinions)} avaliados${reviewOpinions ? ` • ${integer.format(reviewOpinions)} em revisão` : ""}`
     : "Sem opiniários no período";
   byId("hotelScore").textContent = formatScore(evaluation.finalScore);
   byId("scoreRing").style.setProperty("--score", score);
@@ -327,7 +330,7 @@ function render(data) {
   const evaluation = data.evaluation || {};
   const summary = data.operations?.summary || {};
   byId("summaryScore").textContent = formatScore(evaluation.finalScore);
-  byId("summaryOpinions").textContent = integer.format(evaluation.opinions || 0);
+  byId("summaryOpinions").textContent = integer.format(evaluation.totalOpinions ?? evaluation.opinions ?? 0);
   byId("summaryPending").textContent = integer.format(summary.pending || 0);
   byId("summaryOverdue").textContent = integer.format(summary.overdue || 0);
   byId("lastUpdate").textContent = formatUpdate(data.generatedAt);

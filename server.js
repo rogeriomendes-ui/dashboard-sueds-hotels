@@ -4309,9 +4309,16 @@ async function buildOperationalHotelPayload(period = {}) {
     return sameMonth && comparableKey(opinion.hotel) === comparableKey(selectedHotel.name);
   });
   const evaluatedOpinions = hotelOpinions.filter(isCurrentOperationalOpinion);
-  const evaluation = evaluatedOpinions.length
+  const reviewOpinions = hotelOpinions.filter((opinion) => normalizeTextKey(opinion.status) === "revisao");
+  const evaluationBase = evaluatedOpinions.length
     ? summarizeOperationalHotel(selectedHotel.name, evaluatedOpinions)
     : emptyOperationalHotel(selectedHotel.name);
+  const evaluation = {
+    ...evaluationBase,
+    totalOpinions: hotelOpinions.length,
+    approvedOpinions: evaluatedOpinions.length,
+    reviewOpinions: reviewOpinions.length
+  };
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)
     .filter(Boolean)
