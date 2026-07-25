@@ -1,6 +1,13 @@
 const HOTEL_SLUG = "sueds-plaza";
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const LEADER_NAME_STORAGE_KEY = "sueds_operational_leader_name";
+const QUALITY_BLOCK_DESCRIPTIONS = {
+  Geral: "Impressão geral e reserva.",
+  Alimentos: "Café, almoço e jantar.",
+  Atendimento: "Do hotel e Beach Club.",
+  Apartamento: "Conforto e limpeza do apto.",
+  "Serviços": "Recepção, Wi-Fi, lazer/piscina."
+};
 const state = {
   data: null,
   filter: "all",
@@ -249,9 +256,13 @@ function renderQuality(evaluation) {
   byId("qualityBlocks").innerHTML = (evaluation.blocks || []).map((block) => {
     const blockScore = safeScore(block.score);
     const blockColor = scoreColor(block.score);
+    const description = QUALITY_BLOCK_DESCRIPTIONS[block.label] || "";
     return `
       <div class="quality-row" style="--score:${blockScore}; --score-color:${blockColor}">
-        <span>${escapeHtml(block.label)}</span>
+        <span class="quality-label">
+          <strong>${escapeHtml(block.label)}</strong>
+          ${description ? `<small>${escapeHtml(description)}</small>` : ""}
+        </span>
         <div class="quality-bar"><i></i></div>
         <strong>${formatScore(block.score)}</strong>
       </div>`;
