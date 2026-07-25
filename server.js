@@ -28,6 +28,30 @@ const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
+const OPERATIONAL_ACCESS_SECRET = process.env.OPERATIONAL_ACCESS_SECRET || GESTORES_ACCESS_TOKEN || OPINION_UPLOAD_TOKEN || "sueds-operational-local";
+const OPERATIONAL_ACCESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const OPERATIONAL_PLAZA_USERS = {
+  joctan: {
+    displayName: "Joctan",
+    salt: "b7a4185cf3fd8023439b6e2794a0df92",
+    hash: "ded806dc70719d20556907b8164a9271766417906647b3e6f2c1fe6c55113ce3"
+  },
+  rafaela: {
+    displayName: "Rafaela",
+    salt: "7a85c637638ecd482d68b8c472952da5",
+    hash: "6f49635a6c766f48876060da9d2ece8b994b6376a1f7eb83f56107fddb9f10a6"
+  },
+  bete: {
+    displayName: "Bete",
+    salt: "bf295ab7176ba55fcde08d630277a4e6",
+    hash: "8d7ebd72ec3fafe205d2702bf50aebfb21dc2c8fb216e451acc83daec7d953de"
+  },
+  marcio: {
+    displayName: "Marcio",
+    salt: "011361dde9e6684ac0241c5b53e075ff",
+    hash: "fc99bb641a522ffa06bc9343b654f5d3fee098095077181bd122b95cacaea377"
+  }
+};
 const GA4_SITE_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_SITE_PROPERTY_ID || process.env.GOOGLE_ANALYTICS_PROPERTY_ID || "";
 const GA4_OMNIBEES_PROPERTY_ID = process.env.GOOGLE_ANALYTICS_OMNIBEES_PROPERTY_ID || "";
 const GOOGLE_ADS_API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v24";
@@ -116,6 +140,76 @@ function hasManagerAccess(req, url) {
   const expectedBuffer = Buffer.from(GESTORES_ACCESS_TOKEN);
   const providedBuffer = Buffer.from(provided);
   return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function normalizeAccessUsername(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function safeEqualText(left, right) {
+  const leftBuffer = Buffer.from(String(left || ""));
+  const rightBuffer = Buffer.from(String(right || ""));
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function authenticateOperationalUser(username, password) {
+  const key = normalizeAccessUsername(username);
+  const user = OPERATIONAL_PLAZA_USERS[key];
+  if (!user || !password) return null;
+  const hash = crypto.pbkdf2Sync(String(password), user.salt, 120000, 32, "sha256").toString("hex");
+  if (!safeEqualText(hash, user.hash)) return null;
+  return {
+    role: "plaza",
+    username: key,
+    displayName: user.displayName,
+    hotel: "sueds-plaza"
+  };
+}
+
+function signOperationalSession(profile) {
+  const payload = base64url(JSON.stringify({
+    role: profile.role,
+    username: profile.username,
+    displayName: profile.displayName,
+    hotel: profile.hotel,
+    expiresAt: Date.now() + OPERATIONAL_ACCESS_SESSION_TTL_MS
+  }));
+  const signature = base64url(
+    crypto.createHmac("sha256", OPERATIONAL_ACCESS_SECRET).update(payload).digest()
+  );
+  return `sueds-operacional.${payload}.${signature}`;
+}
+
+function parseOperationalSession(token) {
+  const match = String(token || "").match(/^sueds-operacional\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/);
+  if (!match) return null;
+  const expectedSignature = base64url(
+    crypto.createHmac("sha256", OPERATIONAL_ACCESS_SECRET).update(match[1]).digest()
+  );
+  if (!safeEqualText(expectedSignature, match[2])) return null;
+
+  try {
+    const encoded = match[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+    if (payload.role !== "plaza" || payload.hotel !== "sueds-plaza") return null;
+    if (!Number.isFinite(Number(payload.expiresAt)) || Number(payload.expiresAt) <= Date.now()) return null;
+    if (!OPERATIONAL_PLAZA_USERS[normalizeAccessUsername(payload.username)]) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function operationalAccessProfile(req, url) {
+  if (hasManagerAccess(req, url)) {
+    return { role: "manager", username: "gestor", displayName: "Gestor", hotel: "*" };
+  }
+  const provided = getHeader(req, "x-dashboard-token") || url.searchParams.get("access_token") || "";
+  return parseOperationalSession(provided);
 }
 
 function base64url(value) {
@@ -4171,14 +4265,19 @@ function operationalImageError(message, statusCode = 500) {
   return error;
 }
 
-async function sendOperationalOpinionImage(res, fileId) {
+async function sendOperationalOpinionImage(res, fileId, hotelSlug = "") {
   const normalizedFileId = String(fileId || "").trim();
   if (!/^[A-Za-z0-9_-]{10,200}$/.test(normalizedFileId)) {
     throw operationalImageError("Arquivo do opinario invalido.", 400);
   }
 
   const opinions = await loadOperationalOpinions();
-  const opinion = opinions.find((item) => item.fileId === normalizedFileId && item.photoUrl);
+  const expectedHotel = hotelSlug ? operationalHotelFromSlug(hotelSlug).name : "";
+  const opinion = opinions.find((item) => (
+    item.fileId === normalizedFileId &&
+    item.photoUrl &&
+    (!expectedHotel || comparableKey(item.hotel) === comparableKey(expectedHotel))
+  ));
   if (!opinion) throw operationalImageError("Foto do opinario nao encontrada.", 404);
 
   const token = await getAccessToken("https://www.googleapis.com/auth/drive.readonly");
@@ -6038,10 +6137,31 @@ async function handleRequest(req, res) {
     }
 
     if (url.pathname === "/api/operacional/tv") {
-      if (!hasManagerAccess(req, url)) return forbidden(res);
+      if (req.method === "POST" && url.searchParams.get("action") === "login") {
+        const body = await readJsonBody(req);
+        const profile = authenticateOperationalUser(body.username, body.password);
+        if (!profile) return forbidden(res);
+        return json(res, 200, {
+          ok: true,
+          token: signOperationalSession(profile),
+          profile
+        });
+      }
+
+      const access = operationalAccessProfile(req, url);
+      if (!access) return forbidden(res);
+      if (url.searchParams.get("authOnly") === "1") {
+        return json(res, 200, { ok: true, profile: access });
+      }
+
+      const restrictedToPlaza = access.role === "plaza";
       if (req.method === "GET" && url.searchParams.get("view") === "opinion-image") {
         try {
-          return await sendOperationalOpinionImage(res, url.searchParams.get("id"));
+          return await sendOperationalOpinionImage(
+            res,
+            url.searchParams.get("id"),
+            restrictedToPlaza ? access.hotel : ""
+          );
         } catch (error) {
           return json(res, Number(error.statusCode || 500), {
             ok: false,
@@ -6052,9 +6172,13 @@ async function handleRequest(req, res) {
       }
       if (req.method === "PATCH") {
         try {
+          const body = await readJsonBody(req);
+          if (restrictedToPlaza && normalizeAccessUsername(body.hotel) !== access.hotel) {
+            return forbidden(res);
+          }
           return json(res, 200, {
             ok: true,
-            incident: await updateOperationalIncidentStatus(await readJsonBody(req))
+            incident: await updateOperationalIncidentStatus(body)
           });
         } catch (error) {
           const status = /invalida|invalido|nao encontrada|obrigatorio/i.test(error.message) ? 400 : 500;
@@ -6067,8 +6191,12 @@ async function handleRequest(req, res) {
       }
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       if (url.searchParams.get("view") === "hotel") {
+        if (restrictedToPlaza && normalizeAccessUsername(url.searchParams.get("hotel")) !== access.hotel) {
+          return forbidden(res);
+        }
         return json(res, 200, await buildOperationalHotelPayload(periodFromUrl(url)));
       }
+      if (restrictedToPlaza) return forbidden(res);
       return json(res, 200, await buildOperationalTvPayload(periodFromUrl(url)));
     }
 

@@ -1,0 +1,170 @@
+html.operational-auth-pending .dashboard-shell {
+  visibility: hidden;
+}
+
+.operational-login {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid #bdc8ce;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #173247;
+  box-shadow: 0 20px 60px rgba(14, 31, 43, 0.28);
+}
+
+.operational-login::backdrop {
+  background: rgba(15, 35, 50, 0.88);
+}
+
+.operational-login-card {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.operational-login-card header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #dce3e7;
+}
+
+.operational-login-card header img {
+  width: 112px;
+  height: auto;
+  padding: 8px;
+  border-radius: 4px;
+  background: #20384b;
+}
+
+.operational-login-card header span {
+  display: block;
+  margin-bottom: 3px;
+  color: #008f78;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.operational-login-card h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.operational-login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #9cabb4;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.operational-login-tabs button {
+  min-height: 42px;
+  border: 0;
+  border-right: 1px solid #9cabb4;
+  background: #ffffff;
+  color: #21445d;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operational-login-tabs button:last-child {
+  border-right: 0;
+}
+
+.operational-login-tabs button.active {
+  background: #20384b;
+  color: #ffffff;
+}
+
+.operational-login-card label {
+  display: grid;
+  gap: 6px;
+}
+
+.operational-login-card [hidden] {
+  display: none;
+}
+
+.operational-login-card label span {
+  color: #3d5566;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.operational-login-card input {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid #9cabb4;
+  border-radius: 5px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #142c3e;
+  font: inherit;
+  outline: none;
+}
+
+.operational-login-card input:focus {
+  border-color: #008f78;
+  box-shadow: 0 0 0 3px rgba(0, 143, 120, 0.14);
+}
+
+.operational-login-message {
+  min-height: 18px;
+  margin: -4px 0 0;
+  color: #c62828;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.operational-login-card footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.operational-login-card footer button {
+  min-height: 42px;
+  border-radius: 5px;
+  padding: 0 20px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.operational-login-back {
+  border: 1px solid #9cabb4;
+  background: #ffffff;
+  color: #21445d;
+}
+
+.operational-login-submit {
+  border: 1px solid #008f78;
+  background: #008f78;
+  color: #ffffff;
+}
+
+.operational-login-submit:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (max-width: 520px) {
+  .operational-login-card {
+    padding: 18px;
+  }
+
+  .operational-login-card header img {
+    width: 94px;
+  }
+
+  .operational-login-card h1 {
+    font-size: 21px;
+  }
+}
