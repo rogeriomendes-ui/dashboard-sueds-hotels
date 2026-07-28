@@ -2545,8 +2545,20 @@ function average(values) {
   return Math.round(valid.reduce((sumValue, value) => sumValue + value, 0) / valid.length);
 }
 
+function operationalOpinionCapturedAt(item, processedAt) {
+  const photoUrl = String(item["Link Foto"] || "").trim();
+  const fileName = String(item["Nome Arquivo"] || "").trim();
+  if (!photoUrl || !fileName) return processedAt;
+
+  const match = fileName.match(/(?:^|_)(20\d{2})(\d{2})(\d{2})(?=_|\.|$)/);
+  if (!match) return processedAt;
+  const capturedAt = new Date(`${match[1]}-${match[2]}-${match[3]}T12:00:00-03:00`);
+  return Number.isNaN(capturedAt.getTime()) ? processedAt : capturedAt;
+}
+
 function normalizeOperationalOpinion(item) {
   const processedAt = parseDate(item["Data Processamento"]);
+  const capturedAt = operationalOpinionCapturedAt(item, processedAt);
   const incidentStatusAt = parseDate(item["Data Status Ocorrencia"]);
   const incidentStatusValue = String(item["Status Ocorrencia"] || "").trim();
   const fieldScores = {};
@@ -2557,8 +2569,9 @@ function normalizeOperationalOpinion(item) {
   return {
     fileId: String(item["ID Arquivo"] || "").trim(),
     processedAt,
-    dateKey: processedAt ? dateKey(processedAt) : "",
-    monthKey: processedAt ? monthKey(processedAt) : "",
+    capturedAt,
+    dateKey: capturedAt ? dateKey(capturedAt) : "",
+    monthKey: capturedAt ? monthKey(capturedAt) : "",
     hotel: String(item.Hotel || "Nao identificado").trim() || "Nao identificado",
     photoUrl: String(item["Link Foto"] || "").trim(),
     guestName: String(item["Nome Hospede"] || "").trim(),
@@ -4397,7 +4410,7 @@ function operationalHotelFromSlug(value) {
 function opinionOperationalIncident(opinion, index) {
   const description = opinion.issues || opinion.comments;
   if (!description) return null;
-  const requestedAt = opinion.processedAt || new Date();
+  const requestedAt = opinion.capturedAt || opinion.processedAt || new Date();
   const status = opinion.hasIncidentStatus
     ? opinion.incidentStatus
     : opinion.issues
@@ -6286,6 +6299,7 @@ module.exports = {
     detectOmrGuideMarkers,
     detectOmrBubbleCandidates,
     detectOmrBubbleGrid,
+    operationalOpinionCapturedAt,
     readPlazaOpinionOmr
   }
 };
