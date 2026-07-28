@@ -79,7 +79,7 @@ body {
 
 .summary-strip div,
 .status-pill,
-.month-control {
+.period-control {
   min-height: 54px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 8px;
@@ -92,8 +92,7 @@ body {
   padding: 8px 14px;
 }
 
-.summary-strip span,
-.month-control span {
+.summary-strip span {
   color: #dce8f2;
   font-size: 11px;
   font-weight: 900;
@@ -105,23 +104,61 @@ body {
   line-height: 1;
 }
 
-.month-control {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 0 12px;
+.period-control {
+  display: grid;
+  min-width: 148px;
+  align-content: center;
+  gap: 3px;
+  padding: 4px 6px;
 }
 
-.month-control select {
-  width: 130px;
-  height: 32px;
+.period-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.period-mode button {
+  min-height: 17px;
+  padding: 0 7px;
   border: 0;
-  border-radius: 5px;
-  color: var(--text);
-  font-size: 14px;
+  border-radius: 2px;
+  color: #dce8f2;
+  background: transparent;
+  font-size: 8px;
   font-weight: 900;
-  text-align: center;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+.period-mode button.active {
+  color: var(--text);
+  background: #fff;
+}
+
+.period-value {
+  display: block;
+}
+
+.period-value select,
+.period-value input {
+  width: 134px;
+  height: 25px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--text);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.period-value select {
+  text-transform: uppercase;
+}
+
+.period-value input {
+  color-scheme: light;
 }
 
 .status-pill {
@@ -291,6 +328,15 @@ body {
   .summary-strip,
   .header-actions {
     flex-wrap: wrap;
+  }
+
+  .period-control {
+    min-width: 148px;
+  }
+
+  .period-value select,
+  .period-value input {
+    width: 100%;
   }
 
   .hotel-grid,

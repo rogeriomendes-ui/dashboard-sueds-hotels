@@ -29,10 +29,16 @@
         </section>
         <div class="header-actions">
           <a class="nav-link-button" href="dashboard-gestores.html">Gestores</a>
-          <label class="month-control" for="monthSelect">
-            <span>Mês</span>
-            <select id="monthSelect"></select>
-          </label>
+          <div class="period-control">
+            <div class="period-mode" role="group" aria-label="Período do painel">
+              <button type="button" class="active" data-period-mode="month" aria-pressed="true">Mês</button>
+              <button type="button" data-period-mode="day" aria-pressed="false">Dia</button>
+            </div>
+            <label id="periodValueLabel" class="period-value" for="monthSelect">
+              <select id="monthSelect" aria-label="Selecionar mês"></select>
+              <input id="daySelect" type="date" aria-label="Selecionar data de processamento" hidden>
+            </label>
+          </div>
           <div class="status-pill">
             <span></span>
             <strong id="lastUpdate">Atualizando...</strong>

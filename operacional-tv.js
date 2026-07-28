@@ -9,6 +9,9 @@ const MONTH_LABELS = {
   "2026-11": "NOVEMBRO",
   "2026-12": "DEZEMBRO"
 };
+const state = {
+  periodMode: "month"
+};
 
 function byId(id) {
   return document.getElementById(id);
@@ -20,11 +23,47 @@ function defaultMonth() {
   return MONTHS.includes(month) ? month : "2026-06";
 }
 
-function setupMonthSelect() {
-  const select = byId("monthSelect");
-  select.innerHTML = MONTHS.map((month) => `<option value="${month}">${MONTH_LABELS[month]}</option>`).join("");
-  select.value = new URLSearchParams(window.location.search).get("month") || defaultMonth();
-  select.addEventListener("change", load);
+function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function setPeriodMode(mode, shouldLoad = true) {
+  state.periodMode = mode === "day" ? "day" : "month";
+  const dayMode = state.periodMode === "day";
+  byId("monthSelect").hidden = dayMode;
+  byId("daySelect").hidden = !dayMode;
+  byId("periodValueLabel").htmlFor = dayMode ? "daySelect" : "monthSelect";
+  document.querySelectorAll("[data-period-mode]").forEach((button) => {
+    const active = button.dataset.periodMode === state.periodMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (shouldLoad) load().catch(renderLoadError);
+}
+
+function setupPeriodControls() {
+  const monthSelect = byId("monthSelect");
+  const daySelect = byId("daySelect");
+  const requested = new URLSearchParams(window.location.search);
+  const requestedMonth = requested.get("month");
+  const requestedDate = requested.get("date");
+  monthSelect.innerHTML = MONTHS.map((month) => `<option value="${month}">${MONTH_LABELS[month]}</option>`).join("");
+  monthSelect.value = MONTHS.includes(requestedMonth) ? requestedMonth : defaultMonth();
+  daySelect.value = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : localDateKey();
+  daySelect.max = localDateKey();
+
+  monthSelect.addEventListener("change", () => {
+    if (state.periodMode === "month") load().catch(renderLoadError);
+  });
+  daySelect.addEventListener("change", () => {
+    const matchingMonth = daySelect.value.slice(0, 7);
+    if (MONTHS.includes(matchingMonth)) monthSelect.value = matchingMonth;
+    if (state.periodMode === "day" && daySelect.value) load().catch(renderLoadError);
+  });
+  document.querySelectorAll("[data-period-mode]").forEach((button) => {
+    button.addEventListener("click", () => setPeriodMode(button.dataset.periodMode));
+  });
+  setPeriodMode(/^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? "day" : "month", false);
 }
 
 function escapeHtml(value) {
@@ -87,7 +126,7 @@ function hotelCard(hotel) {
       <div class="hotel-card-header">
         <div>
           <h2>${escapeHtml(hotel.hotel)}</h2>
-          <small>${hasData ? `${integer.format(hotel.opinions || 0)} opiniários | ${integer.format(hotel.answeredItems || 0)} itens avaliados` : "Sem opiniários no mês"}</small>
+          <small>${hasData ? `${integer.format(hotel.opinions || 0)} opiniários | ${integer.format(hotel.answeredItems || 0)} itens avaliados` : `Sem opiniários no ${state.periodMode === "day" ? "dia" : "mês"}`}</small>
         </div>
         <div class="score-badge" style="--score:${score}; --score-color:${color}">
           <strong>${formatScore(hotel.finalScore)}</strong>
@@ -120,14 +159,19 @@ function render(data) {
 }
 
 async function load() {
-  const month = byId("monthSelect").value;
-  const response = await fetch(`/api/operacional/tv?month=${month}`);
+  const params = new URLSearchParams();
+  if (state.periodMode === "day") params.set("date", byId("daySelect").value);
+  else params.set("month", byId("monthSelect").value);
+  window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+  const response = await fetch(`/api/operacional/tv?${params.toString()}`, { cache: "no-store" });
   if (!response.ok) throw new Error("Falha ao carregar dados operacionais");
   render(await response.json());
 }
 
-setupMonthSelect();
-load().catch((error) => {
+function renderLoadError(error) {
   byId("hotelGrid").innerHTML = `<article class="hotel-card"><h2>${escapeHtml(error.message)}</h2></article>`;
-});
+}
+
+setupPeriodControls();
+load().catch(renderLoadError);
 setInterval(load, 60000);
