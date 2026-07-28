@@ -2556,6 +2556,12 @@ function operationalOpinionCapturedAt(item, processedAt) {
   return Number.isNaN(capturedAt.getTime()) ? processedAt : capturedAt;
 }
 
+function operationalWeekdayNumber(dateValue) {
+  const parts = String(dateValue || "").split("-").map(Number);
+  if (parts.length !== 3 || !parts.every(Number.isFinite)) return null;
+  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12)).getUTCDay();
+}
+
 function normalizeOperationalOpinion(item) {
   const processedAt = parseDate(item["Data Processamento"]);
   const capturedAt = operationalOpinionCapturedAt(item, processedAt);
@@ -4444,9 +4450,15 @@ async function buildOperationalHotelPayload(period = {}) {
   const selectedHotel = operationalHotelFromSlug(period.hotel);
   const opinions = await loadOperationalOpinions();
   const date = period.date || "";
+  const weekday = ["tuesday", "friday"].includes(period.weekday) ? period.weekday : "";
+  const weekdayNumber = weekday === "tuesday" ? 2 : weekday === "friday" ? 5 : null;
   const month = date ? date.slice(0, 7) : period.month || todayKey().slice(0, 7);
   const hotelOpinions = opinions.filter((opinion) => {
-    const samePeriod = date ? opinion.dateKey === date : (!opinion.monthKey || opinion.monthKey === month);
+    const opinionWeekday = operationalWeekdayNumber(opinion.dateKey);
+    const samePeriod = date
+      ? opinion.dateKey === date
+      : (!opinion.monthKey || opinion.monthKey === month)
+        && (weekdayNumber === null || opinionWeekday === weekdayNumber);
     return samePeriod && comparableKey(opinion.hotel) === comparableKey(selectedHotel.name);
   });
   const evaluatedOpinions = hotelOpinions.filter(isCurrentOperationalOpinion);
@@ -4471,7 +4483,7 @@ async function buildOperationalHotelPayload(period = {}) {
   return {
     audience: "tv-operacional-hotel",
     generatedAt: new Date().toISOString(),
-    period: { month, date: date || null },
+    period: { month, date: date || null, weekday: weekday || null },
     hotel: selectedHotel,
     evaluation,
     operations: {
@@ -6066,12 +6078,14 @@ async function loadMetrics(period) {
 function periodFromUrl(url) {
   const date = url.searchParams.get("date") || "";
   const month = url.searchParams.get("month") || "";
+  const weekday = url.searchParams.get("weekday") || "";
   const hotel = url.searchParams.get("hotel") || "";
   const channel = url.searchParams.get("channel") || "";
   const day = url.searchParams.get("day") || "";
   return {
     date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
     month: month === "ytd" || /^\d{4}-\d{2}$/.test(month) ? month : undefined,
+    weekday: ["tuesday", "friday"].includes(weekday) ? weekday : "",
     day: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "",
     hotel,
     channel
@@ -6300,6 +6314,7 @@ module.exports = {
     detectOmrBubbleCandidates,
     detectOmrBubbleGrid,
     operationalOpinionCapturedAt,
+    operationalWeekdayNumber,
     readPlazaOpinionOmr
   }
 };

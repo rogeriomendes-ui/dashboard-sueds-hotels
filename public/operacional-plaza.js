@@ -55,14 +55,18 @@ function monthOptions() {
 }
 
 function setPeriodMode(mode, shouldLoad = true) {
-  state.periodMode = mode === "day" ? "day" : "month";
+  state.periodMode = ["day", "tuesday", "friday"].includes(mode) ? mode : "month";
   const monthSelect = byId("monthSelect");
   const daySelect = byId("daySelect");
   const dayMode = state.periodMode === "day";
   monthSelect.hidden = dayMode;
   daySelect.hidden = !dayMode;
   byId("periodValueLabel").htmlFor = dayMode ? "daySelect" : "monthSelect";
-  byId("qualityPeriodLabel").textContent = dayMode ? "Avaliação diária" : "Avaliação mensal";
+  byId("qualityPeriodLabel").textContent = {
+    day: "Avaliação diária",
+    tuesday: "Avaliação das terças-feiras",
+    friday: "Avaliação das sextas-feiras"
+  }[state.periodMode] || "Avaliação mensal";
   document.querySelectorAll("[data-period-mode]").forEach((button) => {
     const active = button.dataset.periodMode === state.periodMode;
     button.classList.toggle("active", active);
@@ -78,12 +82,13 @@ function setupPeriodControls() {
   const requested = new URLSearchParams(window.location.search);
   const requestedMonth = requested.get("month");
   const requestedDate = requested.get("date");
+  const requestedWeekday = requested.get("weekday");
   monthSelect.innerHTML = options.map((item) => `<option value="${item.value}">${item.label}</option>`).join("");
   monthSelect.value = options.some((item) => item.value === requestedMonth) ? requestedMonth : options[0].value;
   daySelect.value = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : localDateKey();
 
   monthSelect.addEventListener("change", () => {
-    if (state.periodMode === "month") load();
+    if (state.periodMode !== "day") load();
   });
   daySelect.addEventListener("change", () => {
     const matchingMonth = daySelect.value.slice(0, 7);
@@ -93,7 +98,12 @@ function setupPeriodControls() {
   document.querySelectorAll("[data-period-mode]").forEach((button) => {
     button.addEventListener("click", () => setPeriodMode(button.dataset.periodMode));
   });
-  setPeriodMode(/^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? "day" : "month", false);
+  const initialMode = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "")
+    ? "day"
+    : ["tuesday", "friday"].includes(requestedWeekday)
+      ? requestedWeekday
+      : "month";
+  setPeriodMode(initialMode, false);
 }
 
 function formatScore(value) {
@@ -398,7 +408,10 @@ async function load() {
   state.token = token;
   const params = new URLSearchParams({ view: "hotel", hotel: HOTEL_SLUG });
   if (state.periodMode === "day") params.set("date", byId("daySelect").value);
-  else params.set("month", byId("monthSelect").value);
+  else {
+    params.set("month", byId("monthSelect").value);
+    if (["tuesday", "friday"].includes(state.periodMode)) params.set("weekday", state.periodMode);
+  }
   const response = await fetch(`/api/operacional/tv?${params.toString()}`, {
     cache: "no-store",
     headers: { "x-dashboard-token": token }
