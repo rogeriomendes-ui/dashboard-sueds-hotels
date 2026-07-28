@@ -1,6 +1,7 @@
 const HOTEL_SLUG = "sueds-plaza";
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const LEADER_NAME_STORAGE_KEY = "sueds_operational_leader_name";
+const KPI_ALERTS_ENABLED = false;
 const state = {
   data: null,
   filter: "all",
@@ -245,7 +246,8 @@ function render(data) {
   byId("summaryOverdue").textContent = integer.format(summary.overdue || 0);
   byId("lastUpdate").textContent = formatUpdate(data.generatedAt);
   renderQuality(evaluation);
-  renderAlerts(data.operations || {});
+  byId("kpiAlertsPanel").hidden = !KPI_ALERTS_ENABLED;
+  if (KPI_ALERTS_ENABLED) renderAlerts(data.operations || {});
   renderQueue();
   refreshIcons();
 }

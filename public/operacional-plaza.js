@@ -1,6 +1,7 @@
 const HOTEL_SLUG = "sueds-plaza";
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const LEADER_NAME_STORAGE_KEY = "sueds_operational_leader_name";
+const KPI_ALERTS_ENABLED = false;
 const QUALITY_BLOCK_DESCRIPTIONS = {
   Geral: "Impressão geral e reserva.",
   Alimentos: "Café, almoço e jantar.",
@@ -385,7 +386,8 @@ function render(data) {
   byId("lastUpdate").textContent = formatUpdate(data.generatedAt);
   renderQuality(evaluation);
   renderWordCloud(data.operations || {});
-  renderAlerts(data.operations || {});
+  byId("kpiAlertsPanel").hidden = !KPI_ALERTS_ENABLED;
+  if (KPI_ALERTS_ENABLED) renderAlerts(data.operations || {});
   renderQueue();
   refreshIcons();
 }
