@@ -2706,14 +2706,49 @@ const PLAZA_OMR_FIELDS = [
   ["foodDinner", "Alimentos Jantar"]
 ];
 
-const PLAZA_OMR_TEMPLATE = {
-  columns: [0.607, 0.724, 0.836, 0.933],
-  rows: [0.168, 0.229, 0.296, 0.339, 0.381, 0.424, 0.466, 0.509, 0.552, 0.636, 0.680, 0.721]
+const PLAZA_OMR_TEMPLATES = {
+  "20260719": {
+    form: "sueds-plaza-20260719",
+    fallback: {
+      columns: [0.607, 0.724, 0.836, 0.933],
+      rows: [0.168, 0.229, 0.296, 0.339, 0.381, 0.424, 0.466, 0.509, 0.552, 0.636, 0.680, 0.721]
+    },
+    guides: {
+      columns: [0.584, 0.711, 0.838, 0.965],
+      rows: [0.149, 0.214, 0.283, 0.328, 0.373, 0.418, 0.463, 0.507, 0.552, 0.614, 0.659, 0.700]
+    }
+  },
+  "20260720": {
+    form: "sueds-plaza-20260720",
+    fallback: {
+      columns: [0.585, 0.710, 0.835, 0.963],
+      rows: [0.205, 0.270, 0.339, 0.384, 0.429, 0.473, 0.517, 0.561, 0.605, 0.668, 0.712, 0.752]
+    },
+    guides: {
+      columns: [0.584, 0.711, 0.838, 0.965],
+      rows: [0.1852, 0.2501, 0.3191, 0.3641, 0.4093, 0.4531, 0.4972, 0.5411, 0.5850, 0.6478, 0.6920, 0.7324]
+    }
+  }
 };
-const PLAZA_OMR_GUIDE_TEMPLATE = {
-  columns: [0.584, 0.711, 0.838, 0.965],
-  rows: [0.149, 0.214, 0.283, 0.328, 0.373, 0.418, 0.463, 0.507, 0.552, 0.614, 0.659, 0.700]
-};
+
+function plazaOmrTemplate(formVersion) {
+  const version = String(formVersion || "").replace(/\D/g, "");
+  return PLAZA_OMR_TEMPLATES[version] || PLAZA_OMR_TEMPLATES["20260719"];
+}
+
+function selectPlazaOmrGuideGrid(markers, bubbleCandidates, formVersion) {
+  const requestedVersion = String(formVersion || "").replace(/\D/g, "");
+  return Object.entries(PLAZA_OMR_TEMPLATES)
+    .map(([templateVersion, template]) => ({
+      ...buildOmrGuideGrid(markers, bubbleCandidates, template.guides),
+      template,
+      templateVersion
+    }))
+    .sort((left, right) => (
+      right.refinedRows - left.refinedRows ||
+      Number(right.templateVersion === requestedVersion) - Number(left.templateVersion === requestedVersion)
+    ))[0];
+}
 
 function hasOmrAccess(req, url) {
   if (!OPINION_OMR_TOKEN) return true;
@@ -3420,9 +3455,9 @@ function interpolateOmrGuidePoint(markers, columnRatio, rowRatio) {
   };
 }
 
-function buildOmrGuideGrid(markers, bubbleCandidates = []) {
-  const rawPoints = PLAZA_OMR_GUIDE_TEMPLATE.rows.map((rowRatio) => (
-    PLAZA_OMR_GUIDE_TEMPLATE.columns.map((columnRatio) => (
+function buildOmrGuideGrid(markers, bubbleCandidates = [], guideTemplate = PLAZA_OMR_TEMPLATES["20260719"].guides) {
+  const rawPoints = guideTemplate.rows.map((rowRatio) => (
+    guideTemplate.columns.map((columnRatio) => (
       interpolateOmrGuidePoint(markers, columnRatio, rowRatio)
     ))
   ));
@@ -3798,11 +3833,11 @@ function analyzeOmrGuideRow(gray, width, height, grid, rowIndex, colorImage = nu
   };
 }
 
-function analyzeOmrRow(gray, width, height, box, rowRatio) {
+function analyzeOmrRow(gray, width, height, box, rowRatio, columnRatios = PLAZA_OMR_TEMPLATES["20260719"].fallback.columns) {
   const outerRadius = Math.max(7, Math.round(box.width * 0.024));
   const innerRadius = Math.max(5, Math.round(box.width * 0.013));
   const cy = box.y + box.height * rowRatio;
-  const measurements = PLAZA_OMR_TEMPLATE.columns.map((columnRatio) => {
+  const measurements = columnRatios.map((columnRatio) => {
     const cx = box.x + box.width * columnRatio;
     const inner = omrDarkRatio(gray, width, height, cx, cy, innerRadius);
     const outer = omrDarkRatio(gray, width, height, cx, cy, outerRadius);
@@ -3912,9 +3947,13 @@ async function readPlazaOpinionOmr(body) {
   const { data, info } = image;
   const width = info.width;
   const height = info.height;
+  let template = plazaOmrTemplate(body.formVersion);
   const guideMarkers = detectOmrGuideMarkers(data, width, height);
   const guideBubbleCandidates = guideMarkers ? detectOmrBubbleCandidates(data, width, height) : [];
-  const guideGrid = guideMarkers ? buildOmrGuideGrid(guideMarkers, guideBubbleCandidates) : null;
+  const guideGrid = guideMarkers
+    ? selectPlazaOmrGuideGrid(guideMarkers, guideBubbleCandidates, body.formVersion)
+    : null;
+  if (guideGrid?.template) template = guideGrid.template;
   const bubbleGrid = guideGrid ? null : detectOmrBubbleGrid(data, width, height);
   const box = guideGrid ? guideGrid.box : (bubbleGrid ? bubbleGrid.box : detectOmrFormBox(data, width, height));
   const aspect = box.height / box.width;
@@ -3934,7 +3973,7 @@ async function readPlazaOpinionOmr(body) {
         })
       : (bubbleGrid
           ? analyzeOmrGridRow(data, width, height, bubbleGrid, index)
-          : analyzeOmrRow(data, width, height, box, PLAZA_OMR_TEMPLATE.rows[index]));
+          : analyzeOmrRow(data, width, height, box, template.fallback.rows[index], template.fallback.columns));
     ratings[field] = row.value;
     if (row.uncertain) uncertain.push(label);
     debugRows.push({
@@ -3978,7 +4017,7 @@ async function readPlazaOpinionOmr(body) {
   return {
     ok: true,
     engine: guideGrid ? "pixel-omr-v2-guides" : "pixel-omr-v1",
-    form: "sueds-plaza-20260720",
+    form: `sueds-plaza-${String(body.formVersion || "").replace(/\D/g, "") || template.form.split("-").pop()}`,
     confidence,
     ratings,
     answered,
@@ -3989,6 +4028,8 @@ async function readPlazaOpinionOmr(body) {
       imageHeight: height,
       box,
       method: guideGrid ? guideGrid.method : (bubbleGrid ? bubbleGrid.method : (box.method || "")),
+      templateVersion: guideGrid?.templateVersion || template.form.split("-").pop(),
+      refinedRows: guideGrid?.refinedRows,
       guideMarkers: guideGrid
         ? Object.fromEntries(Object.entries(guideGrid.markers)
             .filter(([, value]) => value && typeof value === "object" && Number.isFinite(value.x))
