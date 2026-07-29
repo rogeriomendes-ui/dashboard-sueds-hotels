@@ -1030,9 +1030,19 @@ function ensureHeader_(sheet, headers) {
 function ensureConfig_(sheet) {
   sheet.getRange(1, 1, 1, 3).setValues([["Chave", "Valor", "Descricao"]]);
   const values = sheet.getDataRange().getValues();
-  const existing = new Set(values.slice(1).map((row) => String(row[0] || "").trim()));
+  const existingRows = new Map();
+  values.slice(1).forEach((row, index) => {
+    const key = String(row[0] || "").trim();
+    if (key) existingRows.set(key, index + 2);
+  });
+  const managedKeys = new Set(["OPINARIOS_FORM_VERSION", "OPINARIOS_ACCEPTED_FORM_VERSIONS"]);
   OPINARIOS_CONFIG_DEFAULTS.forEach((row) => {
-    if (!existing.has(row[0])) sheet.appendRow(row);
+    const rowNumber = existingRows.get(row[0]);
+    if (!rowNumber) {
+      sheet.appendRow(row);
+    } else if (managedKeys.has(row[0])) {
+      sheet.getRange(rowNumber, 2, 1, 2).setValues([[row[1], row[2]]]);
+    }
   });
 }
 
