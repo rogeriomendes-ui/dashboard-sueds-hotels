@@ -5,8 +5,8 @@ const OPINARIOS_HOTELS_SHEET = "Hoteis_Operacional";
 const OPINARIOS_LOG_SHEET = "Log_Opinarios";
 const OPINARIOS_ROOT_FOLDER_ID = "1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8";
 const OPINARIOS_PLAZA_FOLDER_ID = "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG";
-const OPINARIOS_OFFICIAL_FORM_VERSION = "20260720";
-const OPINARIOS_ACCEPTED_FORM_VERSIONS = ["20260719", "20260720"];
+const OPINARIOS_OFFICIAL_FORM_VERSION = "20260729";
+const OPINARIOS_ACCEPTED_FORM_VERSIONS = ["20260719", "20260720", "20260729"];
 const OPINARIOS_ACTIVE_HOTEL = "SUEDS PLAZA";
 const OPINARIOS_UPLOAD_MAX_BYTES = 4000000;
 
@@ -830,12 +830,12 @@ function buildOpenAiOpinionPrompt_(hotel) {
     "Extraia apenas o que estiver visivel. Se um campo nao estiver legivel, use string vazia e inclua o campo em uncertainFields.",
     "Nao leia nem estime as bolinhas/circulos de avaliacao. As avaliacoes serao lidas por OMR por pixels em outra etapa.",
     "Nos campos de avaliacao do JSON, use string vazia. Foque em nome, apartamento, datas, comentarios, elogios, problemas, hotel e versao.",
-    "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260719 ou FORM_VERSION=20260720, LANG=PT-BR.",
-    "Na versao 20260720, o QR Code fica no topo; ignore completamente seus quadrados e modulos durante a leitura dos campos.",
-    "No rodape pode aparecer texto semelhante a HOTEL=SUEDS_PLAZA | FORM_VERSION=20260719 | LANG=PT-BR ou HOTEL=SUEDS_PLAZA | FORM_VERSION=20260720 | LANG=PT-BR. Extraia formVersion como os 8 digitos visiveis da versao impressa.",
+    "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260729, LANG=PT-BR. As versoes anteriores 20260719 e 20260720 tambem sao aceitas.",
+    "Na versao 20260729, o QR Code fica no topo; ignore completamente seus quadrados e modulos durante a leitura dos campos.",
+    "No rodape pode aparecer texto semelhante a HOTEL=SUEDS_PLAZA | FORM_VERSION=20260719 | LANG=PT-BR, HOTEL=SUEDS_PLAZA | FORM_VERSION=20260720 | LANG=PT-BR ou HOTEL=SUEDS_PLAZA | FORM_VERSION=20260729 | LANG=PT-BR. Extraia formVersion como os 8 digitos visiveis da versao impressa.",
     "Ignore linhas, textos e logotipos da grade de avaliacao. Nao use marcas do QR code ou do rodape como avaliacao.",
     "Se a foto mostrar duas fichas identicas na mesma pagina, leia apenas uma ficha preenchida. Se as duas estiverem preenchidas, registre duvida em reviewReason.",
-    "Itens oficiais dos formularios SUEDS Plaza 20260719 e 20260720:",
+    "Itens oficiais dos formularios SUEDS Plaza 20260719, 20260720 e 20260729:",
     "1. Impressao geral: Como voce avalia sua hospedagem?",
     "2. Reserva: Como foi sua experiencia para reservar?",
     "3. Recepcao / Check-in / Check-out",
@@ -849,14 +849,14 @@ function buildOpenAiOpinionPrompt_(hotel) {
     "11. Almoco",
     "12. Jantar",
     "Leia tambem nome, numero do quarto, datas e comentarios/elogios/sugestoes quando estiverem preenchidos.",
-    "Na versao 20260720, o numero do quarto fica a direita do nome e as datas aparecem como DATA CHECK-IN e CHECK-OUT. Grave DATA CHECK-IN em entryDate e CHECK-OUT em exitDate.",
+    "Na versao 20260729, o numero do quarto fica a direita do nome e as datas aparecem como DATA CHECK-IN e CHECK-OUT. Grave DATA CHECK-IN em entryDate e CHECK-OUT em exitDate.",
     "Padronize acentos e caixa baixa/alta naturalmente em portugues.",
     `Hotel esperado pela pasta: ${hotel}.`,
     "Responda somente JSON valido, sem markdown, neste formato:",
     "{",
     '  "hotel": "SUEDS PLAZA",',
     '  "hotelSlug": "sueds-plaza",',
-    '  "formVersion": "20260720",',
+    '  "formVersion": "20260729",',
     '  "lang": "pt-BR",',
     '  "guestName": "",',
     '  "apartment": "",',
