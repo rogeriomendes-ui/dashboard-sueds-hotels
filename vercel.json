@@ -16,6 +16,26 @@
       "dest": "/public/enviar-opinarios-plaza.html"
     },
     {
+      "src": "/cabralia-opinarios",
+      "dest": "/public/enviar-opinarios-plaza.html"
+    },
+    {
+      "src": "/segundo-sol-opinarios",
+      "dest": "/public/enviar-opinarios-plaza.html"
+    },
+    {
+      "src": "/premium-opinarios",
+      "dest": "/public/enviar-opinarios-plaza.html"
+    },
+    {
+      "src": "/trancoso-opinarios",
+      "dest": "/public/enviar-opinarios-plaza.html"
+    },
+    {
+      "src": "/casas-arraial-opinarios",
+      "dest": "/public/enviar-opinarios-plaza.html"
+    },
+    {
       "src": "/operacional/plaza",
       "dest": "/public/dashboard-operacional-plaza.html"
     },

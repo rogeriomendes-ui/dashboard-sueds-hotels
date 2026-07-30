@@ -14,14 +14,19 @@ const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinh
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
 const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
-const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AK";
+const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AZ";
 const OPINION_OMR_TOKEN = process.env.OPINION_OMR_TOKEN || "";
 const OPINION_UPLOAD_TOKEN = process.env.OPINION_UPLOAD_TOKEN || "";
 const OPINION_APPS_SCRIPT_UPLOAD_URL = process.env.OPINION_APPS_SCRIPT_UPLOAD_URL || "";
 const OPINION_UPLOAD_MAX_BYTES = Math.min(Number(process.env.OPINION_UPLOAD_MAX_BYTES || 4000000), 4200000);
 const OPINION_UPLOAD_SESSION_TTL_SECONDS = Math.min(Math.max(Number(process.env.OPINION_UPLOAD_SESSION_TTL_SECONDS || 43200), 900), 86400);
 const OPINION_UPLOAD_FOLDERS = {
-  "sueds-plaza": process.env.GOOGLE_OPINIONS_PLAZA_FOLDER_ID || "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG"
+  "sueds-cabralia": process.env.GOOGLE_OPINIONS_CABRALIA_FOLDER_ID || "1gdXUPVxGVwMkBcGmBZEnWUr1htBfiqQB",
+  "sueds-segundo-sol": process.env.GOOGLE_OPINIONS_SEGUNDO_SOL_FOLDER_ID || "1hyG0LVE4VDXo66OD8uFbF2GpA4t0GCX9",
+  "sueds-plaza": process.env.GOOGLE_OPINIONS_PLAZA_FOLDER_ID || "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG",
+  "sueds-premium": process.env.GOOGLE_OPINIONS_PREMIUM_FOLDER_ID || "1ZuTuwFPW9A20gC5QoVi1WMRrP7jJ_JSP",
+  "sueds-trancoso": process.env.GOOGLE_OPINIONS_TRANCOSO_FOLDER_ID || "16ELXw9BvEK5_14p8u8KONbfI6dO0-Drv",
+  "casas-sueds-arraial": process.env.GOOGLE_OPINIONS_CASAS_ARRAIAL_FOLDER_ID || "1wiz8oQppH3wduzqezvyg_ePsE6JxhVXD"
 };
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
@@ -2773,14 +2778,132 @@ const PLAZA_OMR_TEMPLATES = {
   }
 };
 
-function plazaOmrTemplate(formVersion) {
-  const version = String(formVersion || "").replace(/\D/g, "");
-  return PLAZA_OMR_TEMPLATES[version] || PLAZA_OMR_TEMPLATES["20260719"];
+const CURRENT_OMR_TEMPLATE = {
+  fallback: {
+    columns: [0.585, 0.710, 0.835, 0.963],
+    rows: [0.205, 0.270, 0.339, 0.384, 0.429, 0.473, 0.517, 0.561, 0.605, 0.668, 0.712, 0.752]
+  },
+  guides: {
+    columns: [0.584, 0.711, 0.838, 0.965],
+    rows: [0.1852, 0.2501, 0.3191, 0.3641, 0.4093, 0.4531, 0.4972, 0.5411, 0.5850, 0.6478, 0.6920, 0.7324]
+  }
+};
+const OPINION_OMR_PROFILES = {
+  "sueds-plaza": {
+    fields: PLAZA_OMR_FIELDS,
+    templates: PLAZA_OMR_TEMPLATES
+  },
+  "sueds-segundo-sol": {
+    fields: PLAZA_OMR_FIELDS,
+    templates: {
+      "20260729": { form: "sueds-segundo-sol-20260729", ...CURRENT_OMR_TEMPLATE }
+    }
+  },
+  "sueds-premium": {
+    fields: PLAZA_OMR_FIELDS,
+    templates: {
+      "20260729": { form: "sueds-premium-20260729", ...CURRENT_OMR_TEMPLATE }
+    }
+  },
+  "sueds-cabralia": {
+    fields: [
+      ["generalImpression", "Impressao Geral"],
+      ["reservation", "Reserva"],
+      ["frontDesk", "Recepcao / Check-in / Check-out"],
+      ["teamService", "Atendimento da equipe"],
+      ["roomComfort", "Conforto do quarto"],
+      ["roomCleaning", "Limpeza do quarto"],
+      ["wifi", "Qualidade do Wi-fi"],
+      ["pool", "Area de lazer / piscina"],
+      ["beachClub", "Atendimento da equipe do Beach Club"],
+      ["foodBreakfast", "Alimentos Cafe da Manha"],
+      ["foodDinner", "Alimentos Jantar"]
+    ],
+    templates: {
+      "20260729": {
+        form: "sueds-cabralia-20260729",
+        fallback: {
+          columns: [0.585, 0.710, 0.835, 0.963],
+          rows: [0.199, 0.263, 0.330, 0.376, 0.420, 0.464, 0.510, 0.554, 0.600, 0.663, 0.708]
+        },
+        guides: {
+          columns: [0.584, 0.711, 0.838, 0.965],
+          rows: [0.179, 0.243, 0.310, 0.356, 0.400, 0.444, 0.490, 0.534, 0.580, 0.643, 0.688]
+        }
+      }
+    }
+  },
+  "sueds-trancoso": {
+    fields: [
+      ["generalImpression", "Impressao Geral"],
+      ["reservation", "Reserva"],
+      ["frontDesk", "Recepcao / Check-in / Check-out"],
+      ["teamService", "Atendimento da equipe"],
+      ["roomComfort", "Conforto do quarto"],
+      ["roomCleaning", "Limpeza do quarto"],
+      ["wifi", "Qualidade do Wi-fi"],
+      ["pool", "Area de lazer / piscina"],
+      ["foodBreakfast", "Alimentos Cafe da Manha"],
+      ["foodAfternoonTea", "Alimentos Cha da Tarde"]
+    ],
+    templates: {
+      "20260729": {
+        form: "sueds-trancoso-20260729",
+        fallback: {
+          columns: [0.585, 0.710, 0.835, 0.963],
+          rows: [0.199, 0.263, 0.331, 0.376, 0.421, 0.466, 0.511, 0.556, 0.629, 0.673]
+        },
+        guides: {
+          columns: [0.584, 0.711, 0.838, 0.965],
+          rows: [0.179, 0.243, 0.311, 0.356, 0.401, 0.446, 0.491, 0.536, 0.609, 0.653]
+        }
+      }
+    }
+  },
+  "casas-sueds-arraial": {
+    fields: [
+      ["generalImpression", "Impressao Geral"],
+      ["reservation", "Reserva"],
+      ["teamService", "Atendimento da equipe"],
+      ["apartmentComfort", "Conforto do apartamento"],
+      ["apartmentInitialCleaning", "Limpeza inicial do apartamento"],
+      ["apartmentEquipment", "Equipamentos / utensilios do apartamento"],
+      ["wifi", "Qualidade do Wi-fi"],
+      ["apartmentLocation", "Localizacao do apartamento"]
+    ],
+    templates: {
+      "20260729": {
+        form: "casas-sueds-arraial-20260729",
+        fallback: {
+          columns: [0.585, 0.710, 0.835, 0.963],
+          rows: [0.199, 0.263, 0.330, 0.374, 0.420, 0.465, 0.510, 0.554]
+        },
+        guides: {
+          columns: [0.584, 0.711, 0.838, 0.965],
+          rows: [0.179, 0.243, 0.310, 0.354, 0.400, 0.445, 0.490, 0.534]
+        }
+      }
+    }
+  }
+};
+
+function opinionOmrProfile(body = {}) {
+  const slug = normalizeOpinionHotelSlug(body.hotelSlug || body.hotel || "sueds-plaza");
+  return {
+    slug: OPINION_OMR_PROFILES[slug] ? slug : "sueds-plaza",
+    ...(OPINION_OMR_PROFILES[slug] || OPINION_OMR_PROFILES["sueds-plaza"])
+  };
 }
 
-function selectPlazaOmrGuideGrid(markers, bubbleCandidates, formVersion) {
+function opinionOmrTemplate(profile, formVersion) {
+  const version = String(formVersion || "").replace(/\D/g, "");
+  const entries = Object.entries(profile.templates);
+  return profile.templates[version] || entries[entries.length - 1][1];
+}
+
+function selectOpinionOmrGuideGrid(markers, bubbleCandidates, profile, formVersion) {
   const requestedVersion = String(formVersion || "").replace(/\D/g, "");
-  return Object.entries(PLAZA_OMR_TEMPLATES)
+  return Object.entries(profile.templates)
     .map(([templateVersion, template]) => ({
       ...buildOmrGuideGrid(markers, bubbleCandidates, template.guides),
       template,
@@ -3665,7 +3788,7 @@ function chooseOmrColumnCenters(candidates, width) {
   return best ? best.group.map((cluster) => cluster.center).sort((a, b) => a - b) : [];
 }
 
-function chooseOmrRowCenters(candidates, columnCenters, width) {
+function chooseOmrRowCenters(candidates, columnCenters, width, expectedRowCount = 12) {
   if (columnCenters.length !== 4) return [];
   const columnTolerance = Math.max(18, Math.round(width * 0.018));
   const nearGrid = candidates
@@ -3685,11 +3808,11 @@ function chooseOmrRowCenters(candidates, columnCenters, width) {
     .filter((cluster) => cluster.columns >= 2)
     .sort((a, b) => a.center - b.center);
 
-  if (yClusters.length < 12) return [];
+  if (yClusters.length < expectedRowCount) return [];
 
   let best = null;
-  for (let start = 0; start <= yClusters.length - 12; start += 1) {
-    const group = yClusters.slice(start, start + 12);
+  for (let start = 0; start <= yClusters.length - expectedRowCount; start += 1) {
+    const group = yClusters.slice(start, start + expectedRowCount);
     const gaps = [];
     for (let index = 1; index < group.length; index += 1) {
       gaps.push(group[index].center - group[index - 1].center);
@@ -3712,11 +3835,11 @@ function chooseOmrRowCenters(candidates, columnCenters, width) {
   return best ? best.group.map((cluster) => cluster.center) : [];
 }
 
-function detectOmrBubbleGrid(gray, width, height) {
+function detectOmrBubbleGrid(gray, width, height, expectedRowCount = 12) {
   const candidates = detectOmrBubbleCandidates(gray, width, height);
   const columns = chooseOmrColumnCenters(candidates, width);
-  const rows = chooseOmrRowCenters(candidates, columns, width);
-  if (columns.length !== 4 || rows.length !== 12) return null;
+  const rows = chooseOmrRowCenters(candidates, columns, width, expectedRowCount);
+  if (columns.length !== 4 || rows.length !== expectedRowCount) return null;
 
   const minX = Math.min(...columns);
   const maxX = Math.max(...columns);
@@ -3724,7 +3847,7 @@ function detectOmrBubbleGrid(gray, width, height) {
   const maxY = Math.max(...rows);
   const gridWidth = maxX - minX;
   const gridHeight = maxY - minY;
-  if (gridWidth < width * 0.18 || gridHeight < height * 0.32) return null;
+  if (gridWidth < width * 0.18 || gridHeight < height * 0.18) return null;
 
   return {
     columns,
@@ -3975,8 +4098,9 @@ function analyzeOmrGridRow(gray, width, height, grid, rowIndex) {
   };
 }
 
-async function readPlazaOpinionOmr(body) {
+async function readOpinionOmr(body) {
   const sharp = require("sharp");
+  const profile = opinionOmrProfile(body);
   const imageBuffer = imageBufferFromOmrBody(body);
   if (imageBuffer.length > 14 * 1024 * 1024) {
     throw new Error("Imagem acima do limite OMR.");
@@ -3993,14 +4117,14 @@ async function readPlazaOpinionOmr(body) {
   const { data, info } = image;
   const width = info.width;
   const height = info.height;
-  let template = plazaOmrTemplate(body.formVersion);
+  let template = opinionOmrTemplate(profile, body.formVersion);
   const guideMarkers = detectOmrGuideMarkers(data, width, height);
   const guideBubbleCandidates = guideMarkers ? detectOmrBubbleCandidates(data, width, height) : [];
   const guideGrid = guideMarkers
-    ? selectPlazaOmrGuideGrid(guideMarkers, guideBubbleCandidates, body.formVersion)
+    ? selectOpinionOmrGuideGrid(guideMarkers, guideBubbleCandidates, profile, body.formVersion)
     : null;
   if (guideGrid?.template) template = guideGrid.template;
-  const bubbleGrid = guideGrid ? null : detectOmrBubbleGrid(data, width, height);
+  const bubbleGrid = guideGrid ? null : detectOmrBubbleGrid(data, width, height, profile.fields.length);
   const box = guideGrid ? guideGrid.box : (bubbleGrid ? bubbleGrid.box : detectOmrFormBox(data, width, height));
   const aspect = box.height / box.width;
   const boxLooksValid = guideGrid || bubbleGrid
@@ -4011,7 +4135,7 @@ async function readPlazaOpinionOmr(body) {
   const uncertain = [];
   const debugRows = [];
 
-  PLAZA_OMR_FIELDS.forEach(([field, label], index) => {
+  profile.fields.forEach(([field, label], index) => {
     const row = guideGrid
       ? analyzeOmrGuideRow(data, width, height, guideGrid, index, {
           data: colorImage.data,
@@ -4063,7 +4187,7 @@ async function readPlazaOpinionOmr(body) {
   return {
     ok: true,
     engine: guideGrid ? "pixel-omr-v2-guides" : "pixel-omr-v1",
-    form: `sueds-plaza-${String(body.formVersion || "").replace(/\D/g, "") || template.form.split("-").pop()}`,
+    form: `${profile.slug}-${String(body.formVersion || "").replace(/\D/g, "") || template.form.split("-").pop()}`,
     confidence,
     ratings,
     answered,
@@ -6355,7 +6479,7 @@ async function handleRequest(req, res) {
       if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
       if (!hasOmrAccess(req, url)) return forbidden(res);
       const body = await readJsonBody(req, 18000000);
-      return json(res, 200, await readPlazaOpinionOmr(body));
+      return json(res, 200, await readOpinionOmr(body));
     }
 
     if (url.pathname === "/api/operacional/opinarios-upload") {
@@ -6363,8 +6487,15 @@ async function handleRequest(req, res) {
         return json(res, 503, { ok: false, error: "upload_not_configured", message: "Envio ainda nao configurado no Vercel." });
       }
       if (req.method === "GET") {
+        const requestedHotelSlug = String(url.searchParams.get("hotel") || "sueds-plaza").trim().toLowerCase();
+        const hotelSlug = OPINION_UPLOAD_FOLDERS[requestedHotelSlug] ? requestedHotelSlug : "sueds-plaza";
         setOpinionUploadSessionCookie(req, res);
-        return json(res, 200, { ok: true, hotel: "SUEDS PLAZA", hotelSlug: "sueds-plaza", maxBytes: OPINION_UPLOAD_MAX_BYTES });
+        return json(res, 200, {
+          ok: true,
+          hotel: OPERATIONAL_HOTELS_BY_SLUG[hotelSlug],
+          hotelSlug,
+          maxBytes: OPINION_UPLOAD_MAX_BYTES
+        });
       }
       if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
       if (!hasOpinionUploadAccess(req, url)) return forbidden(res);
@@ -6408,6 +6539,7 @@ module.exports = {
     operationalOpinionCapturedAt,
     operationalWeekdayNumber,
     sellerCommission,
-    readPlazaOpinionOmr
+    readPlazaOpinionOmr: readOpinionOmr,
+    readOpinionOmr
   }
 };

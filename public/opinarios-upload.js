@@ -1,5 +1,15 @@
 const API_URL = "/api/operacional/opinarios-upload";
-const HOTEL_SLUG = "sueds-plaza";
+const UPLOAD_HOTELS = {
+  "plaza-opinarios": { slug: "sueds-plaza", name: "SUEDS Plaza", brand: "PLAZA" },
+  "cabralia-opinarios": { slug: "sueds-cabralia", name: "SUEDS Cabrália", brand: "CABRÁLIA" },
+  "segundo-sol-opinarios": { slug: "sueds-segundo-sol", name: "SUEDS Segundo Sol", brand: "SEGUNDO SOL" },
+  "premium-opinarios": { slug: "sueds-premium", name: "SUEDS Premium", brand: "PREMIUM" },
+  "trancoso-opinarios": { slug: "sueds-trancoso", name: "SUEDS Trancoso", brand: "TRANCOSO" },
+  "casas-arraial-opinarios": { slug: "casas-sueds-arraial", name: "Casas SUEDS Arraial", brand: "CASAS ARRAIAL" }
+};
+const uploadRoute = window.location.pathname.split("/").filter(Boolean).pop() || "plaza-opinarios";
+const CURRENT_UPLOAD_HOTEL = UPLOAD_HOTELS[uploadRoute] || UPLOAD_HOTELS["plaza-opinarios"];
+const HOTEL_SLUG = CURRENT_UPLOAD_HOTEL.slug;
 const MAX_UPLOAD_BYTES = 3_800_000;
 const TARGET_UPLOAD_BYTES = 1_800_000;
 const MAX_IMAGE_EDGE = 2200;
@@ -72,13 +82,19 @@ async function runPool(items, concurrency, task) {
 }
 
 async function startUploadSession() {
-  const response = await fetch(API_URL, { credentials: "same-origin" });
+  const response = await fetch(`${API_URL}?hotel=${encodeURIComponent(HOTEL_SLUG)}`, { credentials: "same-origin" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.ok) {
     throw new Error(payload.message || "Nao foi possivel conectar ao envio.");
   }
   state.accessReady = true;
   renderQueue();
+}
+
+function applyHotelIdentity() {
+  document.title = `${CURRENT_UPLOAD_HOTEL.name} | Enviar opinarios`;
+  byId("hotelBrand").textContent = CURRENT_UPLOAD_HOTEL.brand;
+  byId("hotelName").textContent = CURRENT_UPLOAD_HOTEL.name;
 }
 
 function loadImage(file) {
@@ -335,6 +351,7 @@ function bindFileInput(id) {
 }
 
 async function init() {
+  applyHotelIdentity();
   const today = todayLocal();
   byId("periodFrom").value = today;
   byId("periodTo").value = today;

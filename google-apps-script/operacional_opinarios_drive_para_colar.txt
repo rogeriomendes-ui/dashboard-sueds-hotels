@@ -5,9 +5,17 @@ const OPINARIOS_HOTELS_SHEET = "Hoteis_Operacional";
 const OPINARIOS_LOG_SHEET = "Log_Opinarios";
 const OPINARIOS_ROOT_FOLDER_ID = "1JqdCOSc8tdwJKao90qBIPP1ryk-aXnp8";
 const OPINARIOS_PLAZA_FOLDER_ID = "16eaSsuRagT5ZYYVz34t5-Bzkvxf0UQZG";
+const OPINARIOS_FOLDER_BY_HOTEL_SLUG = {
+  "sueds-cabralia": "1gdXUPVxGVwMkBcGmBZEnWUr1htBfiqQB",
+  "sueds-segundo-sol": "1hyG0LVE4VDXo66OD8uFbF2GpA4t0GCX9",
+  "sueds-plaza": OPINARIOS_PLAZA_FOLDER_ID,
+  "sueds-premium": "1ZuTuwFPW9A20gC5QoVi1WMRrP7jJ_JSP",
+  "sueds-trancoso": "16ELXw9BvEK5_14p8u8KONbfI6dO0-Drv",
+  "casas-sueds-arraial": "1wiz8oQppH3wduzqezvyg_ePsE6JxhVXD"
+};
 const OPINARIOS_OFFICIAL_FORM_VERSION = "20260729";
 const OPINARIOS_ACCEPTED_FORM_VERSIONS = ["20260719", "20260720", "20260729"];
-const OPINARIOS_ACTIVE_HOTEL = "SUEDS PLAZA";
+const OPINARIOS_ACTIVE_HOTEL = "TODOS";
 const OPINARIOS_UPLOAD_MAX_BYTES = 4000000;
 
 const OPINARIOS_HOTELS = [
@@ -16,8 +24,84 @@ const OPINARIOS_HOTELS = [
   ["SUEDS PLAZA", "Ativo", 3, ""],
   ["SUEDS PREMIUM", "Ativo", 4, ""],
   ["SUEDS TRANCOSO", "Ativo", 5, ""],
-  ["CASAS SUEDS ARRAIAL", "Planejado", 6, "Sexto hotel do grupo."]
+  ["CASAS SUEDS ARRAIAL", "Ativo", 6, ""]
 ];
+
+const OPINARIOS_FORM_PROFILES = {
+  "SUEDS CABRALIA": {
+    slug: "sueds-cabralia",
+    fields: [
+      ["generalImpression", "Impressao Geral"],
+      ["reservation", "Reserva"],
+      ["frontDesk", "Recepcao / Check-in / Check-out"],
+      ["teamService", "Atendimento da equipe"],
+      ["roomComfort", "Conforto do quarto"],
+      ["roomCleaning", "Limpeza do quarto"],
+      ["wifi", "Qualidade do Wi-fi"],
+      ["pool", "Area de lazer / piscina"],
+      ["beachClub", "Atendimento da equipe do Beach Club"],
+      ["foodBreakfast", "Alimentos Cafe da Manha"],
+      ["foodDinner", "Alimentos Jantar"]
+    ]
+  },
+  "SUEDS SEGUNDO SOL": {
+    slug: "sueds-segundo-sol",
+    fields: null
+  },
+  "SUEDS PLAZA": {
+    slug: "sueds-plaza",
+    fields: null
+  },
+  "SUEDS PREMIUM": {
+    slug: "sueds-premium",
+    fields: null
+  },
+  "SUEDS TRANCOSO": {
+    slug: "sueds-trancoso",
+    fields: [
+      ["generalImpression", "Impressao Geral"],
+      ["reservation", "Reserva"],
+      ["frontDesk", "Recepcao / Check-in / Check-out"],
+      ["teamService", "Atendimento da equipe"],
+      ["roomComfort", "Conforto do quarto"],
+      ["roomCleaning", "Limpeza do quarto"],
+      ["wifi", "Qualidade do Wi-fi"],
+      ["pool", "Area de lazer / piscina"],
+      ["foodBreakfast", "Alimentos Cafe da Manha"],
+      ["foodAfternoonTea", "Alimentos Cha da Tarde"]
+    ]
+  },
+  "CASAS SUEDS ARRAIAL": {
+    slug: "casas-sueds-arraial",
+    fields: [
+      ["generalImpression", "Impressao Geral"],
+      ["reservation", "Reserva"],
+      ["teamService", "Atendimento da equipe"],
+      ["apartmentComfort", "Conforto do apartamento"],
+      ["apartmentInitialCleaning", "Limpeza inicial do apartamento"],
+      ["apartmentEquipment", "Equipamentos / utensilios do apartamento"],
+      ["wifi", "Qualidade do Wi-fi"],
+      ["apartmentLocation", "Localizacao do apartamento"]
+    ]
+  }
+};
+const OPINARIOS_STANDARD_RATING_FIELDS = [
+  ["generalImpression", "Impressao Geral"],
+  ["reservation", "Reserva"],
+  ["frontDesk", "Recepcao / Check-in / Check-out"],
+  ["teamService", "Atendimento da equipe"],
+  ["roomComfort", "Conforto do quarto"],
+  ["roomCleaning", "Limpeza do quarto"],
+  ["wifi", "Qualidade do Wi-fi"],
+  ["pool", "Area de lazer / piscina"],
+  ["beachClub", "Atendimento da equipe do Beach Club"],
+  ["foodBreakfast", "Alimentos Cafe da Manha"],
+  ["foodLunch", "Alimentos Almoco"],
+  ["foodDinner", "Alimentos Jantar"]
+];
+OPINARIOS_FORM_PROFILES["SUEDS SEGUNDO SOL"].fields = OPINARIOS_STANDARD_RATING_FIELDS;
+OPINARIOS_FORM_PROFILES["SUEDS PLAZA"].fields = OPINARIOS_STANDARD_RATING_FIELDS;
+OPINARIOS_FORM_PROFILES["SUEDS PREMIUM"].fields = OPINARIOS_STANDARD_RATING_FIELDS;
 
 const OPINARIOS_HEADERS = [
   "ID Arquivo",
@@ -53,7 +137,15 @@ const OPINARIOS_HEADERS = [
   "Status",
   "Responsavel Revisao",
   "Observacao Revisao",
-  "Data Revisao"
+  "Data Revisao",
+  "Status Ocorrencia",
+  "Data Status Ocorrencia",
+  "Responsavel Status Ocorrencia",
+  "Conforto do apartamento",
+  "Limpeza inicial do apartamento",
+  "Equipamentos / utensilios do apartamento",
+  "Localizacao do apartamento",
+  "Alimentos Cha da Tarde"
 ];
 
 const OPINARIOS_REVIEW_HEADERS = [
@@ -77,10 +169,10 @@ const OPINARIOS_LOG_HEADERS = [
 
 const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPINARIOS_ROOT_FOLDER_ID", OPINARIOS_ROOT_FOLDER_ID, "Pasta raiz OPINARIOS no Drive."],
-  ["OPINARIOS_SOURCE_FOLDER_ID", OPINARIOS_PLAZA_FOLDER_ID, "Pasta do Drive onde o SUEDS Plaza coloca as fotos novas."],
+  ["OPINARIOS_SOURCE_FOLDER_ID", OPINARIOS_ROOT_FOLDER_ID, "Pasta raiz. O processamento consulta apenas as seis subpastas oficiais configuradas."],
   ["OPINARIOS_PROCESSED_FOLDER_ID", "", "Opcional. Pasta para mover fotos processadas."],
   ["OPINARIOS_ERROR_FOLDER_ID", "", "Opcional. Pasta para mover fotos com erro."],
-  ["OPINARIOS_MIN_CONFIDENCE", "90", "Confianca minima para aprovar automaticamente no piloto Plaza."],
+  ["OPINARIOS_MIN_CONFIDENCE", "90", "Confianca minima para aprovar automaticamente os formularios."],
   ["OPINARIOS_MIN_FILLED_RATINGS", "0", "Campos em branco ou com multipla marcacao nao pontuam, mas nao bloqueiam o processamento."],
   ["OPINARIOS_AI_PROVIDER", "OpenAI", "Provedor de IA de visao. Primeira versao usando OpenAI Vision."],
   ["OPENAI_MODEL", "gpt-4o-mini", "Modelo OpenAI usado para ler os opiniarios."],
@@ -89,9 +181,9 @@ const OPINARIOS_CONFIG_DEFAULTS = [
   ["OPINARIOS_OMR_AUTO_APPROVE", "SIM", "Aprova automaticamente quando a leitura atingir a confianca minima configurada."],
   ["OPINARIOS_OMR_DEBUG", "NAO", "Ative somente para diagnostico tecnico temporario do OMR."],
   ["OPINARIOS_MAX_IMAGE_MB", "10", "Tamanho maximo da imagem para envio automatico a IA."],
-  ["OPINARIOS_ACTIVE_HOTEL", OPINARIOS_ACTIVE_HOTEL, "Piloto oficial atual. Demais hoteis serao configurados depois."],
-  ["OPINARIOS_FORM_VERSION", OPINARIOS_OFFICIAL_FORM_VERSION, "Versao oficial do formulario impresso Plaza."],
-  ["OPINARIOS_ACCEPTED_FORM_VERSIONS", OPINARIOS_ACCEPTED_FORM_VERSIONS.join(","), "Versoes aceitas no piloto Plaza, separadas por virgula."]
+  ["OPINARIOS_ACTIVE_HOTEL", OPINARIOS_ACTIVE_HOTEL, "Processamento ativo para as seis pastas oficiais."],
+  ["OPINARIOS_FORM_VERSION", OPINARIOS_OFFICIAL_FORM_VERSION, "Versao oficial dos formularios impressos."],
+  ["OPINARIOS_ACCEPTED_FORM_VERSIONS", OPINARIOS_ACCEPTED_FORM_VERSIONS.join(","), "Versoes antigas aceitas somente para o SUEDS Plaza."]
 ];
 
 function onOpen() {
@@ -138,7 +230,9 @@ function doPost(e) {
     }
 
     const hotelSlug = String(body.hotelSlug || "").trim().toLowerCase();
-    if (hotelSlug !== "sueds-plaza") {
+    const folderId = OPINARIOS_FOLDER_BY_HOTEL_SLUG[hotelSlug];
+    const hotel = opinionHotelFromSlug_(hotelSlug);
+    if (!folderId || !hotel) {
       return opinionUploadJson_({ ok: false, message: "Hotel ainda nao configurado para upload." });
     }
 
@@ -168,8 +262,9 @@ function doPost(e) {
     const datePart = /^\d{4}-\d{2}-\d{2}$/.test(periodFrom)
       ? periodFrom.replace(/-/g, "")
       : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "America/Sao_Paulo", "yyyyMMdd");
-    const fileName = `SUEDS_PLAZA_${datePart}_${uploadId}.${extensions[mimeType]}`;
-    const folder = DriveApp.getFolderById(OPINARIOS_PLAZA_FOLDER_ID);
+    const hotelPrefix = hotelSlug.replace(/[^a-z0-9]+/g, "_").toUpperCase();
+    const fileName = `${hotelPrefix}_${datePart}_${uploadId}.${extensions[mimeType]}`;
+    const folder = DriveApp.getFolderById(folderId);
     const uploadAttempt = Math.max(1, Number(body.uploadAttempt || 1));
     if (uploadAttempt > 1) {
       const existingFiles = folder.getFilesByName(fileName);
@@ -182,7 +277,7 @@ function doPost(e) {
     const uploader = safeOpinionUploadText_(body.uploader, 80);
     const originalName = safeOpinionUploadText_(body.originalName, 160);
     file.setDescription([
-      "Opinario impresso enviado pela pagina da recepcao do SUEDS Plaza.",
+      `Opinario impresso enviado pela pagina da recepcao do ${hotel}.`,
       uploader ? `Responsavel: ${uploader}.` : "",
       periodFrom ? `Periodo informado: ${periodFrom}${periodTo && periodTo !== periodFrom ? ` a ${periodTo}` : ""}.` : "",
       originalName ? `Arquivo original: ${originalName}.` : "",
@@ -238,8 +333,8 @@ function prepararOpinariosOperacional() {
 
   SpreadsheetApp.getUi().alert(
     "Abas preparadas.\n\n" +
-    "Piloto SUEDS Plaza configurado.\n\n" +
-    `OPINARIOS_SOURCE_FOLDER_ID: ${OPINARIOS_PLAZA_FOLDER_ID}\n` +
+    "Os seis hoteis foram configurados.\n\n" +
+    `OPINARIOS_SOURCE_FOLDER_ID: ${OPINARIOS_ROOT_FOLDER_ID}\n` +
     "Agora configure a OPENAI_API_KEY no menu SUEDS Operacional."
   );
 }
@@ -292,19 +387,20 @@ function processarNovosOpinariosDrive_(spreadsheet) {
   ensureHeader_(reviewSheet, OPINARIOS_REVIEW_HEADERS);
 
   const existingIds = getExistingOpinionIds_(opinionsSheet);
-  const files = listImageFilesRecursive_(DriveApp.getFolderById(sourceFolderId));
+  const files = listConfiguredOpinionFiles_(sourceFolderId, config);
   let inserted = 0;
   let review = 0;
   let ignored = 0;
 
-  files.forEach((file) => {
+  files.forEach((entry) => {
+    const file = entry.file;
     const fileId = file.getId();
     if (existingIds.has(fileId)) {
       ignored += 1;
       return;
     }
 
-    const hotel = inferHotelFromFile_(file, sourceFolderId, config);
+    const hotel = entry.hotel;
     const extracted = analyzeOpinionImage_(file, hotel, config);
     const status = extracted.status || "Pendente IA";
     const now = new Date();
@@ -390,7 +486,11 @@ function reprocessarOpinariosPorFiltro_(title, shouldProcess) {
     const file = DriveApp.getFileById(fileId);
     const extracted = analyzeOpinionImage_(file, hotel, config);
     const newStatus = extracted.status || "Revisao";
-    const updatedRow = buildOpinionRow_(file, row[1] || new Date(), hotel, extracted, newStatus);
+    const preservedValues = {};
+    OPINARIOS_HEADERS.forEach((header, index) => {
+      preservedValues[header] = row[index];
+    });
+    const updatedRow = buildOpinionRow_(file, row[1] || new Date(), hotel, extracted, newStatus, preservedValues);
 
     opinionsSheet.getRange(rowNumber, 1, 1, OPINARIOS_HEADERS.length).setValues([updatedRow]);
     processed += 1;
@@ -519,17 +619,18 @@ function analyzeOpinionImage_(file, hotel, config) {
     }
 
     const extracted = callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey);
-    const omr = callOpinionOmrReader_(file, config, bytes, extracted.formVersion);
-    applyOmrRatings_(extracted, omr);
+    const omr = callOpinionOmrReader_(file, hotel, config, bytes, extracted.formVersion);
+    applyOmrRatings_(extracted, omr, hotel);
     const confidence = Number(extracted.confidence || 0);
     const minConfidence = Math.max(Number(config.OPINARIOS_MIN_CONFIDENCE || 90), 90);
-    const completeness = validateOpinionCompleteness_(extracted, config);
-    const acceptedVersions = getAcceptedFormVersions_(config);
+    const profile = opinionProfile_(hotel);
+    const completeness = validateOpinionCompleteness_(extracted, config, hotel);
+    const acceptedVersions = getAcceptedFormVersions_(config, hotel);
     const extractedVersion = String(extracted.formVersion || "").replace(/\D/g, "");
     const versionOk = acceptedVersions.indexOf(extractedVersion) !== -1;
     const omrAutoApprove = isConfigYes_(config.OPINARIOS_OMR_AUTO_APPROVE);
-    const hasCancelledRatings = Boolean(extracted.omrOk) && Number(extracted.omrAnswered || 0) < 12;
-    const hasAllExcellentRatings = hasAllExcellentOmrRatings_(extracted);
+    const hasCancelledRatings = Boolean(extracted.omrOk) && Number(extracted.omrAnswered || 0) < profile.fields.length;
+    const hasAllExcellentRatings = hasAllExcellentOmrRatings_(extracted, hotel);
     const confidenceOk = confidence >= minConfidence || hasCancelledRatings || hasAllExcellentRatings;
     extracted.status = confidenceOk && completeness.ok && versionOk && omrAutoApprove ? "Aprovado" : "Revisao";
     extracted.reviewReason = extracted.status === "Aprovado"
@@ -556,21 +657,8 @@ function analyzeOpinionImage_(file, hotel, config) {
   }
 }
 
-function validateOpinionCompleteness_(extracted, config) {
-  const ratingFields = [
-    ["generalImpression", "Impressao Geral"],
-    ["reservation", "Reserva"],
-    ["frontDesk", "Recepcao / Check-in / Check-out"],
-    ["teamService", "Atendimento da equipe"],
-    ["roomComfort", "Conforto do quarto"],
-    ["roomCleaning", "Limpeza do quarto"],
-    ["wifi", "Qualidade do Wi-fi"],
-    ["pool", "Area de lazer / piscina"],
-    ["beachClub", "Atendimento da equipe do Beach Club"],
-    ["foodBreakfast", "Alimentos Cafe da Manha"],
-    ["foodLunch", "Alimentos Almoco"],
-    ["foodDinner", "Alimentos Jantar"]
-  ];
+function validateOpinionCompleteness_(extracted, config, hotel) {
+  const ratingFields = opinionProfile_(hotel).fields;
 
   const filled = ratingFields.filter(([field]) => String(extracted[field] || "").trim()).length;
   const missing = ratingFields
@@ -589,28 +677,17 @@ function validateOpinionCompleteness_(extracted, config) {
   return { ok: true, reason: "", missingFields: "" };
 }
 
-function hasAllExcellentOmrRatings_(extracted) {
-  const ratingFields = [
-    "generalImpression",
-    "reservation",
-    "frontDesk",
-    "teamService",
-    "roomComfort",
-    "roomCleaning",
-    "wifi",
-    "pool",
-    "beachClub",
-    "foodBreakfast",
-    "foodLunch",
-    "foodDinner"
-  ];
+function hasAllExcellentOmrRatings_(extracted, hotel) {
+  const ratingFields = opinionProfile_(hotel).fields.map(([field]) => field);
 
   return Boolean(extracted && extracted.omrOk) &&
     Number(extracted.omrAnswered || 0) === ratingFields.length &&
     ratingFields.every((field) => normalizeRating_(extracted[field]) === "Excelente");
 }
 
-function getAcceptedFormVersions_(config) {
+function getAcceptedFormVersions_(config, hotel) {
+  if (opinionProfile_(hotel).slug !== "sueds-plaza") return [OPINARIOS_OFFICIAL_FORM_VERSION];
+
   const configuredVersions = String(config.OPINARIOS_ACCEPTED_FORM_VERSIONS || "")
     .split(",")
     .map((version) => String(version || "").replace(/\D/g, ""))
@@ -624,7 +701,7 @@ function getAcceptedFormVersions_(config) {
   return versions;
 }
 
-function callOpinionOmrReader_(file, config, bytes, formVersion) {
+function callOpinionOmrReader_(file, hotel, config, bytes, formVersion) {
   const endpoint = String(config.OPINARIOS_OMR_ENDPOINT || "").trim();
   if (!endpoint) {
     return {
@@ -636,8 +713,10 @@ function callOpinionOmrReader_(file, config, bytes, formVersion) {
   }
 
   const blob = file.getBlob();
+  const profile = opinionProfile_(hotel);
   const payload = {
-    hotel: OPINARIOS_ACTIVE_HOTEL,
+    hotel,
+    hotelSlug: profile.slug,
     fileName: file.getName(),
     mimeType: blob.getContentType() || "image/jpeg",
     imageBase64: Utilities.base64Encode(bytes),
@@ -680,23 +759,10 @@ function callOpinionOmrReader_(file, config, bytes, formVersion) {
   }
 }
 
-function applyOmrRatings_(extracted, omr) {
-  const ratingFields = [
-    "generalImpression",
-    "reservation",
-    "frontDesk",
-    "teamService",
-    "roomComfort",
-    "roomCleaning",
-    "wifi",
-    "pool",
-    "beachClub",
-    "foodBreakfast",
-    "foodLunch",
-    "foodDinner"
-  ];
+function applyOmrRatings_(extracted, omr, hotel) {
+  const ratingFields = opinionProfile_(hotel).fields.map(([field]) => field);
 
-  ratingFields.forEach((field) => {
+  allOpinionRatingFieldNames_().forEach((field) => {
     extracted[field] = "";
   });
 
@@ -722,7 +788,7 @@ function applyOmrRatings_(extracted, omr) {
   extracted.omrOk = true;
   extracted.omrAnswered = ratingFields.filter((field) => String(extracted[field] || "").trim()).length;
   extracted.confidence = Math.min(Number(extracted.confidence || 100), Number(omr.confidence || 0));
-  extracted.score = calculateOpinionScore_(extracted);
+  extracted.score = calculateOpinionScore_(extracted, hotel);
   extracted.reviewReason = [extracted.reviewReason, omr.reviewReason || "", buildOmrDebugSummary_(omr)].filter(Boolean).join(" ");
   extracted.uncertainFields = [extracted.uncertainFields, omr.uncertainFields || ""].filter(Boolean).join(", ");
 }
@@ -820,55 +886,40 @@ function callOpenAiOpinionReader_(file, hotel, config, bytes, apiKey) {
 }
 
 function buildOpenAiOpinionPrompt_(hotel) {
+  const profile = opinionProfile_(hotel);
+  const hotelCode = profile.slug.replace(/-/g, "_").toUpperCase();
+  const fieldLines = profile.fields.map(([field, label], index) => `${index + 1}. ${label} (campo ${field})`);
+  const ratingJsonLines = allOpinionRatingFieldNames_().map((field) => `  "${field}": "",`);
   return [
-    "Voce esta lendo uma foto de um opiniario impresso da SUEDS Plaza.",
+    `Voce esta lendo uma foto de um opiniario impresso do hotel ${hotel}.`,
     "Extraia apenas o que estiver visivel. Se um campo nao estiver legivel, use string vazia e inclua o campo em uncertainFields.",
     "Nao leia nem estime as bolinhas/circulos de avaliacao. As avaliacoes serao lidas por OMR por pixels em outra etapa.",
     "Nos campos de avaliacao do JSON, use string vazia. Foque em nome, apartamento, datas, comentarios, elogios, problemas, hotel e versao.",
-    "Formulario oficial esperado: HOTEL=SUEDS_PLAZA, FORM_VERSION=20260729, LANG=PT-BR. As versoes anteriores 20260719 e 20260720 tambem sao aceitas.",
-    "Na versao 20260729, o QR Code fica no topo; ignore completamente seus quadrados e modulos durante a leitura dos campos.",
-    "No rodape pode aparecer texto semelhante a HOTEL=SUEDS_PLAZA | FORM_VERSION=20260719 | LANG=PT-BR, HOTEL=SUEDS_PLAZA | FORM_VERSION=20260720 | LANG=PT-BR ou HOTEL=SUEDS_PLAZA | FORM_VERSION=20260729 | LANG=PT-BR. Extraia formVersion como os 8 digitos visiveis da versao impressa.",
+    `Formulario oficial esperado: HOTEL=${hotelCode}, FORM_VERSION=20260729, LANG=PT-BR.`,
+    profile.slug === "sueds-plaza"
+      ? "Para SUEDS Plaza, as versoes anteriores 20260719 e 20260720 tambem sao aceitas."
+      : "Para este hotel, aceite somente a versao 20260729.",
+    "Se houver QR Code no topo, ignore completamente seus quadrados e modulos durante a leitura dos campos.",
+    `No rodape deve aparecer HOTEL=${hotelCode} | FORM_VERSION=20260729 | LANG=PT-BR. Extraia formVersion como os 8 digitos visiveis.`,
     "Ignore linhas, textos e logotipos da grade de avaliacao. Nao use marcas do QR code ou do rodape como avaliacao.",
     "Se a foto mostrar duas fichas identicas na mesma pagina, leia apenas uma ficha preenchida. Se as duas estiverem preenchidas, registre duvida em reviewReason.",
-    "Itens oficiais dos formularios SUEDS Plaza 20260719, 20260720 e 20260729:",
-    "1. Impressao geral: Como voce avalia sua hospedagem?",
-    "2. Reserva: Como foi sua experiencia para reservar?",
-    "3. Recepcao / Check-in / Check-out",
-    "4. Atendimento da equipe",
-    "5. Conforto do quarto",
-    "6. Limpeza do quarto",
-    "7. Qualidade do Wi-fi",
-    "8. Area de lazer / piscina",
-    "9. Atendimento da equipe do Beach Club",
-    "10. Cafe da manha",
-    "11. Almoco",
-    "12. Jantar",
+    `Itens oficiais do formulario ${hotel}:`,
+    ...fieldLines,
     "Leia tambem nome, numero do quarto, datas e comentarios/elogios/sugestoes quando estiverem preenchidos.",
     "Na versao 20260729, o numero do quarto fica a direita do nome e as datas aparecem como DATA CHECK-IN e CHECK-OUT. Grave DATA CHECK-IN em entryDate e CHECK-OUT em exitDate.",
     "Padronize acentos e caixa baixa/alta naturalmente em portugues.",
     `Hotel esperado pela pasta: ${hotel}.`,
     "Responda somente JSON valido, sem markdown, neste formato:",
     "{",
-    '  "hotel": "SUEDS PLAZA",',
-    '  "hotelSlug": "sueds-plaza",',
+    `  "hotel": "${hotel}",`,
+    `  "hotelSlug": "${profile.slug}",`,
     '  "formVersion": "20260729",',
     '  "lang": "pt-BR",',
     '  "guestName": "",',
     '  "apartment": "",',
     '  "entryDate": "",',
     '  "exitDate": "",',
-    '  "generalImpression": "",',
-    '  "reservation": "",',
-    '  "frontDesk": "",',
-    '  "teamService": "",',
-    '  "roomComfort": "",',
-    '  "roomCleaning": "",',
-    '  "wifi": "",',
-    '  "pool": "",',
-    '  "beachClub": "",',
-    '  "foodBreakfast": "",',
-    '  "foodLunch": "",',
-    '  "foodDinner": "",',
+    ...ratingJsonLines,
     '  "comments": "",',
     '  "highlights": "",',
     '  "issues": "",',
@@ -896,9 +947,10 @@ function extractOpenAiOutputText_(response) {
 }
 
 function normalizeOpenAiOpinionResult_(data, hotel) {
+  const profile = opinionProfile_(hotel);
   const result = {
     hotel,
-    hotelSlug: data.hotelSlug || "sueds-plaza",
+    hotelSlug: profile.slug,
     formVersion: String(data.formVersion || "").replace(/\D/g, ""),
     lang: data.lang || "pt-BR",
     guestName: data.guestName || "",
@@ -911,10 +963,15 @@ function normalizeOpenAiOpinionResult_(data, hotel) {
     teamService: normalizeRating_(data.teamService),
     roomComfort: normalizeRating_(data.roomComfort),
     roomCleaning: normalizeRating_(data.roomCleaning),
+    apartmentComfort: normalizeRating_(data.apartmentComfort),
+    apartmentInitialCleaning: normalizeRating_(data.apartmentInitialCleaning),
+    apartmentEquipment: normalizeRating_(data.apartmentEquipment),
+    apartmentLocation: normalizeRating_(data.apartmentLocation),
     wifi: normalizeRating_(data.wifi),
     pool: normalizeRating_(data.pool),
     beachClub: normalizeRating_(data.beachClub),
     foodBreakfast: normalizeRating_(data.foodBreakfast),
+    foodAfternoonTea: normalizeRating_(data.foodAfternoonTea),
     foodLunch: normalizeRating_(data.foodLunch),
     foodDinner: normalizeRating_(data.foodDinner),
     comments: data.comments || "",
@@ -926,7 +983,7 @@ function normalizeOpenAiOpinionResult_(data, hotel) {
     reviewReason: data.reviewReason || ""
   };
 
-  if (!result.score) result.score = calculateOpinionScore_(result);
+  if (!result.score) result.score = calculateOpinionScore_(result, hotel);
   return result;
 }
 
@@ -941,21 +998,8 @@ function normalizeRating_(value) {
   return String(value || "").trim();
 }
 
-function calculateOpinionScore_(result) {
-  const ratingFields = [
-    "generalImpression",
-    "reservation",
-    "frontDesk",
-    "teamService",
-    "roomComfort",
-    "roomCleaning",
-    "wifi",
-    "pool",
-    "beachClub",
-    "foodBreakfast",
-    "foodLunch",
-    "foodDinner"
-  ];
+function calculateOpinionScore_(result, hotel) {
+  const ratingFields = opinionProfile_(hotel || result.hotel).fields.map(([field]) => field);
   const scores = ratingFields
     .map((field) => ratingToScore_(result[field]))
     .filter((score) => score !== null);
@@ -973,7 +1017,8 @@ function ratingToScore_(rating) {
   return null;
 }
 
-function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
+function buildOpinionRow_(file, processedAt, hotel, extracted, status, preservedValues) {
+  const preserved = preservedValues || {};
   const values = {
     "ID Arquivo": file.getId(),
     "Data Processamento": processedAt,
@@ -981,7 +1026,7 @@ function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
     "Nome Arquivo": file.getName(),
     "Link Foto": file.getUrl(),
     "Origem": "Foto Drive",
-    "Hotel Slug": extracted.hotelSlug || "sueds-plaza",
+    "Hotel Slug": extracted.hotelSlug || opinionProfile_(hotel).slug,
     "Form Version": extracted.formVersion || "",
     "Idioma": extracted.lang || "pt-BR",
     "Nome Hospede": extracted.guestName || "",
@@ -994,10 +1039,15 @@ function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
     "Atendimento da equipe": extracted.teamService || "",
     "Conforto do quarto": extracted.roomComfort || "",
     "Limpeza do quarto": extracted.roomCleaning || "",
+    "Conforto do apartamento": extracted.apartmentComfort || "",
+    "Limpeza inicial do apartamento": extracted.apartmentInitialCleaning || "",
+    "Equipamentos / utensilios do apartamento": extracted.apartmentEquipment || "",
+    "Localizacao do apartamento": extracted.apartmentLocation || "",
     "Qualidade do Wi-fi": extracted.wifi || "",
     "Area de lazer / piscina": extracted.pool || "",
     "Atendimento da equipe do Beach Club": extracted.beachClub || "",
     "Alimentos Cafe da Manha": extracted.foodBreakfast || "",
+    "Alimentos Cha da Tarde": extracted.foodAfternoonTea || "",
     "Alimentos Almoco": extracted.foodLunch || "",
     "Alimentos Jantar": extracted.foodDinner || "",
     "Comentarios": extracted.comments || "",
@@ -1008,7 +1058,10 @@ function buildOpinionRow_(file, processedAt, hotel, extracted, status) {
     "Status": status,
     "Responsavel Revisao": "",
     "Observacao Revisao": extracted.reviewReason || "",
-    "Data Revisao": ""
+    "Data Revisao": "",
+    "Status Ocorrencia": preserved["Status Ocorrencia"] || "",
+    "Data Status Ocorrencia": preserved["Data Status Ocorrencia"] || "",
+    "Responsavel Status Ocorrencia": preserved["Responsavel Status Ocorrencia"] || ""
   };
 
   return OPINARIOS_HEADERS.map((header) => values[header]);
@@ -1030,7 +1083,12 @@ function ensureConfig_(sheet) {
     const key = String(row[0] || "").trim();
     if (key) existingRows.set(key, index + 2);
   });
-  const managedKeys = new Set(["OPINARIOS_FORM_VERSION", "OPINARIOS_ACCEPTED_FORM_VERSIONS"]);
+  const managedKeys = new Set([
+    "OPINARIOS_SOURCE_FOLDER_ID",
+    "OPINARIOS_ACTIVE_HOTEL",
+    "OPINARIOS_FORM_VERSION",
+    "OPINARIOS_ACCEPTED_FORM_VERSIONS"
+  ]);
   OPINARIOS_CONFIG_DEFAULTS.forEach((row) => {
     const rowNumber = existingRows.get(row[0]);
     if (!rowNumber) {
@@ -1044,9 +1102,14 @@ function ensureConfig_(sheet) {
 function ensureHotels_(sheet) {
   sheet.getRange(1, 1, 1, 4).setValues([["Hotel", "Status", "Ordem TV", "Observacao"]]);
   const values = sheet.getDataRange().getValues();
-  const existing = new Set(values.slice(1).map((row) => normalizeText_(row[0])));
+  const existing = new Map();
+  values.slice(1).forEach((row, index) => {
+    if (row[0]) existing.set(normalizeText_(row[0]), index + 2);
+  });
   OPINARIOS_HOTELS.forEach((row) => {
-    if (!existing.has(normalizeText_(row[0]))) sheet.appendRow(row);
+    const rowNumber = existing.get(normalizeText_(row[0]));
+    if (rowNumber) sheet.getRange(rowNumber, 1, 1, 4).setValues([row]);
+    else sheet.appendRow(row);
   });
 }
 
@@ -1130,19 +1193,55 @@ function listImageFilesRecursive_(folder) {
   return files;
 }
 
+function listConfiguredOpinionFiles_(sourceFolderId, config) {
+  if (sourceFolderId !== OPINARIOS_ROOT_FOLDER_ID) {
+    return listImageFilesRecursive_(DriveApp.getFolderById(sourceFolderId)).map((file) => ({
+      file,
+      hotel: inferHotelFromFile_(file, sourceFolderId, config)
+    }));
+  }
+
+  return Object.keys(OPINARIOS_FORM_PROFILES).flatMap((hotel) => {
+    const profile = OPINARIOS_FORM_PROFILES[hotel];
+    const folderId = OPINARIOS_FOLDER_BY_HOTEL_SLUG[profile.slug];
+    return listImageFilesRecursive_(DriveApp.getFolderById(folderId)).map((file) => ({ file, hotel }));
+  });
+}
+
 function inferHotelFromFile_(file, rootFolderId, config) {
+  const configuredHotel = inferHotelFromText_(config.OPINARIOS_ACTIVE_HOTEL || OPINARIOS_ACTIVE_HOTEL);
+  const fallbackHotel = configuredHotel !== "Nao identificado" ? configuredHotel : "Nao identificado";
   const parents = file.getParents();
-  if (!parents.hasNext()) return String(config.OPINARIOS_ACTIVE_HOTEL || OPINARIOS_ACTIVE_HOTEL);
+  if (!parents.hasNext()) return fallbackHotel;
 
   const parent = parents.next();
   if (parent.getId() === rootFolderId) {
     const parentHotel = inferHotelFromText_(parent.getName());
     if (parentHotel !== "Nao identificado") return parentHotel;
     const fileHotel = inferHotelFromText_(file.getName());
-    return fileHotel !== "Nao identificado" ? fileHotel : String(config.OPINARIOS_ACTIVE_HOTEL || OPINARIOS_ACTIVE_HOTEL);
+    return fileHotel !== "Nao identificado" ? fileHotel : fallbackHotel;
   }
 
   return inferHotelFromText_(parent.getName());
+}
+
+function opinionHotelFromSlug_(slug) {
+  const entry = Object.keys(OPINARIOS_FORM_PROFILES)
+    .find((hotel) => OPINARIOS_FORM_PROFILES[hotel].slug === String(slug || "").trim().toLowerCase());
+  return entry || "";
+}
+
+function opinionProfile_(hotel) {
+  const normalizedHotel = inferHotelFromText_(hotel);
+  return OPINARIOS_FORM_PROFILES[normalizedHotel] || OPINARIOS_FORM_PROFILES["SUEDS PLAZA"];
+}
+
+function allOpinionRatingFieldNames_() {
+  const fields = new Set();
+  Object.keys(OPINARIOS_FORM_PROFILES).forEach((hotel) => {
+    OPINARIOS_FORM_PROFILES[hotel].fields.forEach(([field]) => fields.add(field));
+  });
+  return Array.from(fields);
 }
 
 function inferHotelFromText_(value) {
