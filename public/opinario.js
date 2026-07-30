@@ -236,6 +236,19 @@ function setMessage(message, isError = false) {
   target.classList.toggle("error", isError);
 }
 
+function openConfirmation() {
+  const panel = byId("successPanel");
+  panel.hidden = false;
+  document.body.classList.add("modal-open");
+  panel.focus();
+}
+
+function closeConfirmation() {
+  byId("successPanel").hidden = true;
+  document.body.classList.remove("modal-open");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 async function submitOpinion(event) {
   event.preventDefault();
   const meta = formMeta();
@@ -270,8 +283,7 @@ async function submitOpinion(event) {
     }
 
     byId("opinionForm").hidden = true;
-    byId("successPanel").hidden = false;
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    openConfirmation();
   } catch (error) {
     setMessage(error.message, true);
     button.disabled = false;
@@ -283,6 +295,10 @@ function init() {
   const branding = HOTEL_BRANDS[meta.hotelSlug];
   const config = HOTEL_CONFIG[meta.hotelSlug];
   const logo = byId("hotelLogo");
+  byId("successCloseButton").addEventListener("click", closeConfirmation);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !byId("successPanel").hidden) closeConfirmation();
+  });
   if (branding) {
     logo.src = branding.logo;
     logo.alt = branding.name;
@@ -290,9 +306,9 @@ function init() {
   }
   if (!config) {
     byId("opinionForm").hidden = true;
-    byId("successPanel").hidden = false;
     byId("successPanel").querySelector("strong").textContent = "Formulário em configuração.";
     byId("successPanel").querySelector("p").textContent = "Este opinário ainda não está ativo para este hotel.";
+    openConfirmation();
     return;
   }
   byId("hotelSlug").value = meta.hotelSlug;
