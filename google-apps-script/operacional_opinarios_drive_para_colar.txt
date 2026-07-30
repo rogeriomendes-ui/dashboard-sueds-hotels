@@ -331,11 +331,11 @@ function prepararOpinariosOperacional() {
   formatSheet_(hotelsSheet, 4);
   formatSheet_(logSheet, OPINARIOS_LOG_HEADERS.length);
 
-  SpreadsheetApp.getUi().alert(
-    "Abas preparadas.\n\n" +
-    "Os seis hoteis foram configurados.\n\n" +
-    `OPINARIOS_SOURCE_FOLDER_ID: ${OPINARIOS_ROOT_FOLDER_ID}\n` +
-    "Agora configure a OPENAI_API_KEY no menu SUEDS Operacional."
+  SpreadsheetApp.flush();
+  spreadsheet.toast(
+    "Os seis hoteis foram configurados.",
+    "Abas preparadas",
+    8
   );
 }
 
@@ -1119,7 +1119,6 @@ function formatSheet_(sheet, columns) {
     .setBackground("#2C3E50")
     .setFontColor("#ffffff")
     .setFontWeight("bold");
-  sheet.autoResizeColumns(1, columns);
 }
 
 function getOpinionSpreadsheet_() {
