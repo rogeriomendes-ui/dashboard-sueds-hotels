@@ -2285,15 +2285,23 @@ function buildMetrics(records, goals, period = {}) {
     const teamReservationsToday = sum(teamSellers, (seller) => seller.reservationsToday);
     const teamReservationsMtd = sum(teamSellers, (seller) => seller.reservationsMtd);
     const teamReservationsMonth = sum(teamSellers, (seller) => seller.reservationsMonth);
+    const teamMtdGoal = sum(teamSellers, (seller) => seller.mtdGoal);
+    const teamMonthlyGoal = sum(teamSellers, (seller) => seller.monthlyGoal);
+    const teamDailyGoal = isYearToDate
+      ? teamMonthlyGoal / workdaysInMonth
+      : Math.max(0, teamMonthlyGoal - teamSalesMonth) / workdaysRemaining;
     teamCard.salesToday = teamSalesToday;
     teamCard.salesMtd = teamSalesMtd;
     teamCard.salesMonth = teamSalesMonth;
     teamCard.reservationsToday = teamReservationsToday;
     teamCard.reservationsMtd = teamReservationsMtd;
     teamCard.reservationsMonth = teamReservationsMonth;
-    teamCard.dailyGoalPct = pct(teamSalesToday, teamCard.dailyGoal);
-    teamCard.mtdGoalPct = pct(teamSalesMtd, teamCard.mtdGoal);
-    teamCard.monthlyGoalPct = pct(teamSalesMonth, teamCard.monthlyGoal);
+    teamCard.dailyGoal = teamDailyGoal;
+    teamCard.mtdGoal = teamMtdGoal;
+    teamCard.monthlyGoal = teamMonthlyGoal;
+    teamCard.dailyGoalPct = pct(teamSalesToday, teamDailyGoal);
+    teamCard.mtdGoalPct = pct(teamSalesMtd, teamMtdGoal);
+    teamCard.monthlyGoalPct = pct(teamSalesMonth, teamMonthlyGoal);
   }
 
   sellers = sellers.sort(sellerRankingSort).map((seller) => ({
