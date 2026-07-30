@@ -11,6 +11,7 @@ const FIELD_DEFINITIONS = {
   pool: { group: "Avaliação dos serviços", label: "Área de lazer / piscina" },
   beachClub: { group: "Avaliação dos serviços", label: "Atendimento da equipe do Beach Club" },
   foodBreakfast: { group: "Avaliação dos restaurantes", label: "Café da manhã" },
+  foodAfternoonTea: { group: "Avaliação dos restaurantes", label: "Chá da tarde" },
   foodLunch: { group: "Avaliação dos restaurantes", label: "Almoço" },
   foodDinner: { group: "Avaliação dos restaurantes", label: "Jantar" }
 };
@@ -43,7 +44,8 @@ const HOTEL_BRANDS = {
   "sueds-trancoso": {
     brand: "TRANCOSO",
     name: "SUEDS TRANCOSO",
-    logo: "logo-opinario-trancoso.png"
+    logo: "logo-opinario-trancoso.png",
+    formVersion: "20260729"
   },
   "casas-sueds-arraial": {
     brand: "CASAS SUEDS",
@@ -122,6 +124,22 @@ const HOTEL_CONFIG = {
       "foodBreakfast",
       "foodLunch",
       "foodDinner"
+    ]
+  },
+  "sueds-trancoso": {
+    brand: "TRANCOSO",
+    name: "SUEDS TRANCOSO",
+    fields: [
+      "generalImpression",
+      "reservation",
+      "frontDesk",
+      "teamService",
+      "roomComfort",
+      "roomCleaning",
+      "wifi",
+      "pool",
+      "foodBreakfast",
+      "foodAfternoonTea"
     ]
   }
 };

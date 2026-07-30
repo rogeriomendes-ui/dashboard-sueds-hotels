@@ -2463,6 +2463,7 @@ const OPERATIONAL_RATING_FIELDS = [
   { key: "generalImpression", headers: ["Impressao Geral"], block: "Geral" },
   { key: "reservation", headers: ["Reserva"], block: "Geral" },
   { key: "foodBreakfast", headers: ["Alimentos Cafe da Manha", "Cafe da manha"], block: "Alimentos" },
+  { key: "foodAfternoonTea", headers: ["Alimentos Cha da Tarde", "Cha da tarde"], block: "Alimentos" },
   { key: "foodLunch", headers: ["Alimentos Almoco", "Almoco"], block: "Alimentos" },
   { key: "foodDinner", headers: ["Alimentos Jantar", "Jantar"], block: "Alimentos" },
   { key: "teamService", headers: ["Atendimento da equipe"], block: "Atendimento" },
@@ -2516,6 +2517,7 @@ const OPINION_SUBMISSION_HEADERS = [
   "Area de lazer / piscina",
   "Atendimento da equipe do Beach Club",
   "Alimentos Cafe da Manha",
+  "Alimentos Cha da Tarde",
   "Alimentos Almoco",
   "Alimentos Jantar",
   "Comentarios",
@@ -2546,7 +2548,8 @@ const OPINION_ACTIVE_FORM_SLUGS = new Set([
   "sueds-cabralia",
   "sueds-segundo-sol",
   "sueds-plaza",
-  "sueds-premium"
+  "sueds-premium",
+  "sueds-trancoso"
 ]);
 const OPINION_MIN_FORM_VERSION = "20260719";
 const OPINION_OPERATIONAL_START_DATE = "2026-07-24";
@@ -4196,6 +4199,7 @@ async function appendDigitalOpinion(body = {}) {
     "Area de lazer / piscina": normalizedRatings.pool || "",
     "Atendimento da equipe do Beach Club": normalizedRatings.beachClub || "",
     "Alimentos Cafe da Manha": normalizedRatings.foodBreakfast || "",
+    "Alimentos Cha da Tarde": normalizedRatings.foodAfternoonTea || "",
     "Alimentos Almoco": normalizedRatings.foodLunch || "",
     "Alimentos Jantar": normalizedRatings.foodDinner || "",
     "Comentarios": comments,
