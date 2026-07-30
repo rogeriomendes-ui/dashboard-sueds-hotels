@@ -15,6 +15,39 @@ const FIELD_DEFINITIONS = {
   foodDinner: { group: "Avaliação dos restaurantes", label: "Jantar" }
 };
 
+const HOTEL_BRANDS = {
+  "sueds-cabralia": {
+    brand: "CABRÁLIA",
+    name: "SUEDS CABRÁLIA",
+    logo: "logo-opinario-cabralia.png"
+  },
+  "sueds-segundo-sol": {
+    brand: "SEGUNDO SOL",
+    name: "SUEDS SEGUNDO SOL",
+    logo: "logo-opinario-segundo-sol.png"
+  },
+  "sueds-plaza": {
+    brand: "PLAZA",
+    name: "SUEDS PLAZA",
+    logo: "logo-opinario-plaza.png"
+  },
+  "sueds-premium": {
+    brand: "PREMIUM",
+    name: "SUEDS PREMIUM",
+    logo: "logo-opinario-premium.png"
+  },
+  "sueds-trancoso": {
+    brand: "TRANCOSO",
+    name: "SUEDS TRANCOSO",
+    logo: "logo-opinario-trancoso.png"
+  },
+  "casas-sueds-arraial": {
+    brand: "CASAS SUEDS",
+    name: "CASAS SUEDS ARRAIAL",
+    logo: "logo-opinario-casas-arraial.png"
+  }
+};
+
 const HOTEL_CONFIG = {
   "sueds-plaza": {
     brand: "PLAZA",
@@ -152,9 +185,15 @@ async function submitOpinion(event) {
 
 function init() {
   const meta = formMeta();
+  const branding = HOTEL_BRANDS[meta.hotelSlug];
   const config = HOTEL_CONFIG[meta.hotelSlug];
+  const logo = byId("hotelLogo");
+  if (branding) {
+    logo.src = branding.logo;
+    logo.alt = branding.name;
+    document.title = `SUEDS Hotels | Opiniário ${branding.brand}`;
+  }
   if (!config) {
-    byId("hotelBrand").textContent = "HOTELS";
     byId("opinionForm").hidden = true;
     byId("successPanel").hidden = false;
     byId("successPanel").querySelector("strong").textContent = "Formulário em configuração.";
@@ -164,7 +203,6 @@ function init() {
   byId("hotelSlug").value = meta.hotelSlug;
   byId("formVersion").value = meta.formVersion;
   byId("formLang").value = meta.lang;
-  byId("hotelBrand").textContent = config.brand;
   document.title = `SUEDS Hotels | Opiniário ${config.brand}`;
   renderQuestions(config);
   byId("opinionForm").addEventListener("submit", submitOpinion);

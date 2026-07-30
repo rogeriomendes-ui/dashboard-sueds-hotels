@@ -47,35 +47,15 @@ textarea {
 .brand-mark {
   display: flex;
   align-items: center;
-  gap: 12px;
+  min-height: 112px;
 }
 
-.brand-symbol {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 64px;
-  color: var(--gold);
-  font-family: Georgia, serif;
-  font-size: 58px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.brand-mark strong {
+.brand-logo {
   display: block;
-  color: var(--navy);
-  font-size: clamp(28px, 6vw, 46px);
-  line-height: 0.95;
-}
-
-.brand-mark span:last-child {
-  display: block;
-  margin-top: 4px;
-  color: #7f96a4;
-  font-size: clamp(18px, 4vw, 30px);
-  letter-spacing: 0;
-  text-transform: uppercase;
+  width: min(100%, 290px);
+  max-height: 112px;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .header-copy h1 {
@@ -276,6 +256,15 @@ textarea {
   .opinion-header {
     gap: 14px;
     padding-top: 10px;
+  }
+
+  .brand-mark {
+    min-height: 90px;
+  }
+
+  .brand-logo {
+    width: min(100%, 240px);
+    max-height: 90px;
   }
 
   .rating-row {
