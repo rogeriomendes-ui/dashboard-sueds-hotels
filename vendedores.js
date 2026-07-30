@@ -39,6 +39,9 @@ const MONTH_LABELS = {
 };
 
 const monthSelect = document.getElementById("monthSelect");
+const SELLER_TOKEN_STORAGE_KEY = "sueds_seller_access_token";
+const MANAGER_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
+let accessToken = "";
 
 function currentMonth() {
   const now = new Date();
@@ -173,7 +176,17 @@ async function load() {
   byId("lastUpdate").textContent = "Atualizando...";
 
   try {
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: { "x-dashboard-token": accessToken }
+    });
+    if (response.status === 401) {
+      localStorage.removeItem(SELLER_TOKEN_STORAGE_KEY);
+      document.documentElement.classList.add("seller-auth-pending");
+      accessToken = "";
+      await ensureAccess();
+      return load();
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     renderSummary(data.summary);
@@ -185,6 +198,146 @@ async function load() {
   }
 }
 
-setupMonthSelect();
-load();
-setInterval(load, 60000);
+async function validateAccess(token) {
+  if (!token) return null;
+  const response = await fetch("/api/dashboard/vendedores?authOnly=1", {
+    cache: "no-store",
+    headers: { "x-dashboard-token": token }
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+async function loginSeller(username, password) {
+  const response = await fetch("/api/dashboard/vendedores?action=login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+function showLogin() {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    dialog.className = "seller-login";
+    dialog.innerHTML = `
+      <form method="dialog" class="seller-login-card">
+        <header>
+          <span>Central de vendas</span>
+          <strong>Acesso ao ranking</strong>
+        </header>
+        <div class="seller-login-tabs" role="tablist" aria-label="Tipo de acesso">
+          <button type="button" class="active" data-auth-mode="seller" role="tab" aria-selected="true">Vendedor</button>
+          <button type="button" data-auth-mode="manager" role="tab" aria-selected="false">Gestor</button>
+        </div>
+        <label data-seller-field>
+          <span>Vendedor</span>
+          <select name="username">
+            <option value="amanda">Amanda Melgaco</option>
+            <option value="aline">Aline Nunes</option>
+            <option value="emanoel">Emanoel Cesar</option>
+            <option value="julia">Julia Reche</option>
+          </select>
+        </label>
+        <label>
+          <span>Senha</span>
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <p class="seller-login-message" role="alert"></p>
+        <button type="submit" class="seller-login-submit">Entrar</button>
+      </form>
+    `;
+    document.body.appendChild(dialog);
+
+    const form = dialog.querySelector("form");
+    const passwordInput = form.elements.password;
+    const message = dialog.querySelector(".seller-login-message");
+    const submit = dialog.querySelector(".seller-login-submit");
+    const sellerField = dialog.querySelector("[data-seller-field]");
+    let mode = "seller";
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      sellerField.hidden = mode === "manager";
+      message.textContent = "";
+      dialog.querySelectorAll("[data-auth-mode]").forEach((button) => {
+        const active = button.dataset.authMode === mode;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", String(active));
+      });
+      window.setTimeout(() => passwordInput.focus(), 0);
+    }
+
+    dialog.querySelectorAll("[data-auth-mode]").forEach((button) => {
+      button.addEventListener("click", () => setMode(button.dataset.authMode));
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      message.textContent = "Verificando...";
+
+      try {
+        const password = String(passwordInput.value || "");
+        if (mode === "manager") {
+          const payload = await validateAccess(password);
+          if (!payload?.ok || payload.profile?.role !== "manager") {
+            throw new Error("Senha de gestor inválida.");
+          }
+          localStorage.setItem(MANAGER_TOKEN_STORAGE_KEY, password);
+          resolve({ token: password, profile: payload.profile });
+        } else {
+          const payload = await loginSeller(form.elements.username.value, password);
+          if (!payload?.token) throw new Error("Senha do vendedor inválida.");
+          localStorage.setItem(SELLER_TOKEN_STORAGE_KEY, payload.token);
+          resolve(payload);
+        }
+        dialog.close();
+        dialog.remove();
+      } catch (error) {
+        message.textContent = error.message;
+        passwordInput.select();
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    dialog.showModal();
+    passwordInput.focus();
+  });
+}
+
+async function ensureAccess() {
+  const managerToken = localStorage.getItem(MANAGER_TOKEN_STORAGE_KEY) || "";
+  const managerAccess = await validateAccess(managerToken);
+  if (managerAccess?.ok && managerAccess.profile?.role === "manager") {
+    accessToken = managerToken;
+    document.documentElement.classList.remove("seller-auth-pending");
+    return managerAccess;
+  }
+
+  const sellerToken = localStorage.getItem(SELLER_TOKEN_STORAGE_KEY) || "";
+  const sellerAccess = await validateAccess(sellerToken);
+  if (sellerAccess?.ok) {
+    accessToken = sellerToken;
+    document.documentElement.classList.remove("seller-auth-pending");
+    return sellerAccess;
+  }
+
+  localStorage.removeItem(SELLER_TOKEN_STORAGE_KEY);
+  const login = await showLogin();
+  accessToken = login.token;
+  document.documentElement.classList.remove("seller-auth-pending");
+  return login;
+}
+
+async function boot() {
+  setupMonthSelect();
+  await ensureAccess();
+  await load();
+  setInterval(load, 60000);
+}
+
+boot();
