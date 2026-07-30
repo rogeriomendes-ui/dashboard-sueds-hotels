@@ -36,7 +36,8 @@ const HOTEL_BRANDS = {
   "sueds-premium": {
     brand: "PREMIUM",
     name: "SUEDS PREMIUM",
-    logo: "logo-opinario-premium.png"
+    logo: "logo-opinario-premium.png",
+    formVersion: "20260729"
   },
   "sueds-trancoso": {
     brand: "TRANCOSO",
@@ -71,6 +72,24 @@ const HOTEL_CONFIG = {
   "sueds-plaza": {
     brand: "PLAZA",
     name: "SUEDS PLAZA",
+    fields: [
+      "generalImpression",
+      "reservation",
+      "frontDesk",
+      "teamService",
+      "roomComfort",
+      "roomCleaning",
+      "wifi",
+      "pool",
+      "beachClub",
+      "foodBreakfast",
+      "foodLunch",
+      "foodDinner"
+    ]
+  },
+  "sueds-premium": {
+    brand: "PREMIUM",
+    name: "SUEDS PREMIUM",
     fields: [
       "generalImpression",
       "reservation",
