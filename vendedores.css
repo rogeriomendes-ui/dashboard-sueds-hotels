@@ -327,6 +327,24 @@ h2 {
   display: none;
 }
 
+.seller-login-card .seller-login-remember {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.seller-login-card .seller-login-remember input {
+  width: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: #159b86;
+}
+
 .seller-login-card select,
 .seller-login-card input {
   width: 100%;
@@ -340,6 +358,10 @@ h2 {
   font-size: 16px;
   font-weight: 700;
   text-transform: none;
+}
+
+.seller-login-card .seller-login-remember input {
+  padding: 0;
 }
 
 .seller-login-card select:focus,

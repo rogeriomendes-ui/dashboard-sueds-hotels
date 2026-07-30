@@ -37,6 +37,7 @@ const OPERATIONAL_ACCESS_SECRET = process.env.OPERATIONAL_ACCESS_SECRET || GESTO
 const OPERATIONAL_ACCESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const SELLER_ACCESS_SECRET = process.env.SELLER_ACCESS_SECRET || OPERATIONAL_ACCESS_SECRET;
 const SELLER_ACCESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SELLER_REMEMBER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const SELLER_ACCESS_USERS = {
   amanda: {
     displayName: "Amanda Melgaco",
@@ -254,12 +255,13 @@ function authenticateSellerUser(username, password) {
   };
 }
 
-function signSellerSession(profile) {
+function signSellerSession(profile, remember = false) {
+  const expiresAt = Date.now() + (remember ? SELLER_REMEMBER_SESSION_TTL_MS : SELLER_ACCESS_SESSION_TTL_MS);
   const payload = base64url(JSON.stringify({
-    role: "seller",
+    role: profile.role,
     username: profile.username,
     displayName: profile.displayName,
-    expiresAt: Date.now() + SELLER_ACCESS_SESSION_TTL_MS
+    expiresAt
   }));
   const signature = base64url(
     crypto.createHmac("sha256", SELLER_ACCESS_SECRET).update(payload).digest()
@@ -278,9 +280,17 @@ function parseSellerSession(token) {
   try {
     const encoded = match[1].replace(/-/g, "+").replace(/_/g, "/");
     const payload = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+    if (!Number.isFinite(Number(payload.expiresAt)) || Number(payload.expiresAt) <= Date.now()) return null;
+    if (payload.role === "manager") {
+      return {
+        role: "manager",
+        username: "gestor",
+        displayName: "Gestor",
+        expiresAt: Number(payload.expiresAt)
+      };
+    }
     const username = normalizeAccessUsername(payload.username);
     if (payload.role !== "seller" || !SELLER_ACCESS_USERS[username]) return null;
-    if (!Number.isFinite(Number(payload.expiresAt)) || Number(payload.expiresAt) <= Date.now()) return null;
     return {
       role: "seller",
       username,
@@ -6485,7 +6495,19 @@ async function handleRequest(req, res) {
         if (!profile) return forbidden(res);
         return json(res, 200, {
           ok: true,
-          token: signSellerSession(profile),
+          token: signSellerSession(profile, body.remember === true),
+          profile
+        });
+      }
+      if (req.method === "POST" && url.searchParams.get("action") === "manager-login") {
+        const body = await readJsonBody(req);
+        if (!GESTORES_ACCESS_TOKEN || !safeEqualText(body.password, GESTORES_ACCESS_TOKEN)) {
+          return forbidden(res);
+        }
+        const profile = { role: "manager", username: "gestor", displayName: "Gestor" };
+        return json(res, 200, {
+          ok: true,
+          token: signSellerSession(profile, body.remember === true),
           profile
         });
       }

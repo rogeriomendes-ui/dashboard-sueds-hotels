@@ -208,11 +208,21 @@ async function validateAccess(token) {
   return response.json();
 }
 
-async function loginSeller(username, password) {
+async function loginSeller(username, password, remember) {
   const response = await fetch("/api/dashboard/vendedores?action=login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, password, remember })
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+async function loginManager(password, remember) {
+  const response = await fetch("/api/dashboard/vendedores?action=manager-login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password, remember })
   });
   if (!response.ok) return null;
   return response.json();
@@ -241,11 +251,15 @@ function showLogin() {
             <option value="julia">Julia Reche</option>
           </select>
         </label>
-        <label>
-          <span>Senha</span>
-          <input name="password" type="password" autocomplete="current-password" required>
-        </label>
-        <p class="seller-login-message" role="alert"></p>
+          <label>
+            <span>Senha</span>
+            <input name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <label class="seller-login-remember">
+            <input name="remember" type="checkbox">
+            <span>Manter conectado neste dispositivo por 30 dias</span>
+          </label>
+          <p class="seller-login-message" role="alert"></p>
         <button type="submit" class="seller-login-submit">Entrar</button>
       </form>
     `;
@@ -281,15 +295,14 @@ function showLogin() {
 
       try {
         const password = String(passwordInput.value || "");
+        const remember = Boolean(form.elements.remember.checked);
         if (mode === "manager") {
-          const payload = await validateAccess(password);
-          if (!payload?.ok || payload.profile?.role !== "manager") {
-            throw new Error("Senha de gestor inválida.");
-          }
-          localStorage.setItem(MANAGER_TOKEN_STORAGE_KEY, password);
-          resolve({ token: password, profile: payload.profile });
+          const payload = await loginManager(password, remember);
+          if (!payload?.token) throw new Error("Senha de gestor inválida.");
+          localStorage.setItem(SELLER_TOKEN_STORAGE_KEY, payload.token);
+          resolve(payload);
         } else {
-          const payload = await loginSeller(form.elements.username.value, password);
+          const payload = await loginSeller(form.elements.username.value, password, remember);
           if (!payload?.token) throw new Error("Senha do vendedor inválida.");
           localStorage.setItem(SELLER_TOKEN_STORAGE_KEY, payload.token);
           resolve(payload);
