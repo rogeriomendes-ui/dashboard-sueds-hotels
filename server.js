@@ -2933,6 +2933,7 @@ async function uploadOpinionPhoto(req, buffer) {
   if (!allowedTypes.has(mimeType)) throw new Error("Formato de foto nao aceito. Use JPG, PNG ou WEBP.");
 
   const uploadId = safeOpinionUploadId(getHeader(req, "x-upload-id"));
+  const uploadAttempt = Math.max(1, Math.min(10, Number(getHeader(req, "x-upload-attempt")) || 1));
   const originalName = safeDecodedHeader(req, "x-file-name", 160) || "foto-opinario";
   const uploader = safeDecodedHeader(req, "x-uploader", 80);
   const periodFrom = safeDecodedHeader(req, "x-period-from", 10);
@@ -2943,6 +2944,7 @@ async function uploadOpinionPhoto(req, buffer) {
       folderId,
       mimeType,
       uploadId,
+      uploadAttempt,
       originalName,
       uploader,
       periodFrom,
@@ -2951,8 +2953,10 @@ async function uploadOpinionPhoto(req, buffer) {
   }
 
   const accessToken = await getAccessToken("https://www.googleapis.com/auth/drive");
-  const existing = await findUploadedOpinionPhoto(folderId, uploadId, accessToken);
-  if (existing) return { ...existing, duplicate: true, uploadId };
+  if (uploadAttempt > 1) {
+    const existing = await findUploadedOpinionPhoto(folderId, uploadId, accessToken);
+    if (existing) return { ...existing, duplicate: true, uploadId };
+  }
 
   const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
   const hotelPrefix = hotelSlug.replace(/[^a-z0-9]+/g, "_").toUpperCase();

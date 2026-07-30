@@ -1,7 +1,12 @@
 const API_URL = "/api/operacional/opinarios-upload";
 const HOTEL_SLUG = "sueds-plaza";
 const MAX_UPLOAD_BYTES = 3_800_000;
-const MAX_IMAGE_EDGE = 2400;
+const TARGET_UPLOAD_BYTES = 1_800_000;
+const MAX_IMAGE_EDGE = 2200;
+const PREPARE_CONCURRENCY = 2;
+const UPLOAD_CONCURRENCY = 3;
+const MAX_UPLOAD_ATTEMPTS = 4;
+const UPLOAD_TIMEOUT_MS = 55_000;
 
 const state = {
   accessReady: false,
@@ -46,6 +51,26 @@ function refreshIcons() {
   if (window.lucide) window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
 }
 
+function sleep(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+async function runPool(items, concurrency, task) {
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      await task(items[index], index);
+    }
+  }
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+}
+
 async function startUploadSession() {
   const response = await fetch(API_URL, { credentials: "same-origin" });
   const payload = await response.json().catch(() => ({}));
@@ -81,10 +106,10 @@ function canvasBlob(canvas, quality) {
 async function preparePhoto(file) {
   const image = await loadImage(file);
   let scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(image.naturalWidth, image.naturalHeight));
-  let quality = 0.92;
+  let quality = 0.84;
   let blob;
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     const width = Math.max(1, Math.round(image.naturalWidth * scale));
     const height = Math.max(1, Math.round(image.naturalHeight * scale));
     const canvas = document.createElement("canvas");
@@ -95,9 +120,9 @@ async function preparePhoto(file) {
     context.fillRect(0, 0, width, height);
     context.drawImage(image, 0, 0, width, height);
     blob = await canvasBlob(canvas, quality);
-    if (blob.size <= MAX_UPLOAD_BYTES) break;
-    quality = Math.max(0.72, quality - 0.07);
-    scale *= 0.88;
+    if (blob.size <= TARGET_UPLOAD_BYTES) break;
+    quality = Math.max(0.68, quality - 0.08);
+    scale *= 0.92;
   }
 
   if (!blob || blob.size > MAX_UPLOAD_BYTES) throw new Error("A foto ficou muito grande para envio.");
@@ -105,22 +130,27 @@ async function preparePhoto(file) {
 }
 
 async function addFiles(fileList) {
-  const files = [...fileList];
-  for (const file of files) {
-    if (!file.type.startsWith("image/")) continue;
-    const photo = {
+  if (state.sending) return;
+  const files = [...fileList].filter((file) => file.type.startsWith("image/"));
+  const firstNewIndex = state.photos.length;
+  const newPhotos = files.map((file, index) => ({
       id: makeUploadId(),
-      originalName: file.name || `opinario-${state.photos.length + 1}.jpg`,
+      originalName: file.name || `opinario-${firstNewIndex + index + 1}.jpg`,
       source: file,
       blob: null,
       previewUrl: URL.createObjectURL(file),
       status: "preparing",
-      message: "Preparando..."
-    };
-    state.photos.push(photo);
+      message: "Aguardando preparo...",
+      attempts: 0
+    }));
+  state.photos.push(...newPhotos);
+  renderQueue();
+
+  await runPool(newPhotos, PREPARE_CONCURRENCY, async (photo) => {
+    photo.message = "Preparando...";
     renderQueue();
     try {
-      photo.blob = await preparePhoto(file);
+      photo.blob = await preparePhoto(photo.source);
       photo.status = "ready";
       photo.message = `Pronta - ${formatBytes(photo.blob.size)}`;
     } catch (error) {
@@ -128,7 +158,7 @@ async function addFiles(fileList) {
       photo.message = error.message;
     }
     renderQueue();
-  }
+  });
 }
 
 function removePhoto(id) {
@@ -149,95 +179,151 @@ function clearPhotos() {
 function renderQueue() {
   const queue = byId("photoQueue");
   const template = byId("photoTemplate");
-  queue.innerHTML = "";
+  const activeIds = new Set(state.photos.map((photo) => photo.id));
+  [...queue.children].forEach((node) => {
+    if (!activeIds.has(node.dataset.photoId)) node.remove();
+  });
+
   state.photos.forEach((photo, index) => {
-    const node = template.content.firstElementChild.cloneNode(true);
+    let node = queue.querySelector(`[data-photo-id="${photo.id}"]`);
+    if (!node) {
+      node = template.content.firstElementChild.cloneNode(true);
+      node.dataset.photoId = photo.id;
+      node.querySelector("img").src = photo.previewUrl;
+      node.querySelector(".remove-button").addEventListener("click", () => removePhoto(photo.id));
+    }
     node.classList.toggle("sent", photo.status === "sent");
     node.classList.toggle("failed", photo.status === "failed");
-    node.querySelector("img").src = photo.previewUrl;
     node.querySelector("strong").textContent = `Opinario ${index + 1}`;
     node.querySelector("span").textContent = photo.message;
     const removeButton = node.querySelector(".remove-button");
     removeButton.disabled = state.sending || photo.status === "sent";
-    removeButton.addEventListener("click", () => removePhoto(photo.id));
     queue.appendChild(node);
   });
 
   const count = state.photos.length;
-  byId("queueCount").textContent = count ? `${count} foto${count === 1 ? "" : "s"}` : "Nenhuma foto";
+  const sent = state.photos.filter((photo) => photo.status === "sent").length;
+  const failed = state.photos.filter((photo) => photo.status === "failed").length;
+  const preparing = state.photos.some((photo) => photo.status === "preparing");
+  byId("queueCount").textContent = count
+    ? `${count} foto${count === 1 ? "" : "s"}${sent ? ` - ${sent} enviada${sent === 1 ? "" : "s"}` : ""}${failed ? ` - ${failed} com erro` : ""}`
+    : "Nenhuma foto";
   byId("clearButton").disabled = state.sending || count === 0;
-  byId("sendButton").disabled = state.sending || !state.accessReady || !state.photos.some((photo) => photo.status === "ready" || photo.status === "failed");
+  byId("sendButton").disabled = state.sending || preparing || !state.accessReady || !state.photos.some((photo) => photo.status === "ready" || photo.status === "failed");
   refreshIcons();
 }
 
 async function uploadPhotoRequest(photo) {
   if (!photo.blob) photo.blob = await preparePhoto(photo.source);
-  return fetch(API_URL, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {
-      "content-type": "image/jpeg",
-      "x-upload-id": photo.id,
-      "x-hotel-slug": HOTEL_SLUG,
-      "x-file-name": encodeURIComponent(photo.originalName),
-      "x-uploader": encodeURIComponent(byId("uploaderName").value.trim()),
-      "x-period-from": byId("periodFrom").value,
-      "x-period-to": byId("periodTo").value
-    },
-    body: photo.blob
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  try {
+    return await fetch(API_URL, {
+      method: "POST",
+      credentials: "same-origin",
+      signal: controller.signal,
+      headers: {
+        "content-type": "image/jpeg",
+        "x-upload-id": photo.id,
+        "x-upload-attempt": String(photo.attempts),
+        "x-hotel-slug": HOTEL_SLUG,
+        "x-file-name": encodeURIComponent(photo.originalName),
+        "x-uploader": encodeURIComponent(byId("uploaderName").value.trim()),
+        "x-period-from": byId("periodFrom").value,
+        "x-period-to": byId("periodTo").value
+      },
+      body: photo.blob
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 async function uploadPhoto(photo) {
-  let response = await uploadPhotoRequest(photo);
-  if (response.status === 401 || response.status === 403) {
-    state.accessReady = false;
-    await startUploadSession();
-    response = await uploadPhotoRequest(photo);
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt += 1) {
+    photo.attempts += 1;
+    try {
+      let response = await uploadPhotoRequest(photo);
+      if (response.status === 401 || response.status === 403) {
+        state.accessReady = false;
+        await startUploadSession();
+        response = await uploadPhotoRequest(photo);
+      }
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        const error = new Error(payload.message || `Falha no envio desta foto (HTTP ${response.status}).`);
+        error.retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+        throw error;
+      }
+      return payload.photo;
+    } catch (error) {
+      lastError = error;
+      const retryable = error.retryable !== false;
+      if (!retryable || attempt === MAX_UPLOAD_ATTEMPTS) break;
+      const delay = 1200 * (2 ** (attempt - 1)) + Math.round(Math.random() * 500);
+      photo.message = `Falha temporaria. Nova tentativa em ${Math.ceil(delay / 1000)} s...`;
+      renderQueue();
+      await sleep(delay);
+    }
   }
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !payload.ok) {
-    throw new Error(payload.message || "Falha no envio desta foto.");
-  }
-  return payload.photo;
+  throw lastError || new Error("Falha no envio desta foto.");
 }
 
 async function sendBatch() {
-  const pending = state.photos.filter((photo) => photo.status !== "sent");
+  const pending = state.photos.filter((photo) => photo.status === "ready" || photo.status === "failed");
   if (!pending.length) return;
   state.sending = true;
   byId("progressTrack").hidden = false;
   byId("progressBar").style.width = "0%";
   let sent = 0;
   let failed = 0;
+  let completed = 0;
+  let nextIndex = 0;
   renderQueue();
 
-  for (let index = 0; index < pending.length; index += 1) {
-    const photo = pending[index];
-    photo.status = "sending";
-    photo.message = `Enviando ${index + 1} de ${pending.length}...`;
-    setMessage("uploadMessage", `Enviando foto ${index + 1} de ${pending.length}...`);
-    renderQueue();
-    try {
-      const result = await uploadPhoto(photo);
-      photo.status = "sent";
-      photo.message = result.duplicate ? "Ja estava no Drive" : "Enviada ao Drive";
-      sent += 1;
-    } catch (error) {
-      photo.status = "failed";
-      photo.message = error.message;
-      failed += 1;
+  async function uploadWorker() {
+    while (nextIndex < pending.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const photo = pending[index];
+      photo.status = "sending";
+      photo.message = `Enviando ${index + 1} de ${pending.length}...`;
+      setMessage("uploadMessage", `Enviando lote: ${completed} de ${pending.length} concluidas...`);
+      renderQueue();
+      try {
+        const result = await uploadPhoto(photo);
+        photo.status = "sent";
+        photo.message = result.duplicate ? "Ja estava no Drive" : "Enviada ao Drive";
+        sent += 1;
+      } catch (error) {
+        photo.status = "failed";
+        photo.message = error.name === "AbortError"
+          ? "Tempo esgotado apos tentativas automaticas."
+          : error.message;
+        failed += 1;
+      }
+      completed += 1;
+      byId("progressBar").style.width = `${Math.round((completed / pending.length) * 100)}%`;
+      setMessage("uploadMessage", `Enviando lote: ${completed} de ${pending.length} concluidas...`);
+      renderQueue();
     }
-    byId("progressBar").style.width = `${Math.round(((index + 1) / pending.length) * 100)}%`;
-    renderQueue();
   }
+
+  await Promise.all(
+    Array.from({ length: Math.min(UPLOAD_CONCURRENCY, pending.length) }, () => uploadWorker())
+  );
 
   state.sending = false;
   renderQueue();
   if (!failed) {
     setMessage("uploadMessage", `${sent} foto${sent === 1 ? " enviada" : "s enviadas"} com sucesso.`, "success");
   } else {
-    setMessage("uploadMessage", `${sent} enviada${sent === 1 ? "" : "s"}; ${failed} com erro. Toque em Enviar lote para tentar novamente.`, "error");
+    setMessage(
+      "uploadMessage",
+      `${sent} enviada${sent === 1 ? "" : "s"}; ${failed} com erro mesmo apos as tentativas automaticas. Toque em Enviar lote apenas para repetir as que falharam.`,
+      "error"
+    );
   }
 }
 
@@ -259,6 +345,11 @@ async function init() {
   byId("sendButton").addEventListener("click", sendBatch);
   byId("periodFrom").addEventListener("change", () => {
     if (!byId("periodTo").value || byId("periodTo").value < byId("periodFrom").value) byId("periodTo").value = byId("periodFrom").value;
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.sending) return;
+    event.preventDefault();
+    event.returnValue = "";
   });
   refreshIcons();
   setMessage("uploadMessage", "Conectando ao envio...");

@@ -130,9 +130,7 @@ function configurarCodigoUploadOpinarios() {
 }
 
 function doPost(e) {
-  const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
     const body = JSON.parse(String(e && e.postData && e.postData.contents || "{}"));
     const expectedToken = String(PropertiesService.getScriptProperties().getProperty("OPINION_UPLOAD_TOKEN") || "");
     if (!expectedToken || String(body.token || "") !== expectedToken) {
@@ -172,9 +170,12 @@ function doPost(e) {
       : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "America/Sao_Paulo", "yyyyMMdd");
     const fileName = `SUEDS_PLAZA_${datePart}_${uploadId}.${extensions[mimeType]}`;
     const folder = DriveApp.getFolderById(OPINARIOS_PLAZA_FOLDER_ID);
-    const existingFiles = folder.getFilesByName(fileName);
-    if (existingFiles.hasNext()) {
-      return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(existingFiles.next(), uploadId, true) });
+    const uploadAttempt = Math.max(1, Number(body.uploadAttempt || 1));
+    if (uploadAttempt > 1) {
+      const existingFiles = folder.getFilesByName(fileName);
+      if (existingFiles.hasNext()) {
+        return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(existingFiles.next(), uploadId, true) });
+      }
     }
 
     const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
@@ -191,12 +192,6 @@ function doPost(e) {
     return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(file, uploadId, false) });
   } catch (err) {
     return opinionUploadJson_({ ok: false, message: err && err.message ? err.message : String(err) });
-  } finally {
-    try {
-      lock.releaseLock();
-    } catch (err) {
-      // O lock pode nao ter sido adquirido quando a espera expira.
-    }
   }
 }
 
