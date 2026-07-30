@@ -19,7 +19,8 @@ const HOTEL_BRANDS = {
   "sueds-cabralia": {
     brand: "CABRÁLIA",
     name: "SUEDS CABRÁLIA",
-    logo: "logo-opinario-cabralia.png"
+    logo: "logo-opinario-cabralia.png",
+    formVersion: "20260729"
   },
   "sueds-segundo-sol": {
     brand: "SEGUNDO SOL",
@@ -29,7 +30,8 @@ const HOTEL_BRANDS = {
   "sueds-plaza": {
     brand: "PLAZA",
     name: "SUEDS PLAZA",
-    logo: "logo-opinario-plaza.png"
+    logo: "logo-opinario-plaza.png",
+    formVersion: "20260729"
   },
   "sueds-premium": {
     brand: "PREMIUM",
@@ -49,6 +51,23 @@ const HOTEL_BRANDS = {
 };
 
 const HOTEL_CONFIG = {
+  "sueds-cabralia": {
+    brand: "CABRÁLIA",
+    name: "SUEDS CABRALIA",
+    fields: [
+      "generalImpression",
+      "reservation",
+      "frontDesk",
+      "teamService",
+      "roomComfort",
+      "roomCleaning",
+      "wifi",
+      "pool",
+      "beachClub",
+      "foodBreakfast",
+      "foodDinner"
+    ]
+  },
   "sueds-plaza": {
     brand: "PLAZA",
     name: "SUEDS PLAZA",
@@ -80,9 +99,10 @@ function slugFromParams() {
 
 function formMeta() {
   const params = new URLSearchParams(window.location.search);
+  const hotelSlug = slugFromParams();
   return {
-    hotelSlug: slugFromParams(),
-    formVersion: params.get("form_version") || "20260719",
+    hotelSlug,
+    formVersion: params.get("form_version") || HOTEL_BRANDS[hotelSlug]?.formVersion || "20260719",
     lang: params.get("lang") || "pt-BR"
   };
 }
