@@ -2542,7 +2542,12 @@ const OPINION_FORM_HOTELS = {
   "sueds-trancoso": { hotel: "SUEDS TRANCOSO" },
   "casas-sueds-arraial": { hotel: "CASAS SUEDS ARRAIAL" }
 };
-const OPINION_ACTIVE_FORM_SLUGS = new Set(["sueds-cabralia", "sueds-plaza", "sueds-premium"]);
+const OPINION_ACTIVE_FORM_SLUGS = new Set([
+  "sueds-cabralia",
+  "sueds-segundo-sol",
+  "sueds-plaza",
+  "sueds-premium"
+]);
 const OPINION_MIN_FORM_VERSION = "20260719";
 const OPINION_OPERATIONAL_START_DATE = "2026-07-24";
 

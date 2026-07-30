@@ -25,7 +25,8 @@ const HOTEL_BRANDS = {
   "sueds-segundo-sol": {
     brand: "SEGUNDO SOL",
     name: "SUEDS SEGUNDO SOL",
-    logo: "logo-opinario-segundo-sol.png"
+    logo: "logo-opinario-segundo-sol.png",
+    formVersion: "20260729"
   },
   "sueds-plaza": {
     brand: "PLAZA",
@@ -66,6 +67,24 @@ const HOTEL_CONFIG = {
       "pool",
       "beachClub",
       "foodBreakfast",
+      "foodDinner"
+    ]
+  },
+  "sueds-segundo-sol": {
+    brand: "SEGUNDO SOL",
+    name: "SUEDS SEGUNDO SOL",
+    fields: [
+      "generalImpression",
+      "reservation",
+      "frontDesk",
+      "teamService",
+      "roomComfort",
+      "roomCleaning",
+      "wifi",
+      "pool",
+      "beachClub",
+      "foodBreakfast",
+      "foodLunch",
       "foodDinner"
     ]
   },
