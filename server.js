@@ -35,6 +35,30 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
 const OPERATIONAL_ACCESS_SECRET = process.env.OPERATIONAL_ACCESS_SECRET || GESTORES_ACCESS_TOKEN || OPINION_UPLOAD_TOKEN || "sueds-operational-local";
 const OPERATIONAL_ACCESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SELLER_ACCESS_SECRET = process.env.SELLER_ACCESS_SECRET || OPERATIONAL_ACCESS_SECRET;
+const SELLER_ACCESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SELLER_ACCESS_USERS = {
+  amanda: {
+    displayName: "Amanda Melgaco",
+    salt: "532db313cf2e931d3276fc35f40f1e36",
+    hash: "a81952a496bd4eccf49bc3c88523af18454ecce3dcd9bba73c6c83d37f22d650"
+  },
+  aline: {
+    displayName: "Aline Nunes",
+    salt: "7c4ea4f683848771485b3362aa3a1005",
+    hash: "0d9c313acfda5f8864ea3764db052ac6e6a450d4c71bc1192d0983f5a7b3c78c"
+  },
+  emanoel: {
+    displayName: "Emanoel Cesar",
+    salt: "f95b1ab67c6e80dbf2ff4f5c68d5c891",
+    hash: "607af5dbcf5e9d121f84b5829e31964a9c487cedb3c558e9c12a7d020466baae"
+  },
+  julia: {
+    displayName: "Julia Reche",
+    salt: "e266165d65975a1aaefca8ecc7ed7b86",
+    hash: "5b2e94d5e9f7b934f72bf9ceb4691eecb558bc3154e7b058fe8a210355f998b6"
+  }
+};
 const OPERATIONAL_PLAZA_USERS = {
   joctan: {
     displayName: "Joctan",
@@ -215,6 +239,65 @@ function operationalAccessProfile(req, url) {
   }
   const provided = getHeader(req, "x-dashboard-token") || url.searchParams.get("access_token") || "";
   return parseOperationalSession(provided);
+}
+
+function authenticateSellerUser(username, password) {
+  const key = normalizeAccessUsername(username);
+  const user = SELLER_ACCESS_USERS[key];
+  if (!user || !password) return null;
+  const hash = crypto.pbkdf2Sync(String(password), user.salt, 120000, 32, "sha256").toString("hex");
+  if (!safeEqualText(hash, user.hash)) return null;
+  return {
+    role: "seller",
+    username: key,
+    displayName: user.displayName
+  };
+}
+
+function signSellerSession(profile) {
+  const payload = base64url(JSON.stringify({
+    role: "seller",
+    username: profile.username,
+    displayName: profile.displayName,
+    expiresAt: Date.now() + SELLER_ACCESS_SESSION_TTL_MS
+  }));
+  const signature = base64url(
+    crypto.createHmac("sha256", SELLER_ACCESS_SECRET).update(payload).digest()
+  );
+  return `sueds-vendedores.${payload}.${signature}`;
+}
+
+function parseSellerSession(token) {
+  const match = String(token || "").match(/^sueds-vendedores\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/);
+  if (!match) return null;
+  const expectedSignature = base64url(
+    crypto.createHmac("sha256", SELLER_ACCESS_SECRET).update(match[1]).digest()
+  );
+  if (!safeEqualText(expectedSignature, match[2])) return null;
+
+  try {
+    const encoded = match[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+    const username = normalizeAccessUsername(payload.username);
+    if (payload.role !== "seller" || !SELLER_ACCESS_USERS[username]) return null;
+    if (!Number.isFinite(Number(payload.expiresAt)) || Number(payload.expiresAt) <= Date.now()) return null;
+    return {
+      role: "seller",
+      username,
+      displayName: SELLER_ACCESS_USERS[username].displayName,
+      expiresAt: Number(payload.expiresAt)
+    };
+  } catch {
+    return null;
+  }
+}
+
+function sellerAccessProfile(req, url) {
+  if (GESTORES_ACCESS_TOKEN && hasManagerAccess(req, url)) {
+    return { role: "manager", username: "gestor", displayName: "Gestor" };
+  }
+  const provided = getHeader(req, "x-dashboard-token") || url.searchParams.get("access_token") || "";
+  return parseSellerSession(provided);
 }
 
 function base64url(value) {
@@ -6396,6 +6479,23 @@ async function handleRequest(req, res) {
     }
 
     if (url.pathname === "/api/dashboard/vendedores") {
+      if (req.method === "POST" && url.searchParams.get("action") === "login") {
+        const body = await readJsonBody(req);
+        const profile = authenticateSellerUser(body.username, body.password);
+        if (!profile) return forbidden(res);
+        return json(res, 200, {
+          ok: true,
+          token: signSellerSession(profile),
+          profile
+        });
+      }
+
+      const access = sellerAccessProfile(req, url);
+      if (!access) return forbidden(res);
+      if (url.searchParams.get("authOnly") === "1") {
+        return json(res, 200, { ok: true, profile: access });
+      }
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       const metrics = await loadMetrics(periodFromUrl(url));
       return json(res, 200, buildSellersPayload(metrics));
     }
