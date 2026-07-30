@@ -2470,6 +2470,10 @@ const OPERATIONAL_RATING_FIELDS = [
   { key: "beachClub", headers: ["Atendimento da equipe do Beach Club"], block: "Atendimento" },
   { key: "roomCleaning", headers: ["Limpeza do quarto"], block: "Apartamento" },
   { key: "roomComfort", headers: ["Conforto do quarto"], block: "Apartamento" },
+  { key: "apartmentComfort", headers: ["Conforto do apartamento"], block: "Apartamento" },
+  { key: "apartmentInitialCleaning", headers: ["Limpeza inicial do apartamento"], block: "Apartamento" },
+  { key: "apartmentEquipment", headers: ["Equipamentos / utensilios do apartamento"], block: "Apartamento" },
+  { key: "apartmentLocation", headers: ["Localizacao do apartamento"], block: "Apartamento" },
   { key: "frontDesk", headers: ["Recepcao / Check-in / Check-out"], block: "Serviços" },
   { key: "wifi", headers: ["Qualidade do Wi-fi"], block: "Serviços" },
   { key: "pool", headers: ["Area de lazer / piscina"], block: "Serviços" }
@@ -2513,6 +2517,10 @@ const OPINION_SUBMISSION_HEADERS = [
   "Atendimento da equipe",
   "Conforto do quarto",
   "Limpeza do quarto",
+  "Conforto do apartamento",
+  "Limpeza inicial do apartamento",
+  "Equipamentos / utensilios do apartamento",
+  "Localizacao do apartamento",
   "Qualidade do Wi-fi",
   "Area de lazer / piscina",
   "Atendimento da equipe do Beach Club",
@@ -2549,7 +2557,8 @@ const OPINION_ACTIVE_FORM_SLUGS = new Set([
   "sueds-segundo-sol",
   "sueds-plaza",
   "sueds-premium",
-  "sueds-trancoso"
+  "sueds-trancoso",
+  "casas-sueds-arraial"
 ]);
 const OPINION_MIN_FORM_VERSION = "20260719";
 const OPINION_OPERATIONAL_START_DATE = "2026-07-24";
@@ -4195,6 +4204,10 @@ async function appendDigitalOpinion(body = {}) {
     "Atendimento da equipe": normalizedRatings.teamService || "",
     "Conforto do quarto": normalizedRatings.roomComfort || "",
     "Limpeza do quarto": normalizedRatings.roomCleaning || "",
+    "Conforto do apartamento": normalizedRatings.apartmentComfort || "",
+    "Limpeza inicial do apartamento": normalizedRatings.apartmentInitialCleaning || "",
+    "Equipamentos / utensilios do apartamento": normalizedRatings.apartmentEquipment || "",
+    "Localizacao do apartamento": normalizedRatings.apartmentLocation || "",
     "Qualidade do Wi-fi": normalizedRatings.wifi || "",
     "Area de lazer / piscina": normalizedRatings.pool || "",
     "Atendimento da equipe do Beach Club": normalizedRatings.beachClub || "",

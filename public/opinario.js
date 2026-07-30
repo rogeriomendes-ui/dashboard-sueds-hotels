@@ -7,6 +7,10 @@ const FIELD_DEFINITIONS = {
   teamService: { group: "Avaliação dos serviços", label: "Atendimento da equipe" },
   roomComfort: { group: "Avaliação dos serviços", label: "Conforto do quarto" },
   roomCleaning: { group: "Avaliação dos serviços", label: "Limpeza do quarto" },
+  apartmentComfort: { group: "Avaliação dos serviços", label: "Conforto do apartamento" },
+  apartmentInitialCleaning: { group: "Avaliação dos serviços", label: "Limpeza inicial do apartamento" },
+  apartmentEquipment: { group: "Avaliação dos serviços", label: "Equipamentos / utensílios do apartamento" },
+  apartmentLocation: { group: "Avaliação dos serviços", label: "Localização do apartamento" },
   wifi: { group: "Avaliação dos serviços", label: "Qualidade do Wi-fi" },
   pool: { group: "Avaliação dos serviços", label: "Área de lazer / piscina" },
   beachClub: { group: "Avaliação dos serviços", label: "Atendimento da equipe do Beach Club" },
@@ -50,7 +54,8 @@ const HOTEL_BRANDS = {
   "casas-sueds-arraial": {
     brand: "CASAS SUEDS",
     name: "CASAS SUEDS ARRAIAL",
-    logo: "logo-opinario-casas-arraial.png"
+    logo: "logo-opinario-casas-arraial.png",
+    formVersion: "20260729"
   }
 };
 
@@ -140,6 +145,20 @@ const HOTEL_CONFIG = {
       "pool",
       "foodBreakfast",
       "foodAfternoonTea"
+    ]
+  },
+  "casas-sueds-arraial": {
+    brand: "CASAS SUEDS",
+    name: "CASAS SUEDS ARRAIAL",
+    fields: [
+      "generalImpression",
+      "reservation",
+      "teamService",
+      "apartmentComfort",
+      "apartmentInitialCleaning",
+      "apartmentEquipment",
+      "wifi",
+      "apartmentLocation"
     ]
   }
 };
