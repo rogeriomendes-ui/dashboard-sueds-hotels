@@ -133,7 +133,6 @@ async function submitOpinion(event) {
         guestName: byId("guestName").value,
         apartment: byId("apartment").value,
         comments: byId("comments").value,
-        contactConsent: byId("contactConsent").checked,
         ratings: selectedRatings(config)
       })
     });
