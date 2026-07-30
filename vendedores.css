@@ -185,6 +185,10 @@ h2 {
   text-transform: uppercase;
 }
 
+.ranking-head span:nth-last-child(-n + 3) {
+  text-align: center;
+}
+
 .rank {
   display: inline-flex;
   align-items: center;

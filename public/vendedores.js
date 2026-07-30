@@ -141,9 +141,9 @@ function renderSellers(sellers = []) {
         <span class="metric-cell" data-label="Meta do dia">${money.format(seller.dailyGoal || 0)}</span>
         <span class="metric-cell projection ${projectionTone}" data-label="Projeção %">${projectionText}</span>
         <span class="metric-cell icm ${icmTone}" data-label="ICM %">${icmText}</span>
-        ${commissionCell("below", "Comissão abaixo de 100%")}
-        ${commissionCell("goal", "Comissão 100% a 119,99%")}
-        ${commissionCell("super", "Comissão ≥120%")}
+        ${commissionCell("below", "Meta não batida")}
+        ${commissionCell("goal", "Meta batida")}
+        ${commissionCell("super", "Super Meta batida")}
       </div>
     `;
   }).join("");
@@ -158,9 +158,9 @@ function renderSellers(sellers = []) {
       <span>Meta do dia</span>
       <span>Projeção %</span>
       <span>ICM %</span>
-      <span>Comissão<br>&lt;100%</span>
-      <span>Comissão<br>100%–119,99%</span>
-      <span>Comissão<br>≥120%</span>
+      <span>Meta não batida<br>&lt;100%</span>
+      <span>Meta batida<br>100%–119,99%</span>
+      <span>Super Meta batida<br>≥120%</span>
     </div>
     ${rows}
   `;
