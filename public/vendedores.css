@@ -23,7 +23,7 @@ body {
 }
 
 .seller-shell {
-  width: min(1180px, 100%);
+  width: min(1560px, 100%);
   margin: 0 auto;
   padding: 18px;
 }
@@ -165,12 +165,12 @@ h2 {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 44px minmax(170px, 1.3fr) repeat(6, minmax(90px, 1fr));
-  gap: 12px;
+  grid-template-columns: 40px minmax(150px, 1.25fr) repeat(6, minmax(78px, .9fr)) repeat(3, minmax(110px, 1fr));
+  gap: 9px;
   align-items: center;
   min-height: 54px;
   border-bottom: 1px solid #edf1f4;
-  font-size: 17px;
+  font-size: 15px;
 }
 
 .ranking-row:last-child {
@@ -215,6 +215,16 @@ h2 {
 .icm.muted,
 .projection.muted {
   color: var(--muted);
+}
+
+.commission {
+  color: var(--muted);
+  text-align: right;
+}
+
+.commission-active {
+  color: var(--ink);
+  font-weight: 900;
 }
 
 .empty-state {

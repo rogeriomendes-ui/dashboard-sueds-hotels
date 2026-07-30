@@ -4,6 +4,13 @@ const money = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0
 });
 
+const commissionMoney = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
 const number = new Intl.NumberFormat("pt-BR");
 const pctNumber = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0
@@ -117,6 +124,13 @@ function renderSellers(sellers = []) {
     const projectionText = formatPct(projectionValue);
     const projectionTone = icmClass(projectionValue);
     const icmTone = icmClass(icmValue);
+    const commission = seller.commission;
+    const commissionCell = (tier, label) => {
+      const active = commission?.tier === tier;
+      const amount = active ? commissionMoney.format(commission.amount || 0) : "—";
+      const rate = active ? `${commission.ratePct.toFixed(2).replace(".", ",")}%` : "";
+      return `<span class="metric-cell commission ${active ? "commission-active" : ""}" data-label="${label}" title="${rate ? `Taxa aplicada: ${rate}` : ""}">${amount}</span>`;
+    };
     return `
       <div class="ranking-row">
         <span class="rank">${index + 1}</span>
@@ -127,6 +141,9 @@ function renderSellers(sellers = []) {
         <span class="metric-cell" data-label="Meta do dia">${money.format(seller.dailyGoal || 0)}</span>
         <span class="metric-cell projection ${projectionTone}" data-label="Projeção %">${projectionText}</span>
         <span class="metric-cell icm ${icmTone}" data-label="ICM %">${icmText}</span>
+        ${commissionCell("below", "Comissão abaixo de 100%")}
+        ${commissionCell("goal", "Comissão 100% a 119,99%")}
+        ${commissionCell("super", "Comissão ≥120%")}
       </div>
     `;
   }).join("");
@@ -141,6 +158,9 @@ function renderSellers(sellers = []) {
       <span>Meta do dia</span>
       <span>Projeção %</span>
       <span>ICM %</span>
+      <span>Comissão<br>&lt;100%</span>
+      <span>Comissão<br>100%–119,99%</span>
+      <span>Comissão<br>≥120%</span>
     </div>
     ${rows}
   `;

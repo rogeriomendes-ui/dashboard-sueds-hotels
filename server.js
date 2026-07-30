@@ -2356,6 +2356,7 @@ function buildManagerPayload(metrics) {
 
 function buildSellersPayload(metrics) {
   const teamSeller = (metrics.sellers || []).find((seller) => seller.name === TEAM_CARD_DISPLAY_NAME);
+  const teamGoalMet = Number(teamSeller?.monthlyGoalPct) >= 100;
   return {
     audience: "vendedores",
     generatedAt: metrics.generatedAt,
@@ -2372,15 +2373,39 @@ function buildSellersPayload(metrics) {
     },
     sellers: (metrics.sellers || [])
       .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
-      .map((seller) => ({
-        name: seller.name,
-        reservationsMonth: seller.reservationsMonth,
-        salesMonth: seller.salesMonth,
-        dailyGoal: seller.dailyGoal,
-        monthlyGoal: seller.monthlyGoal,
-        projectionPct: seller.mtdGoalPct,
-        monthlyGoalPct: seller.monthlyGoalPct
-      }))
+      .map((seller) => {
+        const commission = sellerCommission(seller, teamGoalMet);
+        return {
+          name: seller.name,
+          reservationsMonth: seller.reservationsMonth,
+          salesMonth: seller.salesMonth,
+          dailyGoal: seller.dailyGoal,
+          monthlyGoal: seller.monthlyGoal,
+          projectionPct: seller.mtdGoalPct,
+          monthlyGoalPct: seller.monthlyGoalPct,
+          commission
+        };
+      })
+  };
+}
+
+function sellerCommission(seller, teamGoalMet = false) {
+  if (isTeamCardName(seller?.name)) return null;
+  const icm = Number(seller?.monthlyGoalPct);
+  const sales = Number(seller?.salesMonth);
+  if (!Number.isFinite(icm) || !Number.isFinite(sales)) return null;
+
+  const tier = icm < 100 ? "below" : icm < 120 ? "goal" : "super";
+  const baseRatePct = tier === "below" ? 0.8 : tier === "goal" ? 1.2 : 1.4;
+  const teamBonusPct = teamGoalMet && icm >= 100 ? 0.1 : 0;
+  const ratePct = baseRatePct + teamBonusPct;
+
+  return {
+    tier,
+    baseRatePct,
+    teamBonusPct,
+    ratePct,
+    amount: sales * ratePct / 100
   };
 }
 
@@ -6356,6 +6381,7 @@ module.exports = {
     detectOmrBubbleGrid,
     operationalOpinionCapturedAt,
     operationalWeekdayNumber,
+    sellerCommission,
     readPlazaOpinionOmr
   }
 };
