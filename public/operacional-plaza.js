@@ -1,14 +1,80 @@
-const HOTEL_SLUG = "sueds-plaza";
+const HOTEL_ROUTE_SLUGS = {
+  plaza: "sueds-plaza",
+  cabralia: "sueds-cabralia",
+  "segundo-sol": "sueds-segundo-sol",
+  premium: "sueds-premium",
+  trancoso: "sueds-trancoso",
+  "casas-arraial": "casas-sueds-arraial"
+};
+const HOTEL_CONFIG = {
+  "sueds-plaza": {
+    label: "SUEDS Plaza",
+    descriptions: {
+      Geral: "Impressão geral e reserva.",
+      Alimentos: "Café, almoço e jantar.",
+      Atendimento: "Do hotel e Beach Club.",
+      Apartamento: "Conforto e limpeza do apto.",
+      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
+    }
+  },
+  "sueds-cabralia": {
+    label: "SUEDS Cabrália",
+    descriptions: {
+      Geral: "Impressão geral e reserva.",
+      Alimentos: "Café da manhã e jantar.",
+      Atendimento: "Do hotel e Beach Club.",
+      Apartamento: "Conforto e limpeza do apto.",
+      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
+    }
+  },
+  "sueds-segundo-sol": {
+    label: "SUEDS Segundo Sol",
+    descriptions: {
+      Geral: "Impressão geral e reserva.",
+      Alimentos: "Café, almoço e jantar.",
+      Atendimento: "Do hotel e Beach Club.",
+      Apartamento: "Conforto e limpeza do apto.",
+      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
+    }
+  },
+  "sueds-premium": {
+    label: "SUEDS Premium",
+    descriptions: {
+      Geral: "Impressão geral e reserva.",
+      Alimentos: "Café, almoço e jantar.",
+      Atendimento: "Do hotel e Beach Club.",
+      Apartamento: "Conforto e limpeza do apto.",
+      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
+    }
+  },
+  "sueds-trancoso": {
+    label: "SUEDS Trancoso",
+    descriptions: {
+      Geral: "Impressão geral e reserva.",
+      Alimentos: "Café da manhã e chá da tarde.",
+      Atendimento: "Da equipe do hotel.",
+      Apartamento: "Conforto e limpeza do apto.",
+      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
+    }
+  },
+  "casas-sueds-arraial": {
+    label: "Casas SUEDS Arraial",
+    descriptions: {
+      Geral: "Impressão geral e reserva.",
+      Alimentos: "Não avaliado neste formulário.",
+      Atendimento: "Da equipe.",
+      Apartamento: "Conforto, limpeza, equipamentos e localização.",
+      "Serviços": "Qualidade do Wi-Fi."
+    }
+  }
+};
+const hotelRouteKey = window.location.pathname.split("/").filter(Boolean).pop() || "plaza";
+const HOTEL_SLUG = HOTEL_ROUTE_SLUGS[hotelRouteKey] || "sueds-plaza";
+const CURRENT_HOTEL = HOTEL_CONFIG[HOTEL_SLUG];
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const LEADER_NAME_STORAGE_KEY = "sueds_operational_leader_name";
 const KPI_ALERTS_ENABLED = false;
-const QUALITY_BLOCK_DESCRIPTIONS = {
-  Geral: "Impressão geral e reserva.",
-  Alimentos: "Café, almoço e jantar.",
-  Atendimento: "Do hotel e Beach Club.",
-  Apartamento: "Conforto e limpeza do apto.",
-  "Serviços": "Recepção, Wi-Fi, lazer/piscina."
-};
+const QUALITY_BLOCK_DESCRIPTIONS = CURRENT_HOTEL.descriptions;
 const state = {
   data: null,
   filter: "all",
@@ -389,6 +455,10 @@ function render(data) {
   state.data = data;
   const evaluation = data.evaluation || {};
   const summary = data.operations?.summary || {};
+  const hotelLabel = CURRENT_HOTEL.label;
+  document.title = `${hotelLabel} | TV Operacional`;
+  byId("hotelPageName").textContent = hotelLabel;
+  byId("qualityTitle").textContent = hotelLabel;
   byId("summaryScore").textContent = formatScore(evaluation.finalScore);
   byId("summaryOpinions").textContent = integer.format(evaluation.totalOpinions ?? evaluation.opinions ?? 0);
   byId("summaryPending").textContent = integer.format(summary.pending || 0);
@@ -587,6 +657,9 @@ setupPeriodControls();
 setupFilters();
 setupIncidentStatusDialog();
 setupOpinionPhotoDialog();
+document.title = `${CURRENT_HOTEL.label} | TV Operacional`;
+byId("hotelPageName").textContent = CURRENT_HOTEL.label;
+byId("qualityTitle").textContent = CURRENT_HOTEL.label;
 refreshIcons();
 load().catch((error) => {
   byId("lastUpdate").textContent = "Falha na atualização";
