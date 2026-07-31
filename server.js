@@ -2460,9 +2460,10 @@ function buildManagerPayload(metrics) {
   };
 }
 
-function buildSellersPayload(metrics) {
+function buildSellersPayload(metrics, access = {}) {
   const teamSeller = (metrics.sellers || []).find((seller) => seller.name === TEAM_CARD_DISPLAY_NAME);
   const teamGoalMet = Number(teamSeller?.monthlyGoalPct) >= 100;
+  const includeTeamCommission = access.role === "manager";
   return {
     audience: "vendedores",
     generatedAt: metrics.generatedAt,
@@ -2480,18 +2481,41 @@ function buildSellersPayload(metrics) {
     sellers: (metrics.sellers || [])
       .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
       .map((seller) => {
-        const commission = sellerCommission(seller, teamGoalMet);
-        return {
+        const isTeamSeller = isTeamCardName(seller.name);
+        const commission = isTeamSeller
+          ? (includeTeamCommission ? teamManagerCommission(seller) : null)
+          : sellerCommission(seller, teamGoalMet);
+        const payload = {
           name: seller.name,
           reservationsMonth: seller.reservationsMonth,
           salesMonth: seller.salesMonth,
           dailyGoal: seller.dailyGoal,
           monthlyGoal: seller.monthlyGoal,
           projectionPct: seller.mtdGoalPct,
-          monthlyGoalPct: seller.monthlyGoalPct,
-          commission
+          monthlyGoalPct: seller.monthlyGoalPct
         };
+        if (!isTeamSeller || includeTeamCommission) payload.commission = commission;
+        return payload;
       })
+  };
+}
+
+function teamManagerCommission(seller) {
+  const icm = Number(seller?.monthlyGoalPct);
+  const sales = Number(seller?.salesMonth);
+  if (!Number.isFinite(icm) || !Number.isFinite(sales)) return null;
+
+  const tier = icm < 100 ? "below" : icm < 120 ? "goal" : "super";
+  const baseRatePct = tier === "below" ? 0.3 : tier === "goal" ? 0.6 : 0.8;
+  const teamBonusPct = icm >= 100 ? 0.1 : 0;
+  const ratePct = baseRatePct + teamBonusPct;
+
+  return {
+    tier,
+    baseRatePct,
+    teamBonusPct,
+    ratePct,
+    amount: sales * ratePct / 100
   };
 }
 
@@ -6527,7 +6551,7 @@ async function handleRequest(req, res) {
       }
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       const metrics = await loadMetrics(periodFromUrl(url));
-      return json(res, 200, buildSellersPayload(metrics));
+      return json(res, 200, buildSellersPayload(metrics, access));
     }
 
     if (url.pathname === "/api/dashboard/tv") {
@@ -6668,7 +6692,9 @@ module.exports = {
     detectOmrBubbleGrid,
     operationalOpinionCapturedAt,
     operationalWeekdayNumber,
+    buildSellersPayload,
     sellerCommission,
+    teamManagerCommission,
     readPlazaOpinionOmr: readOpinionOmr,
     readOpinionOmr
   }
