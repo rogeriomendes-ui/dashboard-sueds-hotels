@@ -2034,7 +2034,7 @@ function isOnOrBeforeDateKey(record, key) {
 
 const TEAM_CARD_NAME = "Equipe Sueds";
 const TEAM_CARD_DISPLAY_NAME = "EQUIPE SUEDS";
-const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Julia Reche", "Emanoel Cesar"];
+const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Tatiana Vieira", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
 const OFFICIAL_SALES_CHANNELS = [
   "SITE",
@@ -2290,8 +2290,9 @@ function buildMetrics(records, goals, period = {}) {
     const teamReservationsToday = sum(teamSellers, (seller) => seller.reservationsToday);
     const teamReservationsMtd = sum(teamSellers, (seller) => seller.reservationsMtd);
     const teamReservationsMonth = sum(teamSellers, (seller) => seller.reservationsMonth);
-    const teamMtdGoal = sum(teamSellers, (seller) => seller.mtdGoal);
-    const teamMonthlyGoal = sum(teamSellers, (seller) => seller.monthlyGoal);
+    const teamMonthlyGoal = teamCard.monthlyGoal || sum(teamSellers, (seller) => seller.monthlyGoal);
+    const teamBaseDailyGoal = teamMonthlyGoal ? teamMonthlyGoal / workdaysInMonth : 0;
+    const teamMtdGoal = teamBaseDailyGoal * workdaysElapsed;
     const teamDailyGoal = isYearToDate
       ? teamMonthlyGoal / workdaysInMonth
       : Math.max(0, teamMonthlyGoal - teamSalesMonth) / workdaysRemaining;
@@ -2554,6 +2555,7 @@ function statusFromPct(value) {
 const TV_SELLER_ORDER = [
   TEAM_CARD_NAME,
   "Aline Nunes",
+  "Tatiana Vieira",
   "Emanoel Cesar",
   "Julia Reche",
   "Amanda Melgaco",
@@ -6697,6 +6699,7 @@ module.exports = {
     detectOmrBubbleGrid,
     operationalOpinionCapturedAt,
     operationalWeekdayNumber,
+    buildMetrics,
     buildSellersPayload,
     sellerCommission,
     teamManagerCommission,
