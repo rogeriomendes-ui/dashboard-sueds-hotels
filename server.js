@@ -58,6 +58,11 @@ const SELLER_ACCESS_USERS = {
     displayName: "Julia Reche",
     salt: "e266165d65975a1aaefca8ecc7ed7b86",
     hash: "5b2e94d5e9f7b934f72bf9ceb4691eecb558bc3154e7b058fe8a210355f998b6"
+  },
+  tatiana: {
+    displayName: "Tatiana Vieira",
+    salt: "d2a968a5a4f45bc2003b20ad87bce951",
+    hash: "5a6f0f493e4892f67884db8e7ec48d6dd60c56ad6271495186f571f40abed14d"
   }
 };
 const OPERATIONAL_PLAZA_USERS = {

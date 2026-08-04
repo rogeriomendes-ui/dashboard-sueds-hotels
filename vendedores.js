@@ -249,6 +249,7 @@ function showLogin() {
             <option value="aline">Aline Nunes</option>
             <option value="emanoel">Emanoel Cesar</option>
             <option value="julia">Julia Reche</option>
+            <option value="tatiana">Tatiana Vieira</option>
           </select>
         </label>
           <label>
