@@ -2469,7 +2469,7 @@ function buildManagerPayload(metrics) {
 function buildSellersPayload(metrics, access = {}) {
   const teamSeller = (metrics.sellers || []).find((seller) => seller.name === TEAM_CARD_DISPLAY_NAME);
   const teamGoalMet = Number(teamSeller?.monthlyGoalPct) >= 100;
-  const includeTeamCommission = access.role === "manager";
+  const isManager = access.role === "manager";
   return {
     audience: "vendedores",
     generatedAt: metrics.generatedAt,
@@ -2488,9 +2488,9 @@ function buildSellersPayload(metrics, access = {}) {
       .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
       .map((seller) => {
         const isTeamSeller = isTeamCardName(seller.name);
-        const commission = isTeamSeller
-          ? (includeTeamCommission ? teamManagerCommission(seller) : null)
-          : sellerCommission(seller, teamGoalMet);
+        const isAuthenticatedSeller = access.role === "seller"
+          && comparableKey(seller.name) === comparableKey(access.displayName);
+        const includeCommission = isManager || (!isTeamSeller && isAuthenticatedSeller);
         const payload = {
           name: seller.name,
           reservationsMonth: seller.reservationsMonth,
@@ -2500,7 +2500,11 @@ function buildSellersPayload(metrics, access = {}) {
           projectionPct: seller.mtdGoalPct,
           monthlyGoalPct: seller.monthlyGoalPct
         };
-        if (!isTeamSeller || includeTeamCommission) payload.commission = commission;
+        if (includeCommission) {
+          payload.commission = isTeamSeller
+            ? teamManagerCommission(seller)
+            : sellerCommission(seller, teamGoalMet);
+        }
         return payload;
       })
   };
