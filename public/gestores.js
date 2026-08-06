@@ -5,6 +5,10 @@ const money = new Intl.NumberFormat("pt-BR", {
 });
 
 const number = new Intl.NumberFormat("pt-BR");
+const percentage = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1
+});
 const MONTHS = ["ytd", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"];
 const MONTH_LABELS = {
   ytd: "ESTE ANO",
@@ -438,6 +442,38 @@ function setupAdvancePurchaseView(data) {
   });
 }
 
+function renderOtherChannels(data) {
+  const otherChannels = data.otherChannels || {};
+  const channels = otherChannels.channels || [];
+  byId("otherChannelsTotal").textContent = money.format(otherChannels.totalSales || 0);
+  byId("otherChannelsSummary").innerHTML = `
+    <div>
+      <span>Reservas</span>
+      <strong>${number.format(otherChannels.reservations || 0)}</strong>
+    </div>
+    <div>
+      <span>Ticket médio</span>
+      <strong>${money.format(otherChannels.ticketAverage || 0)}</strong>
+    </div>
+    <div>
+      <span>Canais</span>
+      <strong>${number.format(otherChannels.channelCount || 0)}</strong>
+    </div>
+  `;
+  byId("otherChannelsList").innerHTML = channels.length
+    ? channels
+        .map((item) => `
+          <div class="other-channels-row">
+            <span class="row-label">${escapeHtml(item.label)}</span>
+            <strong data-label="Reservas">${number.format(item.reservations || 0)}</strong>
+            <strong data-label="Venda">${money.format(item.value || 0)}</strong>
+            <strong data-label="Participação">${percentage.format(item.sharePct || 0)}%</strong>
+          </div>
+        `)
+        .join("")
+    : '<div class="other-channels-empty">Nenhuma venda no período selecionado.</div>';
+}
+
 function render(data) {
   currentDashboardData = data;
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
@@ -461,6 +497,7 @@ function render(data) {
   byId("receivedMonth").textContent = money.format(data.summary.receivedMonth);
   byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
+  renderOtherChannels(data);
 
   const strategicCards = (data.strategicChannels || [])
     .map((item) => `

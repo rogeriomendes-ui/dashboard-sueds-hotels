@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Gestores</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260806-other-channels">
   </head>
   <body>
     <main class="dashboard-shell">
@@ -147,6 +147,26 @@
         </div>
         <div id="strategicChannels" class="strategic-grid"></div>
       </section>
+
+      <section class="panel other-channels-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Omnibees</p>
+            <h2>Vendas de outros canais</h2>
+          </div>
+          <strong id="otherChannelsTotal">R$ 0</strong>
+        </div>
+        <div id="otherChannelsSummary" class="other-channels-summary"></div>
+        <div class="other-channels-table-wrap">
+          <div class="other-channels-row other-channels-head">
+            <span>Canal</span>
+            <span>Reservas</span>
+            <span>Venda</span>
+            <span>Participação</span>
+          </div>
+          <div id="otherChannelsList"></div>
+        </div>
+      </section>
     </main>
 
     <div id="tvMessageModal" class="modal-backdrop" hidden>
@@ -209,6 +229,6 @@
       </section>
     </div>
 
-    <script src="gestores.js?v=20260730-hotels"></script>
+    <script src="gestores.js?v=20260806-other-channels"></script>
   </body>
 </html>

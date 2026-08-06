@@ -9,6 +9,7 @@ const PORT = Number(process.env.PORT || 3000);
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
 const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAMENTOS_RANGE || "Lancamento_Vendas!A:Y";
+const OTHER_CHANNELS_RANGE = process.env.GOOGLE_OTHER_CHANNELS_RANGE || "'teste lancamento_vendas'!A:T";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
@@ -2445,6 +2446,46 @@ function buildMetrics(records, goals, period = {}) {
   };
 }
 
+function buildOtherChannelsMetrics(records, period = {}) {
+  const today = period.date || todayKey();
+  const requestedMonth = period.month || today.slice(0, 7);
+  const isYearToDate = requestedMonth === "ytd";
+  const ytdStart = `${today.slice(0, 4)}-01-01`;
+  const selectedDay = period.day || "";
+  const selectedHotel = period.hotel || "";
+
+  const filteredRecords = records.filter((record) => {
+    if (record.status.toLowerCase() !== "confirmada") return false;
+    const matchesPeriod = isYearToDate
+      ? record.dateKey >= ytdStart && record.dateKey <= today
+      : record.monthKey === requestedMonth;
+    const matchesDay = !selectedDay || record.dateKey === selectedDay;
+    const matchesHotel = !selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel);
+    return matchesPeriod && matchesDay && matchesHotel;
+  });
+  const totalSales = sum(filteredRecords, (record) => record.total);
+  const recordsByChannel = groupBy(filteredRecords, (record) => record.rawChannel || record.channel || "Não informado");
+  const channels = [...recordsByChannel.entries()]
+    .map(([label, rows]) => {
+      const value = sum(rows, (record) => record.total);
+      return {
+        label,
+        reservations: rows.length,
+        value,
+        sharePct: totalSales ? (value / totalSales) * 100 : 0
+      };
+    })
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+
+  return {
+    totalSales,
+    reservations: filteredRecords.length,
+    ticketAverage: filteredRecords.length ? totalSales / filteredRecords.length : 0,
+    channelCount: channels.length,
+    channels
+  };
+}
+
 function buildManagerPayload(metrics) {
   return {
     audience: "gestores",
@@ -2462,6 +2503,7 @@ function buildManagerPayload(metrics) {
     advancePurchase: metrics.advancePurchase,
     dailySales: metrics.dailySales,
     detailedSales: metrics.detailedSales,
+    otherChannels: metrics.otherChannels,
     analytics: metrics.analytics || null
   };
 }
@@ -6388,6 +6430,7 @@ async function loadDataset() {
   let goals;
   let carts;
   let asksuite;
+  let otherChannelRecords;
 
   if (!SHEET_ID || !getServiceAccount()) {
     const demo = demoDataset();
@@ -6395,20 +6438,26 @@ async function loadDataset() {
     goals = demo.goals;
     carts = demo.carts;
     asksuite = demo.asksuite || [];
+    otherChannelRecords = [];
   } else {
-    const [baseRows, goalRows, cartRows, asksuiteRows] = await Promise.all([
+    const [baseRows, goalRows, cartRows, asksuiteRows, otherChannelRows] = await Promise.all([
       getFirstAvailableSheetValues([SALES_RANGE, BASE_RANGE]),
       getSheetValues(METAS_RANGE),
       getSheetValues(CARTS_RANGE),
-      getSheetValues(ASKSUITE_RANGE)
+      getSheetValues(ASKSUITE_RANGE),
+      getSheetValues(OTHER_CHANNELS_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      })
     ]);
     records = rowsToObjects(baseRows).map(normalizeRecord);
     goals = rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal);
     carts = rowsToObjects(cartRows, { keepAnyValue: true }).map(normalizeCartRecord);
     asksuite = dedupeAsksuiteRecords(rowsToObjects(asksuiteRows, { keepAnyValue: true }).map(normalizeAsksuiteRecord));
+    otherChannelRecords = rowsToObjects(otherChannelRows).map(normalizeRecord);
   }
 
-  const payload = { records, goals, carts, asksuite, loadedAt: new Date().toISOString() };
+  const payload = { records, goals, carts, asksuite, otherChannelRecords, loadedAt: new Date().toISOString() };
   dataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
   return payload;
 }
@@ -6420,6 +6469,7 @@ async function loadMetrics(period) {
     loadAsksuiteMarketRawRows()
   ]);
   const metrics = buildMetrics(dataset.records, dataset.goals, period);
+  metrics.otherChannels = buildOtherChannelsMetrics(dataset.otherChannelRecords || [], period);
   metrics.sellers = mergeRobotSeller(metrics.sellers, buildRobotSellerFromAsksuiteMarketRows(asksuiteMarketRows, period));
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
   metrics.asksuite = buildAsksuiteMetrics(dataset.asksuite || [], period);
@@ -6704,6 +6754,7 @@ module.exports = {
     operationalOpinionCapturedAt,
     operationalWeekdayNumber,
     buildMetrics,
+    buildOtherChannelsMetrics,
     buildSellersPayload,
     sellerCommission,
     teamManagerCommission,
