@@ -72,7 +72,6 @@ const hotelRouteKey = window.location.pathname.split("/").filter(Boolean).pop() 
 const HOTEL_SLUG = HOTEL_ROUTE_SLUGS[hotelRouteKey] || "sueds-plaza";
 const CURRENT_HOTEL = HOTEL_CONFIG[HOTEL_SLUG];
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
-const LEADER_NAME_STORAGE_KEY = "sueds_operational_leader_name";
 const KPI_ALERTS_ENABLED = false;
 const QUALITY_BLOCK_DESCRIPTIONS = CURRENT_HOTEL.descriptions;
 const state = {
@@ -402,10 +401,13 @@ function incidentStatus(incident) {
   };
   const status = labels[incident.status] ? incident.status : "pending";
   const date = incident.statusAt ? formatDateTime(incident.statusAt) : "";
+  const storedActor = String(incident.statusActor || "").replace(/\s+/g, " ").trim();
+  const actor = storedActor.toLocaleLowerCase("pt-BR") === "melhorias futuras" ? "" : storedActor;
   return `
     <button type="button" class="incident-status-button status-${status}" data-status-action data-incident-id="${escapeHtml(incident.id)}">
       <strong>${labels[status]}</strong>
       ${date ? `<small>${escapeHtml(date)}</small>` : ""}
+      ${actor ? `<small class="incident-status-actor">Por ${escapeHtml(actor)}</small>` : ""}
     </button>`;
 }
 
@@ -567,7 +569,7 @@ function openIncidentStatusDialog(incidentId) {
   if (!incident) return;
   byId("incidentStatusId").value = incident.id;
   byId("incidentStatusDescription").textContent = `${incident.guestName || "Hóspede"} • ${incident.description || "Ocorrência"}`;
-  byId("incidentLeaderName").value = localStorage.getItem(LEADER_NAME_STORAGE_KEY) || "";
+  byId("incidentLeaderName").value = "";
   byId("incidentStatusMessage").textContent = "";
   const statusInput = document.querySelector(`input[name="incidentStatus"][value="${incident.status || "pending"}"]`);
   if (statusInput) statusInput.checked = true;
@@ -604,7 +606,6 @@ async function saveIncidentStatus(event) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.message || "Não foi possível atualizar a ocorrência.");
-    localStorage.setItem(LEADER_NAME_STORAGE_KEY, actor);
     closeIncidentStatusDialog();
     await load();
   } catch (error) {

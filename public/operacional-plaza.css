@@ -451,6 +451,12 @@ td.description-cell { font-size: 12px; line-height: 1.3; }
 }
 .incident-status-button strong { font-size: 11px; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .incident-status-button small { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.incident-status-button small.incident-status-actor {
+  color: #334b5a;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: normal;
+}
 .status-pending { color: var(--red); }
 .status-resolved { color: var(--green); }
 .status-registered { color: #176484; }

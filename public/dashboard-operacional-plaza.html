@@ -7,7 +7,7 @@
     <title>SUEDS Plaza | TV Operacional</title>
     <link rel="stylesheet" href="/operational-auth.css">
     <script src="/operational-auth.js"></script>
-    <link rel="stylesheet" href="/operacional-plaza.css">
+    <link rel="stylesheet" href="/operacional-plaza.css?v=20260806-status-actor">
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   </head>
   <body>
@@ -89,7 +89,7 @@
                   <th>Check-out</th>
                   <th>Cliente</th>
                   <th>Serviços / Pedidos / Ocorrências</th>
-                  <th>Status<br>Dia / Hora</th>
+                  <th>Status<br>Dia / Hora<br>Responsável</th>
                   <th>Tempo de<br>Solução</th>
                   <th>Origem</th>
                   <th>Solicitante</th>
@@ -197,7 +197,7 @@
 
         <label class="leader-name-control" for="incidentLeaderName">
           <span>Responsável</span>
-          <input id="incidentLeaderName" name="leaderName" type="text" maxlength="80" autocomplete="name" required>
+          <input id="incidentLeaderName" name="leaderName" type="text" maxlength="80" autocomplete="name" placeholder="Digite seu nome" required>
         </label>
 
         <p id="incidentStatusMessage" class="incident-status-message" role="status"></p>
@@ -238,6 +238,6 @@
       </article>
     </dialog>
 
-    <script src="/operacional-plaza.js?v=20260730-hotels"></script>
+    <script src="/operacional-plaza.js?v=20260806-status-actor"></script>
   </body>
 </html>
