@@ -13,9 +13,10 @@ const BODY_BACKGROUND = "#ffffff";
 const BODY_ALT_BACKGROUND = "#eef5e6";
 const BODY_FONT_COLOR = "#000000";
 const HEADER_FONT_COLOR = "#ffffff";
-const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
+const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Tatiana Vieira"];
 const NIARA_DISTRIBUTION_START_DATE = "2026-07-01";
-const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
+const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", ...NIARA_RESPONSIBLE_ROTATION];
+const NIARA_ACCEPTED_RESPONSIBLES = [...NIARA_RESPONSIBLE_OPTIONS, "Amanda Melgaco", "Julia Reche"];
 const NIARA_STATUS_OPTIONS = ["Selecione", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
 const NIARA_DEFAULT_STATUS = "Selecione";
@@ -901,7 +902,7 @@ function sanitizeNiaraWorkColumns_(sheet) {
     const status = String(next[1] || "").trim();
     const reason = String(next[2] || "").trim();
 
-    if (!NIARA_RESPONSIBLE_OPTIONS.includes(responsible)) {
+    if (!NIARA_ACCEPTED_RESPONSIBLES.includes(responsible)) {
       next[0] = "Selecione";
       changed = true;
     }
@@ -1042,6 +1043,7 @@ function normalizeSellerName_(value) {
     "ALINE NUNES": "Aline Nunes",
     "AMANDA MELGACO": "Amanda Melgaco",
     "JULIA RECHE": "Julia Reche",
+    "TATIANA VIEIRA": "Tatiana Vieira",
     "EMANOEL CESAR": "Emanoel Cesar"
   };
   return map[key] || String(value || "").trim();

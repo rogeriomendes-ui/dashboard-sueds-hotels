@@ -6,7 +6,7 @@ const ROOT = path.resolve(__dirname, "..");
 const SHEET_NAME = "Recuperação de carrinhos";
 const READ_RANGE = `'${SHEET_NAME}'!A:U`;
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
-const RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
+const RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Tatiana Vieira"];
 const DISTRIBUTION_START_DATE = "2026-07-01";
 const APPLY = process.argv.includes("--apply");
 
