@@ -4,9 +4,13 @@ const logout = require("./auth/logout");
 const session = require("./auth/session");
 const password = require("./auth/password");
 const firstAccess = require("./auth/first-access");
-const { getPortalProfile, withPortalRoles } = require("../lib/portal-auth");
+const users = require("./portal/users");
+const { getPortalProfile, hasEnvironment, withPortalEnvironment, withPortalRoles } = require("../lib/portal-auth");
 
-const adminHandler = withPortalRoles(handleRequest, ["admin_geral"]);
+const adminUsersHandler = withPortalRoles(users, ["admin_geral"]);
+const gestoresHandler = withPortalEnvironment(handleRequest, "painel_gestores");
+const marketingHandler = withPortalEnvironment(handleRequest, "marketing_competitividade");
+const tvMessagesHandler = withPortalEnvironment(handleRequest, "mensagens_tv");
 
 module.exports = async function api(req, res) {
   const pathname = new URL(req.url, `https://${req.headers.host || "portal.suedshotels.com.br"}`).pathname;
@@ -15,22 +19,19 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/session") return session(req, res);
   if (pathname === "/api/auth/password") return password(req, res);
   if (pathname === "/api/auth/first-access") return firstAccess(req, res);
+  if (pathname === "/api/portal/users") return adminUsersHandler(req, res);
   if (pathname === "/api/dashboard/vendedores" && req.method === "GET") {
     const profile = await getPortalProfile(req, res);
-    if (profile?.roles?.includes("admin_geral")) req.portalProfile = profile;
+    if (hasEnvironment(profile, "ranking_vendedores")) req.portalProfile = profile;
     return handleRequest(req, res);
   }
   if (pathname === "/api/operacional/tv" && ["GET", "PATCH"].includes(req.method)) {
     const profile = await getPortalProfile(req, res);
-    if (profile?.roles?.includes("admin_geral")) req.portalProfile = profile;
+    if (hasEnvironment(profile, "opinarios_hotel") || hasEnvironment(profile, "opinarios_rede")) req.portalProfile = profile;
     return handleRequest(req, res);
   }
-  if (
-    pathname === "/api/dashboard/gestores" ||
-    pathname === "/api/inteligencia/mercado" ||
-    pathname === "/api/tv-messages"
-  ) {
-    return adminHandler(req, res);
-  }
+  if (pathname === "/api/dashboard/gestores") return gestoresHandler(req, res);
+  if (pathname === "/api/inteligencia/mercado") return marketingHandler(req, res);
+  if (pathname === "/api/tv-messages") return tvMessagesHandler(req, res);
   return handleRequest(req, res);
 };

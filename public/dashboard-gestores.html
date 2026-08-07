@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-required-environment="painel_gestores">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -39,14 +39,15 @@
             </div>
           </div>
           <nav class="manager-shortcuts" aria-label="Atalhos dos gestores">
-            <a class="nav-link-button manager-shortcut public-shortcut" href="dashboard-tv.html" target="_blank" rel="noopener">TV painel<br>Vendedor</a>
-            <button id="openTvMessageModal" class="nav-link-button manager-action-button manager-shortcut" type="button">MSG na TV<br>Vendedor</button>
-            <a class="nav-link-button manager-shortcut public-shortcut" href="dashboard-vendedores.html" target="_blank" rel="noopener">Ranking<br>Vendedor</a>
-            <button id="openHotelOpinionModal" class="nav-link-button manager-action-button manager-shortcut" type="button">Opinário<br>Por hotel</button>
-            <a class="nav-link-button manager-shortcut" href="dashboard-operacional-tv.html" target="_blank" rel="noopener">Opinário<br>Todos hotéis</a>
-            <a class="nav-link-button manager-shortcut" href="dashboard-redes-sociais.html" target="_blank" rel="noopener">Redes<br>Sociais</a>
-            <a class="nav-link-button manager-shortcut" href="dashboard-inteligencia-mercado.html" target="_blank" rel="noopener">Marketing e<br>Competitividade</a>
-            <a class="nav-link-button manager-shortcut" href="/inspecoes">Sueds<br>Inspeções</a>
+            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="tv_vendedores" href="dashboard-tv.html" target="_blank" rel="noopener">TV painel<br>Vendedor</a>
+            <button id="openTvMessageModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="mensagens_tv" type="button">MSG na TV<br>Vendedor</button>
+            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="ranking_vendedores" href="dashboard-vendedores.html" target="_blank" rel="noopener">Ranking<br>Vendedor</a>
+            <button id="openHotelOpinionModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="opinarios_hotel" type="button">Opinário<br>Por hotel</button>
+            <a class="nav-link-button manager-shortcut" data-environment="opinarios_rede" href="dashboard-operacional-tv.html" target="_blank" rel="noopener">Opinário<br>Todos hotéis</a>
+            <a class="nav-link-button manager-shortcut" data-environment="redes_sociais" href="dashboard-redes-sociais.html" target="_blank" rel="noopener">Redes<br>Sociais</a>
+            <a class="nav-link-button manager-shortcut" data-environment="marketing_competitividade" href="dashboard-inteligencia-mercado.html" target="_blank" rel="noopener">Marketing e<br>Competitividade</a>
+            <a class="nav-link-button manager-shortcut" data-environment="inspecoes" href="/inspecoes">Sueds<br>Inspeções</a>
+            <a class="nav-link-button manager-shortcut" data-admin-only href="/usuarios">Usuários e<br>Acessos</a>
           </nav>
         </div>
       </header>

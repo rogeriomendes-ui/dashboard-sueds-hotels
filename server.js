@@ -170,7 +170,7 @@ function getHeader(req, name) {
 }
 
 function hasManagerAccess(req, url) {
-  if (req.portalProfile?.roles?.includes("admin_geral")) return true;
+  if (req.portalProfile?.roles?.includes("admin_geral") || req.portalProfile?.environments?.includes("painel_gestores")) return true;
   if (!GESTORES_ACCESS_TOKEN) return true;
   const provided = getHeader(req, "x-dashboard-token") || url.searchParams.get("access_token") || "";
   if (!provided) return false;
@@ -242,6 +242,23 @@ function parseOperationalSession(token) {
 }
 
 function operationalAccessProfile(req, url) {
+  if (req.portalProfile?.roles?.includes("admin_geral") || req.portalProfile?.environments?.includes("opinarios_rede")) {
+    return { role: "manager", username: "gestor", displayName: req.portalProfile.name || "Gestor", hotel: "*", hotels: ["*"] };
+  }
+  if (req.portalProfile?.environments?.includes("opinarios_hotel")) {
+    const hotelCodes = (req.portalProfile.hotels || []).map((hotel) => hotel.code);
+    const hotelSlugs = hotelCodes.map((code) => ({
+      PLAZA: "sueds-plaza",
+      CABRALIA: "sueds-cabralia",
+      SEGUNDO_SOL: "sueds-segundo-sol",
+      PREMIUM: "sueds-premium",
+      TRANCOSO: "sueds-trancoso",
+      CASAS: "casas-sueds-arraial"
+    })[code]).filter(Boolean);
+    if (hotelSlugs.length) {
+      return { role: "leader", username: normalizeAccessUsername(req.portalProfile.email), displayName: req.portalProfile.name, hotel: hotelSlugs[0], hotels: hotelSlugs };
+    }
+  }
   if (hasManagerAccess(req, url)) {
     return { role: "manager", username: "gestor", displayName: "Gestor", hotel: "*" };
   }
@@ -312,6 +329,9 @@ function parseSellerSession(token) {
 function sellerAccessProfile(req, url) {
   if (req.portalProfile?.roles?.includes("admin_geral")) {
     return { role: "manager", username: "gestor", displayName: req.portalProfile.name || "Gestor" };
+  }
+  if (req.portalProfile?.environments?.includes("ranking_vendedores")) {
+    return { role: "seller", username: normalizeAccessUsername(req.portalProfile.email), displayName: req.portalProfile.name || "Vendedor" };
   }
   if (GESTORES_ACCESS_TOKEN && hasManagerAccess(req, url)) {
     return { role: "manager", username: "gestor", displayName: "Gestor" };
@@ -6642,13 +6662,14 @@ async function handleRequest(req, res) {
         return json(res, 200, { ok: true, profile: access });
       }
 
-      const restrictedToPlaza = access.role === "plaza";
+      const restrictedToHotel = access.role === "plaza" || access.role === "leader";
+      const allowedHotels = access.hotels || [access.hotel].filter(Boolean);
       if (req.method === "GET" && url.searchParams.get("view") === "opinion-image") {
         try {
           return await sendOperationalOpinionImage(
             res,
             url.searchParams.get("id"),
-            restrictedToPlaza ? access.hotel : ""
+            restrictedToHotel ? access.hotel : ""
           );
         } catch (error) {
           return json(res, Number(error.statusCode || 500), {
@@ -6661,7 +6682,7 @@ async function handleRequest(req, res) {
       if (req.method === "PATCH") {
         try {
           const body = await readJsonBody(req);
-          if (restrictedToPlaza && normalizeAccessUsername(body.hotel) !== access.hotel) {
+          if (restrictedToHotel && !allowedHotels.includes(normalizeAccessUsername(body.hotel))) {
             return forbidden(res);
           }
           return json(res, 200, {
@@ -6679,12 +6700,12 @@ async function handleRequest(req, res) {
       }
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       if (url.searchParams.get("view") === "hotel") {
-        if (restrictedToPlaza && normalizeAccessUsername(url.searchParams.get("hotel")) !== access.hotel) {
+        if (restrictedToHotel && !allowedHotels.includes(normalizeAccessUsername(url.searchParams.get("hotel")))) {
           return forbidden(res);
         }
         return json(res, 200, await buildOperationalHotelPayload(periodFromUrl(url)));
       }
-      if (restrictedToPlaza) return forbidden(res);
+      if (restrictedToHotel) return forbidden(res);
       return json(res, 200, await buildOperationalTvPayload(periodFromUrl(url)));
     }
 

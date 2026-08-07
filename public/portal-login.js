@@ -14,7 +14,7 @@
   const safeNext = requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/gestores";
 
   function destination(payload) {
-    if (safeNext.startsWith("/gestores") && !payload.profile?.roles?.includes("admin_geral")) return "/inspecoes";
+    if (safeNext.startsWith("/gestores") && !payload.access?.gestores) return payload.access?.landingPage || "/login?acesso=nao-configurado";
     return safeNext;
   }
 

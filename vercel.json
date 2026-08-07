@@ -20,6 +20,10 @@
       "dest": "/public/dashboard-gestores.html"
     },
     {
+      "src": "/usuarios",
+      "dest": "/public/usuarios.html"
+    },
+    {
       "src": "/inspecoes",
       "dest": "https://sueds-inspecoes.vercel.app/inspecoes"
     },

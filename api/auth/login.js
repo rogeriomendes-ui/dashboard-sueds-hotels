@@ -1,4 +1,4 @@
-const { createPortalClient, getProfileFromClient, json } = require("../../lib/portal-auth");
+const { buildPortalAccess, createPortalClient, getProfileFromClient, json } = require("../../lib/portal-auth");
 
 module.exports = async function login(req, res) {
   if (req.method !== "POST") return json(res, 405, { error: "method_not_allowed" });
@@ -14,5 +14,5 @@ module.exports = async function login(req, res) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return json(res, 401, { error: "invalid_credentials" });
   const profile = await getProfileFromClient(supabase);
-  return json(res, 200, { ok: true, profile });
+  return json(res, 200, { ok: true, profile, access: buildPortalAccess(profile) });
 };

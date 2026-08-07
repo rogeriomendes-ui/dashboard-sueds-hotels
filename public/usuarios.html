@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="painel_gestores" class="manager-auth-pending">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Usuários e Acessos | Portal SUEDS</title>
+    <script src="/manager-auth.js?v=20260807-environments"></script>
+    <link rel="stylesheet" href="/usuarios.css?v=20260807-environments">
+  </head>
+  <body>
+    <header class="users-topbar">
+      <a class="users-brand" href="/gestores" aria-label="Voltar ao Painel de Gestores">
+        <img src="/sueds-hotels-gold.png" alt="SUED'S Hotels">
+        <span>Portal corporativo</span>
+      </a>
+      <a class="back-link" href="/gestores">← Voltar ao painel</a>
+    </header>
+
+    <main class="users-page">
+      <section class="page-heading">
+        <div>
+          <p class="eyebrow">Administração</p>
+          <h1>Usuários e acessos</h1>
+          <p>Crie um único login e escolha os perfis, hotéis e ambientes que cada pessoa poderá acessar.</p>
+        </div>
+        <button id="inviteButton" class="primary-button" type="button">+ Convidar usuário</button>
+      </section>
+
+      <section class="users-panel" aria-label="Usuários cadastrados">
+        <div class="users-toolbar">
+          <label>
+            <span class="sr-only">Pesquisar usuários</span>
+            <input id="userSearch" type="search" placeholder="Pesquisar nome, e-mail, perfil ou ambiente…">
+          </label>
+          <span id="userCount">Carregando…</span>
+        </div>
+        <div id="pageMessage" class="page-message" role="status"></div>
+        <div id="usersList" class="users-list" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <dialog id="userDialog" class="user-dialog">
+      <form id="userForm" class="user-form">
+        <header>
+          <div>
+            <p class="eyebrow" id="dialogEyebrow">Novo acesso</p>
+            <h2 id="dialogTitle">Convidar usuário</h2>
+          </div>
+          <button id="closeDialog" class="icon-button" type="button" aria-label="Fechar">×</button>
+        </header>
+
+        <input id="userId" type="hidden">
+        <div class="form-grid two-columns">
+          <label>Nome completo<input id="userName" required minlength="2" maxlength="120" autocomplete="name"></label>
+          <label>E-mail<input id="userEmail" type="email" required maxlength="254" autocomplete="email"></label>
+        </div>
+
+        <fieldset>
+          <legend>Perfis funcionais</legend>
+          <p>O perfil define o que a pessoa pode fazer dentro dos ambientes autorizados.</p>
+          <div id="rolesOptions" class="option-grid"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Ambientes permitidos</legend>
+          <p>Marque somente as telas que devem aparecer para este usuário.</p>
+          <div id="environmentOptions" class="option-grid environment-grid"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Hotéis autorizados</legend>
+          <p>Usado no Sueds Inspeções e no acesso aos Opinários por hotel.</p>
+          <div id="hotelOptions" class="option-grid"></div>
+        </fieldset>
+
+        <label id="statusField">Situação
+          <select id="userStatus">
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </label>
+
+        <p id="formMessage" class="form-message" role="status"></p>
+        <footer>
+          <button id="cancelDialog" class="secondary-button" type="button">Cancelar</button>
+          <button id="saveUser" class="primary-button" type="submit">Enviar convite</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script src="/usuarios.js?v=20260807-environments"></script>
+  </body>
+</html>

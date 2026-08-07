@@ -31,12 +31,32 @@
     });
     if (!response.ok) return null;
     const payload = await response.json().catch(() => ({}));
-    if (!payload.access?.gestores) return null;
+    if (payload.access?.opinarios_rede) {
+      return {
+        role: "manager",
+        username: "gestor",
+        displayName: payload.profile?.name || "Gestor",
+        hotel: "*",
+        hotels: ["*"]
+      };
+    }
+    if (!payload.access?.opinarios_hotel) return null;
+    const hotelMap = {
+      PLAZA: "sueds-plaza",
+      CABRALIA: "sueds-cabralia",
+      SEGUNDO_SOL: "sueds-segundo-sol",
+      PREMIUM: "sueds-premium",
+      TRANCOSO: "sueds-trancoso",
+      CASAS: "casas-sueds-arraial"
+    };
+    const hotels = (payload.profile?.hotels || []).map((hotel) => hotelMap[hotel.code]).filter(Boolean);
+    if (!hotels.length) return null;
     return {
-      role: "manager",
-      username: "gestor",
-      displayName: payload.profile?.name || "Gestor",
-      hotel: "*"
+      role: "leader",
+      username: payload.profile?.email || "lider",
+      displayName: payload.profile?.name || "Líder",
+      hotel: hotels[0],
+      hotels
     };
   }
 
@@ -47,7 +67,7 @@
     });
     if (!response.ok) return null;
     const payload = await response.json().catch(() => ({}));
-    return payload.profile?.role === "plaza" ? payload.profile : null;
+    return ["plaza", "leader"].includes(payload.profile?.role) ? payload.profile : null;
   }
 
   async function loginOperational(username, password) {
@@ -63,7 +83,7 @@
 
   function applyProfile(profile) {
     window.suedsAccessProfile = profile;
-    if (profile.role === "plaza") {
+    if (["plaza", "leader"].includes(profile.role)) {
       localStorage.setItem(leaderStorageKey, profile.displayName || profile.username);
     }
 

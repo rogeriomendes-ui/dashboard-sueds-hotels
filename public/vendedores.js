@@ -326,7 +326,7 @@ function showLogin() {
 
 async function ensureAccess() {
   const portalAccess = await validateAccess("");
-  if (portalAccess?.ok && portalAccess.profile?.role === "manager") {
+  if (portalAccess?.ok) {
     accessToken = "";
     document.documentElement.classList.remove("seller-auth-pending");
     return portalAccess;
