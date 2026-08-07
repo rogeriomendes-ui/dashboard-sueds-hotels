@@ -5,6 +5,9 @@
   const setupForm = document.getElementById("passwordSetupForm");
   const passwordFeedback = document.getElementById("passwordFeedback");
   const passwordButton = document.getElementById("passwordButton");
+  const otpFields = document.getElementById("otpFields");
+  const openFirstAccess = document.getElementById("openFirstAccess");
+  const backToLogin = document.getElementById("backToLogin");
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const invitationToken = hash.get("access_token") || "";
   const requestedNext = new URLSearchParams(window.location.search).get("next") || "/gestores";
@@ -15,9 +18,34 @@
     return safeNext;
   }
 
-  if (invitationToken) {
+  function showPasswordSetup(usingLink = false) {
     form.hidden = true;
     setupForm.hidden = false;
+    otpFields.hidden = usingLink;
+  }
+
+  function showLogin() {
+    setupForm.hidden = true;
+    form.hidden = false;
+    passwordFeedback.textContent = "";
+  }
+
+  document.querySelectorAll("[data-password-target]").forEach((toggle) => {
+    toggle.addEventListener("click", () => {
+      const input = document.getElementById(toggle.dataset.passwordTarget);
+      const showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      toggle.textContent = showing ? "👁" : "🙈";
+      toggle.setAttribute("aria-label", showing ? "Mostrar senha" : "Ocultar senha");
+      toggle.title = showing ? "Mostrar senha" : "Ocultar senha";
+    });
+  });
+
+  openFirstAccess.addEventListener("click", () => showPasswordSetup(false));
+  backToLogin.addEventListener("click", showLogin);
+
+  if (invitationToken) {
+    showPasswordSetup(true);
     history.replaceState(null, "", window.location.pathname + window.location.search);
   } else {
     fetch("/api/auth/session", { cache: "no-store", credentials: "same-origin" })
@@ -41,13 +69,29 @@
     }
     passwordButton.disabled = true;
     passwordButton.textContent = "Salvando...";
-    const response = await fetch("/api/auth/password", {
+    const endpoint = invitationToken ? "/api/auth/password" : "/api/auth/first-access";
+    const requestBody = invitationToken
+      ? { accessToken: invitationToken, password }
+      : {
+          email: document.getElementById("firstAccessEmail").value.trim(),
+          token: document.getElementById("firstAccessCode").value.trim(),
+          password
+        };
+    if (!invitationToken && (!requestBody.email || !requestBody.token)) {
+      passwordFeedback.textContent = "Informe o e-mail e o código recebido.";
+      passwordButton.disabled = false;
+      passwordButton.textContent = "Salvar senha";
+      return;
+    }
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ accessToken: invitationToken, password })
+      body: JSON.stringify(requestBody)
     }).catch(() => null);
     if (!response?.ok) {
-      passwordFeedback.textContent = "Este link expirou ou já foi utilizado. Solicite um novo e-mail.";
+      passwordFeedback.textContent = invitationToken
+        ? "Este link expirou ou já foi utilizado. Use o código recebido no e-mail."
+        : "Código inválido ou expirado. Solicite um novo e-mail.";
       passwordButton.disabled = false;
       passwordButton.textContent = "Salvar senha";
       return;

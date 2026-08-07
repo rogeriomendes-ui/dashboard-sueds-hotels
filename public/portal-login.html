@@ -28,23 +28,29 @@
           </label>
           <label>
             <span>Senha</span>
-            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <span class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" data-password-target="password" aria-label="Mostrar senha" title="Mostrar senha">👁</button></span>
           </label>
           <p id="loginFeedback" class="feedback" role="alert"></p>
           <button id="loginButton" type="submit">Entrar no Portal SUEDS</button>
+          <button id="openFirstAccess" class="link-button" type="button">Recebi um código de primeiro acesso</button>
           <a class="help-link" href="/inspecoes/recuperar-senha">Esqueci minha senha</a>
         </form>
         <form id="passwordSetupForm" class="login-card" hidden>
           <p class="eyebrow">Primeiro acesso</p>
           <h2>Crie sua senha</h2>
-          <p class="intro">Escolha uma senha com pelo menos 8 caracteres.</p>
-          <label><span>Nova senha</span><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></label>
-          <label><span>Confirmar senha</span><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required></label>
+          <p class="intro">Informe o código recebido por e-mail e escolha uma senha com pelo menos 8 caracteres.</p>
+          <div id="otpFields">
+            <label><span>E-mail</span><input id="firstAccessEmail" type="email" autocomplete="username" placeholder="nome@gruposueds.com.br"></label>
+            <label><span>Código recebido</span><input id="firstAccessCode" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="000000"></label>
+          </div>
+          <label><span>Nova senha</span><span class="password-field"><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" data-password-target="newPassword" aria-label="Mostrar senha" title="Mostrar senha">👁</button></span></label>
+          <label><span>Confirmar senha</span><span class="password-field"><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required><button class="password-toggle" type="button" data-password-target="confirmPassword" aria-label="Mostrar senha" title="Mostrar senha">👁</button></span></label>
           <p id="passwordFeedback" class="feedback" role="alert"></p>
           <button id="passwordButton" type="submit">Salvar senha</button>
+          <button id="backToLogin" class="link-button" type="button">Voltar ao login</button>
         </form>
       </section>
     </main>
-    <script src="portal-login.js?v=20260807-password"></script>
+    <script src="portal-login.js?v=20260807-code"></script>
   </body>
 </html>
