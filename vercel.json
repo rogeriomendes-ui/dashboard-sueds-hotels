@@ -12,6 +12,22 @@
   ],
   "routes": [
     {
+      "src": "/login",
+      "dest": "/public/portal-login.html"
+    },
+    {
+      "src": "/gestores",
+      "dest": "/public/dashboard-gestores.html"
+    },
+    {
+      "src": "/inspecoes",
+      "dest": "https://sueds-inspecoes.vercel.app/inspecoes"
+    },
+    {
+      "src": "/inspecoes/(.*)",
+      "dest": "https://sueds-inspecoes.vercel.app/inspecoes/$1"
+    },
+    {
       "src": "/plaza-opinarios",
       "dest": "/public/enviar-opinarios-plaza.html"
     },

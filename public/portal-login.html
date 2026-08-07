@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portal SUEDS Hotels | Entrar</title>
+    <link rel="stylesheet" href="portal-login.css?v=20260807">
+  </head>
+  <body>
+    <main class="login-shell">
+      <section class="login-brand">
+        <img src="sueds-hotels-gold.png" alt="SUEDS Hotels">
+        <div>
+          <p class="eyebrow">Portal corporativo</p>
+          <h1>Um único acesso para a operação SUEDS.</h1>
+          <p class="lead">Painel de gestores, inspeções e novos módulos reunidos com permissões individuais.</p>
+        </div>
+        <div class="security-note">Acesso protegido e identificado por colaborador.</div>
+      </section>
+      <section class="login-panel">
+        <form id="portalLoginForm" class="login-card">
+          <p class="eyebrow">Acesso seguro</p>
+          <h2>Bem-vindo</h2>
+          <p class="intro">Entre com seu e-mail corporativo e sua senha.</p>
+          <label>
+            <span>E-mail</span>
+            <input id="email" name="email" type="email" autocomplete="username" required placeholder="nome@gruposueds.com.br">
+          </label>
+          <label>
+            <span>Senha</span>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <p id="loginFeedback" class="feedback" role="alert"></p>
+          <button id="loginButton" type="submit">Entrar no Portal SUEDS</button>
+          <a class="help-link" href="/inspecoes/recuperar-senha">Esqueci minha senha</a>
+        </form>
+      </section>
+    </main>
+    <script src="portal-login.js?v=20260807"></script>
+  </body>
+</html>

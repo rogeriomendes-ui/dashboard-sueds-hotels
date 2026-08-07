@@ -170,6 +170,7 @@ function getHeader(req, name) {
 }
 
 function hasManagerAccess(req, url) {
+  if (req.portalProfile?.roles?.includes("admin_geral")) return true;
   if (!GESTORES_ACCESS_TOKEN) return true;
   const provided = getHeader(req, "x-dashboard-token") || url.searchParams.get("access_token") || "";
   if (!provided) return false;

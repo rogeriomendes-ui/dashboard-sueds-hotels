@@ -21,7 +21,6 @@ const MONTH_LABELS = {
   "2026-11": "NOVEMBRO",
   "2026-12": "DEZEMBRO"
 };
-const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
 let currentDashboardData = null;
 let advancePurchaseView = "withGroups";
 
@@ -29,20 +28,8 @@ function byId(id) {
   return document.getElementById(id);
 }
 
-function getStoredAccessToken() {
-  return localStorage.getItem(GESTORES_TOKEN_STORAGE_KEY) || "";
-}
-
-function askAccessToken() {
-  const token = window.prompt("Digite a senha de acesso da visão gestores:");
-  if (!token) return "";
-  const trimmed = token.trim();
-  localStorage.setItem(GESTORES_TOKEN_STORAGE_KEY, trimmed);
-  return trimmed;
-}
-
-function clearAccessToken() {
-  localStorage.removeItem(GESTORES_TOKEN_STORAGE_KEY);
+function redirectToPortalLogin() {
+  window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
 }
 
 function defaultMonth() {
@@ -115,26 +102,17 @@ async function saveTvMessage() {
     return;
   }
 
-  let token = getStoredAccessToken();
-  if (!token) token = askAccessToken();
-  if (!token) {
-    feedback.textContent = "Senha de gestor necessaria para publicar.";
-    return;
-  }
-
   feedback.textContent = "Publicando...";
   const response = await fetch("/api/tv-messages", {
     method: "POST",
     headers: {
-      "content-type": "application/json",
-      "x-dashboard-token": token
+      "content-type": "application/json"
     },
     body: JSON.stringify({ message, expiresAt })
   });
 
   if (response.status === 401) {
-    clearAccessToken();
-    feedback.textContent = "Senha recusada. Tente publicar novamente.";
+    redirectToPortalLogin();
     return;
   }
   if (!response.ok) {
@@ -654,21 +632,11 @@ async function load() {
   if (day) params.set("day", day);
   if (hotel) params.set("hotel", hotel);
   if (channel) params.set("channel", channel);
-  let token = getStoredAccessToken();
-  if (!token) token = askAccessToken();
-  if (!token) throw new Error("Acesso aos gestores não informado");
-
-  let response = await fetch(`/api/dashboard/gestores?${params.toString()}`, {
-    headers: { "x-dashboard-token": token }
-  });
+  const response = await fetch(`/api/dashboard/gestores?${params.toString()}`);
 
   if (response.status === 401) {
-    clearAccessToken();
-    token = askAccessToken();
-    if (!token) throw new Error("Acesso aos gestores não autorizado");
-    response = await fetch(`/api/dashboard/gestores?${params.toString()}`, {
-      headers: { "x-dashboard-token": token }
-    });
+    redirectToPortalLogin();
+    throw new Error("Sua sessão expirou. Entre novamente.");
   }
 
   if (!response.ok) throw new Error("Falha ao carregar dados dos gestores");

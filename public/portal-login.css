@@ -1,0 +1,25 @@
+:root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: #f5f5f1; color: #17231e; }
+.login-shell { min-height: 100vh; display: grid; grid-template-columns: 1.05fr .95fr; }
+.login-brand { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 52px; background: #17231e; color: white; }
+.login-brand::before { content: ""; position: absolute; inset: 0; opacity: .24; background: radial-gradient(circle at 20% 20%, #d4ad79 0, transparent 34%), radial-gradient(circle at 80% 85%, #608675 0, transparent 32%); }
+.login-brand > * { position: relative; }
+.login-brand img { width: min(230px, 60vw); height: auto; }
+.eyebrow { margin: 0; color: #b78a52; font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.login-brand .eyebrow { color: #e8cba5; }
+h1 { max-width: 650px; margin: 18px 0 0; font-size: clamp(38px, 5vw, 66px); line-height: 1.04; letter-spacing: -.04em; }
+.lead { max-width: 580px; margin: 24px 0 0; color: rgba(255,255,255,.66); font-size: 19px; line-height: 1.65; }
+.security-note { color: rgba(255,255,255,.64); font-size: 14px; }
+.login-panel { display: grid; place-items: center; padding: 32px; }
+.login-card { width: min(440px, 100%); padding: 36px; border: 1px solid #e0e4df; border-radius: 24px; background: white; box-shadow: 0 24px 70px rgba(23,35,30,.09); }
+h2 { margin: 10px 0 0; font-size: 34px; letter-spacing: -.03em; }
+.intro { margin: 10px 0 28px; color: #68736e; }
+label { display: grid; gap: 8px; margin-top: 18px; font-size: 14px; font-weight: 700; }
+input { width: 100%; height: 52px; padding: 0 15px; border: 1px solid #d7ddd8; border-radius: 12px; background: #fff; color: #17231e; font: inherit; outline: none; }
+input:focus { border-color: #9a7042; box-shadow: 0 0 0 3px rgba(183,138,82,.14); }
+button { width: 100%; height: 52px; margin-top: 12px; border: 0; border-radius: 12px; background: #17231e; color: white; font: inherit; font-weight: 800; cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
+.feedback { min-height: 22px; margin: 16px 0 0; color: #a33333; font-size: 14px; }
+.help-link { display: block; margin-top: 20px; text-align: center; color: #805d35; font-size: 14px; font-weight: 700; text-decoration: none; }
+@media (max-width: 860px) { .login-shell { grid-template-columns: 1fr; } .login-brand { min-height: 280px; padding: 30px 24px; } .login-brand h1 { font-size: 38px; } .lead { display: none; } .login-panel { padding: 24px 16px 40px; } .login-card { padding: 28px 22px; } }
