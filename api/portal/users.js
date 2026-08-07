@@ -147,8 +147,10 @@ module.exports = async function users(req, res) {
     }
     return json(res, 405, { error: "method_not_allowed" });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Não foi possível salvar o usuário.";
+    const message = typeof error?.message === "string" && error.message
+      ? error.message
+      : "Não foi possível salvar o usuário.";
+    console.error("[portal-users]", message);
     return json(res, /Informe|Selecione|inválid|possui cadastro/i.test(message) ? 400 : 500, { ok: false, error: "user_access_failed", message });
   }
 };
-
