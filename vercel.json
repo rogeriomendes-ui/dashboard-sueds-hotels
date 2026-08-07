@@ -81,7 +81,7 @@
     },
     {
       "src": "/",
-      "dest": "/public/dashboard-tv.html"
+      "dest": "/public/portal-login.html"
     },
     {
       "src": "/(.*)",
