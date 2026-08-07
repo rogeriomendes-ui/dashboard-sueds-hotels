@@ -20,6 +20,11 @@ module.exports = async function api(req, res) {
     if (profile?.roles?.includes("admin_geral")) req.portalProfile = profile;
     return handleRequest(req, res);
   }
+  if (pathname === "/api/operacional/tv" && ["GET", "PATCH"].includes(req.method)) {
+    const profile = await getPortalProfile(req, res);
+    if (profile?.roles?.includes("admin_geral")) req.portalProfile = profile;
+    return handleRequest(req, res);
+  }
   if (
     pathname === "/api/dashboard/gestores" ||
     pathname === "/api/inteligencia/mercado" ||

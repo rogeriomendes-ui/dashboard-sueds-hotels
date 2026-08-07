@@ -24,6 +24,22 @@
       : null;
   }
 
+  async function validatePortalManager() {
+    const response = await fetch("/api/auth/session", {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    if (!response.ok) return null;
+    const payload = await response.json().catch(() => ({}));
+    if (!payload.access?.gestores) return null;
+    return {
+      role: "manager",
+      username: "gestor",
+      displayName: payload.profile?.name || "Gestor",
+      hotel: "*"
+    };
+  }
+
   async function validateOperational(token) {
     const response = await fetch("/api/operacional/tv?authOnly=1", {
       cache: "no-store",
@@ -166,6 +182,12 @@
   }
 
   window.suedsManagerAuthReady = (async () => {
+    const portalProfile = await validatePortalManager();
+    if (portalProfile) {
+      applyProfile(portalProfile);
+      return "";
+    }
+
     const managerToken = localStorage.getItem(managerStorageKey) || "";
     if (managerToken) {
       const profile = await validateManager(managerToken);
