@@ -4,7 +4,7 @@ const logout = require("./auth/logout");
 const session = require("./auth/session");
 const password = require("./auth/password");
 const firstAccess = require("./auth/first-access");
-const { withPortalRoles } = require("../lib/portal-auth");
+const { getPortalProfile, withPortalRoles } = require("../lib/portal-auth");
 
 const adminHandler = withPortalRoles(handleRequest, ["admin_geral"]);
 
@@ -15,6 +15,11 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/session") return session(req, res);
   if (pathname === "/api/auth/password") return password(req, res);
   if (pathname === "/api/auth/first-access") return firstAccess(req, res);
+  if (pathname === "/api/dashboard/vendedores" && req.method === "GET") {
+    const profile = await getPortalProfile(req, res);
+    if (profile?.roles?.includes("admin_geral")) req.portalProfile = profile;
+    return handleRequest(req, res);
+  }
   if (
     pathname === "/api/dashboard/gestores" ||
     pathname === "/api/inteligencia/mercado" ||

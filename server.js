@@ -310,6 +310,9 @@ function parseSellerSession(token) {
 }
 
 function sellerAccessProfile(req, url) {
+  if (req.portalProfile?.roles?.includes("admin_geral")) {
+    return { role: "manager", username: "gestor", displayName: req.portalProfile.name || "Gestor" };
+  }
   if (GESTORES_ACCESS_TOKEN && hasManagerAccess(req, url)) {
     return { role: "manager", username: "gestor", displayName: "Gestor" };
   }

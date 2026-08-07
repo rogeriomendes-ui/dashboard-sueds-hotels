@@ -199,10 +199,11 @@ async function load() {
 }
 
 async function validateAccess(token) {
-  if (!token) return null;
+  const headers = token ? { "x-dashboard-token": token } : {};
   const response = await fetch("/api/dashboard/vendedores?authOnly=1", {
     cache: "no-store",
-    headers: { "x-dashboard-token": token }
+    credentials: "same-origin",
+    headers
   });
   if (!response.ok) return null;
   return response.json();
@@ -324,6 +325,13 @@ function showLogin() {
 }
 
 async function ensureAccess() {
+  const portalAccess = await validateAccess("");
+  if (portalAccess?.ok && portalAccess.profile?.role === "manager") {
+    accessToken = "";
+    document.documentElement.classList.remove("seller-auth-pending");
+    return portalAccess;
+  }
+
   const managerToken = localStorage.getItem(MANAGER_TOKEN_STORAGE_KEY) || "";
   const managerAccess = await validateAccess(managerToken);
   if (managerAccess?.ok && managerAccess.profile?.role === "manager") {
