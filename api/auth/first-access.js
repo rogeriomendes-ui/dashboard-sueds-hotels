@@ -15,7 +15,11 @@ module.exports = async function firstAccess(req, res) {
     return json(res, 400, { error: "invalid_request" });
   }
   const supabase = createPortalClient(req, res);
-  if (!supabase) return json(res, 503, { error: "supabase_not_configured" });
+  const configuredUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const projectRef = (() => {
+    try { return new URL(configuredUrl).hostname.split(".")[0] || "unknown"; } catch { return "unknown"; }
+  })();
+  if (!supabase) return json(res, 503, { error: "supabase_not_configured", projectRef });
 
   const { error: verificationError } = await supabase.auth.verifyOtp({
     email,
@@ -25,7 +29,7 @@ module.exports = async function firstAccess(req, res) {
   if (verificationError) {
     const errorCode = verificationError.code || "invalid_or_expired_code";
     const status = verificationError.status === 429 ? 429 : 401;
-    return json(res, status, { error: errorCode });
+    return json(res, status, { error: errorCode, projectRef });
   }
 
   const { error: updateError } = await supabase.auth.updateUser({ password });
