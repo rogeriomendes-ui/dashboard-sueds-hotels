@@ -75,6 +75,7 @@
       : {
           email: document.getElementById("firstAccessEmail").value.trim(),
           token: document.getElementById("firstAccessCode").value.trim(),
+          type: "recovery",
           password
         };
     if (!invitationToken && (!requestBody.email || !requestBody.token)) {
@@ -89,9 +90,14 @@
       body: JSON.stringify(requestBody)
     }).catch(() => null);
     if (!response?.ok) {
-      passwordFeedback.textContent = invitationToken
-        ? "Este link expirou ou já foi utilizado. Use o código recebido no e-mail."
-        : "Código inválido ou expirado. Solicite um novo e-mail.";
+      const payload = await response?.json().catch(() => ({}));
+      if (invitationToken) {
+        passwordFeedback.textContent = "Este link expirou ou já foi utilizado. Use o código recebido no e-mail.";
+      } else if (response?.status === 429 || payload?.error === "over_request_rate_limit") {
+        passwordFeedback.textContent = "Muitas tentativas seguidas. Aguarde alguns minutos e solicite um novo código.";
+      } else {
+        passwordFeedback.textContent = "Código inválido ou expirado. Solicite um novo e-mail.";
+      }
       passwordButton.disabled = false;
       passwordButton.textContent = "Salvar senha";
       return;
