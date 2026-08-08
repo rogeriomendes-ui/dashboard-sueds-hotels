@@ -2494,7 +2494,21 @@ function buildOtherChannelsMetrics(records, period = {}) {
     return matchesPeriod && matchesDay && matchesHotel;
   });
   const totalSales = sum(filteredRecords, (record) => record.total);
-  const recordsByChannel = groupBy(filteredRecords, (record) => record.rawChannel || record.channel || "Não informado");
+  const channelLabel = (record) => {
+    const label = record.rawChannel || record.channel || "Não informado";
+    const key = comparableKey(label);
+    return key.includes("booking engine") || key.includes("be mobile")
+      ? "SITE SUEDS"
+      : label;
+  };
+  const hotelLabels = [
+    ...OPERATIONAL_HOTEL_ORDER,
+    ...filteredRecords
+      .map((record) => record.hotel)
+      .filter((hotel) => hotel && !OPERATIONAL_HOTEL_ORDER.some((label) => comparableKey(label) === comparableKey(hotel)))
+  ];
+  const uniqueHotelLabels = [...new Map(hotelLabels.map((label) => [comparableKey(label), label])).values()];
+  const recordsByChannel = groupBy(filteredRecords, channelLabel);
   const channels = [...recordsByChannel.entries()]
     .map(([label, rows]) => {
       const value = sum(rows, (record) => record.total);
@@ -2502,7 +2516,15 @@ function buildOtherChannelsMetrics(records, period = {}) {
         label,
         reservations: rows.length,
         value,
-        sharePct: totalSales ? (value / totalSales) * 100 : 0
+        sharePct: totalSales ? (value / totalSales) * 100 : 0,
+        hotels: uniqueHotelLabels.map((hotel) => {
+          const hotelRows = rows.filter((record) => comparableKey(record.hotel) === comparableKey(hotel));
+          return {
+            label: hotel,
+            reservations: hotelRows.length,
+            value: sum(hotelRows, (record) => record.total)
+          };
+        })
       };
     })
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
@@ -2512,6 +2534,7 @@ function buildOtherChannelsMetrics(records, period = {}) {
     reservations: filteredRecords.length,
     ticketAverage: filteredRecords.length ? totalSales / filteredRecords.length : 0,
     channelCount: channels.length,
+    hotels: uniqueHotelLabels,
     channels
   };
 }

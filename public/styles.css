@@ -785,10 +785,10 @@ h2 {
 
 .other-channels-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(90px, 0.5fr) minmax(120px, 0.7fr) minmax(90px, 0.5fr);
-  gap: 14px;
+  grid-template-columns: var(--other-channel-columns);
+  gap: 6px;
   align-items: center;
-  min-width: 620px;
+  min-width: 1146px;
   min-height: 44px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
@@ -805,6 +805,41 @@ h2 {
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.other-channel-hotel-head {
+  text-align: center;
+}
+
+.other-channel-hotel-head > strong {
+  display: block;
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.other-channel-hotel-head small,
+.other-channel-hotel-values {
+  display: grid;
+  grid-template-columns: 32px minmax(68px, 1fr);
+  gap: 4px;
+  align-items: center;
+}
+
+.other-channel-hotel-head small span:first-child,
+.other-channel-hotel-values strong:first-child {
+  text-align: center;
+}
+
+.other-channel-hotel-head small span:last-child,
+.other-channel-hotel-values strong:last-child {
+  text-align: right;
+}
+
+.other-channel-hotel-values {
+  padding-left: 6px;
+  border-left: 1px solid var(--line);
+  font-size: 12px;
 }
 
 .other-channels-empty {
@@ -1723,7 +1758,7 @@ h2 {
   }
 
   .other-channels-table-wrap {
-    overflow-x: visible;
+    overflow-x: auto;
   }
 
   .other-channels-head {
@@ -1740,6 +1775,22 @@ h2 {
   .other-channels-row:not(.other-channels-head) .row-label {
     grid-column: 1 / -1;
     overflow-wrap: anywhere;
+  }
+
+  .other-channels-row:not(.other-channels-head) .other-channel-hotel-values {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(110px, 1fr) 54px minmax(110px, 1fr);
+    padding: 6px 0;
+    border-left: 0;
+    border-bottom: 1px dashed var(--line);
+  }
+
+  .other-channels-row:not(.other-channels-head) .other-channel-hotel-values::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
   }
 
   .other-channels-row:not(.other-channels-head) > strong {

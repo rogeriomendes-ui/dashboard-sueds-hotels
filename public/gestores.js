@@ -423,6 +423,8 @@ function setupAdvancePurchaseView(data) {
 function renderOtherChannels(data) {
   const otherChannels = data.otherChannels || {};
   const channels = otherChannels.channels || [];
+  const hotels = otherChannels.hotels || [];
+  const columnTemplate = `minmax(150px, 1.25fr) repeat(${hotels.length}, minmax(112px, 0.8fr)) minmax(68px, 0.48fr) minmax(100px, 0.68fr) minmax(82px, 0.52fr)`;
   byId("otherChannelsTotal").textContent = money.format(otherChannels.totalSales || 0);
   byId("otherChannelsSummary").innerHTML = `
     <div>
@@ -438,16 +440,42 @@ function renderOtherChannels(data) {
       <strong>${number.format(otherChannels.channelCount || 0)}</strong>
     </div>
   `;
+  const head = byId("otherChannelsHead");
+  head.style.setProperty("--other-channel-columns", columnTemplate);
+  head.innerHTML = `
+    <span>Canal</span>
+    ${hotels.map((hotel) => `
+      <span class="other-channel-hotel-head">
+        <strong>${escapeHtml(displayLabel(hotel).replace(/^Sueds /i, ""))}</strong>
+        <small><span>Res.</span><span>Venda</span></small>
+      </span>
+    `).join("")}
+    <span>Reservas</span>
+    <span>Venda</span>
+    <span>Participação</span>
+  `;
   byId("otherChannelsList").innerHTML = channels.length
     ? channels
-        .map((item) => `
-          <div class="other-channels-row">
+        .map((item) => {
+          const hotelMetrics = new Map((item.hotels || []).map((hotel) => [hotel.label, hotel]));
+          return `
+          <div class="other-channels-row" style="--other-channel-columns: ${columnTemplate}">
             <span class="row-label">${escapeHtml(item.label)}</span>
+            ${hotels.map((hotel) => {
+              const metrics = hotelMetrics.get(hotel) || {};
+              return `
+                <span class="other-channel-hotel-values" data-label="${escapeHtml(displayLabel(hotel))}">
+                  <strong title="Reservas">${number.format(metrics.reservations || 0)}</strong>
+                  <strong title="Venda">${money.format(metrics.value || 0)}</strong>
+                </span>
+              `;
+            }).join("")}
             <strong data-label="Reservas">${number.format(item.reservations || 0)}</strong>
             <strong data-label="Venda">${money.format(item.value || 0)}</strong>
             <strong data-label="Participação">${percentage.format(item.sharePct || 0)}%</strong>
           </div>
-        `)
+        `;
+        })
         .join("")
     : '<div class="other-channels-empty">Nenhuma venda no período selecionado.</div>';
 }
