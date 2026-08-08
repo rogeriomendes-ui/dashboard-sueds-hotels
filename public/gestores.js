@@ -460,7 +460,7 @@ function renderOtherChannels(data) {
           const hotelMetrics = new Map((item.hotels || []).map((hotel) => [hotel.label, hotel]));
           return `
           <div class="other-channels-row" style="--other-channel-columns: ${columnTemplate}">
-            <span class="row-label">${escapeHtml(item.label)}</span>
+            <span class="row-label">${escapeHtml(item.label)}${item.excludedFromTotal ? '<sup class="excluded-total-marker">*</sup>' : ""}</span>
             ${hotels.map((hotel) => {
               const metrics = hotelMetrics.get(hotel) || {};
               return `
@@ -491,8 +491,8 @@ function render(data) {
   const salesScopeLabel = data.filters?.selectedChannel
     ? displayLabel(data.filters.selectedChannel)
     : "Equipe + Site";
-  const salesPeriodLabel = `${hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês"} ( ${salesScopeLabel} )`;
-  byId("salesTodayLabel").textContent = hasDayFilter ? "Vendas no dia" : "Vendas hoje";
+  const salesPeriodLabel = `${hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês"} ( ${salesScopeLabel} ) (Venda Direta)`;
+  byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Venda Direta)`;
   byId("salesMonthLabel").textContent = salesPeriodLabel;
   byId("hotelSalesLabel").textContent = salesPeriodLabel;
   byId("salesToday").textContent = money.format(data.summary.salesToday);

@@ -65,24 +65,24 @@
 
       <section class="hero-metrics">
         <article class="metric-card primary">
-          <span id="salesTodayLabel">Vendas hoje</span>
+          <span id="salesTodayLabel">Vendas hoje (Venda Direta)</span>
           <strong id="salesToday">R$ 0</strong>
           <small id="reservationsToday">0 reservas hoje</small>
           <small id="dailyGoal" class="goal-line">Meta do dia R$ 0</small>
         </article>
         <article class="metric-card">
-          <span id="salesMonthLabel">Vendas no mês ( Equipe + Site )</span>
+          <span id="salesMonthLabel">Vendas no mês ( Equipe + Site ) (Venda Direta)</span>
           <strong id="salesMonth">R$ 0</strong>
           <small id="ticketAverage">Ticket médio R$ 0</small>
           <small id="monthlyGoal" class="goal-line">Meta do mês R$ 0</small>
         </article>
         <article class="metric-card">
-          <span>Recebido no mês</span>
+          <span>Recebido no mês (Venda Direta)</span>
           <strong id="receivedMonth">R$ 0</strong>
           <small>Confirmadas</small>
         </article>
         <article class="metric-card">
-          <span>A receber</span>
+          <span>A receber (Venda Direta)</span>
           <strong id="remainingMonth">R$ 0</strong>
           <small>No mês</small>
         </article>
@@ -92,7 +92,7 @@
         <article class="panel">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Equipe</p>
+              <p class="eyebrow">Equipe (Venda Direta)</p>
               <h2>Ranking de vendedores</h2>
             </div>
           </div>
@@ -103,7 +103,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Receita</p>
-              <h2>Por canal</h2>
+              <h2>Por canal (Venda Direta)</h2>
             </div>
           </div>
           <div id="channelBars" class="bar-list"></div>
@@ -113,7 +113,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Hotéis</p>
-              <h2 id="hotelSalesLabel">Vendas no mês ( Equipe + Site )</h2>
+              <h2 id="hotelSalesLabel">Vendas no mês ( Equipe + Site ) (Venda Direta)</h2>
             </div>
           </div>
           <div id="hotelTable" class="hotel-table"></div>
@@ -126,7 +126,10 @@
             <p class="eyebrow">Omnibees</p>
             <h2>Vendas de outros canais</h2>
           </div>
-          <strong id="otherChannelsTotal">R$ 0</strong>
+          <div class="other-channels-total">
+            <small>* Total sem SITE SUEDS e Central de Reservas</small>
+            <strong id="otherChannelsTotal">R$ 0</strong>
+          </div>
         </div>
         <div id="otherChannelsSummary" class="other-channels-summary"></div>
         <div class="other-channels-table-wrap">

@@ -744,6 +744,34 @@ h2 {
   margin-bottom: 14px;
 }
 
+.other-channels-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  text-align: right;
+}
+
+.other-channels-total small {
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.other-channels-total strong {
+  color: var(--green);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.excluded-total-marker {
+  margin-left: 3px;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 900;
+}
+
 .other-channels-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

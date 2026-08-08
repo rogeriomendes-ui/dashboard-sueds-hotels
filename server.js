@@ -2502,7 +2502,6 @@ function buildOtherChannelsMetrics(records, period = {}) {
     const matchesHotel = !selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel);
     return matchesPeriod && matchesDay && matchesHotel;
   });
-  const totalSales = sum(filteredRecords, (record) => record.total);
   const channelLabel = (record) => {
     const label = record.rawChannel || record.channel || "Não informado";
     const key = comparableKey(label);
@@ -2510,6 +2509,16 @@ function buildOtherChannelsMetrics(records, period = {}) {
       ? "SITE SUEDS"
       : label;
   };
+  const isExcludedFromDisplayedTotal = (label) => {
+    const key = comparableKey(label);
+    return key === comparableKey("SITE SUEDS") || key === comparableKey("CENTRAL DE RESERVAS");
+  };
+  const grossTotalSales = sum(filteredRecords, (record) => record.total);
+  const excludedTotalSales = sum(
+    filteredRecords.filter((record) => isExcludedFromDisplayedTotal(channelLabel(record))),
+    (record) => record.total
+  );
+  const totalSales = grossTotalSales - excludedTotalSales;
   const hotelLabels = [
     ...OPERATIONAL_HOTEL_ORDER,
     ...filteredRecords
@@ -2523,9 +2532,10 @@ function buildOtherChannelsMetrics(records, period = {}) {
       const value = sum(rows, (record) => record.total);
       return {
         label,
+        excludedFromTotal: isExcludedFromDisplayedTotal(label),
         reservations: rows.length,
         value,
-        sharePct: totalSales ? (value / totalSales) * 100 : 0,
+        sharePct: grossTotalSales ? (value / grossTotalSales) * 100 : 0,
         hotels: uniqueHotelLabels.map((hotel) => {
           const hotelRows = rows.filter((record) => comparableKey(record.hotel) === comparableKey(hotel));
           return {
@@ -2541,7 +2551,7 @@ function buildOtherChannelsMetrics(records, period = {}) {
   return {
     totalSales,
     reservations: filteredRecords.length,
-    ticketAverage: filteredRecords.length ? totalSales / filteredRecords.length : 0,
+    ticketAverage: filteredRecords.length ? grossTotalSales / filteredRecords.length : 0,
     channelCount: channels.length,
     hotels: uniqueHotelLabels,
     channels
