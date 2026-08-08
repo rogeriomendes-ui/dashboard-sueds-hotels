@@ -73,14 +73,6 @@ small {
   color: var(--muted);
 }
 
-.social-nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.social-nav a,
 .action-button {
   display: inline-flex;
   align-items: center;
@@ -586,12 +578,10 @@ th:nth-child(2) {
     flex-direction: column;
   }
 
-  .social-nav,
   .export-actions {
     width: 100%;
   }
 
-  .social-nav a,
   .action-button {
     flex: 1;
   }
@@ -628,7 +618,6 @@ th:nth-child(2) {
     background: #ffffff;
   }
 
-  .social-nav,
   .filters-panel,
   .action-button,
   .segmented-control,
