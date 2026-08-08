@@ -821,19 +821,19 @@ h2 {
 .other-channel-hotel-head small,
 .other-channel-hotel-values {
   display: grid;
-  grid-template-columns: 32px minmax(68px, 1fr);
+  grid-template-columns: minmax(68px, 1fr) 32px;
   gap: 4px;
   align-items: center;
 }
 
 .other-channel-hotel-head small span:first-child,
 .other-channel-hotel-values strong:first-child {
-  text-align: center;
+  text-align: right;
 }
 
 .other-channel-hotel-head small span:last-child,
 .other-channel-hotel-values strong:last-child {
-  text-align: right;
+  text-align: center;
 }
 
 .other-channel-hotel-values {
@@ -1779,7 +1779,7 @@ h2 {
 
   .other-channels-row:not(.other-channels-head) .other-channel-hotel-values {
     grid-column: 1 / -1;
-    grid-template-columns: minmax(110px, 1fr) 54px minmax(110px, 1fr);
+    grid-template-columns: minmax(110px, 1fr) minmax(110px, 1fr) 54px;
     padding: 6px 0;
     border-left: 0;
     border-bottom: 1px dashed var(--line);

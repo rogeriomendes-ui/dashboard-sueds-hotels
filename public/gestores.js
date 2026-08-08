@@ -447,7 +447,7 @@ function renderOtherChannels(data) {
     ${hotels.map((hotel) => `
       <span class="other-channel-hotel-head">
         <strong>${escapeHtml(displayLabel(hotel).replace(/^Sueds /i, ""))}</strong>
-        <small><span>Res.</span><span>Venda</span></small>
+        <small><span>Venda</span><span>Res.</span></small>
       </span>
     `).join("")}
     <span>Reservas</span>
@@ -465,8 +465,8 @@ function renderOtherChannels(data) {
               const metrics = hotelMetrics.get(hotel) || {};
               return `
                 <span class="other-channel-hotel-values" data-label="${escapeHtml(displayLabel(hotel))}">
-                  <strong title="Reservas">${number.format(metrics.reservations || 0)}</strong>
                   <strong title="Venda">${money.format(metrics.value || 0)}</strong>
+                  <strong title="Reservas">${number.format(metrics.reservations || 0)}</strong>
                 </span>
               `;
             }).join("")}
