@@ -34,8 +34,9 @@
   }
 
   function setActiveButton(moduleKey) {
-    document.querySelectorAll("[data-portal-module], [data-portal-group]").forEach((element) => {
-      const selected = element.dataset.portalModule === moduleKey ||
+    document.querySelectorAll(".manager-shortcut[data-portal-home], [data-portal-module], [data-portal-group]").forEach((element) => {
+      const selected = (!moduleKey && element.hasAttribute("data-portal-home")) ||
+        element.dataset.portalModule === moduleKey ||
         (moduleKey.startsWith("opinarios_") && moduleKey !== "opinarios_rede" && element.dataset.portalGroup === "opinarios_hotel");
       element.classList.toggle("active", selected);
       if (element.matches("a,button")) element.setAttribute("aria-current", selected ? "page" : "false");

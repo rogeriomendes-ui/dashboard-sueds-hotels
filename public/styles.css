@@ -158,7 +158,7 @@ body {
 .manager-shortcuts {
   grid-row: 1;
   display: grid;
-  grid-template-columns: repeat(9, minmax(82px, 1fr));
+  grid-template-columns: repeat(10, minmax(76px, 1fr));
   gap: 6px;
 }
 
@@ -1440,6 +1440,92 @@ h2 {
 
   .manager-brand img {
     width: 150px;
+  }
+
+  .portal-shell-page .manager-topbar {
+    gap: 6px;
+    padding: 7px 8px 8px;
+  }
+
+  .portal-shell-page .manager-brand {
+    min-height: 34px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .portal-shell-page .manager-brand .eyebrow {
+    margin: 0;
+    font-size: 9px;
+  }
+
+  .portal-shell-page .manager-brand img {
+    width: 104px;
+  }
+
+  .portal-shell-page .manager-topbar-main {
+    gap: 5px;
+  }
+
+  .portal-shell-page .manager-shortcuts {
+    gap: 5px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .portal-shell-page .manager-shortcuts::-webkit-scrollbar {
+    display: none;
+  }
+
+  .portal-shell-page .nav-link-button.manager-shortcut {
+    flex-basis: 104px;
+    min-height: 38px;
+    padding: 3px 7px;
+    border-width: 1px;
+    font-size: 10px;
+    line-height: 1.05;
+  }
+
+  .portal-shell-page .topbar-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .portal-shell-page .month-control,
+  .portal-shell-page .topbar-controls .filter-control {
+    width: 100%;
+    min-height: 35px;
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  .portal-shell-page .month-control span,
+  .portal-shell-page .topbar-controls .filter-control span {
+    flex: 0 0 auto;
+    font-size: 8px;
+  }
+
+  .portal-shell-page .month-control select,
+  .portal-shell-page .topbar-controls .filter-control select,
+  .portal-shell-page .topbar-controls #daySelect,
+  .portal-shell-page .topbar-controls #hotelSelect,
+  .portal-shell-page .topbar-controls #channelSelect {
+    width: min(72%, 150px);
+    height: 28px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .portal-shell-page .status-strip {
+    grid-column: 1 / -1;
+    min-height: 27px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  .portal-shell-page .portal-home {
+    padding: 8px;
   }
 
   .hotel-picker-grid {
