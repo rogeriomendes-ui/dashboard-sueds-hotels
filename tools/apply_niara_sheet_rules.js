@@ -7,7 +7,7 @@ const SHEET_NAME = "Recuperação de carrinhos";
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const RESPONSIBLE_OPTIONS = ["Selecione", "Aline Nunes", "Emanoel Cesar", "Amanda Melgaco", "Julia Reche"];
-const STATUS_OPTIONS = ["Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
+const STATUS_OPTIONS = ["Selecione", "SEM retorno", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
 
 loadEnvFile(path.join(ROOT, ".env"));

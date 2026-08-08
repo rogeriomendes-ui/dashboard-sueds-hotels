@@ -261,7 +261,7 @@ function padRow(row, length) {
 function sanitizeWorkColumns(columns) {
   const next = [...columns];
   if (!RESPONSIBLE_ROTATION.includes(normalizeText(next[0]))) next[0] = "Selecione";
-  if (!["Selecione", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"].includes(normalizeText(next[1]))) next[1] = DEFAULT_STATUS;
+  if (!["Selecione", "SEM retorno", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"].includes(normalizeText(next[1]))) next[1] = DEFAULT_STATUS;
   return next;
 }
 

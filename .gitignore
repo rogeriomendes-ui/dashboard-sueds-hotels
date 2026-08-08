@@ -9,3 +9,6 @@ node_modules/
 *.csv
 .agents/
 .codex/
+
+.vercel
+.env*

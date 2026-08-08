@@ -1744,6 +1744,11 @@ function normalizeRecord(item) {
   const uh = String(item["UH's"] || item["UHs"] || item["UH"] || "").trim();
   const adults = String(item["Adult"] || item["Adultos"] || "").trim();
   const children = String(item["Crian"] || item["Criancas"] || item["Crianças"] || "").trim();
+  const rawChannel = String(item["Canal"] || "").trim();
+  const channel = String(item["Canal Detalhado"] || rawChannel).trim();
+  const seller = isBookingEngineChannel(channel)
+    ? ""
+    : normalizeSellerName(item["Vendedor"] || "");
 
   return {
     date: saleDate,
@@ -1751,9 +1756,9 @@ function normalizeRecord(item) {
     monthKey: saleDate ? monthKey(saleDate) : "",
     reservationCode: String(item["Codigo Reserva"] || "").trim(),
     hotel: normalizeHotelName(item["Hotel Normalizado"] || item["Hotel"] || ""),
-    channel: String(item["Canal Detalhado"] || item["Canal"] || "").trim(),
-    rawChannel: String(item["Canal"] || "").trim(),
-    seller: normalizeSellerName(item["Vendedor"] || ""),
+    channel,
+    rawChannel,
+    seller,
     customer: String(item["Cliente"] || "").trim(),
     checkin,
     checkout,
@@ -2091,6 +2096,11 @@ function displaySellerName(value) {
   return isTeamCardName(value) ? TEAM_CARD_DISPLAY_NAME : value;
 }
 
+function isBookingEngineChannel(value) {
+  const key = comparableKey(value);
+  return key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile");
+}
+
 function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   const useHistoricalChannel = month === "2026-05" || month === "2026-06";
   const sourceValue = useHistoricalChannel
@@ -2100,7 +2110,7 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   if (!key || key === "selecione") return "";
 
   if (useHistoricalChannel) {
-    if (key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile") || key === "site") return "SITE";
+    if (isBookingEngineChannel(sourceValue) || key === "site") return "SITE";
     if (key.includes("central de reservas")) return "CENTRAL DE RESERVAS";
     if (key.includes("particular") || key.includes("individual")) return "INDIVIDUAL";
     if (key.includes("balcao")) return "BALCÃO";
@@ -2110,7 +2120,7 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
   }
 
   if (comparableKey(record.seller) === comparableKey("Site")) return "SITE";
-  if (key.includes("booking engine") || key === "site") return "SITE";
+  if (isBookingEngineChannel(sourceValue) || key === "site") return "SITE";
   if (key.includes("central de reservas") || key.includes("whatsapp")) return "CENTRAL DE RESERVAS";
   if (key.includes("particular") || key.includes("individual")) return "INDIVIDUAL";
   if (key.includes("balcao")) return "BALCÃO";
@@ -2121,8 +2131,7 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
 
 function isImportedSiteSale(record) {
   return !record.seller
-    && comparableKey(record.source) === comparableKey("Site")
-    && comparableKey(record.channel) === comparableKey("SITE");
+    && comparableKey(normalizeOfficialSalesChannel(record.channel, record, record.monthKey)) === comparableKey("SITE");
 }
 
 function buildCartRecoveryMetrics(carts, period = {}) {

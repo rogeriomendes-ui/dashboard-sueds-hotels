@@ -4,7 +4,7 @@ const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
 const SHEET_NAME = "Recuperação de carrinhos";
-const STATUS_OPTIONS = ["Selecione", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
+const STATUS_OPTIONS = ["Selecione", "SEM retorno", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const WRITE_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
 loadEnvFile(path.join(ROOT, ".env"));

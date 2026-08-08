@@ -5,6 +5,9 @@ const ASKSUITE_TARGET_SHEET = "Asksuite_Atendimentos";
 const ASKSUITE_DETAILED_SHEET = "Asksuite_Detalhado";
 const SITE_IMPORT_SHEET = "Site";
 const SITE_SALES_TARGET_SHEET = "Lancamento_Vendas";
+const OTHER_CHANNEL_SALES_SOURCE_SHEET = "teste lancamento_vendas";
+const OTHER_CHANNEL_SALES_CHANNELS = ["BE MOBILE", "BOOKING ENGINE"];
+const CENTRAL_RESERVATIONS_CHANNEL = "CENTRAL DE RESERVAS";
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
 const SENSITIVE_SHEETS_PROTECTION_NOTE = "Protecao abas sensiveis SUEDS. Apenas gestores autorizados.";
 const TEAM_INPUT_BACKGROUND = "#d9eaf7";
@@ -17,7 +20,7 @@ const NIARA_RESPONSIBLE_ROTATION = ["Aline Nunes", "Emanoel Cesar", "Tatiana Vie
 const NIARA_DISTRIBUTION_START_DATE = "2026-07-01";
 const NIARA_RESPONSIBLE_OPTIONS = ["Selecione", ...NIARA_RESPONSIBLE_ROTATION];
 const NIARA_ACCEPTED_RESPONSIBLES = [...NIARA_RESPONSIBLE_OPTIONS, "Amanda Melgaco", "Julia Reche"];
-const NIARA_STATUS_OPTIONS = ["Selecione", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
+const NIARA_STATUS_OPTIONS = ["Selecione", "SEM retorno", "Pensando", "Comprou (recuperado)", "Desistiu (não recuperado)"];
 const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou outro hotel", "Escolheu outro destino"];
 const NIARA_DEFAULT_STATUS = "Selecione";
 const GOOGLE_SHEETS_DATE_EPOCH_MS = Date.UTC(1899, 11, 30);
@@ -80,6 +83,8 @@ function onOpen() {
     .addItem("Importar carrinhos da aba Importar_Niara", "importarCarrinhosNiara")
     .addItem("Importar Asksuite da aba Importar_Asksuite", "importarAsksuite")
     .addItem("Importar vendas da aba Site", "importarVendasSite")
+    .addItem("Sincronizar BE Mobile e Booking Engine", "sincronizarVendasCanaisSite")
+    .addItem("Sincronizar Central de Reservas", "sincronizarVendasCentralReservas")
     .addItem("Preparar Asksuite Detalhado", "prepararAsksuiteDetalhado")
     .addSeparator()
     .addItem("Ordenar carrinhos do mais antigo ao mais recente", "ordenarCarrinhosAntigoRecente")
@@ -243,6 +248,195 @@ function importarVendasSite() {
     `Total de vendas organizadas: ${organization.dataRows}\n` +
     "As vendas foram registradas sem vendedor e serao exibidas apenas no canal Site."
   );
+}
+
+function sincronizarVendasCanaisSite() {
+  const spreadsheet = SpreadsheetApp.getActive();
+  const sourceSheet = spreadsheet.getSheetByName(OTHER_CHANNEL_SALES_SOURCE_SHEET);
+  const targetSheet = spreadsheet.getSheetByName(SITE_SALES_TARGET_SHEET);
+
+  if (!sourceSheet) {
+    throw new Error(`Aba ${OTHER_CHANNEL_SALES_SOURCE_SHEET} nao encontrada.`);
+  }
+  if (!targetSheet) {
+    throw new Error(`Aba ${SITE_SALES_TARGET_SHEET} nao encontrada.`);
+  }
+
+  const sourceRows = sourceSheet.getLastRow() > 1
+    ? sourceSheet.getRange(2, 1, sourceSheet.getLastRow() - 1, 20).getValues()
+    : [];
+  const existingKeys = new Set();
+  if (targetSheet.getLastRow() > 1) {
+    targetSheet.getRange(2, 2, targetSheet.getLastRow() - 1, 2).getDisplayValues()
+      .forEach((row) => {
+        const key = salesReservationHotelKey_(row[0], row[1]);
+        if (key) existingKeys.add(key);
+      });
+  }
+
+  const sourceKeys = new Set();
+  const pending = [];
+  let alreadyExists = 0;
+  let sourceDuplicates = 0;
+  let sellersCleared = 0;
+
+  if (targetSheet.getLastRow() > 1) {
+    const sellerCellsToClear = [];
+    targetSheet.getRange(2, 4, targetSheet.getLastRow() - 1, 2).getDisplayValues()
+      .forEach((row, index) => {
+        if (OTHER_CHANNEL_SALES_CHANNELS.includes(normalizeHeader_(row[0])) && String(row[1] || "").trim()) {
+          sellerCellsToClear.push(`E${index + 2}`);
+        }
+      });
+    if (sellerCellsToClear.length) {
+      targetSheet.getRangeList(sellerCellsToClear).clearContent();
+      sellersCleared = sellerCellsToClear.length;
+    }
+  }
+
+  sourceRows.forEach((row) => {
+    const channel = normalizeHeader_(row[3]);
+    if (!OTHER_CHANNEL_SALES_CHANNELS.includes(channel)) return;
+    if (normalizeHeader_(row[17]) !== "CONFIRMADA") return;
+
+    const key = salesReservationHotelKey_(row[1], row[2]);
+    if (!key) return;
+    if (sourceKeys.has(key)) {
+      sourceDuplicates += 1;
+      return;
+    }
+    sourceKeys.add(key);
+
+    if (existingKeys.has(key)) {
+      alreadyExists += 1;
+      return;
+    }
+
+    const values = row.slice(0, 20);
+    values[3] = channel;
+    values[4] = "";
+    values[18] = values[18] || "OMNIBEES";
+    pending.push(values);
+    existingKeys.add(key);
+  });
+
+  const targetRows = pending.length ? findEmptySalesRows_(targetSheet, pending.length) : [];
+  pending.forEach((values, index) => {
+    const rowNumber = targetRows[index];
+    targetSheet.getRange(rowNumber, 1, 1, 20).setValues([values]);
+    targetSheet.getRange(rowNumber, 9).setFormula(`=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`);
+    targetSheet.getRange(rowNumber, 1).setNumberFormat("dd/mm/yyyy");
+    targetSheet.getRange(rowNumber, 7, 1, 2).setNumberFormat("dd/mm/yyyy");
+    targetSheet.getRange(rowNumber, 13, 1, 3).setNumberFormat('R$ #,##0.00');
+  });
+
+  if (pending.length) {
+    SpreadsheetApp.flush();
+    clearSheetFilterCriteria_(targetSheet);
+    organizeSalesSheet_(targetSheet);
+    SpreadsheetApp.flush();
+  }
+
+  const summary = {
+    inserted: pending.length,
+    alreadyExists,
+    sourceDuplicates,
+    sellersCleared
+  };
+  spreadsheet.toast(
+    `Novas: ${summary.inserted} | Ja existentes: ${summary.alreadyExists} | Vendedores removidos: ${summary.sellersCleared}`,
+    "BE Mobile + Booking Engine",
+    8
+  );
+  return summary;
+}
+
+function salesReservationHotelKey_(reservationCode, hotel) {
+  const code = normalizeReservationCode_(reservationCode);
+  const hotelKey = normalizeHeader_(hotel);
+  return code && hotelKey ? `${code}|${hotelKey}` : "";
+}
+
+function sincronizarVendasCentralReservas() {
+  const spreadsheet = SpreadsheetApp.getActive();
+  const sourceSheet = spreadsheet.getSheetByName(OTHER_CHANNEL_SALES_SOURCE_SHEET);
+  const targetSheet = spreadsheet.getSheetByName(SITE_SALES_TARGET_SHEET);
+
+  if (!sourceSheet) {
+    throw new Error(`Aba ${OTHER_CHANNEL_SALES_SOURCE_SHEET} nao encontrada.`);
+  }
+  if (!targetSheet) {
+    throw new Error(`Aba ${SITE_SALES_TARGET_SHEET} nao encontrada.`);
+  }
+
+  const sourceRows = sourceSheet.getLastRow() > 1
+    ? sourceSheet.getRange(2, 1, sourceSheet.getLastRow() - 1, 20).getValues()
+    : [];
+  const existingKeys = new Set();
+  if (targetSheet.getLastRow() > 1) {
+    targetSheet.getRange(2, 2, targetSheet.getLastRow() - 1, 2).getDisplayValues()
+      .forEach((row) => {
+        const key = salesReservationHotelKey_(row[0], row[1]);
+        if (key) existingKeys.add(key);
+      });
+  }
+
+  const sourceKeys = new Set();
+  const pending = [];
+  let alreadyExists = 0;
+  let sourceDuplicates = 0;
+
+  sourceRows.forEach((row) => {
+    if (normalizeHeader_(row[3]) !== CENTRAL_RESERVATIONS_CHANNEL) return;
+
+    const key = salesReservationHotelKey_(row[1], row[2]);
+    if (!key) return;
+    if (sourceKeys.has(key)) {
+      sourceDuplicates += 1;
+      return;
+    }
+    sourceKeys.add(key);
+
+    if (existingKeys.has(key)) {
+      alreadyExists += 1;
+      return;
+    }
+
+    const values = row.slice(0, 20);
+    values[3] = CENTRAL_RESERVATIONS_CHANNEL;
+    values[4] = "";
+    pending.push(values);
+    existingKeys.add(key);
+  });
+
+  const targetRows = pending.length ? findEmptySalesRows_(targetSheet, pending.length) : [];
+  pending.forEach((values, index) => {
+    const rowNumber = targetRows[index];
+    targetSheet.getRange(rowNumber, 1, 1, 20).setValues([values]);
+    targetSheet.getRange(rowNumber, 9).setFormula(`=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`);
+    targetSheet.getRange(rowNumber, 1).setNumberFormat("dd/mm/yyyy");
+    targetSheet.getRange(rowNumber, 7, 1, 2).setNumberFormat("dd/mm/yyyy");
+    targetSheet.getRange(rowNumber, 13, 1, 3).setNumberFormat('R$ #,##0.00');
+  });
+
+  if (pending.length) {
+    SpreadsheetApp.flush();
+    clearSheetFilterCriteria_(targetSheet);
+    organizeSalesSheet_(targetSheet);
+    SpreadsheetApp.flush();
+  }
+
+  const summary = {
+    inserted: pending.length,
+    alreadyExists,
+    sourceDuplicates
+  };
+  spreadsheet.toast(
+    `Novas: ${summary.inserted} | Ja existentes: ${summary.alreadyExists} | Duplicadas na origem: ${summary.sourceDuplicates}`,
+    "Central de Reservas",
+    8
+  );
+  return summary;
 }
 
 function organizeSalesSheet_(sheet) {
