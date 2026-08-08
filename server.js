@@ -582,7 +582,7 @@ async function appendTvMessage(message, expiresAt) {
   if (cleanMessage.length > 180) throw new Error("Mensagem deve ter ate 180 caracteres");
 
   await ensureTvMessagesSheet();
-  await sheetsRequest(`/values/${sheetRange(`${TV_MESSAGES_SHEET}!A:D`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  await sheetsRequest(`/values/${sheetRange(`${TV_MESSAGES_SHEET}!A:D`)}:append?valueInputOption=RAW&insertDataOption=OVERWRITE`, {
     method: "POST",
     body: JSON.stringify({
       values: [[nowLabelSaoPaulo(), cleanMessage, normalizeIsoDate(expiresAt), "Ativa"]]
