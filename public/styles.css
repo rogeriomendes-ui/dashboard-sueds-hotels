@@ -1546,7 +1546,7 @@ h2 {
 
   .portal-shell-page .manager-topbar {
     gap: 6px;
-    padding: 7px 8px 8px;
+    padding: 7px 8px 8px 4px;
   }
 
   .portal-shell-page .manager-brand {
@@ -1555,11 +1555,6 @@ h2 {
     align-items: center;
     justify-content: flex-start;
     gap: 8px;
-  }
-
-  .portal-shell-page .manager-brand .eyebrow {
-    margin: 0;
-    font-size: 9px;
   }
 
   .portal-shell-page .manager-brand img {
