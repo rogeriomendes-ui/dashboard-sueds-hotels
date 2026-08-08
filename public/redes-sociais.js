@@ -47,6 +47,7 @@ const PROFILE_SEED = [
   ["Azul Viagens", "@azulviagens", "Operadoras", "Barueri", "SP", "Ativo", 612000, 2.4],
   ["Orinter", "@orintertour", "Operadoras", "Sao Paulo", "SP", "Ativo", 148000, 1.5]
 ];
+const SUEDS_ACCOUNT_HANDLES = ["@suedshotels", "@suedstrancoso", "@beachclubsued"];
 
 const state = {
   data: null,
@@ -248,6 +249,49 @@ function renderKpis(posts) {
       <small>${escapeHtml(note)}</small>
     </article>
   `).join("");
+}
+
+function suedsAccountPosts(profileName) {
+  const days = Number(state.filters.period);
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() - days);
+  return state.data.posts.filter((post) => (
+    post.profile === profileName
+    && new Date(post.date) >= minDate
+    && (!state.filters.type || post.type === state.filters.type)
+    && (!state.filters.theme || post.theme === state.filters.theme)
+  ));
+}
+
+function renderSuedsAccounts() {
+  const profiles = SUEDS_ACCOUNT_HANDLES
+    .map((handle) => state.data.profiles.find((profile) => profile.instagram.toLowerCase() === handle))
+    .filter(Boolean);
+
+  $("suedsAccountsOverview").innerHTML = profiles.map((profile) => {
+    const posts = suedsAccountPosts(profile.name);
+    const reels = posts.filter((post) => post.type === "Reel");
+    const growth = Number(profile.growth) || 0;
+    return `
+      <article class="sueds-account-card">
+        <div class="sueds-account-heading">
+          <div>
+            <strong>${escapeHtml(profile.name)}</strong>
+            <span>${escapeHtml(profile.instagram)}</span>
+          </div>
+          <b class="sueds-growth">${growth > 0 ? "+" : ""}${percent(growth)}</b>
+        </div>
+        <div class="sueds-account-metrics">
+          <div><span>Seguidores</span><strong>${number(profile.followers)}</strong></div>
+          <div><span>Posts</span><strong>${number(posts.length)}</strong></div>
+          <div><span>Reels</span><strong>${number(reels.length)}</strong></div>
+          <div><span>Engajamento</span><strong>${percent(average(posts, "engagement"))}</strong></div>
+          <div><span>Curtidas</span><strong>${number(sum(posts, "likes"))}</strong></div>
+          <div><span>Visualizações</span><strong>${number(sum(posts, "views"))}</strong></div>
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 function sortedPosts(posts) {
@@ -508,6 +552,7 @@ function renderAll() {
   const posts = filteredPosts();
   renderFilters();
   renderTopStatus(posts);
+  renderSuedsAccounts();
   renderKpis(posts);
   renderInsights(posts);
   renderTopPosts(posts);

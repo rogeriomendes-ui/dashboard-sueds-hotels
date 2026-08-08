@@ -182,6 +182,76 @@ input {
   margin-bottom: 14px;
 }
 
+.sueds-accounts-panel {
+  min-height: auto;
+  margin-bottom: 14px;
+}
+
+.sueds-accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sueds-account-card {
+  padding: 16px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.sueds-account-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--card-line);
+}
+
+.sueds-account-heading div {
+  display: grid;
+  gap: 3px;
+}
+
+.sueds-account-heading strong {
+  font-size: 17px;
+}
+
+.sueds-account-heading span {
+  color: var(--card-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sueds-growth {
+  color: #0b8f62;
+  font-size: 14px;
+}
+
+.sueds-account-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 8px;
+  padding-top: 13px;
+}
+
+.sueds-account-metrics div {
+  display: grid;
+  gap: 4px;
+}
+
+.sueds-account-metrics span {
+  color: var(--card-muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sueds-account-metrics strong {
+  font-size: 18px;
+}
+
 .kpi-card {
   min-height: 112px;
   padding: 14px;
@@ -495,6 +565,7 @@ th:nth-child(2) {
   .top-status-grid,
   .filters-panel,
   .kpi-grid,
+  .sueds-accounts-grid,
   .social-grid.two-cols,
   .agent-report {
     grid-template-columns: 1fr;
