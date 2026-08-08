@@ -170,7 +170,7 @@ function getHeader(req, name) {
 }
 
 function hasManagerAccess(req, url) {
-  if (req.portalProfile?.roles?.includes("admin_geral") || req.portalProfile?.environments?.includes("painel_gestores")) return true;
+  if (req.portalProfile?.roles?.includes("admin_geral") || req.portalProfile?.environments?.some((environment) => ["painel_gestores", "marketing_competitividade"].includes(environment))) return true;
   if (!GESTORES_ACCESS_TOKEN) return true;
   const provided = getHeader(req, "x-dashboard-token") || url.searchParams.get("access_token") || "";
   if (!provided) return false;

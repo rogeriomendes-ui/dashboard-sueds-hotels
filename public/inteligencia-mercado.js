@@ -13,7 +13,6 @@ const state = {
   }
 };
 
-const GESTORES_TOKEN_STORAGE_KEY = "sueds_gestores_access_token";
 let dashboardRequestId = 0;
 let currentKeywordExportRows = [];
 let currentMetaAdExportRows = [];
@@ -225,22 +224,6 @@ function bindMediaSortButtons() {
 function setText(id, value) {
   const element = document.getElementById(id);
   if (element) element.textContent = value;
-}
-
-function getStoredAccessToken() {
-  return localStorage.getItem(GESTORES_TOKEN_STORAGE_KEY) || "";
-}
-
-function askAccessToken() {
-  const token = window.prompt("Digite a senha de acesso da visão gestores:");
-  if (!token) return "";
-  const trimmed = token.trim();
-  localStorage.setItem(GESTORES_TOKEN_STORAGE_KEY, trimmed);
-  return trimmed;
-}
-
-function clearAccessToken() {
-  localStorage.removeItem(GESTORES_TOKEN_STORAGE_KEY);
 }
 
 function createOption(value, label, selectedValue) {
@@ -557,23 +540,16 @@ async function loadDashboard() {
   const requestId = ++dashboardRequestId;
   const requestQuery = queryString();
   try {
-    let token = getStoredAccessToken();
-    if (!token) token = askAccessToken();
-    if (!token) throw new Error("Acesso aos gestores não informado");
-
-    let response = await fetch(`/api/inteligencia/mercado?${requestQuery}`, {
-      headers: { "x-dashboard-token": token }
+    await window.suedsManagerAuthReady;
+    const response = await fetch(`/api/inteligencia/mercado?${requestQuery}`, {
+      cache: "no-store",
+      credentials: "same-origin"
     });
-
     if (response.status === 401) {
-      clearAccessToken();
-      token = askAccessToken();
-      if (!token) throw new Error("Acesso aos gestores não autorizado");
-      response = await fetch(`/api/inteligencia/mercado?${requestQuery}`, {
-        headers: { "x-dashboard-token": token }
-      });
+      window.top.location.replace(`/login?next=${encodeURIComponent("/gestores?modulo=marketing_competitividade")}`);
+      return;
     }
-
+    if (response.status === 403) throw new Error("Seu perfil não possui acesso a Marketing e Competitividade.");
     if (!response.ok) throw new Error("Falha ao carregar inteligência de mercado");
     const payload = await response.json();
     if (requestId !== dashboardRequestId) return;
