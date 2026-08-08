@@ -23,6 +23,7 @@ const MONTH_LABELS = {
 };
 let currentDashboardData = null;
 let advancePurchaseView = "withGroups";
+let advancePurchaseChannel = "";
 
 function byId(id) {
   return document.getElementById(id);
@@ -365,8 +366,13 @@ function renderGlobalFilters(filters) {
 }
 
 function advancePurchaseBlock(data) {
-  const selectedData = data?.[advancePurchaseView] || data?.withGroups || data || {};
+  const channelOptions = data?.channels || [];
+  const selectedChannelData = channelOptions.find((item) => item.label === advancePurchaseChannel);
+  if (advancePurchaseChannel && !selectedChannelData) advancePurchaseChannel = "";
+  const selectedScope = selectedChannelData || data || {};
+  const selectedData = selectedScope?.[advancePurchaseView] || selectedScope?.withGroups || selectedScope || {};
   const bands = selectedData.bands || [];
+  const totalLabel = advancePurchaseChannel || "TODOS";
   return `
     <section class="advp-block" aria-labelledby="advpTitle">
       <div class="advp-heading">
@@ -374,9 +380,18 @@ function advancePurchaseBlock(data) {
           <p class="eyebrow">ADVP</p>
           <h3 id="advpTitle">Antecipação de vendas</h3>
         </div>
-        <div class="advp-view-switch" role="group" aria-label="Visão das vendas de grupos">
-          <button type="button" data-advp-view="withGroups" aria-pressed="${advancePurchaseView === "withGroups"}" class="${advancePurchaseView === "withGroups" ? "active" : ""}">Com grupos</button>
-          <button type="button" data-advp-view="withoutGroups" aria-pressed="${advancePurchaseView === "withoutGroups"}" class="${advancePurchaseView === "withoutGroups" ? "active" : ""}">Sem grupos</button>
+        <div class="advp-controls">
+          <label class="advp-channel-control" for="advpChannelSelect">
+            <span>Canal</span>
+            <select id="advpChannelSelect">
+              <option value="">TODOS</option>
+              ${channelOptions.map((item) => `<option value="${escapeHtml(item.label)}"${item.label === advancePurchaseChannel ? " selected" : ""}>${escapeHtml(displayLabel(item.label))}</option>`).join("")}
+            </select>
+          </label>
+          <div class="advp-view-switch" role="group" aria-label="Visão das vendas de grupos">
+            <button type="button" data-advp-view="withGroups" aria-pressed="${advancePurchaseView === "withGroups"}" class="${advancePurchaseView === "withGroups" ? "active" : ""}">Com grupos</button>
+            <button type="button" data-advp-view="withoutGroups" aria-pressed="${advancePurchaseView === "withoutGroups"}" class="${advancePurchaseView === "withoutGroups" ? "active" : ""}">Sem grupos</button>
+          </div>
         </div>
         <div class="advp-total">
           <strong>${number.format(selectedData.totalReservations || 0)} reservas</strong>
@@ -397,7 +412,7 @@ function advancePurchaseBlock(data) {
         `).join("")}
         <div class="advp-row advp-summary-row">
           <div class="advp-period">
-            <strong>TOTAL SITE + EQUIPE SUEDS</strong>
+            <strong>TOTAL ${escapeHtml(displayLabel(totalLabel))}</strong>
             <span>Total vendido no período</span>
           </div>
           <strong class="advp-share">${selectedData.totalRevenue ? "100%" : "0%"}</strong>
@@ -410,6 +425,10 @@ function advancePurchaseBlock(data) {
 }
 
 function setupAdvancePurchaseView(data) {
+  byId("advpChannelSelect")?.addEventListener("change", (event) => {
+    advancePurchaseChannel = event.target.value;
+    render(data);
+  });
   document.querySelectorAll("[data-advp-view]").forEach((button) => {
     button.addEventListener("click", () => {
       const requestedView = button.dataset.advpView;
@@ -526,7 +545,9 @@ function render(data) {
       </article>
     `)
     .join("");
-  byId("strategicChannels").innerHTML = `${advancePurchaseBlock(data.advancePurchase)}${strategicCards}`;
+  const advpContent = advancePurchaseBlock(data.advancePurchase);
+  byId("strategicChannelsTitle").textContent = `CANAIS: ${advancePurchaseChannel ? displayLabel(advancePurchaseChannel) : "TODOS"}`;
+  byId("strategicChannels").innerHTML = `${advpContent}${strategicCards}`;
   setupAdvancePurchaseView(data);
 
   const rankingSellers = (data.sellers || []).filter((seller) => seller.name !== "Site");

@@ -25,6 +25,8 @@ const NIARA_LOSS_REASON_OPTIONS = ["Achou caro", "Desistiu da viagem", "Comprou 
 const NIARA_DEFAULT_STATUS = "Selecione";
 const GOOGLE_SHEETS_DATE_EPOCH_MS = Date.UTC(1899, 11, 30);
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SALES_STAY_FORMULA_R1C1 = '=IF(OR(RC[-2]="";RC[-1]="");"";RC[-1]-RC[-2])';
+const SALES_RECEIVABLE_FORMULA_R1C1 = '=IF(RC[-2]="";"";RC[-2]-RC[-1])';
 
 const NIARA_SOURCE_HEADERS = [
   "ID",
@@ -214,8 +216,7 @@ function importarVendasSite() {
 
   existingUpdates.concat(pending).forEach((record) => {
     const rowNumber = record.rowNumber;
-    targetSheet.getRange(rowNumber, 1, 1, 20).setValues([record.values]);
-    targetSheet.getRange(rowNumber, 9).setFormula(`=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`);
+    writeSalesImportRow_(targetSheet, rowNumber, record.values);
     targetSheet.getRange(rowNumber, 1).setNumberFormat("dd/mm/yyyy");
     targetSheet.getRange(rowNumber, 7, 1, 2).setNumberFormat("dd/mm/yyyy");
     targetSheet.getRange(rowNumber, 13, 1, 3).setNumberFormat('R$ #,##0.00');
@@ -323,8 +324,7 @@ function sincronizarVendasCanaisSite() {
   const targetRows = pending.length ? findEmptySalesRows_(targetSheet, pending.length) : [];
   pending.forEach((values, index) => {
     const rowNumber = targetRows[index];
-    targetSheet.getRange(rowNumber, 1, 1, 20).setValues([values]);
-    targetSheet.getRange(rowNumber, 9).setFormula(`=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`);
+    writeSalesImportRow_(targetSheet, rowNumber, values);
     targetSheet.getRange(rowNumber, 1).setNumberFormat("dd/mm/yyyy");
     targetSheet.getRange(rowNumber, 7, 1, 2).setNumberFormat("dd/mm/yyyy");
     targetSheet.getRange(rowNumber, 13, 1, 3).setNumberFormat('R$ #,##0.00');
@@ -412,8 +412,7 @@ function sincronizarVendasCentralReservas() {
   const targetRows = pending.length ? findEmptySalesRows_(targetSheet, pending.length) : [];
   pending.forEach((values, index) => {
     const rowNumber = targetRows[index];
-    targetSheet.getRange(rowNumber, 1, 1, 20).setValues([values]);
-    targetSheet.getRange(rowNumber, 9).setFormula(`=IF(OR(G${rowNumber}="";H${rowNumber}="");"";H${rowNumber}-G${rowNumber})`);
+    writeSalesImportRow_(targetSheet, rowNumber, values);
     targetSheet.getRange(rowNumber, 1).setNumberFormat("dd/mm/yyyy");
     targetSheet.getRange(rowNumber, 7, 1, 2).setNumberFormat("dd/mm/yyyy");
     targetSheet.getRange(rowNumber, 13, 1, 3).setNumberFormat('R$ #,##0.00');
@@ -485,7 +484,9 @@ function organizeSalesSheet_(sheet) {
     sheet.getRange(2, 1, lastDataRow - 1, 1).setNumberFormat("dd/mm/yyyy");
     sheet.getRange(2, 7, lastDataRow - 1, 2).setNumberFormat("dd/mm/yyyy");
     sheet.getRange(2, 9, lastDataRow - 1, 1)
-      .setFormulaR1C1('=IF(OR(RC[-2]="";RC[-1]="");"";RC[-1]-RC[-2])');
+      .setFormulaR1C1(SALES_STAY_FORMULA_R1C1);
+    sheet.getRange(2, 15, lastDataRow - 1, 1)
+      .setFormulaR1C1(SALES_RECEIVABLE_FORMULA_R1C1);
   }
 
   const futureStartRow = lastDataRow + 1;
@@ -493,8 +494,10 @@ function organizeSalesSheet_(sheet) {
   if (futureRowCount > 0) {
     sheet.getRange(futureStartRow, 7, futureRowCount, 2).clearContent();
     sheet.getRange(futureStartRow, 9, futureRowCount, 1)
-      .setFormulaR1C1('=IF(OR(RC[-2]="";RC[-1]="");"";RC[-1]-RC[-2])');
-    sheet.getRange(futureStartRow, 13, futureRowCount, 3).clearContent();
+      .setFormulaR1C1(SALES_STAY_FORMULA_R1C1);
+    sheet.getRange(futureStartRow, 13, futureRowCount, 2).clearContent();
+    sheet.getRange(futureStartRow, 15, futureRowCount, 1)
+      .setFormulaR1C1(SALES_RECEIVABLE_FORMULA_R1C1);
     sheet.getRange(futureStartRow, 16, futureRowCount, 1).setValue("Selecione");
     sheet.getRange(futureStartRow, 17, futureRowCount, 1).clearContent();
     sheet.getRange(futureStartRow, 18, futureRowCount, 1).setValue("Selecione");
@@ -509,6 +512,22 @@ function organizeSalesSheet_(sheet) {
   }
 
   return { dataRows, firstSiteRow };
+}
+
+function writeSalesImportRow_(sheet, rowNumber, values) {
+  const normalizedValues = values.slice(0, 20);
+  while (normalizedValues.length < 20) normalizedValues.push("");
+
+  // I (Diarias) e O (A Receber) sao colunas calculadas. Escrever apenas os
+  // blocos editaveis impede que valores da origem substituam suas formulas.
+  sheet.getRange(rowNumber, 1, 1, 8).setValues([normalizedValues.slice(0, 8)]);
+  sheet.getRange(rowNumber, 10, 1, 5).setValues([normalizedValues.slice(9, 14)]);
+  sheet.getRange(rowNumber, 16, 1, 5).setValues([normalizedValues.slice(15, 20)]);
+
+  const stayCell = sheet.getRange(rowNumber, 9);
+  if (!stayCell.getFormula()) stayCell.setFormulaR1C1(SALES_STAY_FORMULA_R1C1);
+  const receivableCell = sheet.getRange(rowNumber, 15);
+  if (!receivableCell.getFormula()) receivableCell.setFormulaR1C1(SALES_RECEIVABLE_FORMULA_R1C1);
 }
 
 function isSalesDataRow_(row) {

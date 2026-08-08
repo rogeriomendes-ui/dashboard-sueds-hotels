@@ -1925,6 +1925,84 @@ function buildAdvancePurchase(records) {
   };
 }
 
+function advancePurchaseChannelLabel(record, source = "direct", month = "") {
+  if (source === "direct") {
+    const label = normalizeOfficialSalesChannel(record.channel, record, record.monthKey || month);
+    return comparableKey(label) === comparableKey("SITE") ? "SITE SUEDS" : label;
+  }
+
+  const label = String(record.rawChannel || record.channel || "Não informado").trim();
+  return isBookingEngineChannel(label) ? "SITE SUEDS" : label;
+}
+
+function advancePurchasePeriodRecords(records, period = {}) {
+  const today = period.date || todayKey();
+  const requestedMonth = period.month || today.slice(0, 7);
+  const isYearToDate = requestedMonth === "ytd";
+  const ytdStart = `${today.slice(0, 4)}-01-01`;
+  const selectedDay = period.day || "";
+  const selectedHotel = period.hotel || "";
+  const confirmed = records.filter((record) => comparableKey(record.status) === comparableKey("Confirmada"));
+  const periodRecords = confirmed.filter((record) => {
+    const matchesPeriod = isYearToDate
+      ? record.dateKey >= ytdStart && record.dateKey <= today
+      : record.monthKey === requestedMonth;
+    const matchesDay = !selectedDay || record.dateKey === selectedDay;
+    const matchesHotel = !selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel);
+    return matchesPeriod && matchesDay && matchesHotel;
+  });
+  const hasHistoricalMayBase = periodRecords.some((record) => (
+    record.monthKey === "2026-05" && comparableKey(record.source).includes("historico")
+  ));
+  return hasHistoricalMayBase
+    ? periodRecords.filter((record) => record.monthKey !== "2026-05" || comparableKey(record.source).includes("historico"))
+    : periodRecords;
+}
+
+function buildAdvancePurchaseByChannel(directRecords, otherChannelRecords, period = {}) {
+  const requestedMonth = period.month || (period.date || todayKey()).slice(0, 7);
+  const directRows = advancePurchasePeriodRecords(directRecords, period)
+    .map((record) => ({
+      record,
+      label: advancePurchaseChannelLabel(record, "direct", requestedMonth)
+    }))
+    .filter((item) => item.label);
+  const directLabels = new Set(directRows.map((item) => comparableKey(item.label)));
+  const otherRows = advancePurchasePeriodRecords(otherChannelRecords, period)
+    .map((record) => ({
+      record,
+      label: advancePurchaseChannelLabel(record, "other", requestedMonth)
+    }))
+    .filter((item) => item.label)
+    .filter((item) => {
+      const key = comparableKey(item.label);
+      // SITE SUEDS and Central are imported into lancamento_vendas. Prefer that
+      // source whenever it is present so the same reservation is not counted twice.
+      return !directLabels.has(key)
+        || (key !== comparableKey("SITE SUEDS") && key !== comparableKey("CENTRAL DE RESERVAS"));
+    });
+  const combined = [...directRows, ...otherRows];
+  const grouped = groupBy(combined, (item) => item.label);
+  const allRecords = combined.map((item) => item.record);
+  const withoutGroups = combined
+    .filter((item) => comparableKey(item.label) !== comparableKey("GRUPOS"))
+    .map((item) => item.record);
+
+  return {
+    withGroups: buildAdvancePurchase(allRecords),
+    withoutGroups: buildAdvancePurchase(withoutGroups),
+    channels: [...grouped.entries()]
+      .map(([label, rows]) => ({
+        label,
+        withGroups: buildAdvancePurchase(rows.map((item) => item.record)),
+        withoutGroups: buildAdvancePurchase(
+          comparableKey(label) === comparableKey("GRUPOS") ? [] : rows.map((item) => item.record)
+        )
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))
+  };
+}
+
 function uniqueSummary(rows, getter) {
   const values = Array.from(new Set(
     rows
@@ -6541,6 +6619,11 @@ async function loadMetrics(period) {
     loadAsksuiteMarketRawRows()
   ]);
   const metrics = buildMetrics(dataset.records, dataset.goals, period);
+  metrics.advancePurchase = buildAdvancePurchaseByChannel(
+    dataset.records || [],
+    dataset.otherChannelRecords || [],
+    period
+  );
   metrics.otherChannels = buildOtherChannelsMetrics(dataset.otherChannelRecords || [], period);
   metrics.sellers = mergeRobotSeller(metrics.sellers, buildRobotSellerFromAsksuiteMarketRows(asksuiteMarketRows, period));
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
@@ -6828,6 +6911,7 @@ module.exports = {
     operationalWeekdayNumber,
     buildMetrics,
     buildOtherChannelsMetrics,
+    buildAdvancePurchaseByChannel,
     buildSellersPayload,
     sellerCommission,
     teamManagerCommission,
