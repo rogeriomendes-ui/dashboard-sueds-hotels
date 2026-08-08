@@ -147,10 +147,15 @@ module.exports = async function users(req, res) {
     }
     return json(res, 405, { error: "method_not_allowed" });
   } catch (error) {
-    const message = typeof error?.message === "string" && error.message
+    const rawMessage = typeof error?.message === "string" && error.message
       ? error.message
       : "Não foi possível salvar o usuário.";
-    console.error("[portal-users]", message);
-    return json(res, /Informe|Selecione|inválid|possui cadastro/i.test(message) ? 400 : 500, { ok: false, error: "user_access_failed", message });
+    const emailRateLimited = /email rate limit|rate limit.*email|too many.*email/i.test(rawMessage);
+    const message = emailRateLimited
+      ? "O limite temporário de envio de convites foi atingido. Aguarde alguns minutos e tente novamente."
+      : rawMessage;
+    console.error("[portal-users]", rawMessage);
+    const status = emailRateLimited ? 429 : /Informe|Selecione|inválid|possui cadastro/i.test(message) ? 400 : 500;
+    return json(res, status, { ok: false, error: emailRateLimited ? "email_rate_limited" : "user_access_failed", message });
   }
 };
