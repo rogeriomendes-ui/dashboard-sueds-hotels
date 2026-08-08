@@ -454,7 +454,8 @@ function renderOtherChannels(data) {
 
 function render(data) {
   currentDashboardData = data;
-  byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
+  const lastUpdate = byId("lastUpdate");
+  if (lastUpdate) lastUpdate.textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
   renderAnalytics(data);
 
   const hasDayFilter = Boolean(data.filters?.selectedDay);

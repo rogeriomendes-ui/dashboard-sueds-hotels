@@ -20,7 +20,38 @@
   const frame = document.getElementById("portalModuleFrame");
   const loading = document.getElementById("portalModuleLoading");
   const header = document.querySelector(".manager-topbar");
+  const logoutButton = document.getElementById("portalLogoutButton");
   let activeModule = "";
+
+  const roleLabels = {
+    admin_geral: "Administrador geral",
+    gestor_unidade: "Gestor da unidade",
+    inspetor: "Inspetor",
+    responsavel_correcao: "Responsável pela correção"
+  };
+
+  function showUser(profile) {
+    const name = String(profile?.name || profile?.email || "Usuário").trim();
+    const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "US";
+    const role = (profile?.roles || []).map((slug) => roleLabels[slug]).find(Boolean) || "Usuário autorizado";
+    const nameElement = document.getElementById("portalUserName");
+    const initialsElement = document.getElementById("portalUserInitials");
+    const roleElement = document.getElementById("portalUserRole");
+    if (nameElement) nameElement.textContent = name;
+    if (initialsElement) initialsElement.textContent = initials;
+    if (roleElement) roleElement.textContent = role;
+  }
+
+  async function logout() {
+    if (!logoutButton || logoutButton.disabled) return;
+    logoutButton.disabled = true;
+    logoutButton.setAttribute("aria-label", "Saindo do portal");
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store" });
+    } finally {
+      window.location.replace("/login");
+    }
+  }
 
   function hasPermission(route) {
     if (!route) return false;
@@ -125,8 +156,10 @@
 
   if (header && "ResizeObserver" in window) new ResizeObserver(updateHeaderHeight).observe(header);
   window.addEventListener("resize", updateHeaderHeight);
+  logoutButton?.addEventListener("click", logout);
 
   Promise.resolve(window.suedsManagerAuthReady).then(() => {
+    showUser(window.suedsPortalProfile);
     const isAdmin = window.suedsPortalProfile?.roles?.includes("admin_geral");
     const hotelCodes = new Set((window.suedsPortalProfile?.hotels || []).map((hotel) => hotel.code));
     document.querySelectorAll("[data-hotel-code]").forEach((element) => {

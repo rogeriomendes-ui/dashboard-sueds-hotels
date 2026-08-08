@@ -5,16 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Gestores</title>
     <script src="manager-auth.js?v=20260807-portal"></script>
-    <link rel="stylesheet" href="styles.css?v=20260808-mobile-header">
+    <link rel="stylesheet" href="styles.css?v=20260808-user-header">
   </head>
   <body class="portal-shell-page">
     <main class="dashboard-shell">
       <header class="topbar manager-topbar">
-        <a class="manager-brand" href="/gestores" data-portal-home aria-label="Abrir Painel de Gestores">
-          <p class="eyebrow">Gestores</p>
-          <img src="sueds-hotels-gold.png" alt="SUEDS Hotels">
-          <h1 class="sr-only">SUEDS Hotels - Gestores</h1>
-        </a>
+        <div class="manager-identity">
+          <a class="manager-brand" href="/gestores" data-portal-home aria-label="Abrir Painel de Gestores">
+            <p class="eyebrow">Gestores</p>
+            <img src="sueds-hotels-gold.png" alt="SUEDS Hotels">
+            <h1 class="sr-only">SUEDS Hotels - Gestores</h1>
+          </a>
+          <div class="portal-user-summary" aria-label="Usuário conectado">
+            <span id="portalUserInitials" class="portal-user-avatar" aria-hidden="true">US</span>
+            <span class="portal-user-copy">
+              <strong id="portalUserName">Usuário</strong>
+              <small id="portalUserRole">Acesso autorizado</small>
+            </span>
+            <button id="portalLogoutButton" class="portal-logout-button" type="button" aria-label="Sair do portal" title="Sair do portal">
+              <span class="portal-logout-label">Sair</span>
+              <span aria-hidden="true">↪</span>
+            </button>
+          </div>
+        </div>
         <div class="manager-topbar-main">
           <div class="topbar-controls manager-filter-row" data-home-only>
             <label class="month-control" for="monthSelect">
@@ -33,10 +46,6 @@
               <span>Canal</span>
               <select id="channelSelect"></select>
             </label>
-            <div class="status-strip">
-              <span class="live-dot"></span>
-              <span id="lastUpdate">Atualizando...</span>
-            </div>
           </div>
           <nav class="manager-shortcuts" aria-label="Atalhos dos gestores">
             <a class="nav-link-button manager-shortcut" data-environment="painel_gestores" data-portal-home href="/gestores">Vendas</a>
@@ -242,6 +251,6 @@
     </div>
 
     <script src="gestores.js?v=20260806-other-channels"></script>
-    <script src="portal-shell.js?v=20260808-mobile-header"></script>
+    <script src="portal-shell.js?v=20260808-user-header"></script>
   </body>
 </html>

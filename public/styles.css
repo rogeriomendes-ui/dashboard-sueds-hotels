@@ -79,6 +79,15 @@ body {
   text-decoration: none;
 }
 
+.manager-identity {
+  display: flex;
+  flex: 0 0 210px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .portal-home {
   padding: 12px;
 }
@@ -153,6 +162,87 @@ body {
 .manager-filter-row {
   grid-row: 2;
   min-width: 0;
+}
+
+.manager-identity .manager-brand {
+  flex: 0 0 auto;
+}
+
+.portal-user-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  color: #f5f7fb;
+  background: rgba(9, 25, 36, 0.38);
+}
+
+.portal-user-avatar {
+  display: grid;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  color: #183446;
+  background: #d7b16b;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.portal-user-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.portal-user-copy strong,
+.portal-user-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-user-copy strong {
+  font-size: 10px;
+}
+
+.portal-user-copy small {
+  margin-top: 2px;
+  color: #b8c8d2;
+  font-size: 8px;
+}
+
+.portal-logout-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  color: #f5f7fb;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-logout-button:hover {
+  border-color: var(--cyan);
+  background: rgba(54, 208, 194, 0.16);
+}
+
+.portal-logout-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .manager-shortcuts {
@@ -1358,6 +1448,18 @@ h2 {
     flex-basis: auto;
   }
 
+  .manager-identity {
+    width: 100%;
+    flex-basis: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .portal-user-summary {
+    width: min(230px, 48vw);
+  }
+
   .manager-shortcuts {
     display: flex;
     width: 100%;
@@ -1462,6 +1564,43 @@ h2 {
 
   .portal-shell-page .manager-brand img {
     width: 104px;
+  }
+
+  .portal-shell-page .manager-identity {
+    min-height: 34px;
+    gap: 6px;
+  }
+
+  .portal-shell-page .portal-user-summary {
+    width: min(164px, 55vw);
+    min-height: 32px;
+    gap: 5px;
+    padding: 3px 4px;
+  }
+
+  .portal-shell-page .portal-user-avatar {
+    flex-basis: 24px;
+    width: 24px;
+    height: 24px;
+    font-size: 8px;
+  }
+
+  .portal-shell-page .portal-user-copy strong {
+    font-size: 8px;
+  }
+
+  .portal-shell-page .portal-user-copy small {
+    font-size: 7px;
+  }
+
+  .portal-shell-page .portal-logout-button {
+    min-width: 25px;
+    min-height: 24px;
+    padding: 0 5px;
+  }
+
+  .portal-shell-page .portal-logout-label {
+    display: none;
   }
 
   .portal-shell-page .manager-topbar-main {
