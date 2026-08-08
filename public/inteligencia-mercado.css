@@ -32,7 +32,7 @@ body {
 
 .market-topbar {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto auto;
+  grid-template-columns: minmax(280px, 1fr) auto;
   gap: 14px;
   align-items: center;
   margin-bottom: 14px;
@@ -76,14 +76,12 @@ h3 {
   font-size: 14px;
 }
 
-.market-nav,
 .status-pill {
   display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 
-.market-nav a,
 .status-pill {
   min-height: 42px;
   padding: 0 14px;
@@ -99,6 +97,7 @@ h3 {
 }
 
 .status-pill {
+  justify-self: end;
   color: rgba(255, 255, 255, 0.86);
   font-weight: 500;
   text-transform: none;
@@ -1359,8 +1358,8 @@ tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-  .market-nav {
-    justify-content: flex-start;
+  .status-pill {
+    justify-self: start;
   }
 
   .opportunities-panel .opportunity-grid {
