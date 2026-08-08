@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" data-required-environment="painel_gestores">
+<html lang="pt-BR" data-required-environment="portal">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,16 +7,16 @@
     <script src="manager-auth.js?v=20260807-portal"></script>
     <link rel="stylesheet" href="styles.css?v=20260806-other-channels">
   </head>
-  <body>
+  <body class="portal-shell-page">
     <main class="dashboard-shell">
       <header class="topbar manager-topbar">
-        <div class="manager-brand">
+        <a class="manager-brand" href="/gestores" data-portal-home aria-label="Abrir Painel de Gestores">
           <p class="eyebrow">Gestores</p>
           <img src="sueds-hotels-gold.png" alt="SUEDS Hotels">
           <h1 class="sr-only">SUEDS Hotels - Gestores</h1>
-        </div>
+        </a>
         <div class="manager-topbar-main">
-          <div class="topbar-controls manager-filter-row">
+          <div class="topbar-controls manager-filter-row" data-home-only>
             <label class="month-control" for="monthSelect">
               <span>Mês</span>
               <select id="monthSelect"></select>
@@ -39,18 +39,20 @@
             </div>
           </div>
           <nav class="manager-shortcuts" aria-label="Atalhos dos gestores">
-            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="tv_vendedores" href="dashboard-tv.html" target="_blank" rel="noopener">TV painel<br>Vendedor</a>
+            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="tv_vendedores" data-portal-module="tv_vendedores" href="/gestores?modulo=tv_vendedores">TV painel<br>Vendedor</a>
             <button id="openTvMessageModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="mensagens_tv" type="button">MSG na TV<br>Vendedor</button>
-            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="ranking_vendedores" href="dashboard-vendedores.html" target="_blank" rel="noopener">Ranking<br>Vendedor</a>
-            <button id="openHotelOpinionModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="opinarios_hotel" type="button">Opinário<br>Por hotel</button>
-            <a class="nav-link-button manager-shortcut" data-environment="opinarios_rede" href="dashboard-operacional-tv.html" target="_blank" rel="noopener">Opinário<br>Todos hotéis</a>
-            <a class="nav-link-button manager-shortcut" data-environment="redes_sociais" href="dashboard-redes-sociais.html" target="_blank" rel="noopener">Redes<br>Sociais</a>
-            <a class="nav-link-button manager-shortcut" data-environment="marketing_competitividade" href="dashboard-inteligencia-mercado.html" target="_blank" rel="noopener">Marketing e<br>Competitividade</a>
-            <a class="nav-link-button manager-shortcut" data-environment="inspecoes" href="/inspecoes">Sueds<br>Inspeções</a>
-            <a class="nav-link-button manager-shortcut" data-admin-only href="/usuarios">Usuários e<br>Acessos</a>
+            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="ranking_vendedores" data-portal-module="ranking_vendedores" href="/gestores?modulo=ranking_vendedores">Ranking<br>Vendedor</a>
+            <button id="openHotelOpinionModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="opinarios_hotel" data-portal-group="opinarios_hotel" type="button">Opinário<br>Por hotel</button>
+            <a class="nav-link-button manager-shortcut" data-environment="opinarios_rede" data-portal-module="opinarios_rede" href="/gestores?modulo=opinarios_rede">Opinário<br>Todos hotéis</a>
+            <a class="nav-link-button manager-shortcut" data-environment="redes_sociais" data-portal-module="redes_sociais" href="/gestores?modulo=redes_sociais">Redes<br>Sociais</a>
+            <a class="nav-link-button manager-shortcut" data-environment="marketing_competitividade" data-portal-module="marketing_competitividade" href="/gestores?modulo=marketing_competitividade">Marketing e<br>Competitividade</a>
+            <a class="nav-link-button manager-shortcut" data-environment="inspecoes" data-portal-module="inspecoes" href="/gestores?modulo=inspecoes">Sueds<br>Inspeções</a>
+            <a class="nav-link-button manager-shortcut" data-admin-only data-portal-module="usuarios" href="/gestores?modulo=usuarios">Usuários e<br>Acessos</a>
           </nav>
         </div>
       </header>
+
+      <div id="portalHome" class="portal-home">
 
       <section class="hero-metrics">
         <article class="metric-card primary">
@@ -170,6 +172,12 @@
           <div id="otherChannelsList"></div>
         </div>
       </section>
+      </div>
+
+      <section id="portalModule" class="portal-module" hidden aria-label="Módulo do Portal SUEDS">
+        <div id="portalModuleLoading" class="portal-module-loading" role="status">Carregando módulo…</div>
+        <iframe id="portalModuleFrame" class="portal-module-frame" title="Módulo do Portal SUEDS"></iframe>
+      </section>
     </main>
 
     <div id="tvMessageModal" class="modal-backdrop" hidden>
@@ -204,27 +212,27 @@
           <button id="closeHotelOpinionModal" class="modal-close-button" type="button" aria-label="Fechar">&times;</button>
         </div>
         <div class="hotel-picker-grid">
-          <a class="hotel-picker-option active" href="/operacional/plaza" target="_blank" rel="noopener">
+          <a class="hotel-picker-option active" data-portal-module="opinarios_plaza" data-hotel-code="PLAZA" href="/gestores?modulo=opinarios_plaza">
             <strong>SUEDS Plaza</strong>
             <span>Abrir painel</span>
           </a>
-          <a class="hotel-picker-option active" href="/operacional/cabralia" target="_blank" rel="noopener">
+          <a class="hotel-picker-option active" data-portal-module="opinarios_cabralia" data-hotel-code="CABRALIA" href="/gestores?modulo=opinarios_cabralia">
             <strong>SUEDS Cabrália</strong>
             <span>Abrir painel</span>
           </a>
-          <a class="hotel-picker-option active" href="/operacional/segundo-sol" target="_blank" rel="noopener">
+          <a class="hotel-picker-option active" data-portal-module="opinarios_segundo_sol" data-hotel-code="SEGUNDO_SOL" href="/gestores?modulo=opinarios_segundo_sol">
             <strong>SUEDS Segundo Sol</strong>
             <span>Abrir painel</span>
           </a>
-          <a class="hotel-picker-option active" href="/operacional/premium" target="_blank" rel="noopener">
+          <a class="hotel-picker-option active" data-portal-module="opinarios_premium" data-hotel-code="PREMIUM" href="/gestores?modulo=opinarios_premium">
             <strong>SUEDS Premium</strong>
             <span>Abrir painel</span>
           </a>
-          <a class="hotel-picker-option active" href="/operacional/trancoso" target="_blank" rel="noopener">
+          <a class="hotel-picker-option active" data-portal-module="opinarios_trancoso" data-hotel-code="TRANCOSO" href="/gestores?modulo=opinarios_trancoso">
             <strong>SUEDS Trancoso</strong>
             <span>Abrir painel</span>
           </a>
-          <a class="hotel-picker-option active" href="/operacional/casas-arraial" target="_blank" rel="noopener">
+          <a class="hotel-picker-option active" data-portal-module="opinarios_casas" data-hotel-code="CASAS" href="/gestores?modulo=opinarios_casas">
             <strong>Casas SUEDS Arraial</strong>
             <span>Abrir painel</span>
           </a>
@@ -233,5 +241,6 @@
     </div>
 
     <script src="gestores.js?v=20260806-other-channels"></script>
+    <script src="portal-shell.js?v=20260808-unified"></script>
   </body>
 </html>

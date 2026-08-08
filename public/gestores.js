@@ -647,7 +647,10 @@ setupMonthSelect();
 setupGlobalFilters();
 setupTvMessageModal();
 setupHotelOpinionModal();
-load().catch((error) => {
-  byId("sellerRanking").innerHTML = `<div class="panel-error">${error.message}</div>`;
+Promise.resolve(window.suedsManagerAuthReady).then(() => {
+  if (!window.suedsPortalAccess?.painel_gestores) return;
+  load().catch((error) => {
+    byId("sellerRanking").innerHTML = `<div class="panel-error">${error.message}</div>`;
+  });
+  setInterval(load, 60000);
 });
-setInterval(load, 60000);

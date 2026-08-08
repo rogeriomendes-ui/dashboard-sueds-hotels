@@ -56,6 +56,78 @@ body {
   background: #22394b;
 }
 
+.portal-shell-page .dashboard-shell {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.portal-shell-page [hidden] {
+  display: none !important;
+}
+
+.portal-shell-page .manager-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  margin-bottom: 0;
+  box-shadow: 0 5px 18px rgba(5, 18, 28, 0.24);
+}
+
+.portal-shell-page .manager-brand {
+  color: inherit;
+  text-decoration: none;
+}
+
+.portal-home {
+  padding: 12px;
+}
+
+.portal-module {
+  position: relative;
+  height: calc(100dvh - var(--portal-header-height, 120px));
+  min-height: 420px;
+  overflow: hidden;
+  background: #eef2f3;
+}
+
+.portal-module[hidden],
+.portal-home[hidden] {
+  display: none;
+}
+
+.portal-module-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.portal-module-frame[hidden] {
+  display: none;
+}
+
+.portal-module-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #244154;
+  background: #eef2f3;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.portal-module-loading[hidden] {
+  display: none;
+}
+
+.portal-module-open {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .manager-brand {
   display: flex;
   flex: 0 0 210px;
@@ -79,10 +151,12 @@ body {
 }
 
 .manager-filter-row {
+  grid-row: 2;
   min-width: 0;
 }
 
 .manager-shortcuts {
+  grid-row: 1;
   display: grid;
   grid-template-columns: repeat(9, minmax(82px, 1fr));
   gap: 6px;
@@ -103,6 +177,14 @@ body {
   border-color: var(--cyan);
   color: #174f78;
   background: #f2fbfa;
+}
+
+.nav-link-button.manager-shortcut.active,
+.nav-link-button.manager-shortcut[aria-current="page"] {
+  border-color: var(--cyan);
+  color: #fff;
+  background: #16786f;
+  box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.22);
 }
 
 .nav-link-button.manager-shortcut.public-shortcut {
@@ -1277,7 +1359,18 @@ h2 {
   }
 
   .manager-shortcuts {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: flex;
+    width: 100%;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .nav-link-button.manager-shortcut {
+    flex: 0 0 145px;
+    scroll-snap-align: start;
   }
 
   .hero-metrics,
@@ -1339,11 +1432,6 @@ h2 {
     grid-template-columns: 1fr;
     gap: 8px;
     margin-left: 0;
-  }
-
-  .manager-shortcuts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
   }
 
   .manager-shortcut {

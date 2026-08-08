@@ -22,7 +22,10 @@
     }
     const payload = await response.json();
     const requiredEnvironment = document.documentElement.dataset.requiredEnvironment || "painel_gestores";
-    if (!response.ok || !payload.access?.[requiredEnvironment]) {
+    const hasPortalAccess = requiredEnvironment === "portal"
+      ? Object.entries(payload.access || {}).some(([key, value]) => key !== "landingPage" && key !== "gestores" && value === true)
+      : payload.access?.[requiredEnvironment];
+    if (!response.ok || !hasPortalAccess) {
       window.location.replace(payload.access?.landingPage || "/login?acesso=nao-configurado");
       throw new Error("Perfil sem acesso a este ambiente.");
     }
