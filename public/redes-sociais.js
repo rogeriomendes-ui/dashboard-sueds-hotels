@@ -59,7 +59,6 @@ const state = {
     theme: "",
     profile: ""
   },
-  chartRange: 15,
   postSort: "engagement",
   compareProfiles: ["Sueds Hotels", "La Torre Resort", "Porto Seguro Praia", "Brisa da Praia", "Melhores Destinos"]
 };
@@ -248,42 +247,6 @@ function renderKpis(posts) {
       <strong>${escapeHtml(value)}</strong>
       <small>${escapeHtml(note)}</small>
     </article>
-  `).join("");
-}
-
-function renderChart() {
-  const days = state.chartRange;
-  const posts = filteredPosts(days);
-  const maxPosts = Math.max(1, ...Array.from({ length: days }, (_, index) => {
-    const date = dateKey(days - index - 1);
-    return posts.filter((post) => post.date.slice(0, 10) === date).length;
-  }));
-
-  $("dailyChart").innerHTML = Array.from({ length: days }, (_, index) => {
-    const date = dateKey(days - index - 1);
-    const dayPosts = posts.filter((post) => post.date.slice(0, 10) === date);
-    const reels = dayPosts.filter((post) => post.type === "Reel").length;
-    const engagement = average(dayPosts, "engagement");
-    return `
-      <div class="chart-day" title="${date}">
-        <i class="chart-bar engagement" style="height:${Math.max(4, engagement * 10)}px"></i>
-        <i class="chart-bar reels" style="height:${Math.max(4, (reels / maxPosts) * 120)}px"></i>
-        <i class="chart-bar posts" style="height:${Math.max(4, (dayPosts.length / maxPosts) * 150)}px"></i>
-        <span>${dateLabel(`${date}T12:00:00`)}</span>
-      </div>
-    `;
-  }).join("");
-}
-
-function dateKey(offsetDays) {
-  const date = new Date();
-  date.setDate(date.getDate() - offsetDays);
-  return date.toISOString().slice(0, 10);
-}
-
-function renderChartRange() {
-  $("chartRange").innerHTML = [7, 15, 30, 90].map((days) => `
-    <button class="${state.chartRange === days ? "active" : ""}" type="button" data-days="${days}">${days} dias</button>
   `).join("");
 }
 
@@ -546,8 +509,6 @@ function renderAll() {
   renderFilters();
   renderTopStatus(posts);
   renderKpis(posts);
-  renderChartRange();
-  renderChart();
   renderInsights(posts);
   renderTopPosts(posts);
   renderReels(posts);
@@ -597,12 +558,6 @@ function bindEvents() {
       renderAll();
     });
   });
-  $("chartRange").addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-days]");
-    if (!button) return;
-    state.chartRange = Number(button.dataset.days);
-    renderAll();
-  });
   $("postSort").addEventListener("change", (event) => {
     state.postSort = event.target.value;
     renderAll();
@@ -610,9 +565,9 @@ function bindEvents() {
   $("compareSelector").addEventListener("change", (event) => {
     const value = event.target.value;
     if (event.target.checked) {
-      if (state.compareProfiles.length >= 5) {
+      if (state.compareProfiles.length >= 10) {
         event.target.checked = false;
-        alert("Selecione no maximo 5 perfis.");
+        alert("Selecione no maximo 10 perfis.");
         return;
       }
       state.compareProfiles.push(value);

@@ -217,100 +217,6 @@ input {
   margin-bottom: 16px;
 }
 
-.segmented-control {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.segmented-control button {
-  min-height: 30px;
-  border: 1px solid rgba(44, 62, 80, 0.22);
-  border-radius: 6px;
-  color: var(--card-text);
-  background: var(--panel-soft);
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.segmented-control button.active {
-  color: #ffffff;
-  background: #2c3e50;
-}
-
-.daily-chart {
-  display: grid;
-  grid-template-columns: repeat(15, minmax(16px, 1fr));
-  align-items: end;
-  gap: 8px;
-  min-height: 220px;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--panel-soft);
-}
-
-.chart-day {
-  display: grid;
-  align-items: end;
-  gap: 3px;
-  min-height: 180px;
-}
-
-.chart-bar {
-  min-height: 4px;
-  border-radius: 999px 999px 0 0;
-}
-
-.chart-bar.posts {
-  background: var(--blue);
-}
-
-.chart-bar.reels {
-  background: var(--cyan);
-}
-
-.chart-bar.engagement {
-  background: var(--yellow);
-}
-
-.chart-day span {
-  color: var(--card-muted);
-  font-size: 10px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 12px;
-  color: var(--card-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.chart-legend i {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 5px;
-  border-radius: 2px;
-}
-
-.legend-posts {
-  background: var(--blue);
-}
-
-.legend-reels {
-  background: var(--cyan);
-}
-
-.legend-engagement {
-  background: var(--yellow);
-}
-
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--card-line);
@@ -598,11 +504,6 @@ th:nth-child(2) {
     font-size: 40px;
   }
 
-  .daily-chart {
-    grid-template-columns: repeat(7, minmax(18px, 1fr));
-    overflow-x: auto;
-  }
-
   .trend-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -620,7 +521,6 @@ th:nth-child(2) {
 
   .filters-panel,
   .action-button,
-  .segmented-control,
   .profile-actions {
     display: none !important;
   }
