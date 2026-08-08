@@ -508,6 +508,9 @@ function isMissingSheetError(error) {
 
 function tvMessageErrorMessage(error) {
   const message = String(error?.message || error || "");
+  if (/protected cell|protected range|protected object/i.test(message)) {
+    return "A aba de mensagens possui uma protecao que impede a gravacao. Libere a edicao das novas linhas para a service account e tente novamente.";
+  }
   if (/403|PERMISSION_DENIED|insufficient|The caller does not have permission/i.test(message)) {
     return "Sem permissao para gravar na planilha. Compartilhe a planilha com a service account como Editor e tente novamente.";
   }
@@ -524,14 +527,17 @@ async function ensureTvMessagesSheet() {
   const workbook = await sheetsRequest("?fields=sheets.properties.title", {}, "https://www.googleapis.com/auth/spreadsheets.readonly");
   const exists = (workbook.sheets || []).some((sheet) => sheet.properties?.title === TV_MESSAGES_SHEET);
 
-  if (!exists) {
-    await sheetsRequest(":batchUpdate", {
-      method: "POST",
-      body: JSON.stringify({
-        requests: [{ addSheet: { properties: { title: TV_MESSAGES_SHEET } } }]
-      })
-    });
+  if (exists) {
+    tvMessagesSheetReady = true;
+    return;
   }
+
+  await sheetsRequest(":batchUpdate", {
+    method: "POST",
+    body: JSON.stringify({
+      requests: [{ addSheet: { properties: { title: TV_MESSAGES_SHEET } } }]
+    })
+  });
 
   await sheetsRequest(`/values/${sheetRange(`${TV_MESSAGES_SHEET}!A1:D1`)}?valueInputOption=RAW`, {
     method: "PUT",
