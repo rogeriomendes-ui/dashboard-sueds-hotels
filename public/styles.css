@@ -624,8 +624,13 @@ h2 {
   align-items: stretch;
 }
 
-.manager-grid {
-  grid-template-columns: 1.15fr 0.95fr 0.95fr;
+.manager-summary-grid {
+  grid-template-columns: 1.15fr 0.95fr;
+}
+
+.manager-hotel-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
 }
 
 .analytics-panel {

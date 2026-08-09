@@ -233,6 +233,14 @@ function displayLabel(value) {
     .replace(/\bIcm\b/g, "ICM");
 }
 
+function comparableLabel(value) {
+  return String(value || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+}
+
 function bars(items, options = {}) {
   const formatLabel = options.formatLabel || ((value) => value);
   return items
@@ -499,6 +507,58 @@ function renderOtherChannels(data) {
     : '<div class="other-channels-empty">Nenhuma venda no período selecionado.</div>';
 }
 
+function hotelSalesBreakdowns(data) {
+  const directHotels = data.hotels || [];
+  const otherChannels = data.otherChannels || {};
+  const includedOtherChannels = (otherChannels.channels || []).filter((channel) => !channel.excludedFromTotal);
+  const hotelLabels = [];
+  const seenHotels = new Set();
+  [...directHotels.map((hotel) => hotel.label), ...(otherChannels.hotels || [])].forEach((label) => {
+    const key = comparableLabel(label);
+    if (!key || seenHotels.has(key)) return;
+    seenHotels.add(key);
+    hotelLabels.push(label);
+  });
+  const directByHotel = new Map(directHotels.map((hotel) => [comparableLabel(hotel.label), hotel]));
+
+  const rows = hotelLabels.map((label) => {
+    const key = comparableLabel(label);
+    const direct = directByHotel.get(key) || {};
+    const other = includedOtherChannels.reduce((total, channel) => {
+      const hotel = (channel.hotels || []).find((item) => comparableLabel(item.label) === key) || {};
+      total.reservations += Number(hotel.reservations || 0);
+      total.value += Number(hotel.value || 0);
+      return total;
+    }, { reservations: 0, value: 0 });
+    const monthlyGoal = Number(direct.monthlyGoal || 0);
+    const directReservations = Number(direct.reservations || 0);
+    const directValue = Number(direct.value || 0);
+    const goalPct = (value) => monthlyGoal ? (value / monthlyGoal) * 100 : null;
+
+    return {
+      other: {
+        label,
+        reservations: other.reservations,
+        value: other.value,
+        monthlyGoal,
+        monthlyGoalPct: goalPct(other.value)
+      },
+      combined: {
+        label,
+        reservations: directReservations + other.reservations,
+        value: directValue + other.value,
+        monthlyGoal,
+        monthlyGoalPct: goalPct(directValue + other.value)
+      }
+    };
+  });
+
+  return {
+    other: rows.map((row) => row.other),
+    combined: rows.map((row) => row.combined)
+  };
+}
+
 function render(data) {
   currentDashboardData = data;
   const lastUpdate = byId("lastUpdate");
@@ -507,6 +567,7 @@ function render(data) {
 
   const hasDayFilter = Boolean(data.filters?.selectedDay);
   const hasGlobalFilter = hasDayFilter || Boolean(data.filters?.selectedHotel) || Boolean(data.filters?.selectedChannel);
+  const hasHotelOrDayFilter = hasDayFilter || Boolean(data.filters?.selectedHotel);
   const salesScopeLabel = data.filters?.selectedChannel
     ? displayLabel(data.filters.selectedChannel)
     : "Equipe + Site";
@@ -514,6 +575,9 @@ function render(data) {
   byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Venda Direta)`;
   byId("salesMonthLabel").textContent = salesPeriodLabel;
   byId("hotelSalesLabel").textContent = salesPeriodLabel;
+  const hotelChannelPeriodLabel = hasHotelOrDayFilter ? "Vendas no recorte" : "Vendas no mês";
+  byId("otherHotelSalesLabel").textContent = `${hotelChannelPeriodLabel} (Operadoras + OTAs) (Outros Canais)`;
+  byId("combinedHotelSalesLabel").textContent = `${hotelChannelPeriodLabel} (Venda Direta + Outros Canais)`;
   byId("salesToday").textContent = money.format(data.summary.salesToday);
   byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
   byId("dailyGoal").textContent = `Meta do dia ${money.format(data.summary.dailyGoal || 0)}`;
@@ -579,6 +643,9 @@ function render(data) {
 
   byId("channelBars").innerHTML = performanceTable(data.channels, "Canal", { formatLabel: displayLabel });
   byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel });
+  const hotelBreakdowns = hotelSalesBreakdowns(data);
+  byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel });
+  byId("combinedHotelTable").innerHTML = performanceTable(hotelBreakdowns.combined, "Hotel", { formatLabel: displayLabel });
 
   byId("dailySales").innerHTML = data.dailySales
     .map((day) => `

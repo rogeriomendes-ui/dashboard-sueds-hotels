@@ -48,6 +48,7 @@ const PROFILE_SEED = [
   ["Orinter", "@orintertour", "Operadoras", "Sao Paulo", "SP", "Ativo", 148000, 1.5]
 ];
 const SUEDS_ACCOUNT_HANDLES = ["@suedshotels", "@suedstrancoso", "@beachclubsued"];
+const PROFILE_STORAGE_KEY = "sueds_social_profiles_v1";
 
 const state = {
   data: null,
@@ -66,41 +67,73 @@ const state = {
 
 const dataProvider = {
   async load() {
+    const profiles = loadPersistedProfiles();
     return {
       lastUpdated: new Date().toISOString(),
-      profiles: PROFILE_SEED.map((row, index) => ({
-        id: `profile-${index + 1}`,
-        name: row[0],
-        instagram: row[1],
-        category: row[2],
-        city: row[3],
-        state: row[4],
-        status: row[5],
-        followers: row[6],
-        growth: row[7],
-        lastUpdated: new Date(Date.now() - index * 3600000).toISOString()
-      })),
-      posts: generatePosts()
+      profiles,
+      posts: generatePosts(profiles)
     };
   }
 };
 
-function generatePosts() {
+function seedProfiles() {
+  return PROFILE_SEED.map((row, index) => ({
+    id: `profile-${index + 1}`,
+    name: row[0],
+    instagram: row[1],
+    category: row[2],
+    city: row[3],
+    state: row[4],
+    status: row[5],
+    followers: row[6],
+    growth: row[7],
+    lastUpdated: new Date(Date.now() - index * 3600000).toISOString()
+  }));
+}
+
+function persistProfiles(profiles) {
+  try {
+    window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
+    return true;
+  } catch (error) {
+    console.error("Nao foi possivel salvar os perfis monitorados.", error);
+    return false;
+  }
+}
+
+function loadPersistedProfiles() {
+  try {
+    const stored = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (stored !== null) {
+      const profiles = JSON.parse(stored);
+      if (Array.isArray(profiles)) return profiles;
+    }
+  } catch (error) {
+    console.error("Nao foi possivel carregar os perfis monitorados.", error);
+  }
+
+  const profiles = seedProfiles();
+  persistProfiles(profiles);
+  return profiles;
+}
+
+function generatePosts(profileRecords) {
   const posts = [];
-  const profiles = PROFILE_SEED.map((row) => row[0]);
+  const profiles = profileRecords.map((profile) => profile.name);
   const audios = ["Som original", "Praia viral 26", "Forro sunset", "Trend viagem", "Bossa leve", "Luau remix"];
   const ctas = ["Reserve agora", "Veja as tarifas", "Marque quem iria", "Conheca o hotel", "Salve para as ferias"];
   const today = new Date();
 
   for (let i = 0; i < 150; i += 1) {
     const profile = profiles[i % profiles.length];
-    const profileSeed = PROFILE_SEED.find((row) => row[0] === profile);
+    const profileSeed = profileRecords.find((item) => item.name === profile);
+    if (!profileSeed) continue;
     const type = i % 5 === 0 ? "Carrossel" : i % 2 === 0 ? "Reel" : "Foto";
     const theme = THEMES[(i * 3 + 2) % THEMES.length];
     const date = new Date(today);
     date.setDate(today.getDate() - (i % 90));
     date.setHours(8 + (i % 14), (i * 7) % 60, 0, 0);
-    const views = Math.round((profileSeed[6] / 18) * (0.45 + (i % 9) / 10));
+    const views = Math.round(((Number(profileSeed.followers) || 0) / 18) * (0.45 + (i % 9) / 10));
     const likes = Math.round(views * (0.035 + (i % 7) / 100));
     const comments = Math.round(likes * (0.05 + (i % 4) / 100));
     const shares = Math.round(likes * (0.03 + (i % 5) / 100));
@@ -121,7 +154,7 @@ function generatePosts() {
       cta: ctas[i % ctas.length],
       audio: audios[i % audios.length],
       duration: type === "Reel" ? 8 + (i % 24) : 0,
-      hashtags: buildHashtags(theme, profileSeed[3])
+      hashtags: buildHashtags(theme, profileSeed.city)
     });
   }
 
@@ -167,7 +200,8 @@ function filteredPosts(days = Number(state.filters.period)) {
   minDate.setDate(minDate.getDate() - days);
   return state.data.posts.filter((post) => {
     const profile = getProfile(post.profile);
-    return new Date(post.date) >= minDate
+    return profile
+      && new Date(post.date) >= minDate
       && (!state.filters.city || profile.city === state.filters.city)
       && (!state.filters.state || profile.state === state.filters.state)
       && (!state.filters.category || profile.category === state.filters.category)
@@ -658,12 +692,14 @@ function addProfile() {
     growth: 0,
     lastUpdated: new Date().toISOString()
   });
+  persistProfiles(state.data.profiles);
   renderAll();
 }
 
 function editProfile(id) {
   const profile = state.data.profiles.find((item) => item.id === id);
   if (!profile) return;
+  const previousName = profile.name;
   profile.name = prompt("Nome", profile.name) || profile.name;
   profile.instagram = prompt("Instagram", profile.instagram) || profile.instagram;
   profile.category = prompt("Categoria", profile.category) || profile.category;
@@ -671,6 +707,13 @@ function editProfile(id) {
   profile.state = prompt("Estado", profile.state) || profile.state;
   profile.status = prompt("Status", profile.status) || profile.status;
   profile.lastUpdated = new Date().toISOString();
+  if (profile.name !== previousName) {
+    state.data.posts.forEach((post) => {
+      if (post.profile === previousName) post.profile = profile.name;
+    });
+    state.compareProfiles = state.compareProfiles.map((name) => name === previousName ? profile.name : name);
+  }
+  persistProfiles(state.data.profiles);
   renderAll();
 }
 
@@ -678,7 +721,11 @@ function deleteProfile(id) {
   const profile = state.data.profiles.find((item) => item.id === id);
   if (!profile || !confirm(`Excluir ${profile.name}?`)) return;
   state.data.profiles = state.data.profiles.filter((item) => item.id !== id);
+  state.data.posts = state.data.posts.filter((post) => post.profile !== profile.name);
   state.compareProfiles = state.compareProfiles.filter((name) => name !== profile.name);
+  if (!persistProfiles(state.data.profiles)) {
+    alert("O perfil foi removido desta tela, mas nao foi possivel salvar a exclusao neste navegador.");
+  }
   renderAll();
 }
 
