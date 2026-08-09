@@ -243,9 +243,10 @@ function comparableLabel(value) {
 
 function bars(items, options = {}) {
   const formatLabel = options.formatLabel || ((value) => value);
+  const rowClass = options.rowClass ? ` ${options.rowClass}` : "";
   return items
     .map((item) => `
-      <div class="performance-row">
+      <div class="performance-row${rowClass}">
         <span class="row-label">${formatLabel(item.label)}</span>
         <strong data-label="Reservas">${number.format(item.reservations || 0)}</strong>
         <strong data-label="Venda">${money.format(item.value)}</strong>
@@ -256,7 +257,25 @@ function bars(items, options = {}) {
     .join("");
 }
 
+function performanceTotal(items) {
+  const totals = (items || []).reduce((result, item) => {
+    result.reservations += Number(item.reservations || 0);
+    result.value += Number(item.value || 0);
+    result.monthlyGoal += Number(item.monthlyGoal || 0);
+    return result;
+  }, { reservations: 0, value: 0, monthlyGoal: 0 });
+
+  return {
+    ...totals,
+    label: "TOTAL",
+    monthlyGoalPct: totals.monthlyGoal ? (totals.value / totals.monthlyGoal) * 100 : null
+  };
+}
+
 function performanceTable(items, firstColumn, options = {}) {
+  const totalRow = options.showTotal
+    ? bars([performanceTotal(items)], { ...options, rowClass: "performance-total" })
+    : "";
   return `
     <div class="performance-row performance-head">
       <span>${firstColumn}</span>
@@ -266,6 +285,7 @@ function performanceTable(items, firstColumn, options = {}) {
       <span>ICM %</span>
     </div>
     ${bars(items, options)}
+    ${totalRow}
   `;
 }
 
@@ -643,10 +663,10 @@ function render(data) {
   `;
 
   byId("channelBars").innerHTML = performanceTable(data.channels, "Canal", { formatLabel: displayLabel });
-  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel });
+  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel, showTotal: true });
   const hotelBreakdowns = hotelSalesBreakdowns(data);
-  byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel });
-  byId("combinedHotelTable").innerHTML = performanceTable(hotelBreakdowns.combined, "Hotel", { formatLabel: displayLabel });
+  byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel, showTotal: true });
+  byId("combinedHotelTable").innerHTML = performanceTable(hotelBreakdowns.combined, "Hotel", { formatLabel: displayLabel, showTotal: true });
 
   byId("dailySales").innerHTML = data.dailySales
     .map((day) => `

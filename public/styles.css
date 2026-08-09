@@ -1340,6 +1340,18 @@ h2 {
   text-transform: uppercase;
 }
 
+.performance-total {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 2px solid rgba(44, 62, 80, 0.22);
+  font-weight: 800;
+}
+
+.performance-total .row-label,
+.performance-total strong {
+  font-weight: 800;
+}
+
 .goal-block {
   display: grid;
   gap: 8px;
