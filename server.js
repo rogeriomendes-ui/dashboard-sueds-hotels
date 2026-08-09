@@ -2071,6 +2071,16 @@ function dimensionGoal(goals, field, label, period) {
   return goals.find((goal) => goal.month === period && comparableKey(goal[field]) === key) || null;
 }
 
+function typedDimensionGoal(goals, field, label, period, type) {
+  const key = comparableKey(label);
+  const typeKey = comparableKey(type);
+  return goals.find((goal) => (
+    goal.month === period
+    && comparableKey(goal[field]) === key
+    && comparableKey(goal.type) === typeKey
+  )) || null;
+}
+
 function monthsFromYearStart(dateKey) {
   const [year, monthNumber] = String(dateKey || todayKey()).split("-").map(Number);
   if (!year || !monthNumber) return [];
@@ -2158,6 +2168,8 @@ const OFFICIAL_SALES_CHANNELS = [
   "GRUPOS",
   "RECEPÇÃO"
 ];
+const HOTEL_OTHER_CHANNELS_GOAL_TYPE = "Hotel - Operadoras + OTAs";
+const HOTEL_TOTAL_GOAL_TYPE = "Hotel - Total Geral";
 
 function isTeamCardName(value) {
   return comparableKey(value) === comparableKey(TEAM_CARD_NAME);
@@ -2480,8 +2492,24 @@ function buildMetrics(records, goals, period = {}) {
     .map((label) => {
       const rows = recordsByHotel.get(label) || [];
       const goal = isYearToDate
-        ? ytdGoal(goals, (item) => comparableKey(item.hotel) === comparableKey(label), ytdMonths)
+        ? ytdGoal(goals, (item) => (
+          comparableKey(item.hotel) === comparableKey(label)
+          && comparableKey(item.type) !== comparableKey(HOTEL_OTHER_CHANNELS_GOAL_TYPE)
+          && comparableKey(item.type) !== comparableKey(HOTEL_TOTAL_GOAL_TYPE)
+        ), ytdMonths)
         : dimensionGoal(goals, "hotel", label, month);
+      const otherChannelsGoal = isYearToDate
+        ? ytdGoal(goals, (item) => (
+          comparableKey(item.hotel) === comparableKey(label)
+          && comparableKey(item.type) === comparableKey(HOTEL_OTHER_CHANNELS_GOAL_TYPE)
+        ), ytdMonths)
+        : typedDimensionGoal(goals, "hotel", label, month, HOTEL_OTHER_CHANNELS_GOAL_TYPE);
+      const totalGoal = isYearToDate
+        ? ytdGoal(goals, (item) => (
+          comparableKey(item.hotel) === comparableKey(label)
+          && comparableKey(item.type) === comparableKey(HOTEL_TOTAL_GOAL_TYPE)
+        ), ytdMonths)
+        : typedDimensionGoal(goals, "hotel", label, month, HOTEL_TOTAL_GOAL_TYPE);
       const value = sum(rows, (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
       return {
@@ -2489,7 +2517,9 @@ function buildMetrics(records, goals, period = {}) {
         value,
         reservations: rows.length,
         monthlyGoal,
-        monthlyGoalPct: pct(value, monthlyGoal)
+        monthlyGoalPct: pct(value, monthlyGoal),
+        otherChannelsMonthlyGoal: otherChannelsGoal?.revenueGoal || 0,
+        combinedMonthlyGoal: totalGoal?.revenueGoal || 0
       };
     })
     .sort((a, b) => b.value - a.value);

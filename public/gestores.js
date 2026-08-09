@@ -530,25 +530,26 @@ function hotelSalesBreakdowns(data) {
       total.value += Number(hotel.value || 0);
       return total;
     }, { reservations: 0, value: 0 });
-    const monthlyGoal = Number(direct.monthlyGoal || 0);
+    const otherMonthlyGoal = Number(direct.otherChannelsMonthlyGoal || 0);
+    const combinedMonthlyGoal = Number(direct.combinedMonthlyGoal || 0);
     const directReservations = Number(direct.reservations || 0);
     const directValue = Number(direct.value || 0);
-    const goalPct = (value) => monthlyGoal ? (value / monthlyGoal) * 100 : null;
+    const goalPct = (value, monthlyGoal) => monthlyGoal ? (value / monthlyGoal) * 100 : null;
 
     return {
       other: {
         label,
         reservations: other.reservations,
         value: other.value,
-        monthlyGoal,
-        monthlyGoalPct: goalPct(other.value)
+        monthlyGoal: otherMonthlyGoal,
+        monthlyGoalPct: goalPct(other.value, otherMonthlyGoal)
       },
       combined: {
         label,
         reservations: directReservations + other.reservations,
         value: directValue + other.value,
-        monthlyGoal,
-        monthlyGoalPct: goalPct(directValue + other.value)
+        monthlyGoal: combinedMonthlyGoal,
+        monthlyGoalPct: goalPct(directValue + other.value, combinedMonthlyGoal)
       }
     };
   });
