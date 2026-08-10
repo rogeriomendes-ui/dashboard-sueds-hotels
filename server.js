@@ -104,6 +104,13 @@ const META_ADS_CONVERSION_ACTIONS = (process.env.META_ADS_CONVERSION_ACTIONS || 
   .split(",")
   .map((action) => action.trim())
   .filter(Boolean);
+const META_INSTAGRAM_API_VERSION = process.env.META_INSTAGRAM_API_VERSION || META_ADS_API_VERSION;
+const META_INSTAGRAM_BUSINESS_ID = String(process.env.META_INSTAGRAM_BUSINESS_ID || "").replace(/\D/g, "");
+const META_INSTAGRAM_ACCESS_TOKEN = process.env.META_INSTAGRAM_ACCESS_TOKEN || "";
+const META_INSTAGRAM_ACCOUNT_IDS = (process.env.META_INSTAGRAM_ACCOUNT_IDS || "")
+  .split(",")
+  .map((value) => value.trim().replace(/\D/g, ""))
+  .filter(Boolean);
 const VETOR_TRADE_API_URL = (process.env.VETOR_TRADE_API_URL || "").replace(/\/$/, "");
 const VETOR_TRADE_SHARED_TOKEN = process.env.VETOR_TRADE_SHARED_TOKEN || "";
 const TV_MESSAGES_SHEET = process.env.GOOGLE_TV_MESSAGES_SHEET || "Mensagens_TV";
@@ -125,6 +132,7 @@ let analyticsCache = { expiresAt: 0, payload: null };
 let operationalCache = { expiresAt: 0, payload: null };
 let googleAdsCache = { expiresAt: 0, key: "", payload: null };
 let metaAdsCache = { expiresAt: 0, key: "", payload: null };
+let metaInstagramCache = { expiresAt: 0, key: "", payload: null };
 let tvMessagesSheetReady = false;
 
 function loadEnvFile(filePath) {
@@ -1923,6 +1931,198 @@ function buildAdvancePurchase(records) {
       sharePct: totalRevenue ? Math.round((band.revenue / totalRevenue) * 1000) / 10 : 0
     }))
   };
+}
+
+function metaInstagramConfigured() {
+  return Boolean(META_INSTAGRAM_ACCESS_TOKEN && (META_INSTAGRAM_BUSINESS_ID || META_INSTAGRAM_ACCOUNT_IDS.length));
+}
+
+async function metaInstagramRequest(resource, params = {}) {
+  const url = new URL(`https://graph.facebook.com/${META_INSTAGRAM_API_VERSION}/${String(resource).replace(/^\//, "")}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
+  });
+  const response = await fetch(url, { headers: { authorization: `Bearer ${META_INSTAGRAM_ACCESS_TOKEN}` } });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || `Meta Instagram request failed (${response.status})`);
+    error.statusCode = response.status;
+    error.metaCode = payload?.error?.code;
+    throw error;
+  }
+  return payload;
+}
+
+async function metaInstagramRequestAll(resource, params = {}, maxPages = 5) {
+  const rows = [];
+  let after = "";
+  for (let page = 0; page < maxPages; page += 1) {
+    const payload = await metaInstagramRequest(resource, { ...params, ...(after ? { after } : {}) });
+    rows.push(...(payload.data || []));
+    after = payload.paging?.cursors?.after || "";
+    if (!after || !payload.paging?.next) break;
+  }
+  return rows;
+}
+
+function metaInstagramInsightValue(rows = [], metric) {
+  const row = rows.find((item) => item.name === metric);
+  const raw = row?.values?.[0]?.value ?? row?.value ?? 0;
+  if (typeof raw === "number") return raw;
+  if (raw && typeof raw === "object") return Object.values(raw).reduce((total, value) => total + Number(value || 0), 0);
+  return Number(raw || 0);
+}
+
+async function loadMetaInstagramMediaInsights(media) {
+  const metrics = media.media_product_type === "STORY"
+    ? "reach,shares,views,total_interactions"
+    : "reach,saved,shares,views,total_interactions";
+  try {
+    const payload = await metaInstagramRequest(`${media.id}/insights`, { metric: metrics });
+    return {
+      reach: metaInstagramInsightValue(payload.data, "reach"),
+      saved: metaInstagramInsightValue(payload.data, "saved"),
+      shares: metaInstagramInsightValue(payload.data, "shares"),
+      views: metaInstagramInsightValue(payload.data, "views"),
+      interactions: metaInstagramInsightValue(payload.data, "total_interactions")
+    };
+  } catch (error) {
+    return { reach: 0, saved: 0, shares: 0, views: 0, interactions: 0 };
+  }
+}
+
+function normalizeMetaInstagramPost(media, account, insights = {}) {
+  const productType = String(media.media_product_type || "").toUpperCase();
+  const mediaType = String(media.media_type || "").toUpperCase();
+  const type = productType === "STORY"
+    ? "Story"
+    : productType === "REELS" ? "Reel" : mediaType === "CAROUSEL_ALBUM" ? "Carrossel" : "Foto";
+  const likes = Number(media.like_count || 0);
+  const comments = Number(media.comments_count || 0);
+  const shares = Number(insights.shares || 0);
+  const saved = Number(insights.saved || 0);
+  const reach = Number(insights.reach || 0);
+  const views = Number(insights.views || reach || 0);
+  const interactions = Number(insights.interactions || likes + comments + shares + saved);
+  const denominator = reach || Number(account.followers_count || 0);
+  return {
+    id: String(media.id),
+    accountId: String(account.id),
+    profile: account.displayName,
+    instagram: `@${account.username}`,
+    date: media.timestamp,
+    type,
+    theme: "Conteudo oficial",
+    likes,
+    comments,
+    shares,
+    saved,
+    reach,
+    views,
+    interactions,
+    engagement: denominator ? (interactions / denominator) * 100 : 0,
+    url: media.permalink || `https://www.instagram.com/${account.username}/`,
+    thumbnail: media.thumbnail_url || media.media_url || "",
+    caption: media.caption || "",
+    cta: "",
+    audio: "",
+    duration: 0,
+    hashtags: [...new Set(String(media.caption || "").match(/#[\p{L}\p{N}_]+/gu) || [])]
+  };
+}
+
+async function discoverMetaInstagramAccounts() {
+  const discovered = new Map();
+  const addAccount = (account, pageName = "") => {
+    if (!account?.id) return;
+    discovered.set(String(account.id), { ...account, pageName });
+  };
+
+  META_INSTAGRAM_ACCOUNT_IDS.forEach((id) => addAccount({ id }));
+  if (META_INSTAGRAM_BUSINESS_ID) {
+    try {
+      const pages = await metaInstagramRequestAll(`${META_INSTAGRAM_BUSINESS_ID}/owned_pages`, {
+        fields: "id,name,instagram_business_account{id,username,name,followers_count,media_count,profile_picture_url}",
+        limit: 100
+      });
+      pages.forEach((page) => addAccount(page.instagram_business_account, page.name));
+    } catch (error) {
+      if (!META_INSTAGRAM_ACCOUNT_IDS.length) throw error;
+    }
+  }
+
+  const accounts = [];
+  for (const account of discovered.values()) {
+    try {
+      const details = account.username
+        ? account
+        : await metaInstagramRequest(account.id, { fields: "id,username,name,followers_count,media_count,profile_picture_url" });
+      accounts.push({ ...account, ...details });
+    } catch (error) {
+      // An account without current permission is omitted while the remaining accounts continue loading.
+    }
+  }
+  return accounts;
+}
+
+function metaInstagramDisplayName(account = {}) {
+  const key = marketComparable(account.username || account.name || account.pageName || "");
+  if (key.includes("trancoso")) return "Sueds Trancoso";
+  if (key.includes("beachclub")) return "Beach Club Sueds";
+  return "Sueds Hotels";
+}
+
+async function buildMetaInstagramPayload(days = 30) {
+  const safeDays = Math.min(Math.max(Number(days || 30), 1), 90);
+  const cacheKey = String(safeDays);
+  if (metaInstagramCache.key === cacheKey && metaInstagramCache.payload && Date.now() < metaInstagramCache.expiresAt) {
+    return metaInstagramCache.payload;
+  }
+  if (!metaInstagramConfigured()) {
+    return { ok: true, configured: false, source: "empty", lastUpdated: new Date().toISOString(), accounts: [], posts: [] };
+  }
+
+  const accounts = await discoverMetaInstagramAccounts();
+  const since = Math.floor((Date.now() - safeDays * 86400000) / 1000);
+  const posts = [];
+  const normalizedAccounts = [];
+  for (const rawAccount of accounts) {
+    const account = { ...rawAccount, displayName: metaInstagramDisplayName(rawAccount) };
+    const [media, stories] = await Promise.all([
+      metaInstagramRequestAll(`${account.id}/media`, {
+        fields: "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
+        since,
+        limit: 100
+      }, 3).catch(() => []),
+      metaInstagramRequestAll(`${account.id}/stories`, {
+        fields: "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp",
+        limit: 100
+      }, 1).catch(() => [])
+    ]);
+    const recent = [...media, ...stories].slice(0, 100);
+    const insightRows = await Promise.all(recent.map((item) => loadMetaInstagramMediaInsights(item)));
+    recent.forEach((item, index) => posts.push(normalizeMetaInstagramPost(item, account, insightRows[index])));
+    normalizedAccounts.push({
+      id: String(account.id),
+      name: account.displayName,
+      username: account.username || "",
+      followers: Number(account.followers_count || 0),
+      mediaCount: Number(account.media_count || 0),
+      profilePicture: account.profile_picture_url || "",
+      connected: true
+    });
+  }
+
+  const payload = {
+    ok: true,
+    configured: true,
+    source: "meta_instagram_graph_api",
+    lastUpdated: new Date().toISOString(),
+    accounts: normalizedAccounts,
+    posts: posts.sort((a, b) => String(b.date).localeCompare(String(a.date)))
+  };
+  metaInstagramCache = { key: cacheKey, payload, expiresAt: Date.now() + Math.max(CACHE_TTL_MS, 15 * 60 * 1000) };
+  return payload;
 }
 
 function advancePurchaseChannelLabel(record, source = "direct", month = "") {
@@ -6717,6 +6917,7 @@ async function handleRequest(req, res) {
         analyticsOmnibeesConfigured: Boolean(GA4_OMNIBEES_PROPERTY_ID && getServiceAccount()),
         googleAdsConfigured: googleAdsConfigured(),
         metaAdsConfigured: metaAdsConfigured(),
+        metaInstagramConfigured: metaInstagramConfigured(),
         operationalConfigured: Boolean((OPERATIONAL_SHEET_ID || SHEET_ID) && getServiceAccount()),
         supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
         gestoresProtected: Boolean(GESTORES_ACCESS_TOKEN),
@@ -6912,6 +7113,12 @@ async function handleRequest(req, res) {
     if (url.pathname === "/api/inteligencia/mercado") {
       if (!hasManagerAccess(req, url)) return forbidden(res);
       return json(res, 200, await buildMarketIntelligencePayload(marketFiltersFromUrl(url)));
+    }
+
+    if (url.pathname === "/api/redes-sociais") {
+      if (!hasManagerAccess(req, url)) return forbidden(res);
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      return json(res, 200, await buildMetaInstagramPayload(url.searchParams.get("days") || 30));
     }
 
     return serveStatic(req, res);

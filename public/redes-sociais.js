@@ -47,7 +47,7 @@ const PROFILE_SEED = [
   ["Azul Viagens", "@azulviagens", "Operadoras", "Barueri", "SP", "Ativo", 612000, 2.4],
   ["Orinter", "@orintertour", "Operadoras", "Sao Paulo", "SP", "Ativo", 148000, 1.5]
 ];
-const SUEDS_ACCOUNT_HANDLES = ["@suedshotels", "@suedstrancoso", "@beachclubsued"];
+const SUEDS_ACCOUNT_HANDLES = new Set(["@suedshotels", "@suedstrancoso", "@beachclubsued", "@beachclubsueds"]);
 const PROFILE_STORAGE_KEY = "sueds_social_profiles_v1";
 
 const state = {
@@ -67,14 +67,77 @@ const state = {
 
 const dataProvider = {
   async load() {
-    const profiles = loadPersistedProfiles();
-    return {
-      lastUpdated: new Date().toISOString(),
-      profiles,
-      posts: generatePosts(profiles)
-    };
+    const storedProfiles = loadPersistedProfiles();
+    const demoPosts = generatePosts(storedProfiles);
+    try {
+      const response = await fetch("/api/redes-sociais?days=90", { credentials: "same-origin" });
+      if (response.status === 401) {
+        window.top.location.replace(`/login?next=${encodeURIComponent("/gestores?modulo=redes_sociais")}`);
+        throw new Error("Sessao expirada");
+      }
+      if (!response.ok) throw new Error(`Meta API respondeu ${response.status}`);
+      const payload = await response.json();
+      if (!payload.configured) {
+        return { lastUpdated: new Date().toISOString(), profiles: storedProfiles, posts: demoPosts, source: "demo" };
+      }
+      const profiles = mergeOfficialProfiles(storedProfiles, payload.accounts || []);
+      const officialNames = new Set(profiles.filter((profile) => profile.official).map((profile) => profile.name));
+      return {
+        lastUpdated: payload.lastUpdated || new Date().toISOString(),
+        profiles,
+        posts: demoPosts.filter((post) => !officialNames.has(post.profile)).concat(payload.posts || []),
+        source: payload.source || "meta_instagram_graph_api"
+      };
+    } catch (error) {
+      console.error("Nao foi possivel carregar as metricas reais do Instagram.", error);
+      return { lastUpdated: new Date().toISOString(), profiles: storedProfiles, posts: demoPosts, source: "demo", error: error.message };
+    }
   }
 };
+
+function normalizedInstagramHandle(value) {
+  return `@${String(value || "").trim().replace(/^@/, "").toLowerCase()}`;
+}
+
+function isSuedsOfficialProfile(profile) {
+  return SUEDS_ACCOUNT_HANDLES.has(normalizedInstagramHandle(profile?.instagram));
+}
+
+function mergeOfficialProfiles(storedProfiles, accounts) {
+  const profiles = storedProfiles.map((profile) => (
+    isSuedsOfficialProfile(profile)
+      ? { ...profile, followers: 0, growth: 0, official: true, connected: false }
+      : profile
+  ));
+  accounts.forEach((account) => {
+    const handle = normalizedInstagramHandle(account.username);
+    const profile = profiles.find((item) => (
+      normalizedInstagramHandle(item.instagram) === handle
+      || item.name.toLowerCase() === String(account.name || "").toLowerCase()
+    ));
+    const values = {
+      name: account.name || profile?.name || account.username,
+      instagram: handle,
+      followers: Number(account.followers || 0),
+      mediaCount: Number(account.mediaCount || 0),
+      profilePicture: account.profilePicture || "",
+      status: "Ativo",
+      lastUpdated: new Date().toISOString(),
+      official: true,
+      connected: true,
+      growth: 0
+    };
+    if (profile) Object.assign(profile, values);
+    else profiles.push({
+      id: `meta-${account.id}`,
+      category: String(account.name || "").toLowerCase().includes("beach") ? "Beach Clubs" : "Hoteis",
+      city: String(account.name || "").toLowerCase().includes("trancoso") ? "Trancoso" : "Porto Seguro",
+      state: "BA",
+      ...values
+    });
+  });
+  return profiles;
+}
 
 function seedProfiles() {
   return PROFILE_SEED.map((row, index) => ({
@@ -233,7 +296,7 @@ function renderFilters() {
   populateSelect("cityFilter", unique(profiles.map((profile) => profile.city)), "Todas as cidades");
   populateSelect("stateFilter", unique(profiles.map((profile) => profile.state)), "Todos os estados");
   populateSelect("categoryFilter", SOCIAL_CATEGORIES, "Todas as categorias");
-  populateSelect("typeFilter", ["Foto", "Reel", "Carrossel"], "Todos os tipos");
+  populateSelect("typeFilter", ["Foto", "Reel", "Carrossel", "Story"], "Todos os tipos");
   populateSelect("themeFilter", THEMES, "Todos os temas");
   populateSelect("profileFilter", profiles.map((profile) => profile.name), "Todos os perfis");
 
@@ -298,14 +361,13 @@ function suedsAccountPosts(profileName) {
 }
 
 function renderSuedsAccounts() {
-  const profiles = SUEDS_ACCOUNT_HANDLES
-    .map((handle) => state.data.profiles.find((profile) => profile.instagram.toLowerCase() === handle))
-    .filter(Boolean);
+  const profiles = state.data.profiles.filter(isSuedsOfficialProfile);
 
   $("suedsAccountsOverview").innerHTML = profiles.map((profile) => {
     const posts = suedsAccountPosts(profile.name);
     const reels = posts.filter((post) => post.type === "Reel");
-    const growth = Number(profile.growth) || 0;
+    const stories = posts.filter((post) => post.type === "Story");
+    const status = profile.connected ? "Meta API" : state.data.source === "meta_instagram_graph_api" ? "Vinculo pendente" : "Dados demonstrativos";
     return `
       <article class="sueds-account-card">
         <div class="sueds-account-heading">
@@ -313,14 +375,16 @@ function renderSuedsAccounts() {
             <strong>${escapeHtml(profile.name)}</strong>
             <span>${escapeHtml(profile.instagram)}</span>
           </div>
-          <b class="sueds-growth">${growth > 0 ? "+" : ""}${percent(growth)}</b>
+          <b class="sueds-growth">${escapeHtml(status)}</b>
         </div>
         <div class="sueds-account-metrics">
           <div><span>Seguidores</span><strong>${number(profile.followers)}</strong></div>
-          <div><span>Posts</span><strong>${number(posts.length)}</strong></div>
+          <div><span>Publicacoes</span><strong>${number(posts.filter((post) => post.type !== "Story").length)}</strong></div>
           <div><span>Reels</span><strong>${number(reels.length)}</strong></div>
+          <div><span>Stories ativos</span><strong>${number(stories.length)}</strong></div>
           <div><span>Engajamento</span><strong>${percent(average(posts, "engagement"))}</strong></div>
-          <div><span>Curtidas</span><strong>${number(sum(posts, "likes"))}</strong></div>
+          <div><span>Comentarios</span><strong>${number(sum(posts, "comments"))}</strong></div>
+          <div><span>Compartilhamentos</span><strong>${number(sum(posts, "shares"))}</strong></div>
           <div><span>Visualizações</span><strong>${number(sum(posts, "views"))}</strong></div>
         </div>
       </article>

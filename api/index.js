@@ -10,6 +10,7 @@ const { getPortalProfile, hasEnvironment, withPortalEnvironment, withPortalRoles
 const adminUsersHandler = withPortalRoles(users, ["admin_geral"]);
 const gestoresHandler = withPortalEnvironment(handleRequest, "painel_gestores");
 const marketingHandler = withPortalEnvironment(handleRequest, "marketing_competitividade");
+const socialHandler = withPortalEnvironment(handleRequest, "redes_sociais");
 const tvMessagesHandler = withPortalEnvironment(handleRequest, "mensagens_tv");
 
 module.exports = async function api(req, res) {
@@ -32,6 +33,7 @@ module.exports = async function api(req, res) {
   }
   if (pathname === "/api/dashboard/gestores") return gestoresHandler(req, res);
   if (pathname === "/api/inteligencia/mercado") return marketingHandler(req, res);
+  if (pathname === "/api/redes-sociais") return socialHandler(req, res);
   if (pathname === "/api/tv-messages") return tvMessagesHandler(req, res);
   return handleRequest(req, res);
 };
