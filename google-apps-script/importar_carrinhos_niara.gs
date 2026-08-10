@@ -8,6 +8,9 @@ const SITE_SALES_TARGET_SHEET = "Lancamento_Vendas";
 const OTHER_CHANNEL_SALES_SOURCE_SHEET = "teste lancamento_vendas";
 const OTHER_CHANNEL_SALES_CHANNELS = ["BE MOBILE", "BOOKING ENGINE"];
 const CENTRAL_RESERVATIONS_CHANNEL = "CENTRAL DE RESERVAS";
+const OTHER_CHANNEL_SYNC_TRIGGER_FUNCTION = "sincronizarVendasCanaisSiteAutomaticamente";
+const OTHER_CHANNEL_SYNC_SPREADSHEET_PROPERTY = "SUEDS_OTHER_CHANNEL_SYNC_SPREADSHEET_ID";
+const OTHER_CHANNEL_SYNC_INTERVAL_MINUTES = 15;
 const SHEET_PROTECTION_NOTE = "Protecao operacional SUEDS. Senha de referencia: SuedsGestores2026!";
 const SENSITIVE_SHEETS_PROTECTION_NOTE = "Protecao abas sensiveis SUEDS. Apenas gestores autorizados.";
 const TEAM_INPUT_BACKGROUND = "#d9eaf7";
@@ -86,6 +89,8 @@ function onOpen() {
     .addItem("Importar Asksuite da aba Importar_Asksuite", "importarAsksuite")
     .addItem("Importar vendas da aba Site", "importarVendasSite")
     .addItem("Sincronizar BE Mobile e Booking Engine", "sincronizarVendasCanaisSite")
+    .addItem("Ativar sincronizacao automatica (15 min)", "instalarSincronizacaoAutomaticaCanaisSite")
+    .addItem("Desativar sincronizacao automatica", "removerSincronizacaoAutomaticaCanaisSite")
     .addItem("Sincronizar Central de Reservas", "sincronizarVendasCentralReservas")
     .addItem("Preparar Asksuite Detalhado", "prepararAsksuiteDetalhado")
     .addSeparator()
@@ -251,8 +256,24 @@ function importarVendasSite() {
   );
 }
 
-function sincronizarVendasCanaisSite() {
-  const spreadsheet = SpreadsheetApp.getActive();
+function sincronizarVendasCanaisSite(spreadsheetOverride, silent) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    return { inserted: 0, alreadyExists: 0, sourceDuplicates: 0, sellersCleared: 0, skipped: true };
+  }
+
+  try {
+    return sincronizarVendasCanaisSiteInterno_(spreadsheetOverride, silent);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function sincronizarVendasCanaisSiteInterno_(spreadsheetOverride, silent) {
+  const spreadsheet = spreadsheetOverride || SpreadsheetApp.getActive();
+  if (!spreadsheet) {
+    throw new Error("Nao foi possivel identificar a planilha para sincronizacao.");
+  }
   const sourceSheet = spreadsheet.getSheetByName(OTHER_CHANNEL_SALES_SOURCE_SHEET);
   const targetSheet = spreadsheet.getSheetByName(SITE_SALES_TARGET_SHEET);
 
@@ -343,12 +364,74 @@ function sincronizarVendasCanaisSite() {
     sourceDuplicates,
     sellersCleared
   };
-  spreadsheet.toast(
-    `Novas: ${summary.inserted} | Ja existentes: ${summary.alreadyExists} | Vendedores removidos: ${summary.sellersCleared}`,
-    "BE Mobile + Booking Engine",
-    8
+  if (!silent) {
+    spreadsheet.toast(
+      `Novas: ${summary.inserted} | Ja existentes: ${summary.alreadyExists} | Vendedores removidos: ${summary.sellersCleared}`,
+      "BE Mobile + Booking Engine",
+      8
+    );
+  }
+  return summary;
+}
+
+function instalarSincronizacaoAutomaticaCanaisSite() {
+  const spreadsheet = SpreadsheetApp.getActive();
+  if (!spreadsheet) {
+    throw new Error("Abra a planilha antes de ativar a sincronizacao automatica.");
+  }
+
+  removerGatilhosSincronizacaoCanaisSite_();
+  PropertiesService.getScriptProperties()
+    .setProperty(OTHER_CHANNEL_SYNC_SPREADSHEET_PROPERTY, spreadsheet.getId());
+  ScriptApp.newTrigger(OTHER_CHANNEL_SYNC_TRIGGER_FUNCTION)
+    .timeBased()
+    .everyMinutes(OTHER_CHANNEL_SYNC_INTERVAL_MINUTES)
+    .create();
+
+  const summary = sincronizarVendasCanaisSite(spreadsheet, true);
+  SpreadsheetApp.getUi().alert(
+    "Sincronizacao automatica ativada.\n\n" +
+    `Frequencia: a cada ${OTHER_CHANNEL_SYNC_INTERVAL_MINUTES} minutos\n` +
+    `Vendas importadas agora: ${summary.inserted || 0}\n` +
+    `Reservas ja existentes: ${summary.alreadyExists || 0}\n\n` +
+    "BE Mobile e Booking Engine continuarao sem vendedor e sem duplicidades."
   );
   return summary;
+}
+
+function removerSincronizacaoAutomaticaCanaisSite() {
+  const removed = removerGatilhosSincronizacaoCanaisSite_();
+  PropertiesService.getScriptProperties()
+    .deleteProperty(OTHER_CHANNEL_SYNC_SPREADSHEET_PROPERTY);
+  SpreadsheetApp.getUi().alert(
+    removed
+      ? "Sincronizacao automatica desativada."
+      : "Nenhum gatilho de sincronizacao automatica estava ativo."
+  );
+  return { removed };
+}
+
+function removerGatilhosSincronizacaoCanaisSite_() {
+  let removed = 0;
+  ScriptApp.getProjectTriggers().forEach((trigger) => {
+    if (trigger.getHandlerFunction() !== OTHER_CHANNEL_SYNC_TRIGGER_FUNCTION) return;
+    ScriptApp.deleteTrigger(trigger);
+    removed += 1;
+  });
+  return removed;
+}
+
+function sincronizarVendasCanaisSiteAutomaticamente() {
+  const spreadsheetId = PropertiesService.getScriptProperties()
+    .getProperty(OTHER_CHANNEL_SYNC_SPREADSHEET_PROPERTY);
+  if (!spreadsheetId) {
+    throw new Error(
+      "Sincronizacao automatica nao configurada. Use o menu SUEDS Dashboard para ativa-la."
+    );
+  }
+
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  return sincronizarVendasCanaisSite(spreadsheet, true);
 }
 
 function salesReservationHotelKey_(reservationCode, hotel) {

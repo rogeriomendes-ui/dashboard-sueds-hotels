@@ -35,3 +35,12 @@ IMPORTAR VENDAS DO SITE
 4. Informe a data do relatorio no formato AAAA-MM-DD.
 
 O script atualiza a aba Asksuite_Atendimentos usando Data + Atendente como chave.
+
+SINCRONIZACAO AUTOMATICA BE MOBILE + BOOKING ENGINE
+
+1. Depois de instalar ou atualizar o Apps Script, recarregue a planilha.
+2. Rode SUEDS Dashboard > Ativar sincronizacao automatica (15 min).
+3. Autorize o acesso solicitado pelo Google apenas na primeira ativacao.
+4. A primeira sincronizacao e executada imediatamente; as seguintes rodam a cada 15 minutos.
+5. A rotina usa Codigo Reserva + Hotel para impedir duplicidades e sempre deixa o vendedor vazio.
+6. Para interromper, rode SUEDS Dashboard > Desativar sincronizacao automatica.
