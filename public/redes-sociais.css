@@ -231,7 +231,7 @@ input {
 
 .sueds-account-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px 8px;
   padding-top: 13px;
 }
@@ -343,6 +343,7 @@ th:nth-child(2) {
   height: 38px;
   border-radius: 6px;
   background: linear-gradient(135deg, #2c3e50, #36d0c2);
+  object-fit: cover;
 }
 
 .link-button {
@@ -378,8 +379,11 @@ th:nth-child(2) {
 }
 
 .reel-thumb {
+  width: 76px;
+  height: 90px;
   border-radius: 8px;
   background: linear-gradient(160deg, #0f293d, #36d0c2 55%, #f1c84b);
+  object-fit: cover;
 }
 
 .reel-meta {

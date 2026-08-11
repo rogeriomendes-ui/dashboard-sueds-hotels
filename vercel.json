@@ -91,5 +91,11 @@
       "src": "/(.*)",
       "dest": "/public/$1"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/social-snapshot",
+      "schedule": "0 9 * * *"
+    }
   ]
 }

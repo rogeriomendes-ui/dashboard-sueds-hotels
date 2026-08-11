@@ -33,6 +33,7 @@ const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const CRON_SECRET = process.env.CRON_SECRET || "";
 const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
 const OPERATIONAL_ACCESS_SECRET = process.env.OPERATIONAL_ACCESS_SECRET || GESTORES_ACCESS_TOKEN || OPINION_UPLOAD_TOKEN || "sueds-operational-local";
 const OPERATIONAL_ACCESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -2166,6 +2167,94 @@ async function buildMetaInstagramPayload(days = 30) {
   };
   metaInstagramCache = { key: cacheKey, payload, expiresAt: Date.now() + Math.max(CACHE_TTL_MS, 15 * 60 * 1000) };
   return payload;
+}
+
+function metaInstagramDailySnapshot(payload) {
+  const capturedAt = new Date().toISOString();
+  const periodDate = todayKey();
+  const posts = payload.posts || [];
+  return {
+    capturedAt,
+    periodDate,
+    windowDays: 30,
+    source: payload.source,
+    accounts: (payload.accounts || []).map((account) => {
+      const accountPosts = posts.filter((post) => String(post.accountId) === String(account.id));
+      const publications = accountPosts.filter((post) => post.type !== "Story");
+      const total = (field) => accountPosts.reduce((sum, post) => sum + Number(post[field] || 0), 0);
+      return {
+        id: account.id,
+        name: account.name,
+        username: account.username,
+        accessLevel: account.accessLevel,
+        followers: Number(account.followers || 0),
+        mediaCount: Number(account.mediaCount || 0),
+        publications: publications.length,
+        reels: accountPosts.filter((post) => post.type === "Reel").length,
+        stories: accountPosts.filter((post) => post.type === "Story").length,
+        likes: total("likes"),
+        comments: total("comments"),
+        saved: total("saved"),
+        shares: total("shares"),
+        reach: total("reach"),
+        views: total("views"),
+        interactions: total("interactions")
+      };
+    })
+  };
+}
+
+async function supabaseSnapshotRequest(pathname, options = {}) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Supabase nao configurado.");
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${pathname}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "content-type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Supabase snapshots respondeu ${response.status}: ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : null;
+}
+
+async function saveMetaInstagramDailySnapshot() {
+  const payload = await buildMetaInstagramPayload(30);
+  if (!payload.configured) throw new Error("Meta Instagram nao configurado.");
+  const snapshot = metaInstagramDailySnapshot(payload);
+  const queryDate = encodeURIComponent(snapshot.periodDate);
+  const existing = await supabaseSnapshotRequest(
+    `dashboard_snapshots?source=eq.meta_instagram_daily&period_date=eq.${queryDate}&select=id&order=created_at.desc&limit=1`
+  );
+  const record = {
+    source: "meta_instagram_daily",
+    period_month: snapshot.periodDate.slice(0, 7),
+    period_date: snapshot.periodDate,
+    payload: snapshot,
+    created_at: snapshot.capturedAt
+  };
+  if (existing?.[0]?.id) {
+    await supabaseSnapshotRequest(`dashboard_snapshots?id=eq.${existing[0].id}`, {
+      method: "PATCH",
+      headers: { prefer: "return=minimal" },
+      body: JSON.stringify(record)
+    });
+    return { ...snapshot, operation: "updated" };
+  }
+  await supabaseSnapshotRequest("dashboard_snapshots", {
+    method: "POST",
+    headers: { prefer: "return=minimal" },
+    body: JSON.stringify(record)
+  });
+  return { ...snapshot, operation: "inserted" };
+}
+
+function hasCronAccess(req) {
+  if (!CRON_SECRET) return false;
+  const provided = getHeader(req, "authorization").replace(/^Bearer\s+/i, "");
+  return safeEqualText(CRON_SECRET, provided);
 }
 
 function advancePurchaseChannelLabel(record, source = "direct", month = "") {
@@ -7162,6 +7251,20 @@ async function handleRequest(req, res) {
       if (!hasManagerAccess(req, url)) return forbidden(res);
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       return json(res, 200, await buildMetaInstagramPayload(url.searchParams.get("days") || 30));
+    }
+
+    if (url.pathname === "/api/cron/social-snapshot") {
+      if (!CRON_SECRET) return json(res, 503, { ok: false, error: "cron_not_configured" });
+      if (!hasCronAccess(req)) return forbidden(res);
+      if (req.method !== "GET" && req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      const snapshot = await saveMetaInstagramDailySnapshot();
+      return json(res, 200, {
+        ok: true,
+        operation: snapshot.operation,
+        periodDate: snapshot.periodDate,
+        capturedAt: snapshot.capturedAt,
+        accounts: snapshot.accounts.length
+      });
     }
 
     return serveStatic(req, res);

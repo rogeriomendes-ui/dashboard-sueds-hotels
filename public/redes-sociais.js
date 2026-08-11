@@ -201,7 +201,10 @@ function generatePosts(profileRecords) {
     const likes = Math.round(views * (0.035 + (i % 7) / 100));
     const comments = Math.round(likes * (0.05 + (i % 4) / 100));
     const shares = Math.round(likes * (0.03 + (i % 5) / 100));
-    const engagement = views ? ((likes + comments + shares) / views) * 100 : 0;
+    const saved = Math.round(likes * (0.04 + (i % 3) / 100));
+    const reach = views;
+    const interactions = likes + comments + shares + saved;
+    const engagement = reach ? (interactions / reach) * 100 : 0;
     posts.push({
       id: `post-${i + 1}`,
       profile,
@@ -211,12 +214,16 @@ function generatePosts(profileRecords) {
       likes,
       comments,
       shares,
+      saved,
+      reach,
+      interactions,
       views,
       engagement,
       url: `https://instagram.com/p/sueds-demo-${i + 1}`,
       caption: `${theme} em destaque para inspirar viagens para o sul da Bahia.`,
       cta: ctas[i % ctas.length],
       audio: audios[i % audios.length],
+      thumbnail: "",
       duration: type === "Reel" ? 8 + (i % 24) : 0,
       hashtags: buildHashtags(theme, profileSeed.city)
     });
@@ -366,8 +373,13 @@ function renderSuedsAccounts() {
 
   $("suedsAccountsOverview").innerHTML = profiles.map((profile) => {
     const posts = suedsAccountPosts(profile.name);
+    const publications = posts.filter((post) => post.type !== "Story");
     const reels = posts.filter((post) => post.type === "Reel");
     const stories = posts.filter((post) => post.type === "Story");
+    const privateMetricsAvailable = profile.accessLevel !== "public";
+    const privateMetric = (value) => privateMetricsAvailable ? number(value) : "--";
+    const totalReach = sum(posts, "reach");
+    const totalInteractions = sum(posts, "interactions");
     const status = profile.connected
       ? profile.accessLevel === "public" ? "Meta API (publico)" : "Meta API"
       : state.data.source === "meta_instagram_graph_api" ? "Vinculo pendente" : "Dados demonstrativos";
@@ -382,13 +394,18 @@ function renderSuedsAccounts() {
         </div>
         <div class="sueds-account-metrics">
           <div><span>Seguidores</span><strong>${number(profile.followers)}</strong></div>
-          <div><span>Publicacoes</span><strong>${number(posts.filter((post) => post.type !== "Story").length)}</strong></div>
+          <div><span>Publicacoes</span><strong>${number(publications.length)}</strong></div>
           <div><span>Reels</span><strong>${number(reels.length)}</strong></div>
           <div><span>Stories ativos</span><strong>${number(stories.length)}</strong></div>
           <div><span>Engajamento</span><strong>${percent(average(posts, "engagement"))}</strong></div>
+          <div><span>Alcance</span><strong>${privateMetric(totalReach)}</strong></div>
+          <div><span>Media alcance / post</span><strong>${privateMetric(publications.length ? Math.round(totalReach / publications.length) : 0)}</strong></div>
+          <div><span>Curtidas</span><strong>${number(sum(posts, "likes"))}</strong></div>
           <div><span>Comentarios</span><strong>${number(sum(posts, "comments"))}</strong></div>
-          <div><span>Compartilhamentos</span><strong>${number(sum(posts, "shares"))}</strong></div>
-          <div><span>Visualizações</span><strong>${number(sum(posts, "views"))}</strong></div>
+          <div><span>Salvamentos</span><strong>${privateMetric(sum(posts, "saved"))}</strong></div>
+          <div><span>Compartilhamentos</span><strong>${privateMetric(sum(posts, "shares"))}</strong></div>
+          <div><span>Interacoes</span><strong>${privateMetric(totalInteractions)}</strong></div>
+          <div><span>Visualizacoes</span><strong>${privateMetric(sum(posts, "views"))}</strong></div>
         </div>
       </article>
     `;
@@ -398,8 +415,9 @@ function renderSuedsAccounts() {
 function sortedPosts(posts) {
   const map = {
     engagement: (post) => post.engagement,
-    reach: (post) => post.views,
+    reach: (post) => post.reach,
     comments: (post) => post.comments,
+    saved: (post) => post.saved,
     shares: (post) => post.shares,
     views: (post) => post.views
   };
@@ -412,19 +430,24 @@ function renderTopPosts(posts) {
     ["engagement", "Maior engajamento"],
     ["reach", "Maior alcance"],
     ["comments", "Mais comentarios"],
+    ["saved", "Mais salvamentos"],
     ["shares", "Mais compartilhamentos"],
     ["views", "Mais visualizacoes"]
   ].map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
   $("postSort").value = state.postSort;
   $("topPostsTable").innerHTML = sortedPosts(posts).slice(0, 40).map((post) => `
     <tr>
-      <td><div class="thumb"></div></td>
+      <td>${post.thumbnail
+        ? `<img class="thumb" src="${escapeHtml(post.thumbnail)}" alt="Publicacao de ${escapeHtml(post.profile)}" loading="lazy">`
+        : `<div class="thumb"></div>`}</td>
       <td>${escapeHtml(post.profile)}</td>
       <td>${dateLabel(post.date)}</td>
       <td>${escapeHtml(post.type)}</td>
       <td>${escapeHtml(post.theme)}</td>
       <td>${number(post.likes)}</td>
       <td>${number(post.comments)}</td>
+      <td>${number(post.reach)}</td>
+      <td>${number(post.saved)}</td>
       <td>${number(post.shares)}</td>
       <td>${number(post.views)}</td>
       <td>${percent(post.engagement)}</td>
@@ -437,7 +460,9 @@ function renderReels(posts) {
   const reels = sortedPosts(posts.filter((post) => post.type === "Reel")).slice(0, 8);
   $("topReels").innerHTML = reels.map((post) => `
     <article class="reel-card">
-      <div class="reel-thumb"></div>
+      ${post.thumbnail
+        ? `<img class="reel-thumb" src="${escapeHtml(post.thumbnail)}" alt="Reel de ${escapeHtml(post.profile)}" loading="lazy">`
+        : `<div class="reel-thumb"></div>`}
       <div class="reel-meta">
         <strong>${escapeHtml(post.profile)} · ${escapeHtml(post.theme)}</strong>
         <span>${post.duration}s · ${escapeHtml(post.audio)}</span>
@@ -671,8 +696,8 @@ function renderAll() {
 function exportExcel() {
   const posts = sortedPosts(filteredPosts());
   const rows = [
-    ["Perfil", "Data", "Tipo", "Tema", "Curtidas", "Comentarios", "Compartilhamentos", "Visualizacoes", "Engajamento %", "Link"],
-    ...posts.map((post) => [post.profile, dateLabel(post.date), post.type, post.theme, post.likes, post.comments, post.shares, post.views, percent(post.engagement), post.url])
+    ["Perfil", "Data", "Tipo", "Tema", "Curtidas", "Comentarios", "Alcance", "Salvamentos", "Compartilhamentos", "Interacoes", "Visualizacoes", "Engajamento %", "Link"],
+    ...posts.map((post) => [post.profile, dateLabel(post.date), post.type, post.theme, post.likes, post.comments, post.reach, post.saved, post.shares, post.interactions, post.views, percent(post.engagement), post.url])
   ];
   const html = `<table>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`).join("")}</table>`;
   const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
