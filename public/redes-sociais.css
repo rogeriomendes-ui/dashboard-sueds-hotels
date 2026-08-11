@@ -419,6 +419,13 @@ th:nth-child(2) {
   text-underline-offset: 3px;
 }
 
+.empty-table-message {
+  padding: 28px 16px;
+  color: var(--card-muted);
+  text-align: center !important;
+  font-weight: 800;
+}
+
 .post-details-dialog {
   width: min(1050px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);

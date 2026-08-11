@@ -425,6 +425,15 @@ function sortedPosts(posts) {
   return [...posts].sort((a, b) => getter(b) - getter(a));
 }
 
+function realOfficialPosts(posts) {
+  const officialNames = new Set(
+    state.data.profiles
+      .filter(isSuedsOfficialProfile)
+      .map((profile) => profile.name)
+  );
+  return posts.filter((post) => officialNames.has(post.profile) && /^\d+$/.test(String(post.accountId || "")));
+}
+
 function renderTopPosts(posts) {
   $("postSort").innerHTML = [
     ["engagement", "Maior engajamento"],
@@ -435,7 +444,8 @@ function renderTopPosts(posts) {
     ["views", "Mais visualizacoes"]
   ].map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
   $("postSort").value = state.postSort;
-  $("topPostsTable").innerHTML = sortedPosts(posts).slice(0, 40).map((post) => `
+  const officialPosts = sortedPosts(realOfficialPosts(posts)).slice(0, 40);
+  $("topPostsTable").innerHTML = officialPosts.map((post) => `
     <tr>
       <td><button class="post-preview-button" type="button" data-post-id="${escapeHtml(post.id)}" aria-label="Visualizar publicacao de ${escapeHtml(post.profile)}">${post.thumbnail
         ? `<img class="thumb" src="${escapeHtml(post.thumbnail)}" alt="Publicacao de ${escapeHtml(post.profile)}" loading="lazy">`
@@ -453,7 +463,7 @@ function renderTopPosts(posts) {
       <td>${percent(post.engagement)}</td>
       <td><a class="link-button" href="${post.url}" target="_blank" rel="noopener">Abrir</a></td>
     </tr>
-  `).join("");
+  `).join("") || `<tr><td colspan="13" class="empty-table-message">Nenhuma publicacao oficial encontrada para o periodo selecionado.</td></tr>`;
 }
 
 function postById(postId) {

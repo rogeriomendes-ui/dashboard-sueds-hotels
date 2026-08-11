@@ -9,7 +9,7 @@
     opinarios_premium: { url: "/operacional/premium", permission: "opinarios_hotel", title: "Opinários — SUEDS Premium" },
     opinarios_trancoso: { url: "/operacional/trancoso", permission: "opinarios_hotel", title: "Opinários — SUEDS Trancoso" },
     opinarios_casas: { url: "/operacional/casas-arraial", permission: "opinarios_hotel", title: "Opinários — Casas SUEDS Arraial" },
-    redes_sociais: { url: "/dashboard-redes-sociais.html?v=20260811-cleanup", permission: "redes_sociais", title: "Redes Sociais" },
+    redes_sociais: { url: "/dashboard-redes-sociais.html?v=20260811-official-posts", permission: "redes_sociais", title: "Redes Sociais" },
     marketing_competitividade: { url: "/dashboard-inteligencia-mercado.html", permission: "marketing_competitividade", title: "Marketing e Competitividade" },
     inspecoes: { url: "/inspecoes/dashboard", permission: "inspecoes", title: "Sueds Inspeções" },
     usuarios: { url: "/usuarios?v=20260808-embedded", permission: "admin_geral", title: "Usuários e Acessos" }
