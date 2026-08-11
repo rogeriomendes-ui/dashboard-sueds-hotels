@@ -532,27 +532,6 @@ function openPostDetails(postId) {
   loadPostComments(post);
 }
 
-function renderReels(posts) {
-  const reels = sortedPosts(posts.filter((post) => post.type === "Reel")).slice(0, 8);
-  $("topReels").innerHTML = reels.map((post) => `
-    <article class="reel-card">
-      ${post.thumbnail
-        ? `<img class="reel-thumb" src="${escapeHtml(post.thumbnail)}" alt="Reel de ${escapeHtml(post.profile)}" loading="lazy">`
-        : `<div class="reel-thumb"></div>`}
-      <div class="reel-meta">
-        <strong>${escapeHtml(post.profile)} · ${escapeHtml(post.theme)}</strong>
-        <span>${post.duration}s · ${escapeHtml(post.audio)}</span>
-        <div class="metric-line">
-          <b>${number(post.views)} views</b>
-          <b>${percent(post.engagement)} engaj.</b>
-        </div>
-        <small>${escapeHtml(post.caption)}</small>
-        <small>CTA: ${escapeHtml(post.cta)}</small>
-      </div>
-    </article>
-  `).join("") || `<article class="insight-card">Sem reels para este filtro.</article>`;
-}
-
 function renderTrends(posts) {
   const groups = groupBy(posts, "theme").sort((a, b) => b.items.length - a.items.length).slice(0, 12);
   $("themeTrends").innerHTML = groups.map((group, index) => {
@@ -567,20 +546,6 @@ function renderTrends(posts) {
       </article>
     `;
   }).join("");
-}
-
-function renderInsights(posts) {
-  const topTheme = groupBy(posts, "theme").sort((a, b) => average(b.items, "engagement") - average(a.items, "engagement"))[0];
-  const reels = posts.filter((post) => post.type === "Reel");
-  const bestHour = bestPostingHour(posts);
-  const insights = [
-    `Conteudos sobre ${topTheme?.key || "praia"} lideram engajamento no periodo selecionado.`,
-    `Reels entre 10 e 20 segundos concentram ${percent(average(reels.filter((post) => post.duration >= 10 && post.duration <= 20), "engagement"))} de engajamento medio.`,
-    "Conteudos com pessoas e experiencias reais tendem a performar melhor que imagens estaticas.",
-    `A faixa de ${bestHour}h aparece como melhor horario de publicacao.`,
-    "Gastronomia, praia e piscina devem ser testados com variacoes de CTA para venda direta."
-  ];
-  $("aiInsights").innerHTML = insights.map((text) => `<article class="insight-card">${escapeHtml(text)}</article>`).join("");
 }
 
 function renderSuggestions(posts) {
@@ -756,9 +721,7 @@ function renderAll() {
   renderTopStatus(posts);
   renderSuedsAccounts();
   renderKpis(posts);
-  renderInsights(posts);
   renderTopPosts(posts);
-  renderReels(posts);
   renderTrends(posts);
   renderSuggestions(posts);
   renderHashtags(posts);
