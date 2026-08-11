@@ -289,6 +289,33 @@ function authenticateSellerUser(username, password) {
   };
 }
 
+function portalSellerAccessProfile(profile = {}) {
+  const profileName = String(profile.name || "").trim();
+  const nameKey = comparableKey(profileName);
+  const emailLocalPart = normalizeAccessUsername(profile.email).split("@")[0];
+  const emailTokens = emailLocalPart.split(/[^a-z0-9]+/).filter(Boolean);
+  const matches = Object.entries(SELLER_ACCESS_USERS).filter(([username, seller]) => {
+    const sellerNameKey = comparableKey(seller.displayName);
+    const sellerFirstName = sellerNameKey.split(/\s+/)[0];
+    return nameKey === sellerNameKey
+      || nameKey === sellerFirstName
+      || nameKey.startsWith(`${sellerNameKey} `)
+      || emailLocalPart === username
+      || emailTokens.includes(username);
+  });
+
+  if (matches.length === 1) {
+    const [username, seller] = matches[0];
+    return { role: "seller", username, displayName: seller.displayName };
+  }
+
+  return {
+    role: "seller",
+    username: normalizeAccessUsername(profile.email),
+    displayName: profileName || "Vendedor"
+  };
+}
+
 function signSellerSession(profile, remember = false) {
   const expiresAt = Date.now() + (remember ? SELLER_REMEMBER_SESSION_TTL_MS : SELLER_ACCESS_SESSION_TTL_MS);
   const payload = base64url(JSON.stringify({
@@ -341,7 +368,7 @@ function sellerAccessProfile(req, url) {
     return { role: "manager", username: "gestor", displayName: req.portalProfile.name || "Gestor" };
   }
   if (req.portalProfile?.environments?.includes("ranking_vendedores")) {
-    return { role: "seller", username: normalizeAccessUsername(req.portalProfile.email), displayName: req.portalProfile.name || "Vendedor" };
+    return portalSellerAccessProfile(req.portalProfile);
   }
   if (GESTORES_ACCESS_TOKEN && hasManagerAccess(req, url)) {
     return { role: "manager", username: "gestor", displayName: "Gestor" };
@@ -7357,6 +7384,7 @@ module.exports = {
     buildOtherChannelsMetrics,
     buildAdvancePurchaseByChannel,
     buildSellersPayload,
+    portalSellerAccessProfile,
     sellerCommission,
     teamManagerCommission,
     readPlazaOpinionOmr: readOpinionOmr,
