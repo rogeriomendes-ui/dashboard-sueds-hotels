@@ -2175,6 +2175,35 @@ async function buildMetaInstagramPayload(days = 30) {
   return payload;
 }
 
+async function loadMetaInstagramComments(mediaId) {
+  const safeMediaId = String(mediaId || "").trim();
+  if (!/^\d+$/.test(safeMediaId)) {
+    const error = new Error("Publicacao invalida.");
+    error.statusCode = 400;
+    throw error;
+  }
+  let rows;
+  try {
+    rows = await metaInstagramRequestAll(`${safeMediaId}/comments`, {
+      fields: "id,text,timestamp,username,like_count",
+      limit: 100
+    }, 3);
+  } catch (error) {
+    if (!/field|username|like_count/i.test(error.message)) throw error;
+    rows = await metaInstagramRequestAll(`${safeMediaId}/comments`, {
+      fields: "id,text,timestamp,from",
+      limit: 100
+    }, 3);
+  }
+  return rows.map((comment) => ({
+    id: String(comment.id || ""),
+    text: String(comment.text || ""),
+    timestamp: comment.timestamp || "",
+    username: String(comment.username || comment.from?.username || comment.from?.name || "Instagram"),
+    likes: Number(comment.like_count || 0)
+  }));
+}
+
 function metaInstagramDailySnapshot(payload) {
   const capturedAt = new Date().toISOString();
   const periodDate = todayKey();
@@ -7265,6 +7294,24 @@ async function handleRequest(req, res) {
       if (!hasManagerAccess(req, url)) return forbidden(res);
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       return json(res, 200, await buildMetaInstagramPayload(url.searchParams.get("days") || 30));
+    }
+
+    if (url.pathname === "/api/redes-sociais/comments") {
+      if (!hasManagerAccess(req, url)) return forbidden(res);
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      try {
+        const comments = await loadMetaInstagramComments(url.searchParams.get("mediaId"));
+        return json(res, 200, { ok: true, comments });
+      } catch (error) {
+        const denied = Number(error.statusCode) === 400 && /permiss|unsupported|get object|does not exist/i.test(error.message);
+        return json(res, denied ? 403 : Number(error.statusCode || 500), {
+          ok: false,
+          error: denied ? "comments_unavailable" : "comments_failed",
+          message: denied
+            ? "Os comentarios desta publicacao nao estao disponiveis para a conexao atual."
+            : error.message
+        });
+      }
     }
 
     if (url.pathname === "/api/cron/social-snapshot") {

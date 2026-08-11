@@ -33,7 +33,7 @@ module.exports = async function api(req, res) {
   }
   if (pathname === "/api/dashboard/gestores") return gestoresHandler(req, res);
   if (pathname === "/api/inteligencia/mercado") return marketingHandler(req, res);
-  if (pathname === "/api/redes-sociais") return socialHandler(req, res);
+  if (pathname === "/api/redes-sociais" || pathname.startsWith("/api/redes-sociais/")) return socialHandler(req, res);
   if (pathname === "/api/tv-messages") return tvMessagesHandler(req, res);
   return handleRequest(req, res);
 };

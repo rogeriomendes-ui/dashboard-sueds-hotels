@@ -437,15 +437,15 @@ function renderTopPosts(posts) {
   $("postSort").value = state.postSort;
   $("topPostsTable").innerHTML = sortedPosts(posts).slice(0, 40).map((post) => `
     <tr>
-      <td>${post.thumbnail
+      <td><button class="post-preview-button" type="button" data-post-id="${escapeHtml(post.id)}" aria-label="Visualizar publicacao de ${escapeHtml(post.profile)}">${post.thumbnail
         ? `<img class="thumb" src="${escapeHtml(post.thumbnail)}" alt="Publicacao de ${escapeHtml(post.profile)}" loading="lazy">`
-        : `<div class="thumb"></div>`}</td>
+        : `<span class="thumb"></span>`}</button></td>
       <td>${escapeHtml(post.profile)}</td>
       <td>${dateLabel(post.date)}</td>
       <td>${escapeHtml(post.type)}</td>
       <td>${escapeHtml(post.theme)}</td>
       <td>${number(post.likes)}</td>
-      <td>${number(post.comments)}</td>
+      <td><button class="comments-count-button" type="button" data-post-id="${escapeHtml(post.id)}" aria-label="Visualizar ${number(post.comments)} comentarios">${number(post.comments)}</button></td>
       <td>${number(post.reach)}</td>
       <td>${number(post.saved)}</td>
       <td>${number(post.shares)}</td>
@@ -454,6 +454,82 @@ function renderTopPosts(posts) {
       <td><a class="link-button" href="${post.url}" target="_blank" rel="noopener">Abrir</a></td>
     </tr>
   `).join("");
+}
+
+function postById(postId) {
+  return state.data.posts.find((post) => String(post.id) === String(postId));
+}
+
+function postMetric(label, value) {
+  return `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+async function loadPostComments(post) {
+  const target = $("postCommentsList");
+  if (!target) return;
+  if (!/^\d+$/.test(String(post.id || ""))) {
+    target.innerHTML = `<p class="comments-message">Comentarios detalhados estao disponiveis apenas para publicacoes oficiais conectadas.</p>`;
+    return;
+  }
+  const profile = state.data.profiles.find((item) => item.name === post.profile);
+  if (profile?.accessLevel === "public") {
+    target.innerHTML = `<p class="comments-message">Vincule esta conta a Meta para visualizar o texto dos comentarios.</p>`;
+    return;
+  }
+  target.innerHTML = `<p class="comments-message">Carregando comentarios...</p>`;
+  try {
+    const response = await fetch(`/api/redes-sociais/comments?mediaId=${encodeURIComponent(post.id)}`, { credentials: "same-origin" });
+    if (response.status === 401) {
+      window.top.location.replace(`/login?next=${encodeURIComponent("/gestores?modulo=redes_sociais")}`);
+      return;
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.message || "Comentarios indisponiveis.");
+    const comments = payload.comments || [];
+    target.innerHTML = comments.length ? comments.map((comment) => `
+      <article class="post-comment">
+        <div><strong>@${escapeHtml(String(comment.username || "instagram").replace(/^@/, ""))}</strong><span>${comment.timestamp ? dateTimeLabel(comment.timestamp) : ""}</span></div>
+        <p>${escapeHtml(comment.text)}</p>
+        ${comment.likes ? `<small>${number(comment.likes)} curtidas</small>` : ""}
+      </article>
+    `).join("") : `<p class="comments-message">Esta publicacao ainda nao possui comentarios.</p>`;
+  } catch (error) {
+    target.innerHTML = `<p class="comments-message error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function openPostDetails(postId) {
+  const post = postById(postId);
+  if (!post) return;
+  const dialog = $("postDetailsDialog");
+  $("postDetailsTitle").textContent = `${post.profile} · ${post.type}`;
+  $("postDetailsContent").innerHTML = `
+    <div class="post-details-media">
+      ${post.thumbnail
+        ? `<img src="${escapeHtml(post.thumbnail)}" alt="Publicacao de ${escapeHtml(post.profile)}">`
+        : `<div class="post-details-placeholder">Miniatura indisponivel</div>`}
+      <a class="action-button post-instagram-link" href="${escapeHtml(post.url)}" target="_blank" rel="noopener">Abrir no Instagram</a>
+    </div>
+    <div class="post-details-info">
+      <div class="post-details-meta"><strong>${escapeHtml(post.profile)}</strong><span>${dateTimeLabel(post.date)}</span></div>
+      <p class="post-caption">${escapeHtml(post.caption || "Sem legenda.")}</p>
+      <div class="post-details-metrics">
+        ${postMetric("Curtidas", number(post.likes))}
+        ${postMetric("Comentarios", number(post.comments))}
+        ${postMetric("Alcance", number(post.reach))}
+        ${postMetric("Salvamentos", number(post.saved))}
+        ${postMetric("Compartilhamentos", number(post.shares))}
+        ${postMetric("Visualizacoes", number(post.views))}
+      </div>
+      <div class="post-comments-section">
+        <h3>Comentarios</h3>
+        <div id="postCommentsList" class="post-comments-list"></div>
+      </div>
+    </div>
+  `;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+  loadPostComments(post);
 }
 
 function renderReels(posts) {
@@ -732,6 +808,14 @@ function bindEvents() {
   $("postSort").addEventListener("change", (event) => {
     state.postSort = event.target.value;
     renderAll();
+  });
+  $("topPostsTable").addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-post-id]");
+    if (trigger) openPostDetails(trigger.dataset.postId);
+  });
+  $("closePostDetails").addEventListener("click", () => $("postDetailsDialog").close());
+  $("postDetailsDialog").addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) event.currentTarget.close();
   });
   $("compareSelector").addEventListener("change", (event) => {
     const value = event.target.value;
