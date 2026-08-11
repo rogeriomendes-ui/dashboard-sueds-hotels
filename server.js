@@ -2037,17 +2037,33 @@ async function discoverMetaInstagramAccounts() {
     if (!account?.id) return;
     discovered.set(String(account.id), { ...account, pageName });
   };
+  const addPages = (pages = []) => {
+    pages.forEach((page) => addAccount(page.instagram_business_account, page.name));
+  };
 
   META_INSTAGRAM_ACCOUNT_IDS.forEach((id) => addAccount({ id }));
   if (META_INSTAGRAM_BUSINESS_ID) {
+    const pageFields = "id,name,instagram_business_account{id,username,name,followers_count,media_count,profile_picture_url}";
+    let pageEdgeSucceeded = false;
+    for (const edge of ["owned_pages", "client_pages"]) {
+      try {
+        addPages(await metaInstagramRequestAll(`${META_INSTAGRAM_BUSINESS_ID}/${edge}`, {
+          fields: pageFields,
+          limit: 100
+        }));
+        pageEdgeSucceeded = true;
+      } catch (error) {
+        // Some portfolios do not expose every page edge; the remaining sources still apply.
+      }
+    }
     try {
-      const pages = await metaInstagramRequestAll(`${META_INSTAGRAM_BUSINESS_ID}/owned_pages`, {
-        fields: "id,name,instagram_business_account{id,username,name,followers_count,media_count,profile_picture_url}",
-        limit: 100
-      });
-      pages.forEach((page) => addAccount(page.instagram_business_account, page.name));
+      addPages(await metaInstagramRequestAll("me/accounts", { fields: pageFields, limit: 100 }));
+      pageEdgeSucceeded = true;
     } catch (error) {
-      if (!META_INSTAGRAM_ACCOUNT_IDS.length) throw error;
+      // System-user tokens may not expose /me/accounts even when page edges are available.
+    }
+    if (!pageEdgeSucceeded && !META_INSTAGRAM_ACCOUNT_IDS.length) {
+      throw new Error("Nenhuma pagina do Meta ficou acessivel para descobrir as contas do Instagram.");
     }
   }
 
