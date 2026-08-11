@@ -121,6 +121,7 @@ function mergeOfficialProfiles(storedProfiles, accounts) {
       followers: Number(account.followers || 0),
       mediaCount: Number(account.mediaCount || 0),
       profilePicture: account.profilePicture || "",
+      accessLevel: account.accessLevel || "insights",
       status: "Ativo",
       lastUpdated: new Date().toISOString(),
       official: true,
@@ -367,7 +368,9 @@ function renderSuedsAccounts() {
     const posts = suedsAccountPosts(profile.name);
     const reels = posts.filter((post) => post.type === "Reel");
     const stories = posts.filter((post) => post.type === "Story");
-    const status = profile.connected ? "Meta API" : state.data.source === "meta_instagram_graph_api" ? "Vinculo pendente" : "Dados demonstrativos";
+    const status = profile.connected
+      ? profile.accessLevel === "public" ? "Meta API (publico)" : "Meta API"
+      : state.data.source === "meta_instagram_graph_api" ? "Vinculo pendente" : "Dados demonstrativos";
     return `
       <article class="sueds-account-card">
         <div class="sueds-account-heading">

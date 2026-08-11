@@ -2078,6 +2078,26 @@ async function discoverMetaInstagramAccounts() {
       // An account without current permission is omitted while the remaining accounts continue loading.
     }
   }
+
+  const discoverySource = accounts.find((account) => account.username);
+  const connectedUsernames = new Set(accounts.map((account) => marketComparable(account.username)));
+  for (const username of ["beachclubsueds"]) {
+    if (!discoverySource || connectedUsernames.has(marketComparable(username))) continue;
+    try {
+      const fields = `business_discovery.username(${username}){id,username,name,followers_count,media_count,profile_picture_url,media.limit(100){id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count}}`;
+      const payload = await metaInstagramRequest(discoverySource.id, { fields });
+      const publicAccount = payload.business_discovery;
+      if (publicAccount?.id) {
+        accounts.push({
+          ...publicAccount,
+          publicDiscovery: true,
+          discoveredMedia: publicAccount.media?.data || []
+        });
+      }
+    } catch (error) {
+      // The official card remains pending when Meta Business Discovery is unavailable.
+    }
+  }
   return accounts;
 }
 
@@ -2105,18 +2125,24 @@ async function buildMetaInstagramPayload(days = 30) {
   for (const rawAccount of accounts) {
     const account = { ...rawAccount, displayName: metaInstagramDisplayName(rawAccount) };
     const [media, stories] = await Promise.all([
-      metaInstagramRequestAll(`${account.id}/media`, {
-        fields: "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
-        since,
-        limit: 100
-      }, 3).catch(() => []),
-      metaInstagramRequestAll(`${account.id}/stories`, {
-        fields: "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp",
-        limit: 100
-      }, 1).catch(() => [])
+      account.publicDiscovery
+        ? Promise.resolve((account.discoveredMedia || []).filter((item) => new Date(item.timestamp).getTime() >= since * 1000))
+        : metaInstagramRequestAll(`${account.id}/media`, {
+          fields: "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
+          since,
+          limit: 100
+        }, 3).catch(() => []),
+      account.publicDiscovery
+        ? Promise.resolve([])
+        : metaInstagramRequestAll(`${account.id}/stories`, {
+          fields: "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp",
+          limit: 100
+        }, 1).catch(() => [])
     ]);
     const recent = [...media, ...stories].slice(0, 100);
-    const insightRows = await Promise.all(recent.map((item) => loadMetaInstagramMediaInsights(item)));
+    const insightRows = account.publicDiscovery
+      ? recent.map(() => ({ reach: 0, saved: 0, shares: 0, views: 0, interactions: 0 }))
+      : await Promise.all(recent.map((item) => loadMetaInstagramMediaInsights(item)));
     recent.forEach((item, index) => posts.push(normalizeMetaInstagramPost(item, account, insightRows[index])));
     normalizedAccounts.push({
       id: String(account.id),
@@ -2125,7 +2151,8 @@ async function buildMetaInstagramPayload(days = 30) {
       followers: Number(account.followers_count || 0),
       mediaCount: Number(account.media_count || 0),
       profilePicture: account.profile_picture_url || "",
-      connected: true
+      connected: true,
+      accessLevel: account.publicDiscovery ? "public" : "insights"
     });
   }
 
