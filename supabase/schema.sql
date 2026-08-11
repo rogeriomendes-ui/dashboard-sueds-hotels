@@ -10,6 +10,10 @@ create table if not exists public.dashboard_snapshots (
 create index if not exists dashboard_snapshots_source_month_created_idx
   on public.dashboard_snapshots (source, period_month, created_at desc);
 
+create unique index if not exists dashboard_snapshots_source_date_unique_idx
+  on public.dashboard_snapshots (source, period_date)
+  where period_date is not null;
+
 create table if not exists public.dashboard_access_profiles (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
