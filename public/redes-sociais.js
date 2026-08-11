@@ -1,17 +1,3 @@
-const SOCIAL_CATEGORIES = [
-  "Hoteis",
-  "Resorts",
-  "Pousadas",
-  "Influenciadores",
-  "Operadoras",
-  "Agencias",
-  "Turismo",
-  "Praias",
-  "Destinos",
-  "Restaurantes",
-  "Beach Clubs"
-];
-
 const THEMES = [
   "Praia",
   "Piscina",
@@ -288,72 +274,6 @@ function sum(posts, key) {
 
 function average(items, key) {
   return items.length ? items.reduce((total, item) => total + (Number(item[key]) || 0), 0) / items.length : 0;
-}
-
-function populateSelect(id, options, firstLabel) {
-  const select = $(id);
-  const current = select.value;
-  select.innerHTML = [`<option value="">${firstLabel}</option>`]
-    .concat(options.map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`))
-    .join("");
-  if ([...select.options].some((option) => option.value === current)) select.value = current;
-}
-
-function renderFilters() {
-  const profiles = state.data.profiles;
-  populateSelect("cityFilter", unique(profiles.map((profile) => profile.city)), "Todas as cidades");
-  populateSelect("stateFilter", unique(profiles.map((profile) => profile.state)), "Todos os estados");
-  populateSelect("categoryFilter", SOCIAL_CATEGORIES, "Todas as categorias");
-  populateSelect("typeFilter", ["Foto", "Reel", "Carrossel", "Story"], "Todos os tipos");
-  populateSelect("themeFilter", THEMES, "Todos os temas");
-  populateSelect("profileFilter", profiles.map((profile) => profile.name), "Todos os perfis");
-
-  $("periodFilter").innerHTML = [
-    ["7", "7 dias"],
-    ["15", "15 dias"],
-    ["30", "30 dias"],
-    ["90", "90 dias"]
-  ].map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
-  $("periodFilter").value = state.filters.period;
-}
-
-function unique(values) {
-  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-}
-
-function renderTopStatus(posts) {
-  $("lastUpdate").textContent = dateTimeLabel(state.data.lastUpdated);
-  $("profileCount").textContent = number(state.data.profiles.filter((profile) => profile.status === "Ativo").length);
-  $("postCount").textContent = number(posts.length);
-  $("periodLabel").textContent = `${state.filters.period} dias`;
-}
-
-function renderKpis(posts) {
-  const today = new Date().toISOString().slice(0, 10);
-  const postsToday = posts.filter((post) => post.date.slice(0, 10) === today);
-  const reelsToday = postsToday.filter((post) => post.type === "Reel");
-  const competitors = state.data.profiles.filter((profile) => !profile.name.startsWith("Sueds") && profile.name !== "Beach Club Sueds");
-  const topGrowth = [...state.data.profiles].sort((a, b) => b.growth - a.growth)[0];
-  const topViral = [...posts].sort((a, b) => b.views - a.views)[0];
-  const kpis = [
-    ["Posts publicados hoje", number(postsToday.length), "Conteudos no dia atual"],
-    ["Reels publicados hoje", number(reelsToday.length), "Videos curtos publicados"],
-    ["Media engaj. concorrentes", percent(average(posts.filter((post) => competitors.some((profile) => profile.name === post.profile)), "engagement")), "Base comparativa"],
-    ["Crescimento medio", percent(average(state.data.profiles, "growth")), "Seguidores no periodo"],
-    ["Total de curtidas", number(sum(posts, "likes")), "Interacoes positivas"],
-    ["Total de comentarios", number(sum(posts, "comments")), "Conversas geradas"],
-    ["Total de compartilhamentos", number(sum(posts, "shares")), "Distribuicao espontanea"],
-    ["Total de visualizacoes", number(sum(posts, "views")), "Alcance bruto"],
-    ["Perfil que mais cresceu", topGrowth?.name || "--", topGrowth ? percent(topGrowth.growth) : "--"],
-    ["Post mais viral", topViral?.profile || "--", topViral ? `${number(topViral.views)} views` : "--"]
-  ];
-  $("kpiGrid").innerHTML = kpis.map(([label, value, note]) => `
-    <article class="kpi-card">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
-      <small>${escapeHtml(note)}</small>
-    </article>
-  `).join("");
 }
 
 function suedsAccountPosts(profileName) {
@@ -719,18 +639,9 @@ function groupBy(items, key) {
   return [...groups.entries()].map(([groupKey, groupItems]) => ({ key: groupKey, items: groupItems }));
 }
 
-function bestPostingHour(posts) {
-  const rows = groupBy(posts, (post) => new Date(post.date).getHours())
-    .sort((a, b) => average(b.items, "engagement") - average(a.items, "engagement"));
-  return rows[0]?.key || 18;
-}
-
 function renderAll() {
   const posts = filteredPosts();
-  renderFilters();
-  renderTopStatus(posts);
   renderSuedsAccounts();
-  renderKpis(posts);
   renderTopPosts(posts);
   renderTrends(posts);
   renderSuggestions(posts);
@@ -740,26 +651,6 @@ function renderAll() {
   renderCompare(posts);
   renderProfiles();
   renderAgentReport(posts);
-}
-
-function exportExcel() {
-  const posts = sortedPosts(filteredPosts());
-  const rows = [
-    ["Perfil", "Data", "Tipo", "Tema", "Curtidas", "Comentarios", "Alcance", "Salvamentos", "Compartilhamentos", "Interacoes", "Visualizacoes", "Engajamento %", "Link"],
-    ...posts.map((post) => [post.profile, dateLabel(post.date), post.type, post.theme, post.likes, post.comments, post.reach, post.saved, post.shares, post.interactions, post.views, percent(post.engagement), post.url])
-  ];
-  const html = `<table>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell))}</td>`).join("")}</tr>`).join("")}</table>`;
-  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
-  downloadBlob(blob, `inteligencia-redes-sociais-${new Date().toISOString().slice(0, 10)}.xls`);
-}
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(value) {
@@ -772,12 +663,6 @@ function escapeHtml(value) {
 }
 
 function bindEvents() {
-  ["city", "state", "category", "period", "type", "theme", "profile"].forEach((key) => {
-    $(`${key}Filter`).addEventListener("change", (event) => {
-      state.filters[key] = event.target.value;
-      renderAll();
-    });
-  });
   $("postSort").addEventListener("change", (event) => {
     state.postSort = event.target.value;
     renderAll();
@@ -811,15 +696,6 @@ function bindEvents() {
     if (deleteId) deleteProfile(deleteId);
   });
   $("addProfile").addEventListener("click", addProfile);
-  $("exportExcel").addEventListener("click", exportExcel);
-  $("exportPdf").addEventListener("click", () => window.print());
-  $("refreshButton").addEventListener("click", async () => {
-    state.data = await dataProvider.load();
-    renderAll();
-  });
-  $("settingsButton").addEventListener("click", () => {
-    alert("Configuracoes preparadas para Instagram Graph API, Meta API, TikTok API, YouTube Data API, OpenAI e Gemini.");
-  });
 }
 
 function addProfile() {
