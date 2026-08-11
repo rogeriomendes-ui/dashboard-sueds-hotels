@@ -5225,9 +5225,13 @@ async function updateOperationalIncidentStatus(body = {}) {
   const headers = rows[0] || [];
   const idIndex = headers.indexOf("ID Arquivo");
   const issuesIndex = headers.indexOf("Problemas Identificados");
+  const commentsIndex = headers.indexOf("Comentarios");
   const rowOffset = rows.slice(1).findIndex((row) => (
     String(row[idIndex] || "").trim() === incidentId &&
-    String(row[issuesIndex] || "").trim()
+    (
+      String(row[issuesIndex] || "").trim() ||
+      String(row[commentsIndex] || "").trim()
+    )
   ));
   if (rowOffset < 0) throw new Error("Ocorrencia nao encontrada.");
 
@@ -5366,11 +5370,7 @@ function opinionOperationalIncident(opinion, index) {
   const description = opinion.issues || opinion.comments;
   if (!description) return null;
   const requestedAt = opinion.capturedAt || opinion.processedAt || new Date();
-  const status = opinion.hasIncidentStatus
-    ? opinion.incidentStatus
-    : opinion.issues
-      ? "pending"
-      : "registered";
+  const status = opinion.hasIncidentStatus ? opinion.incidentStatus : "pending";
   const statusAt = opinion.incidentStatusAt;
   const elapsedUntil = status === "pending" || !statusAt ? new Date() : statusAt;
   const elapsedMinutes = Math.max(0, Math.floor((elapsedUntil.getTime() - requestedAt.getTime()) / 60000));
