@@ -1944,7 +1944,12 @@ async function metaInstagramRequest(resource, params = {}) {
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   });
-  const response = await fetch(url, { headers: { authorization: `Bearer ${META_INSTAGRAM_ACCESS_TOKEN}` } });
+  let response;
+  try {
+    response = await fetch(url, { headers: { authorization: `Bearer ${META_INSTAGRAM_ACCESS_TOKEN}` } });
+  } catch (error) {
+    throw new Error(`Meta Instagram indisponivel: ${error.message}`);
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload?.error?.message || `Meta Instagram request failed (${response.status})`);
@@ -2210,15 +2215,20 @@ async function supabaseSnapshotRequest(pathname, options = {}) {
   const serviceAuthorization = SUPABASE_SERVICE_ROLE_KEY.startsWith("sb_secret_")
     ? {}
     : { authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` };
-  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${pathname}`, {
-    ...options,
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE_KEY,
-      ...serviceAuthorization,
-      "content-type": "application/json",
-      ...(options.headers || {})
-    }
-  });
+  let response;
+  try {
+    response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${pathname}`, {
+      ...options,
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        ...serviceAuthorization,
+        "content-type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+  } catch (error) {
+    throw new Error(`Supabase snapshots indisponivel: ${error.message}`);
+  }
   const text = await response.text();
   if (!response.ok) throw new Error(`Supabase snapshots respondeu ${response.status}: ${text.slice(0, 300)}`);
   return text ? JSON.parse(text) : null;
