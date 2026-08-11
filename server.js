@@ -31,8 +31,9 @@ const OPINION_UPLOAD_FOLDERS = {
 };
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
-const SUPABASE_URL = process.env.SUPABASE_URL || "";
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const DEFAULT_SUPABASE_URL = "https://pjcmjytiovuukbkewxjj.supabase.co";
+const SUPABASE_URL = String(process.env.PORTAL_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL).trim();
+const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 const CRON_SECRET = process.env.CRON_SECRET || "";
 const GESTORES_ACCESS_TOKEN = process.env.GESTORES_ACCESS_TOKEN || "";
 const OPERATIONAL_ACCESS_SECRET = process.env.OPERATIONAL_ACCESS_SECRET || GESTORES_ACCESS_TOKEN || OPINION_UPLOAD_TOKEN || "sueds-operational-local";
@@ -2206,11 +2207,14 @@ function metaInstagramDailySnapshot(payload) {
 
 async function supabaseSnapshotRequest(pathname, options = {}) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Supabase nao configurado.");
+  const serviceAuthorization = SUPABASE_SERVICE_ROLE_KEY.startsWith("sb_secret_")
+    ? {}
+    : { authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` };
   const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${pathname}`, {
     ...options,
     headers: {
       apikey: SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      ...serviceAuthorization,
       "content-type": "application/json",
       ...(options.headers || {})
     }
