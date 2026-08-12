@@ -24,6 +24,22 @@
       "dest": "/public/usuarios.html"
     },
     {
+      "src": "/Treinamentos",
+      "dest": "/public/treinamentos.html"
+    },
+    {
+      "src": "/Treinamentos/KPIFull",
+      "dest": "/public/treinamentos-kpifull.html"
+    },
+    {
+      "src": "/treinamentos",
+      "dest": "/public/treinamentos.html"
+    },
+    {
+      "src": "/treinamentos/kpifull",
+      "dest": "/public/treinamentos-kpifull.html"
+    },
+    {
       "src": "/inspecoes",
       "dest": "https://sueds-inspecoes.vercel.app/inspecoes"
     },
