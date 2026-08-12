@@ -29,6 +29,31 @@ const formatCurrencyDetailed = new Intl.NumberFormat("pt-BR", {
 
 const formatNumber = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
+function formatAccountCurrency(value, currency = "BRL") {
+  try {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: currency || "BRL",
+      maximumFractionDigits: 2
+    }).format(Number(value || 0));
+  } catch (error) {
+    return formatCurrencyDetailed.format(Number(value || 0));
+  }
+}
+
+function investmentPeriodLabel(period = {}) {
+  if (period.startDate && period.startDate === period.endDate) return "Investido no dia";
+  if (Array.isArray(period.months) && period.months.length > 1) return "Investido no período";
+  return "Investido no mês";
+}
+
+function billingCard(balance = {}) {
+  return [
+    balance.label || "Saldo disponível",
+    balance.available ? formatAccountCurrency(balance.value, balance.currency) : "--"
+  ];
+}
+
 function currentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -409,10 +434,10 @@ function renderConversionTable(id, rows, maxRows = 8) {
 
 function renderMedia(media) {
   const googleCards = [
-    ["Investimento", formatCurrency.format(media.googleSpend || 0)],
+    [investmentPeriodLabel(media.period), formatCurrencyDetailed.format(media.googleSpend || 0)],
+    billingCard(media.googleBalance),
     ["Cliques", formatNumber.format(media.googleClicks || 0)],
     ["Conversões", formatNumber.format(media.googleConversions || 0)],
-    ["Valor conv.", formatCurrency.format(media.googleConversionValue || 0)],
     ["CPC médio", formatCurrencyDetailed.format(media.costPerClick || 0)],
     ["Custo/conv.", formatCurrencyDetailed.format(media.googleConversions ? (media.googleSpend || 0) / media.googleConversions : 0)]
   ];
@@ -461,12 +486,12 @@ function renderMedia(media) {
   `;
 
   const metaCards = [
-    ["Investimento", formatCurrency.format(media.metaSpend || 0)],
-    ["Cliques", "--"],
-    ["Conversões", "--"],
-    ["Valor conv.", "--"],
-    ["CPC médio", "--"],
-    ["Custo/conv.", "--"]
+    [investmentPeriodLabel(media.period), formatCurrencyDetailed.format(media.metaSpend || 0)],
+    billingCard(media.metaBalance),
+    ["Cliques", formatNumber.format(media.metaClicks || 0)],
+    ["Conversões", formatNumber.format(media.metaConversions || 0)],
+    ["CPC médio", formatCurrencyDetailed.format(media.metaCostPerClick || 0)],
+    ["Custo/conv.", formatCurrencyDetailed.format(media.metaCostPerConversion || 0)]
   ];
   document.getElementById("metaMediaCards").innerHTML = metaCards.map(([label, value]) => `
     <div class="mini-kpi">
@@ -475,7 +500,9 @@ function renderMedia(media) {
     </div>
   `).join("");
   document.getElementById("metaMediaStatus").textContent = media.metaConnected
-    ? "Meta Ads conectado."
+    ? media.metaBalance?.available
+      ? "Meta Ads conectado. Saldo atualizado diretamente pela conta de anúncios."
+      : "Meta Ads conectado. O saldo não foi disponibilizado pela modalidade de cobrança da conta."
     : "Meta Ads ainda não conectado. Este bloco está preparado para receber os dados da API da Meta.";
 
   const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];

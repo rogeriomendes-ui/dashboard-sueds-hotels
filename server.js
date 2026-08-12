@@ -1058,6 +1058,69 @@ async function googleAdsGeoTargetNames(resourceNames) {
   }
 }
 
+async function loadGoogleAdsBillingBalance() {
+  try {
+    const query = `
+      SELECT
+        customer.currency_code,
+        account_budget.id,
+        account_budget.name,
+        account_budget.status,
+        account_budget.adjusted_spending_limit_micros,
+        account_budget.adjusted_spending_limit_type,
+        account_budget.amount_served_micros,
+        account_budget.approved_start_date_time,
+        account_budget.proposed_start_date_time,
+        account_budget.approved_end_date_time,
+        account_budget.approved_end_time_type
+      FROM account_budget
+      WHERE account_budget.status = 'APPROVED'
+      ORDER BY account_budget.approved_start_date_time DESC
+    `;
+    const rows = await googleAdsSearchStream(query);
+    const now = Date.now();
+    const row = rows.find((item) => {
+      const budget = item.accountBudget || {};
+      const startText = String(budget.approvedStartDateTime || budget.proposedStartDateTime || "").replace(" ", "T");
+      const endText = String(budget.approvedEndDateTime || "").replace(" ", "T");
+      const startTime = startText ? Date.parse(startText) : Number.NEGATIVE_INFINITY;
+      const endTime = endText ? Date.parse(endText) : Number.POSITIVE_INFINITY;
+      const forever = String(budget.approvedEndTimeType || "").toUpperCase() === "FOREVER";
+      return (Number.isNaN(startTime) || startTime <= now) && (forever || Number.isNaN(endTime) || endTime >= now);
+    });
+    if (!row) {
+      return { available: false, value: null, label: "Saldo não disponível", currency: "BRL" };
+    }
+
+    const budget = row.accountBudget || {};
+    const currency = String(row.customer?.currencyCode || "BRL");
+    const isInfinite = String(budget.adjustedSpendingLimitType || "").toUpperCase() === "INFINITE";
+    const limitMicros = googleAdsMetricNumber(budget.adjustedSpendingLimitMicros);
+    const servedMicros = googleAdsMetricNumber(budget.amountServedMicros);
+    if (isInfinite || !limitMicros) {
+      return {
+        available: false,
+        value: null,
+        label: isInfinite ? "Limite sem valor definido" : "Saldo não disponível",
+        currency,
+        budgetName: String(budget.name || "")
+      };
+    }
+
+    return {
+      available: true,
+      value: marketRound(Math.max(0, limitMicros - servedMicros) / 1000000, 2),
+      label: "Saldo do orçamento",
+      currency,
+      limit: marketRound(limitMicros / 1000000, 2),
+      amountServed: marketRound(servedMicros / 1000000, 2),
+      budgetName: String(budget.name || "")
+    };
+  } catch (error) {
+    return { available: false, value: null, label: "Saldo não disponível", currency: "BRL", error: error.message };
+  }
+}
+
 async function loadGoogleAdsMetrics(period = {}) {
   const dateRange = period.startDate && period.endDate
     ? { month: period.month || "custom", startDate: period.startDate, endDate: period.endDate }
@@ -1135,10 +1198,11 @@ async function loadGoogleAdsMetrics(period = {}) {
       WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
       ORDER BY metrics.cost_micros DESC
     `;
-    const [results, accountSummaryResults, keywordResults] = await Promise.all([
+    const [results, accountSummaryResults, keywordResults, billing] = await Promise.all([
       googleAdsSearchStream(campaignQuery),
       googleAdsSearchStream(accountSummaryQuery).catch(() => []),
-      googleAdsSearchStream(keywordQuery).catch(() => [])
+      googleAdsSearchStream(keywordQuery).catch(() => []),
+      loadGoogleAdsBillingBalance()
     ]);
     const cityResults = await googleAdsSearchStream(cityQuery).catch(() => []);
     const cityNameMap = await googleAdsGeoTargetNames(cityResults.map((row) => row.segments?.geoTargetCity));
@@ -1253,6 +1317,7 @@ async function loadGoogleAdsMetrics(period = {}) {
       campaigns,
       keywords,
       geoCities,
+      billing,
       summary
     };
     googleAdsCache = { key: cacheKey, payload, expiresAt: Date.now() + CACHE_TTL_MS };
@@ -1367,6 +1432,7 @@ async function loadGoogleAdsMetricsForMonths(months = []) {
     campaigns,
     keywords,
     geoCities,
+    billing: payloads.find((payload) => payload.billing)?.billing,
     summary
   };
 }
@@ -1440,6 +1506,33 @@ async function metaAdsInsightsRequest(params = {}) {
   return allRows;
 }
 
+async function loadMetaAdsBillingBalance() {
+  try {
+    const url = new URL(`https://graph.facebook.com/${META_ADS_API_VERSION}/act_${META_ADS_ACCOUNT_ID}`);
+    url.searchParams.set("fields", "balance,amount_spent,spend_cap,currency,is_prepay_account,account_status");
+    url.searchParams.set("access_token", META_ADS_ACCESS_TOKEN);
+    const response = await fetch(url);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(`Meta Ads billing request failed: ${response.status} ${JSON.stringify(payload)}`);
+    }
+
+    const currency = String(payload.currency || "BRL");
+    const isPrepay = payload.is_prepay_account === true || payload.is_prepay_account === 1 || payload.is_prepay_account === "1";
+    return {
+      available: payload.balance !== undefined && payload.balance !== null,
+      value: marketRound(metaAdsMetricNumber(payload.balance) / 100, 2),
+      label: isPrepay ? "Saldo disponível" : "Valor em aberto",
+      currency,
+      isPrepay,
+      amountSpent: marketRound(metaAdsMetricNumber(payload.amount_spent) / 100, 2),
+      spendCap: marketRound(metaAdsMetricNumber(payload.spend_cap) / 100, 2)
+    };
+  } catch (error) {
+    return { available: false, value: null, label: "Saldo não disponível", currency: "BRL", error: error.message };
+  }
+}
+
 async function loadMetaAdsMetrics(period = {}) {
   const dateRange = period.startDate && period.endDate
     ? { month: period.month || "custom", startDate: period.startDate, endDate: period.endDate }
@@ -1499,7 +1592,7 @@ async function loadMetaAdsMetrics(period = {}) {
       "action_values"
     ].join(",");
     const timeRange = JSON.stringify({ since: startDate, until: endDate });
-    const [campaignRows, adRows, locationRows] = await Promise.all([
+    const [campaignRows, adRows, locationRows, billing] = await Promise.all([
       metaAdsInsightsRequest({
         level: "campaign",
         fields: campaignFields,
@@ -1518,7 +1611,8 @@ async function loadMetaAdsMetrics(period = {}) {
         breakdowns: "region",
         time_range: timeRange,
         limit: "500"
-      }).catch(() => [])
+      }).catch(() => []),
+      loadMetaAdsBillingBalance()
     ]);
     const campaigns = campaignRows
       .map(normalizeMetaAdsInsight)
@@ -1553,6 +1647,7 @@ async function loadMetaAdsMetrics(period = {}) {
       campaigns,
       ads,
       locations,
+      billing,
       summary
     };
     metaAdsCache = { key: cacheKey, payload, expiresAt: Date.now() + CACHE_TTL_MS };
@@ -1635,6 +1730,7 @@ async function loadMetaAdsMetricsForMonths(months = []) {
     campaigns,
     ads,
     locations,
+    billing: payloads.find((payload) => payload.billing)?.billing,
     summary
   };
 }
@@ -6168,7 +6264,8 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, 
       error: googleAds.error || "",
       apiVersion: googleAds.apiVersion || "",
       customerId: googleAds.customerId || "",
-      period: googleAds.period || payload.period
+      period: googleAds.period || payload.period,
+      billing: googleAds.billing || { available: false, value: null, label: "Saldo não disponível", currency: "BRL" }
     },
     metaAds: {
       configured: Boolean(metaAds.configured),
@@ -6176,7 +6273,8 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, 
       error: metaAds.error || "",
       apiVersion: metaAds.apiVersion || "",
       accountId: metaAds.accountId || "",
-      period: metaAds.period || payload.period
+      period: metaAds.period || payload.period,
+      billing: metaAds.billing || { available: false, value: null, label: "Saldo não disponível", currency: "BRL" }
     }
   };
 
@@ -6334,6 +6432,9 @@ function applyGoogleAdsMetricsToMarketPayload(payload, googleAds, filters = {}, 
 
   payload.media.googleSpend = googleSpend;
   payload.media.metaSpend = metaSpend;
+  payload.media.period = googleAds.period || metaAds.period || payload.period;
+  payload.media.googleBalance = googleAds.billing || { available: false, value: null, label: "Saldo não disponível", currency: "BRL" };
+  payload.media.metaBalance = metaAds.billing || { available: false, value: null, label: "Saldo não disponível", currency: "BRL" };
   payload.media.metaConnected = false;
   payload.media.googleClicks = googleClicks;
   payload.media.googleConversions = googleConversions;
