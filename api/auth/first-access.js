@@ -9,7 +9,7 @@ module.exports = async function firstAccess(req, res) {
   const email = String(body.email || "").trim();
   const token = String(body.token || "").replace(/\s/g, "");
   const password = String(body.password || "");
-  const requestedType = String(body.type || "recovery");
+  const requestedType = String(body.type || "invite");
   if (!email || !token || password.length < 8) return json(res, 400, { error: "invalid_request" });
   if (!["recovery", "invite", "signup"].includes(requestedType)) {
     return json(res, 400, { error: "invalid_request" });

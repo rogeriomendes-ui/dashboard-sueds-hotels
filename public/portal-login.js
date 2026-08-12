@@ -75,7 +75,7 @@
       : {
           email: document.getElementById("firstAccessEmail").value.trim(),
           token: document.getElementById("firstAccessCode").value.trim(),
-          type: "recovery",
+          type: "invite",
           password
         };
     if (!invitationToken && (!requestBody.email || !requestBody.token)) {
