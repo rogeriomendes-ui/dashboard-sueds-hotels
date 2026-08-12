@@ -487,7 +487,6 @@ function renderMedia(media) {
 
   const metaCards = [
     [investmentPeriodLabel(media.period), formatCurrencyDetailed.format(media.metaSpend || 0)],
-    billingCard(media.metaBalance),
     ["Cliques", formatNumber.format(media.metaClicks || 0)],
     ["Conversões", formatNumber.format(media.metaConversions || 0)],
     ["CPC médio", formatCurrencyDetailed.format(media.metaCostPerClick || 0)],
@@ -500,9 +499,7 @@ function renderMedia(media) {
     </div>
   `).join("");
   document.getElementById("metaMediaStatus").textContent = media.metaConnected
-    ? media.metaBalance?.available
-      ? "Meta Ads conectado. Saldo atualizado diretamente pela conta de anúncios."
-      : "Meta Ads conectado. O saldo não foi disponibilizado pela modalidade de cobrança da conta."
+    ? "Meta Ads conectado."
     : "Meta Ads ainda não conectado. Este bloco está preparado para receber os dados da API da Meta.";
 
   const keywordRows = media.byKeyword && media.byKeyword.length ? media.byKeyword : [];
