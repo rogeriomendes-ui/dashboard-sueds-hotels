@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Opiniário</title>
-    <link rel="stylesheet" href="opinario.css?v=20260730-2">
+    <link rel="stylesheet" href="opinario.css?v=20260813-multilang-required">
   </head>
   <body>
     <main class="opinion-shell">
@@ -13,8 +13,16 @@
           <img id="hotelLogo" class="brand-logo" src="logo-opinario-plaza.png" alt="SUEDS Plaza">
         </div>
         <div class="header-copy">
-          <h1>Sua experiência é o que mais importa para nós.</h1>
-          <p>Queremos saber o que fizemos bem e onde podemos melhorar.</p>
+          <div class="language-picker" role="group" aria-labelledby="languageLabel">
+            <span id="languageLabel">Idioma / Language / Idioma</span>
+            <div class="language-options">
+              <button type="button" data-language="pt-BR" aria-pressed="true">PT</button>
+              <button type="button" data-language="en" aria-pressed="false">EN</button>
+              <button type="button" data-language="es" aria-pressed="false">ES</button>
+            </div>
+          </div>
+          <h1 id="headerTitle">Sua experiência é o que mais importa para nós.</h1>
+          <p id="headerIntro">Queremos saber o que fizemos bem e onde podemos melhorar.</p>
         </div>
       </header>
 
@@ -23,21 +31,21 @@
         <input type="hidden" id="formVersion" name="formVersion">
         <input type="hidden" id="formLang" name="lang">
 
-        <section class="guest-strip" aria-label="Identificação opcional">
+        <section id="guestStrip" class="guest-strip" aria-label="Identificação obrigatória">
           <label>
-            <span>Nome</span>
-            <input id="guestName" name="guestName" autocomplete="name" maxlength="120">
+            <span id="guestNameLabel">Nome <b aria-hidden="true">*</b></span>
+            <input id="guestName" name="guestName" autocomplete="name" maxlength="120" required aria-required="true">
           </label>
           <label>
-            <span>Nº do quarto</span>
-            <input id="apartment" name="apartment" inputmode="numeric" maxlength="30">
+            <span id="apartmentLabel">Número do apartamento <b aria-hidden="true">*</b></span>
+            <input id="apartment" name="apartment" inputmode="numeric" maxlength="30" required aria-required="true">
           </label>
         </section>
 
         <section id="questions" class="question-list" aria-label="Avaliações"></section>
 
         <section class="comment-block">
-          <label for="comments">Comentários, elogios e sugestões</label>
+          <label id="commentsLabel" for="comments">Comentários, elogios e sugestões</label>
           <textarea id="comments" name="comments" rows="5" maxlength="1200"></textarea>
         </section>
 
@@ -59,12 +67,12 @@
         <div class="success-dialog">
           <span class="success-check" aria-hidden="true">✓</span>
           <strong id="successTitle">Avaliação enviada.</strong>
-          <p>Obrigado por ajudar a SUEDS Hotels a cuidar melhor da sua hospedagem.</p>
+          <p id="successMessage">Obrigado por ajudar a SUEDS Hotels a cuidar melhor da sua hospedagem.</p>
           <button id="successCloseButton" type="button">Concluir</button>
         </div>
       </section>
     </main>
 
-    <script src="opinario.js?v=20260730-8"></script>
+    <script src="opinario.js?v=20260813-multilang-required"></script>
   </body>
 </html>

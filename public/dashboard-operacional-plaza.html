@@ -7,7 +7,7 @@
     <title>SUEDS Plaza | TV Operacional</title>
     <link rel="stylesheet" href="/operational-auth.css">
     <script src="/operational-auth.js?v=20260807-portal-auth"></script>
-    <link rel="stylesheet" href="/operacional-plaza.css?v=20260806-status-actor">
+    <link rel="stylesheet" href="/operacional-plaza.css?v=20260813-treatment-notes">
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   </head>
   <body>
@@ -197,7 +197,13 @@
 
         <label class="leader-name-control" for="incidentLeaderName">
           <span>Responsável</span>
-          <input id="incidentLeaderName" name="leaderName" type="text" maxlength="80" autocomplete="name" placeholder="Digite seu nome" required>
+          <input id="incidentLeaderName" name="leaderName" type="text" maxlength="80" autocomplete="name" readonly required>
+          <small>Preenchido automaticamente com o usuário conectado.</small>
+        </label>
+
+        <label class="incident-treatment-control" for="incidentTreatmentNotes">
+          <span>Observações da tratativa <em>(opcional)</em></span>
+          <textarea id="incidentTreatmentNotes" name="treatmentNotes" rows="4" maxlength="1200" placeholder="Descreva qual tratativa foi realizada para solucionar a ocorrência"></textarea>
         </label>
 
         <p id="incidentStatusMessage" class="incident-status-message" role="status"></p>
@@ -238,6 +244,6 @@
       </article>
     </dialog>
 
-    <script src="/operacional-plaza.js?v=20260806-status-actor"></script>
+    <script src="/operacional-plaza.js?v=20260813-treatment-notes"></script>
   </body>
 </html>

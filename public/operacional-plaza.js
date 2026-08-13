@@ -564,18 +564,26 @@ function closeIncidentStatusDialog() {
   if (dialog.open) dialog.close();
 }
 
+function authenticatedActorName() {
+  const profile = window.suedsAccessProfile || {};
+  return String(profile.displayName || profile.name || profile.username || "Usuário conectado")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function openIncidentStatusDialog(incidentId) {
   const incident = findIncident(incidentId);
   if (!incident) return;
   byId("incidentStatusId").value = incident.id;
   byId("incidentStatusDescription").textContent = `${incident.guestName || "Hóspede"} • ${incident.description || "Ocorrência"}`;
-  byId("incidentLeaderName").value = "";
+  byId("incidentLeaderName").value = authenticatedActorName();
+  byId("incidentTreatmentNotes").value = incident.treatmentNotes || "";
   byId("incidentStatusMessage").textContent = "";
   const statusInput = document.querySelector(`input[name="incidentStatus"][value="${incident.status || "pending"}"]`);
   if (statusInput) statusInput.checked = true;
   byId("incidentStatusDialog").showModal();
   refreshIcons();
-  window.setTimeout(() => byId("incidentLeaderName").focus(), 50);
+  window.setTimeout(() => byId("incidentTreatmentNotes").focus(), 50);
 }
 
 async function saveIncidentStatus(event) {
@@ -584,6 +592,7 @@ async function saveIncidentStatus(event) {
   const incidentId = byId("incidentStatusId").value;
   const status = document.querySelector('input[name="incidentStatus"]:checked')?.value || "";
   const actor = byId("incidentLeaderName").value.replace(/\s+/g, " ").trim();
+  const treatmentNotes = byId("incidentTreatmentNotes").value.trim();
   const message = byId("incidentStatusMessage");
   if (!actor) {
     message.textContent = "Informe o responsável pela alteração.";
@@ -602,7 +611,7 @@ async function saveIncidentStatus(event) {
         "content-type": "application/json",
         "x-dashboard-token": state.token
       },
-      body: JSON.stringify({ incidentId, status, actor, hotel: HOTEL_SLUG })
+      body: JSON.stringify({ incidentId, status, actor, treatmentNotes, hotel: HOTEL_SLUG })
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.message || "Não foi possível atualizar a ocorrência.");

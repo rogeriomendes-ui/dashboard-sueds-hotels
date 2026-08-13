@@ -72,6 +72,49 @@ textarea {
   line-height: 1.45;
 }
 
+.language-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.language-picker > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.language-options {
+  display: flex;
+  gap: 6px;
+}
+
+.language-options button {
+  min-width: 42px;
+  min-height: 36px;
+  border: 1px solid #b9c4ce;
+  border-radius: 7px;
+  color: var(--navy);
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.language-options button[aria-pressed="true"] {
+  border-color: var(--teal);
+  color: #ffffff;
+  background: var(--teal);
+}
+
+.language-options button:focus-visible {
+  outline: 3px solid rgba(32, 127, 131, 0.28);
+  outline-offset: 2px;
+}
+
 .opinion-form {
   display: grid;
   gap: 18px;
@@ -96,6 +139,10 @@ textarea {
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.guest-strip span b {
+  color: var(--red);
 }
 
 .guest-strip input,
@@ -309,6 +356,12 @@ textarea {
   .opinion-header {
     gap: 14px;
     padding-top: 10px;
+  }
+
+  .language-picker {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 14px;
   }
 
   .brand-mark {

@@ -3402,7 +3402,8 @@ const OPINION_SUBMISSION_HEADERS = [
 const OPINION_INCIDENT_HEADERS = [
   "Status Ocorrencia",
   "Data Status Ocorrencia",
-  "Responsavel Status Ocorrencia"
+  "Responsavel Status Ocorrencia",
+  "Observacao Tratativa Ocorrencia"
 ];
 
 const OPINION_FORM_HOTELS = {
@@ -3494,6 +3495,7 @@ function normalizeOperationalOpinion(item) {
     hasIncidentStatus: Boolean(incidentStatusValue),
     incidentStatusAt,
     incidentStatusActor: String(item["Responsavel Status Ocorrencia"] || "").trim(),
+    incidentTreatmentNotes: String(item["Observacao Tratativa Ocorrencia"] || "").trim(),
     status: String(item.Status || "").trim(),
     confidence: parseDecimalNumber(item["Confianca %"]),
     origin: String(item.Origem || "").trim(),
@@ -5143,6 +5145,11 @@ async function ensureOperationalOpinionHeaders(sheetId) {
 }
 
 async function appendDigitalOpinion(body = {}) {
+  const guestName = String(body.guestName || "").trim().slice(0, 120);
+  const apartment = String(body.apartment || "").trim().slice(0, 30);
+  if (!guestName || !apartment) {
+    throw new Error("Nome do hospede e numero do apartamento sao obrigatorios.");
+  }
   const sheetId = opinionSheetId();
   if (!sheetId || !getServiceAccount()) {
     throw new Error("Planilha operacional ou credenciais Google nao configuradas.");
@@ -5178,8 +5185,8 @@ async function appendDigitalOpinion(body = {}) {
     "Hotel Slug": hotelSlug,
     "Form Version": formVersion,
     "Idioma": lang,
-    "Nome Hospede": String(body.guestName || "").trim().slice(0, 120),
-    "Apartamento": String(body.apartment || "").trim().slice(0, 30),
+    "Nome Hospede": guestName,
+    "Apartamento": apartment,
     "Data Entrada": "",
     "Data Saida": "",
     "Impressao Geral": normalizedRatings.generalImpression || "",
@@ -5322,7 +5329,7 @@ async function ensureOperationalIncidentHeaders() {
   }
 
   const firstColumn = "AI";
-  const lastColumn = "AK";
+  const lastColumn = "AL";
   await sheetsRequestForSpreadsheet(
     OPERATIONAL_SHEET_ID,
     `/values/${sheetRange(`Opinarios!${firstColumn}1:${lastColumn}1`)}?valueInputOption=RAW`,
@@ -5337,6 +5344,7 @@ async function updateOperationalIncidentStatus(body = {}) {
   const incidentId = String(body.incidentId || body.id || "").trim();
   const status = normalizeOperationalIncidentStatus(body.status);
   const actor = String(body.actor || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  const treatmentNotes = String(body.treatmentNotes || body.notes || "").trim().slice(0, 1200);
   if (!incidentId || incidentId.length > 200) throw new Error("Ocorrencia invalida.");
   if (!["pending", "resolved", "registered"].includes(String(body.status || "").trim().toLowerCase())) {
     throw new Error("Status invalido.");
@@ -5344,7 +5352,7 @@ async function updateOperationalIncidentStatus(body = {}) {
   if (!actor) throw new Error("Responsavel obrigatorio.");
 
   await ensureOperationalIncidentHeaders();
-  const rows = await getSheetValues("Opinarios!A:AK", OPERATIONAL_SHEET_ID);
+  const rows = await getSheetValues("Opinarios!A:AL", OPERATIONAL_SHEET_ID);
   const headers = rows[0] || [];
   const idIndex = headers.indexOf("ID Arquivo");
   const issuesIndex = headers.indexOf("Problemas Identificados");
@@ -5362,11 +5370,11 @@ async function updateOperationalIncidentStatus(body = {}) {
   const rowNumber = rowOffset + 2;
   await sheetsRequestForSpreadsheet(
     OPERATIONAL_SHEET_ID,
-    `/values/${sheetRange(`Opinarios!AI${rowNumber}:AK${rowNumber}`)}?valueInputOption=RAW`,
+    `/values/${sheetRange(`Opinarios!AI${rowNumber}:AL${rowNumber}`)}?valueInputOption=RAW`,
     {
       method: "PUT",
       body: JSON.stringify({
-        values: [[operationalIncidentStatusLabel(status), updatedAt, actor]]
+        values: [[operationalIncidentStatusLabel(status), updatedAt, actor, treatmentNotes]]
       })
     }
   );
@@ -5376,7 +5384,8 @@ async function updateOperationalIncidentStatus(body = {}) {
     id: incidentId,
     status,
     statusAt: updatedAt,
-    statusActor: actor
+    statusActor: actor,
+    treatmentNotes
   };
 }
 
@@ -5508,6 +5517,7 @@ function opinionOperationalIncident(opinion, index) {
     status,
     statusAt: statusAt ? statusAt.toISOString() : null,
     statusActor: opinion.incidentStatusActor,
+    treatmentNotes: opinion.incidentTreatmentNotes,
     resolvedAt: status === "resolved" && statusAt ? statusAt.toISOString() : null,
     elapsedMinutes,
     overdue: status === "pending" && elapsedMinutes >= 180,
@@ -7350,6 +7360,7 @@ async function handleRequest(req, res) {
           if (restrictedToHotel && !allowedHotels.includes(normalizeAccessUsername(body.hotel))) {
             return forbidden(res);
           }
+          body.actor = String(access.displayName || access.username || body.actor || "").trim();
           return json(res, 200, {
             ok: true,
             incident: await updateOperationalIncidentStatus(body)
@@ -7376,8 +7387,17 @@ async function handleRequest(req, res) {
 
     if (url.pathname === "/api/operacional/opinarios") {
       if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
-      const body = await readJsonBody(req);
-      return json(res, 200, { ok: true, opinion: await appendDigitalOpinion(body) });
+      try {
+        const body = await readJsonBody(req);
+        return json(res, 200, { ok: true, opinion: await appendDigitalOpinion(body) });
+      } catch (error) {
+        const status = /obrigatorio|obrigatorios|invalido|invalida/i.test(error.message) ? 400 : 500;
+        return json(res, status, {
+          ok: false,
+          error: "operational_opinion_submission_failed",
+          message: error.message
+        });
+      }
     }
 
     if (url.pathname === "/api/operacional/opinarios-omr") {
