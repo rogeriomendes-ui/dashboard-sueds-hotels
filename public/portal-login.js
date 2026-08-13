@@ -75,7 +75,7 @@
       : {
           email: document.getElementById("firstAccessEmail").value.trim(),
           token: document.getElementById("firstAccessCode").value.trim(),
-          type: "invite",
+          type: "auto",
           password
         };
     if (!invitationToken && (!requestBody.email || !requestBody.token)) {
