@@ -77,6 +77,7 @@ const QUALITY_BLOCK_DESCRIPTIONS = CURRENT_HOTEL.descriptions;
 const state = {
   data: null,
   filter: "all",
+  search: "",
   periodMode: "month",
   token: "",
   savingStatus: false,
@@ -440,8 +441,23 @@ function incidentRow(incident) {
 
 function filteredIncidents() {
   const incidents = state.data?.operations?.incidents || [];
-  if (state.filter === "all") return incidents;
-  return incidents.filter((incident) => incident.status === state.filter);
+  const search = normalizeQueueSearch(state.search);
+  return incidents.filter((incident) => {
+    if (state.filter !== "all" && incident.status !== state.filter) return false;
+    if (!search) return true;
+    const guestName = normalizeQueueSearch(incident.guestName || "Hóspede");
+    const apartment = normalizeQueueSearch(incident.apartment);
+    return guestName.includes(search) || apartment.includes(search);
+  });
+}
+
+function normalizeQueueSearch(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
 }
 
 function renderQueue() {
@@ -449,7 +465,7 @@ function renderQueue() {
   byId("queueCount").textContent = `${incidents.length} registro${incidents.length === 1 ? "" : "s"}`;
   byId("incidentsBody").innerHTML = incidents.length
     ? incidents.map(incidentRow).join("")
-    : '<tr class="empty-row"><td colspan="10"><span class="cell-label"></span>Nenhuma ocorrência neste filtro.</td></tr>';
+    : `<tr class="empty-row"><td colspan="10"><span class="cell-label"></span>${state.search ? "Nenhum hóspede ou apartamento encontrado." : "Nenhuma ocorrência neste filtro."}</td></tr>`;
   refreshIcons();
 }
 
@@ -660,6 +676,10 @@ function setupFilters() {
       document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
       renderQueue();
     });
+  });
+  byId("queueSearch").addEventListener("input", (event) => {
+    state.search = event.target.value;
+    renderQueue();
   });
 }
 
