@@ -4508,26 +4508,68 @@ function buildOmrGuideGrid(markers, bubbleCandidates = [], guideTemplate = PLAZA
     candidate.width / candidate.height >= 0.68 &&
     candidate.width / candidate.height <= 1.48
   ));
-  let refinedRows = 0;
-  const points = rawPoints.map((row) => {
-    const offsets = row.map((point) => {
-      const candidate = usableCandidates
-        .map((item) => ({ item, distance: Math.hypot(item.x - point.x, item.y - point.y) }))
-        .filter((entry) => entry.distance <= matchDistance)
-        .sort((a, b) => a.distance - b.distance)[0];
-      return candidate
-        ? { dx: candidate.item.x - point.x, dy: candidate.item.y - point.y }
-        : null;
-    }).filter(Boolean);
-    if (offsets.length < 2) return row;
-    refinedRows += 1;
-    const dx = median(offsets.map((offset) => offset.dx));
-    const dy = median(offsets.map((offset) => offset.dy));
-    return row.map((point) => ({ x: point.x + dx, y: point.y + dy }));
+  const projectedColumns = rawPoints[0] || [];
+  const columnMatchDistance = horizontalSpan * 0.045;
+  const rowMergeDistance = horizontalSpan * 0.018;
+  const rowRangePadding = horizontalSpan * 0.10;
+  const rawRowCenters = rawPoints.map((row) => median(row.map((point) => point.y)));
+  const rowCandidates = usableCandidates
+    .filter((candidate) => (
+      projectedColumns.some((point) => Math.abs(candidate.x - point.x) <= columnMatchDistance) &&
+      candidate.y >= rawRowCenters[0] - rowRangePadding &&
+      candidate.y <= rawRowCenters[rawRowCenters.length - 1] + rowRangePadding
+    ))
+    .sort((a, b) => a.y - b.y);
+  const candidateRows = [];
+  rowCandidates.forEach((candidate) => {
+    const currentRow = candidateRows[candidateRows.length - 1];
+    const currentCenter = currentRow ? median(currentRow.map((item) => item.y)) : null;
+    if (!currentRow || Math.abs(candidate.y - currentCenter) > rowMergeDistance) {
+      candidateRows.push([candidate]);
+      return;
+    }
+    currentRow.push(candidate);
   });
+  const completeCandidateRows = candidateRows.filter((row) => row.length >= 2);
+  let refinedRows = 0;
+  let calibrationMethod = "nearest-bubble";
+  let points;
+
+  // When every printed question row is visible, use the circles themselves as
+  // the vertical reference. This prevents a projected row from snapping to the
+  // following question when the photographed form has small perspective or
+  // print-layout differences from the proportional template.
+  if (completeCandidateRows.length === rawPoints.length) {
+    calibrationMethod = "bubble-row-sequence";
+    refinedRows = rawPoints.length;
+    points = rawPoints.map((row, rowIndex) => {
+      const expectedY = median(row.map((point) => point.y));
+      const detectedY = median(completeCandidateRows[rowIndex].map((candidate) => candidate.y));
+      const dy = detectedY - expectedY;
+      return row.map((point) => ({ x: point.x, y: point.y + dy }));
+    });
+  } else {
+    points = rawPoints.map((row) => {
+      const offsets = row.map((point) => {
+        const candidate = usableCandidates
+          .map((item) => ({ item, distance: Math.hypot(item.x - point.x, item.y - point.y) }))
+          .filter((entry) => entry.distance <= matchDistance)
+          .sort((a, b) => a.distance - b.distance)[0];
+        return candidate
+          ? { dx: candidate.item.x - point.x, dy: candidate.item.y - point.y }
+          : null;
+      }).filter(Boolean);
+      if (offsets.length < 2) return row;
+      refinedRows += 1;
+      const dx = median(offsets.map((offset) => offset.dx));
+      const dy = median(offsets.map((offset) => offset.dy));
+      return row.map((point) => ({ x: point.x + dx, y: point.y + dy }));
+    });
+  }
 
   return {
     method: "guide-markers",
+    calibrationMethod,
     markers,
     points,
     horizontalSpan,
@@ -4843,7 +4885,7 @@ function analyzeOmrGuideRow(gray, width, height, grid, rowIndex, colorImage = nu
   if (!selected.length) return { value: "", selectedIndexes: [], scores };
   const best = selected[0];
   const competitors = selected.filter((item) => (
-    item.index !== best.index && item.score >= Math.max(0.052, best.score * 0.65)
+    item.index !== best.index && item.score >= Math.max(0.052, best.score * 0.55)
   ));
   if (competitors.length) {
     return {
@@ -5059,6 +5101,7 @@ async function readOpinionOmr(body) {
       method: guideGrid ? guideGrid.method : (bubbleGrid ? bubbleGrid.method : (box.method || "")),
       templateVersion: guideGrid?.templateVersion || template.form.split("-").pop(),
       refinedRows: guideGrid?.refinedRows,
+      calibrationMethod: guideGrid?.calibrationMethod,
       guideMarkers: guideGrid
         ? Object.fromEntries(Object.entries(guideGrid.markers)
             .filter(([, value]) => value && typeof value === "object" && Number.isFinite(value.x))
