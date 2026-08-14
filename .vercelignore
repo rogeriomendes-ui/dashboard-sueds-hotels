@@ -4,6 +4,12 @@
 dashboard-sueds-*.json
 *service-account*.json
 node_modules/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.pnpm-store/
+.codex-tmp/
+.codex-remote-attachments/
+tmp/
 *.xlsx
 *.xls
 *.csv
