@@ -74,10 +74,31 @@ const CURRENT_HOTEL = HOTEL_CONFIG[HOTEL_SLUG];
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const KPI_ALERTS_ENABLED = false;
 const QUALITY_BLOCK_DESCRIPTIONS = CURRENT_HOTEL.descriptions;
+const OPINION_FIELD_LABELS = {
+  generalImpression: "Impressão geral",
+  reservation: "Reserva",
+  frontDesk: "Recepção / Check-in / Check-out",
+  teamService: "Atendimento da equipe",
+  roomComfort: "Conforto do quarto",
+  roomCleaning: "Limpeza do quarto",
+  apartmentComfort: "Conforto do apartamento",
+  apartmentInitialCleaning: "Limpeza inicial do apartamento",
+  apartmentEquipment: "Equipamentos / utensílios",
+  apartmentLocation: "Localização do apartamento",
+  wifi: "Qualidade do Wi-Fi",
+  pool: "Área de lazer / piscina",
+  beachClub: "Atendimento do Beach Club",
+  foodBreakfast: "Café da manhã",
+  foodAfternoonTea: "Chá da tarde",
+  foodLunch: "Almoço",
+  foodDinner: "Jantar"
+};
 const state = {
   data: null,
   filter: "all",
   search: "",
+  opinionFilter: "all",
+  opinionSearch: "",
   periodMode: "month",
   token: "",
   savingStatus: false,
@@ -460,13 +481,133 @@ function normalizeQueueSearch(value) {
     .toLocaleLowerCase("pt-BR");
 }
 
+function opinionsMatchingSearch(value) {
+  const search = normalizeQueueSearch(value);
+  if (!search) return [];
+  return (state.data?.opinionResponses || []).filter((opinion) => (
+    normalizeQueueSearch(opinion.guestName || "Hóspede").includes(search)
+      || normalizeQueueSearch(opinion.apartment).includes(search)
+  ));
+}
+
+function renderQueueOpinionMatches() {
+  const container = byId("queueOpinionMatches");
+  const matches = opinionsMatchingSearch(state.search);
+  if (!normalizeQueueSearch(state.search) || !matches.length) {
+    container.hidden = true;
+    return;
+  }
+  const alternativesOnly = matches.filter((opinion) => !opinion.hasText).length;
+  const totalLabel = `${matches.length} opiniário${matches.length === 1 ? "" : "s"} encontrado${matches.length === 1 ? "" : "s"}`;
+  const alternativesLabel = alternativesOnly
+    ? ` • ${alternativesOnly} somente com alternativas`
+    : "";
+  byId("queueOpinionMatchesText").textContent = `${totalLabel}${alternativesLabel}`;
+  container.hidden = false;
+}
+
 function renderQueue() {
   const incidents = filteredIncidents();
   byId("queueCount").textContent = `${incidents.length} registro${incidents.length === 1 ? "" : "s"}`;
   byId("incidentsBody").innerHTML = incidents.length
     ? incidents.map(incidentRow).join("")
-    : `<tr class="empty-row"><td colspan="10"><span class="cell-label"></span>${state.search ? "Nenhum hóspede ou apartamento encontrado." : "Nenhuma ocorrência neste filtro."}</td></tr>`;
+    : `<tr class="empty-row"><td colspan="10"><span class="cell-label"></span>${state.search ? "Nenhuma ocorrência com texto encontrada nesta busca." : "Nenhuma ocorrência neste filtro."}</td></tr>`;
+  renderQueueOpinionMatches();
   refreshIcons();
+}
+
+function opinionRatingLabel(score) {
+  const labels = { 100: "Excelente", 75: "Muito bom", 50: "Bom", 25: "Regular" };
+  return labels[Number(score)] || "--";
+}
+
+function opinionAverage(fieldScores = {}) {
+  const scores = Object.values(fieldScores).filter(Number.isFinite);
+  return scores.length ? scores.reduce((total, score) => total + score, 0) / scores.length : null;
+}
+
+function opinionPeriodLabel() {
+  const period = state.data?.period || {};
+  if (period.date) return `Data: ${formatStayDate(period.date)}`;
+  const selectedMonth = byId("monthSelect").selectedOptions[0]?.textContent || period.month || "";
+  const weekday = { tuesday: " • terças-feiras", friday: " • sextas-feiras" }[period.weekday] || "";
+  return `${selectedMonth}${weekday}`;
+}
+
+function filteredOpinionResponses() {
+  const search = normalizeQueueSearch(state.opinionSearch);
+  return (state.data?.opinionResponses || []).filter((opinion) => {
+    if (state.opinionFilter === "alternatives" && opinion.hasText) return false;
+    if (state.opinionFilter === "text" && !opinion.hasText) return false;
+    if (!search) return true;
+    return normalizeQueueSearch(opinion.guestName || "Hóspede").includes(search)
+      || normalizeQueueSearch(opinion.apartment).includes(search);
+  });
+}
+
+function opinionResponseCard(opinion) {
+  const guestName = opinion.guestName || "Hóspede";
+  const apartment = opinion.apartment ? `Apto ${opinion.apartment}` : "Apto não informado";
+  const averageScore = opinionAverage(opinion.fieldScores);
+  const answers = Object.entries(opinion.fieldScores || {})
+    .filter(([, score]) => Number.isFinite(score))
+    .map(([field, score]) => `
+      <div class="opinion-answer">
+        <span>${escapeHtml(OPINION_FIELD_LABELS[field] || field)}</span>
+        <strong>${escapeHtml(opinionRatingLabel(score))}</strong>
+      </div>`)
+    .join("");
+  return `
+    <details class="opinion-response-card">
+      <summary>
+        <span class="opinion-response-identity">
+          <strong>${escapeHtml(guestName)}</strong>
+          <small>${escapeHtml(apartment)} • ${escapeHtml(formatDateTime(opinion.submittedAt))}</small>
+        </span>
+        <span class="opinion-response-summary">
+          <em class="${opinion.hasText ? "has-text" : "alternatives-only"}">${opinion.hasText ? "Com texto" : "Somente alternativas"}</em>
+          <strong>${Number.isFinite(averageScore) ? formatScore(averageScore) : "--"}</strong>
+        </span>
+      </summary>
+      <div class="opinion-response-details">
+        <div class="opinion-answers">${answers || '<p class="opinions-empty">Nenhuma alternativa reconhecida.</p>'}</div>
+        ${opinion.text ? `<div class="opinion-response-text"><span>Comentário</span><p>${escapeHtml(opinion.text)}</p></div>` : ""}
+        <div class="opinion-response-meta">
+          ${opinion.checkIn ? `<span>Entrada: ${escapeHtml(formatStayDate(opinion.checkIn))}</span>` : ""}
+          ${opinion.checkOut ? `<span>Saída: ${escapeHtml(formatStayDate(opinion.checkOut))}</span>` : ""}
+          ${opinion.language ? `<span>Idioma: ${escapeHtml(String(opinion.language).toUpperCase())}</span>` : ""}
+          ${opinion.hasPhoto ? `<button type="button" data-opinion-photo="${escapeHtml(opinion.id)}"><i data-lucide="image" aria-hidden="true"></i>Ver foto</button>` : ""}
+        </div>
+      </div>
+    </details>`;
+}
+
+function renderOpinionResponses() {
+  const opinions = filteredOpinionResponses();
+  byId("opinionsDialogCount").textContent = `${opinions.length} registro${opinions.length === 1 ? "" : "s"}`;
+  byId("opinionsList").innerHTML = opinions.length
+    ? opinions.map(opinionResponseCard).join("")
+    : '<p class="opinions-empty">Nenhum opiniário encontrado neste filtro.</p>';
+  refreshIcons();
+}
+
+function openOpinionsDialog(options = {}) {
+  state.opinionFilter = options.filter || "all";
+  state.opinionSearch = options.search || "";
+  byId("opinionsSearch").value = state.opinionSearch;
+  document.querySelectorAll("[data-opinion-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.opinionFilter === state.opinionFilter);
+  });
+  byId("opinionsDialogTitle").textContent = `Opiniários • ${CURRENT_HOTEL.label}`;
+  byId("opinionsDialogPeriod").textContent = opinionPeriodLabel();
+  renderOpinionResponses();
+  byId("opinionsDialog").showModal();
+  refreshIcons();
+}
+
+function closeOpinionsDialog() {
+  const dialog = byId("opinionsDialog");
+  if (dialog.open) dialog.close();
 }
 
 function render(data) {
@@ -487,6 +628,7 @@ function render(data) {
   byId("kpiAlertsPanel").hidden = !KPI_ALERTS_ENABLED;
   if (KPI_ALERTS_ENABLED) renderAlerts(data.operations || {});
   renderQueue();
+  if (byId("opinionsDialog").open) renderOpinionResponses();
   refreshIcons();
 }
 
@@ -513,6 +655,10 @@ function findIncident(incidentId) {
   return (state.data?.operations?.incidents || []).find((incident) => incident.id === incidentId);
 }
 
+function findOpinion(opinionId) {
+  return (state.data?.opinionResponses || []).find((opinion) => opinion.id === opinionId);
+}
+
 function releaseOpinionPhoto() {
   state.photoRequestId += 1;
   if (state.photoObjectUrl) URL.revokeObjectURL(state.photoObjectUrl);
@@ -535,7 +681,7 @@ function rotateOpinionPhoto(direction) {
 }
 
 async function openOpinionPhoto(incidentId) {
-  const incident = findIncident(incidentId);
+  const incident = findIncident(incidentId) || findOpinion(incidentId);
   if (!incident?.id) return;
 
   releaseOpinionPhoto();
@@ -669,6 +815,32 @@ function setupOpinionPhotoDialog() {
   byId("opinionPhotoDialog").addEventListener("close", releaseOpinionPhoto);
 }
 
+function setupOpinionsDialog() {
+  byId("opinionsMetricButton").addEventListener("click", () => openOpinionsDialog());
+  byId("queueOpinionMatchesButton").addEventListener("click", () => {
+    openOpinionsDialog({ search: state.search, filter: "all" });
+  });
+  byId("opinionsDialogClose").addEventListener("click", closeOpinionsDialog);
+  byId("opinionsDialog").addEventListener("click", (event) => {
+    if (event.target === byId("opinionsDialog")) closeOpinionsDialog();
+  });
+  byId("opinionsSearch").addEventListener("input", (event) => {
+    state.opinionSearch = event.target.value;
+    renderOpinionResponses();
+  });
+  document.querySelectorAll("[data-opinion-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.opinionFilter = button.dataset.opinionFilter;
+      document.querySelectorAll("[data-opinion-filter]").forEach((item) => item.classList.toggle("active", item === button));
+      renderOpinionResponses();
+    });
+  });
+  byId("opinionsList").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-opinion-photo]");
+    if (button) openOpinionPhoto(button.dataset.opinionPhoto);
+  });
+}
+
 function setupFilters() {
   document.querySelectorAll("[data-filter]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -687,6 +859,7 @@ setupPeriodControls();
 setupFilters();
 setupIncidentStatusDialog();
 setupOpinionPhotoDialog();
+setupOpinionsDialog();
 document.title = `${CURRENT_HOTEL.label} | TV Operacional`;
 byId("hotelPageName").textContent = CURRENT_HOTEL.label;
 byId("qualityTitle").textContent = CURRENT_HOTEL.label;

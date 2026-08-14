@@ -3488,6 +3488,7 @@ function normalizeOperationalOpinion(item) {
     apartment: String(item.Apartamento || "").trim(),
     checkIn: String(item["Data Entrada"] || "").trim(),
     checkOut: String(item["Data Saida"] || "").trim(),
+    language: String(item.Idioma || "").trim(),
     comments: String(item.Comentarios || "").trim(),
     highlights: String(item.Destaques || "").trim(),
     issues: String(item["Problemas Identificados"] || "").trim(),
@@ -5528,6 +5529,25 @@ function opinionOperationalIncident(opinion, index) {
   };
 }
 
+function operationalOpinionResponse(opinion, index) {
+  const submittedAt = opinion.capturedAt || opinion.processedAt;
+  const text = opinion.comments || opinion.issues || opinion.highlights || "";
+  return {
+    id: opinion.fileId || `opinario-${index + 1}`,
+    submittedAt: submittedAt ? submittedAt.toISOString() : null,
+    guestName: opinion.guestName,
+    apartment: opinion.apartment,
+    checkIn: opinion.checkIn,
+    checkOut: opinion.checkOut,
+    language: opinion.language,
+    status: opinion.status,
+    text,
+    hasText: Boolean(text),
+    hasPhoto: Boolean(opinion.photoUrl),
+    fieldScores: opinion.fieldScores
+  };
+}
+
 async function buildOperationalHotelPayload(period = {}) {
   const selectedHotel = operationalHotelFromSlug(period.hotel);
   const opinions = await loadOperationalOpinions();
@@ -5558,6 +5578,9 @@ async function buildOperationalHotelPayload(period = {}) {
     .map(opinionOperationalIncident)
     .filter(Boolean)
     .sort((a, b) => new Date(a.requestedAt) - new Date(b.requestedAt));
+  const opinionResponses = hotelOpinions
+    .map(operationalOpinionResponse)
+    .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
   const pendingIncidents = opinionIncidents.filter((incident) => incident.status === "pending");
   const resolvedIncidents = opinionIncidents.filter((incident) => incident.status === "resolved");
   const today = todayKey();
@@ -5568,6 +5591,7 @@ async function buildOperationalHotelPayload(period = {}) {
     period: { month, date: date || null, weekday: weekday || null },
     hotel: selectedHotel,
     evaluation,
+    opinionResponses,
     operations: {
       summary: {
         pending: pendingIncidents.length,

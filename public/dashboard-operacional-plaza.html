@@ -7,7 +7,7 @@
     <title>SUEDS Plaza | TV Operacional</title>
     <link rel="stylesheet" href="/operational-auth.css">
     <script src="/operational-auth.js?v=20260807-portal-auth"></script>
-    <link rel="stylesheet" href="/operacional-plaza.css?v=20260814-queue-search">
+    <link rel="stylesheet" href="/operacional-plaza.css?v=20260814-opinion-list">
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   </head>
   <body>
@@ -24,10 +24,10 @@
             <span>Nota média</span>
             <strong id="summaryScore">--</strong>
           </div>
-          <div class="headline-metric">
+          <button type="button" class="headline-metric headline-metric-action" id="opinionsMetricButton" aria-haspopup="dialog" aria-controls="opinionsDialog" title="Ver todos os opiniários do período">
             <span>Opiniários</span>
             <strong id="summaryOpinions">0</strong>
-          </div>
+          </button>
           <div class="headline-metric metric-warning">
             <span>Pendências</span>
             <strong id="summaryPending">0</strong>
@@ -83,6 +83,14 @@
               <strong id="queueCount">0 registros</strong>
             </div>
           </header>
+
+          <div id="queueOpinionMatches" class="queue-opinion-matches" hidden>
+            <span id="queueOpinionMatchesText"></span>
+            <button type="button" id="queueOpinionMatchesButton">
+              Ver opiniários
+              <i data-lucide="arrow-right" aria-hidden="true"></i>
+            </button>
+          </div>
 
           <div class="table-wrap">
             <table>
@@ -222,6 +230,36 @@
       </form>
     </dialog>
 
+    <dialog id="opinionsDialog" class="opinions-dialog" aria-labelledby="opinionsDialogTitle">
+      <article>
+        <header>
+          <div>
+            <span>Respostas do período</span>
+            <h2 id="opinionsDialogTitle">Todos os opiniários</h2>
+            <p id="opinionsDialogPeriod"></p>
+          </div>
+          <button type="button" class="dialog-close" id="opinionsDialogClose" title="Fechar" aria-label="Fechar">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="opinions-dialog-toolbar">
+          <label class="opinions-search" for="opinionsSearch">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input id="opinionsSearch" type="search" inputmode="search" autocomplete="off" placeholder="Buscar hóspede ou apto" aria-label="Buscar opiniário por hóspede ou apartamento">
+          </label>
+          <div class="opinions-filter" role="group" aria-label="Filtrar opiniários">
+            <button type="button" class="active" data-opinion-filter="all">Todos</button>
+            <button type="button" data-opinion-filter="alternatives">Somente alternativas</button>
+            <button type="button" data-opinion-filter="text">Com texto</button>
+          </div>
+          <strong id="opinionsDialogCount">0 registros</strong>
+        </div>
+
+        <div id="opinionsList" class="opinions-list" aria-live="polite"></div>
+      </article>
+    </dialog>
+
     <dialog id="opinionPhotoDialog" class="opinion-photo-dialog" aria-labelledby="opinionPhotoTitle">
       <article>
         <header>
@@ -248,6 +286,6 @@
       </article>
     </dialog>
 
-    <script src="/operacional-plaza.js?v=20260814-queue-search"></script>
+    <script src="/operacional-plaza.js?v=20260814-opinion-list"></script>
   </body>
 </html>
