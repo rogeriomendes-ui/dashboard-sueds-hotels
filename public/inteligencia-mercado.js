@@ -444,6 +444,13 @@ function bindFilters() {
   });
 }
 
+function setDashboardLoading(isLoading) {
+  const loading = document.getElementById("marketLoading");
+  const shell = document.querySelector(".market-shell");
+  if (loading) loading.hidden = !isLoading;
+  if (shell) shell.setAttribute("aria-busy", String(isLoading));
+}
+
 function queryString() {
   const params = new URLSearchParams();
   Object.entries(state.filters).forEach(([key, value]) => {
@@ -564,6 +571,7 @@ document.addEventListener("click", (event) => {
 async function loadDashboard() {
   const requestId = ++dashboardRequestId;
   const requestQuery = queryString();
+  setDashboardLoading(true);
   try {
     await window.suedsManagerAuthReady;
     const response = await fetch(`/api/inteligencia/mercado?${requestQuery}`, {
@@ -583,6 +591,8 @@ async function loadDashboard() {
   } catch (error) {
     if (requestId !== dashboardRequestId) return;
     document.getElementById("kpiGrid").innerHTML = `<div class="empty-state">${error.message}</div>`;
+  } finally {
+    if (requestId === dashboardRequestId) setDashboardLoading(false);
   }
 }
 

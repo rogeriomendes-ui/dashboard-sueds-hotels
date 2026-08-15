@@ -24,6 +24,49 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.market-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  color: #ffffff;
+  background: rgba(28, 47, 64, 0.78);
+  backdrop-filter: blur(2px);
+}
+
+.market-loading[hidden] {
+  display: none;
+}
+
+.market-loading strong {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.market-loading-spinner {
+  width: 54px;
+  height: 54px;
+  border: 6px solid rgba(255, 255, 255, 0.28);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: market-loading-spin 0.8s linear infinite;
+}
+
+@keyframes market-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-loading-spinner {
+    animation-duration: 1.8s;
+  }
+}
+
 .market-shell {
   width: min(1880px, 100%);
   margin: 0 auto;

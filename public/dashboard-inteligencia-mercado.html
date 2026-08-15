@@ -5,10 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Marketing e Competitividade</title>
     <script src="manager-auth.js"></script>
-    <link rel="stylesheet" href="inteligencia-mercado.css">
+    <link rel="stylesheet" href="inteligencia-mercado.css?v=20260815-loading">
   </head>
   <body>
-    <main class="market-shell">
+    <div id="marketLoading" class="market-loading" role="status" aria-live="polite" aria-label="Carregando dados de Marketing e Competitividade">
+      <span class="market-loading-spinner" aria-hidden="true"></span>
+      <strong>Carregando dados...</strong>
+    </div>
+
+    <main class="market-shell" aria-busy="true">
       <header class="market-topbar">
         <div>
           <p class="eyebrow">Gestores</p>
@@ -432,6 +437,6 @@
       </aside>
     </div>
 
-    <script src="inteligencia-mercado.js"></script>
+    <script src="inteligencia-mercado.js?v=20260815-loading"></script>
   </body>
 </html>
