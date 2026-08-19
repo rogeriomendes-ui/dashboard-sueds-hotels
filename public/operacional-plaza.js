@@ -95,7 +95,7 @@ const OPINION_FIELD_LABELS = {
 };
 const state = {
   data: null,
-  filter: "all",
+  filter: "pending",
   search: "",
   opinionFilter: "all",
   opinionSearch: "",
