@@ -484,6 +484,9 @@ td.description-cell { font-size: 12px; line-height: 1.3; }
 .guest-photo-link svg { width: 13px; height: 13px; flex: 0 0 auto; }
 .time-overdue { color: var(--red); font-weight: 850; }
 .source-badge { display: inline-flex; min-height: 22px; padding: 0 6px; align-items: center; color: #15516a; background: #d9eef5; border-radius: 3px; font-size: 10px; font-weight: 800; }
+.situation-badge { display: inline-flex; min-height: 22px; padding: 0 7px; align-items: center; border-radius: 999px; font-size: 10px; font-weight: 850; white-space: nowrap; }
+.situation-elogio { color: #156748; background: #dcf4e8; }
+.situation-critica { color: #a52727; background: #fde4e4; }
 .empty-row td { padding: 28px; color: var(--muted); text-align: center; background: #f4f6f7; }
 
 .incident-status-dialog {

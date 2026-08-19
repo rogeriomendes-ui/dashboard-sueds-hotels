@@ -437,6 +437,12 @@ function tableCell(label, content, className = "") {
   return `<td class="${className}"><span class="cell-label">${escapeHtml(label)}</span><span>${content}</span></td>`;
 }
 
+function incidentSituation(incident) {
+  const situation = incident.situation === "critica" ? "critica" : "elogio";
+  const label = situation === "critica" ? "Crítica" : "Elogio";
+  return `<span class="situation-badge situation-${situation}" title="Classificação realizada pela IA">${label}</span>`;
+}
+
 function incidentRow(incident) {
   const pending = incident.status === "pending";
   const durationClass = pending && incident.overdue ? "time-overdue" : "";
@@ -455,7 +461,7 @@ function incidentRow(incident) {
       ${tableCell("Status", incidentStatus(incident))}
       ${tableCell("Tempo", `<span class="${durationClass}">${escapeHtml(formatDuration(incident.elapsedMinutes))}</span>`)}
       ${tableCell("Origem", `<span class="source-badge">${escapeHtml(source || "--")}</span>`)}
-      ${tableCell("Solicitante", escapeHtml(incident.requester || "--"))}
+      ${tableCell("Situação", incidentSituation(incident))}
       ${tableCell("O.S.", escapeHtml(incident.orderNumber || "--"))}
     </tr>`;
 }

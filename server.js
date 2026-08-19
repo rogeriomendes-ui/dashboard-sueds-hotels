@@ -5542,9 +5542,16 @@ function operationalHotelFromSlug(value) {
   };
 }
 
+function operationalOpinionSituation(opinion = {}) {
+  return opinion.issues ? "critica" : "elogio";
+}
+
 function opinionOperationalIncident(opinion, index) {
   const description = opinion.issues || opinion.comments;
   if (!description) return null;
+  // A leitura por IA ja separa o texto em destaques e problemas. Como a fila
+  // prioriza o problema quando ambos existem, a situacao segue o mesmo texto.
+  const situation = operationalOpinionSituation(opinion);
   const requestedAt = opinion.capturedAt || opinion.processedAt || new Date();
   const status = opinion.hasIncidentStatus ? opinion.incidentStatus : "pending";
   const statusAt = opinion.incidentStatusAt;
@@ -5566,7 +5573,7 @@ function opinionOperationalIncident(opinion, index) {
     elapsedMinutes,
     overdue: status === "pending" && elapsedMinutes >= 180,
     source: "Opinario",
-    requester: "Hospede",
+    situation,
     orderNumber: "",
     photoUrl: opinion.photoUrl
   };
@@ -7567,6 +7574,7 @@ module.exports = {
     detectOmrBubbleCandidates,
     detectOmrBubbleGrid,
     operationalOpinionCapturedAt,
+    operationalOpinionSituation,
     operationalWeekdayNumber,
     buildMetrics,
     buildOtherChannelsMetrics,
