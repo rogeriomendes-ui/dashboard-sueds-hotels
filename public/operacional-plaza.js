@@ -470,7 +470,11 @@ function filteredIncidents() {
   const incidents = state.data?.operations?.incidents || [];
   const search = normalizeQueueSearch(state.search);
   return incidents.filter((incident) => {
-    if (state.filter !== "all" && incident.status !== state.filter) return false;
+    if (["critica", "elogio"].includes(state.filter)) {
+      if (incident.situation !== state.filter) return false;
+    } else if (state.filter !== "all" && incident.status !== state.filter) {
+      return false;
+    }
     if (!search) return true;
     const guestName = normalizeQueueSearch(incident.guestName || "Hóspede");
     const apartment = normalizeQueueSearch(incident.apartment);

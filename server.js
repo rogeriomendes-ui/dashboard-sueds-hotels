@@ -5546,6 +5546,11 @@ function operationalOpinionSituation(opinion = {}) {
   return opinion.issues ? "critica" : "elogio";
 }
 
+function operationalOpinionDefaultStatus(opinion = {}) {
+  if (opinion.hasIncidentStatus) return opinion.incidentStatus;
+  return operationalOpinionSituation(opinion) === "elogio" ? "registered" : "pending";
+}
+
 function opinionOperationalIncident(opinion, index) {
   const description = opinion.issues || opinion.comments;
   if (!description) return null;
@@ -5553,8 +5558,10 @@ function opinionOperationalIncident(opinion, index) {
   // prioriza o problema quando ambos existem, a situacao segue o mesmo texto.
   const situation = operationalOpinionSituation(opinion);
   const requestedAt = opinion.capturedAt || opinion.processedAt || new Date();
-  const status = opinion.hasIncidentStatus ? opinion.incidentStatus : "pending";
-  const statusAt = opinion.incidentStatusAt;
+  const status = operationalOpinionDefaultStatus(opinion);
+  const statusAt = opinion.hasIncidentStatus
+    ? opinion.incidentStatusAt
+    : (status === "registered" ? requestedAt : null);
   const elapsedUntil = status === "pending" || !statusAt ? new Date() : statusAt;
   const elapsedMinutes = Math.max(0, Math.floor((elapsedUntil.getTime() - requestedAt.getTime()) / 60000));
   return {
@@ -5567,7 +5574,7 @@ function opinionOperationalIncident(opinion, index) {
     comments: opinion.comments,
     status,
     statusAt: statusAt ? statusAt.toISOString() : null,
-    statusActor: opinion.incidentStatusActor,
+    statusActor: opinion.hasIncidentStatus ? opinion.incidentStatusActor : (status === "registered" ? "IA" : ""),
     treatmentNotes: opinion.incidentTreatmentNotes,
     resolvedAt: status === "resolved" && statusAt ? statusAt.toISOString() : null,
     elapsedMinutes,
@@ -7574,6 +7581,7 @@ module.exports = {
     detectOmrBubbleCandidates,
     detectOmrBubbleGrid,
     operationalOpinionCapturedAt,
+    operationalOpinionDefaultStatus,
     operationalOpinionSituation,
     operationalWeekdayNumber,
     buildMetrics,
