@@ -3222,7 +3222,7 @@ function buildSellersPayload(metrics, access = {}) {
         };
         if (includeCommission) {
           payload.commission = isTeamSeller
-            ? teamManagerCommission(seller)
+            ? teamManagerCommission(seller, metrics.period)
             : sellerCommission(seller, teamGoalMet);
         }
         return payload;
@@ -3230,7 +3230,7 @@ function buildSellersPayload(metrics, access = {}) {
   };
 }
 
-function teamManagerCommission(seller) {
+function teamManagerCommission(seller, period = {}) {
   const icm = Number(seller?.monthlyGoalPct);
   const sales = Number(seller?.salesMonth);
   if (!Number.isFinite(icm) || !Number.isFinite(sales)) return null;
@@ -3240,12 +3240,15 @@ function teamManagerCommission(seller) {
   const teamBonusPct = icm >= 100 ? 0.1 : 0;
   const ratePct = baseRatePct + teamBonusPct;
 
+  const isJuly2026Prorated = period.month === "2026-07";
+
   return {
     tier,
     baseRatePct,
     teamBonusPct,
     ratePct,
-    amount: sales * ratePct / 100
+    amount: isJuly2026Prorated ? 3064.27 : sales * ratePct / 100,
+    note: isJuly2026Prorated ? "proporcional 16 dias de trabalho" : ""
   };
 }
 

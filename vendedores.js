@@ -130,9 +130,13 @@ function renderSellers(sellers = []) {
     const commission = seller.commission;
     const commissionCell = (tier, label) => {
       const active = commission?.tier === tier;
-      const amount = active ? commissionMoney.format(commission.amount || 0) : "—";
+      const note = active ? String(commission.note || "") : "";
+      const amount = active
+        ? `${commissionMoney.format(commission.amount || 0)}${note ? "*" : ""}`
+        : "—";
       const rate = active ? `${commission.ratePct.toFixed(2).replace(".", ",")}%` : "";
-      return `<span class="metric-cell commission ${active ? "commission-active" : ""}" data-label="${label}" title="${rate ? `Taxa aplicada: ${rate}` : ""}">${amount}</span>`;
+      const tooltip = note || (rate ? `Taxa aplicada: ${rate}` : "");
+      return `<span class="metric-cell commission ${active ? "commission-active" : ""}" data-label="${label}" title="${tooltip}">${amount}</span>`;
     };
     return `
       <div class="ranking-row">
