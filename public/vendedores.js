@@ -173,6 +173,54 @@ function renderSellers(sellers = []) {
   `;
 }
 
+function updateExportButton(canExport) {
+  const button = byId("exportExcel");
+  if (!button) return;
+  button.hidden = canExport !== true;
+}
+
+function downloadFile(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function exportExcel() {
+  const button = byId("exportExcel");
+  if (!button || button.disabled) return;
+  const month = monthSelect.value;
+  const date = dateForMonth(month);
+  const url = `/api/dashboard/vendedores?action=export&date=${encodeURIComponent(date)}&month=${encodeURIComponent(month)}`;
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Gerando...";
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { "x-dashboard-token": accessToken }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const disposition = response.headers.get("content-disposition") || "";
+    const fileName = disposition.match(/filename="([^"]+)"/)?.[1]
+      || `relatorio-vendas-comissoes-${month}.xlsx`;
+    downloadFile(await response.blob(), fileName);
+    button.textContent = "Excel gerado";
+    window.setTimeout(() => { button.textContent = originalText; }, 1600);
+  } catch (error) {
+    button.textContent = "Falha ao gerar";
+    window.setTimeout(() => { button.textContent = originalText; }, 2200);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function load() {
   const month = monthSelect.value;
   const date = dateForMonth(month);
@@ -195,8 +243,10 @@ async function load() {
     const data = await response.json();
     renderSummary(data.summary);
     renderSellers(data.sellers);
+    updateExportButton(data.canExport);
     byId("lastUpdate").textContent = formatUpdatedAt(data.generatedAt);
   } catch (error) {
+    updateExportButton(false);
     byId("sellerRanking").innerHTML = '<div class="empty-state error">Falha ao carregar dados dos vendedores.</div>';
     byId("lastUpdate").textContent = "Falha ao atualizar";
   }
@@ -361,6 +411,7 @@ async function ensureAccess() {
 
 async function boot() {
   setupMonthSelect();
+  byId("exportExcel")?.addEventListener("click", exportExcel);
   await ensureAccess();
   await load();
   setInterval(load, 60000);

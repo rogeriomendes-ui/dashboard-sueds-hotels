@@ -1,4 +1,5 @@
 const crypto = require("node:crypto");
+const ExcelJS = require("exceljs");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
@@ -291,6 +292,13 @@ function authenticateSellerUser(username, password) {
 
 function portalSellerAccessProfile(profile = {}) {
   const profileName = String(profile.name || "").trim();
+  if ((profile.roles || []).includes("gestor_unidade")) {
+    return {
+      role: "leader",
+      username: normalizeAccessUsername(profile.email),
+      displayName: profileName || "Líder"
+    };
+  }
   const nameKey = comparableKey(profileName);
   const emailLocalPart = normalizeAccessUsername(profile.email).split("@")[0];
   const emailTokens = emailLocalPart.split(/[^a-z0-9]+/).filter(Boolean);
@@ -2530,6 +2538,7 @@ function salesDetailRow(record, channelLabelForRecord) {
     formaPagamento: record.paymentMethod,
     parcelas: record.installments,
     status: record.status,
+    fonte: record.source,
     observacoes: record.notes
   };
 }
@@ -3189,9 +3198,10 @@ function buildManagerPayload(metrics) {
 function buildSellersPayload(metrics, access = {}) {
   const teamSeller = (metrics.sellers || []).find((seller) => seller.name === TEAM_CARD_DISPLAY_NAME);
   const teamGoalMet = Number(teamSeller?.monthlyGoalPct) >= 100;
-  const isManager = access.role === "manager";
+  const canViewLeadershipData = isSalesLeadershipAccess(access);
   return {
     audience: "vendedores",
+    canExport: canViewLeadershipData,
     generatedAt: metrics.generatedAt,
     period: metrics.period,
     summary: {
@@ -3210,7 +3220,7 @@ function buildSellersPayload(metrics, access = {}) {
         const isTeamSeller = isTeamCardName(seller.name);
         const isAuthenticatedSeller = access.role === "seller"
           && comparableKey(seller.name) === comparableKey(access.displayName);
-        const includeCommission = isManager || (!isTeamSeller && isAuthenticatedSeller);
+        const includeCommission = canViewLeadershipData || (!isTeamSeller && isAuthenticatedSeller);
         const payload = {
           name: seller.name,
           reservationsMonth: seller.reservationsMonth,
@@ -3228,6 +3238,218 @@ function buildSellersPayload(metrics, access = {}) {
         return payload;
       })
   };
+}
+
+function isSalesLeadershipAccess(access = {}) {
+  return access.role === "manager" || access.role === "leader";
+}
+
+function salesReportFileName(period = {}) {
+  const month = /^\d{4}-\d{2}$/.test(period.month || "") ? period.month : todayKey().slice(0, 7);
+  const [year, monthNumber] = month.split("-");
+  return `relatorio-vendas-comissoes-${year}-${monthNumber}.xlsx`;
+}
+
+function excelDateFromKey(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
+}
+
+function styleExcelHeader(row, fill = "2C3E50") {
+  row.height = 30;
+  row.eachCell((cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: fill } };
+    cell.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
+    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    cell.border = { bottom: { style: "medium", color: { argb: "27E0C4" } } };
+  });
+}
+
+function addSalesReportTitle(sheet, title, subtitle, lastColumn) {
+  sheet.mergeCells(`A1:${lastColumn}1`);
+  sheet.getCell("A1").value = title;
+  sheet.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "2C3E50" } };
+  sheet.getCell("A1").font = { name: "Arial", size: 20, bold: true, color: { argb: "FFFFFF" } };
+  sheet.getCell("A1").alignment = { vertical: "middle", horizontal: "left" };
+  sheet.getRow(1).height = 34;
+  sheet.mergeCells(`A2:${lastColumn}2`);
+  sheet.getCell("A2").value = subtitle;
+  sheet.getCell("A2").font = { name: "Arial", size: 10, italic: true, color: { argb: "5B6A78" } };
+  sheet.getCell("A2").alignment = { vertical: "middle", horizontal: "left" };
+  sheet.getRow(2).height = 22;
+}
+
+async function buildSalesCommissionWorkbook(metrics) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "SUEDS Hotels";
+  workbook.company = "SUEDS Hotels";
+  workbook.created = new Date();
+  workbook.modified = new Date();
+
+  const requestedMonth = metrics.period?.month || "";
+  const month = /^\d{4}-\d{2}$/.test(requestedMonth) ? requestedMonth : todayKey().slice(0, 7);
+  const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: TIME_ZONE })
+    .format(new Date(`${month}-01T12:00:00Z`));
+  const generatedLabel = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: TIME_ZONE
+  }).format(new Date(metrics.generatedAt || Date.now()));
+
+  const summarySheet = workbook.addWorksheet("Resumo", {
+    views: [{ state: "frozen", ySplit: 4, showGridLines: false }],
+    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+  });
+  summarySheet.columns = [
+    { key: "name", width: 25 },
+    { key: "reservations", width: 12 },
+    { key: "sales", width: 16 },
+    { key: "goal", width: 16 },
+    { key: "projection", width: 12 },
+    { key: "icm", width: 11 },
+    { key: "below", width: 18 },
+    { key: "belowRate", width: 13 },
+    { key: "goalCommission", width: 18 },
+    { key: "goalRate", width: 13 },
+    { key: "super", width: 18 },
+    { key: "superRate", width: 13 },
+    { key: "commission", width: 18 },
+    { key: "note", width: 36 }
+  ];
+  addSalesReportTitle(
+    summarySheet,
+    "Resumo de vendas e comissões",
+    `Período: ${monthLabel} • Gerado em ${generatedLabel}`,
+    "N"
+  );
+  const summaryHeaders = [
+    "Responsável", "Reservas", "Venda", "Meta do mês", "Projeção %", "ICM %",
+    "Meta não batida\n<100%", "% aplicada", "Meta batida\n100%–119,99%", "% aplicada",
+    "Super meta batida\n≥120%", "% aplicada", "Comissão calculada", "Observação"
+  ];
+  summarySheet.getRow(4).values = summaryHeaders;
+  styleExcelHeader(summarySheet.getRow(4));
+
+  const teamSeller = (metrics.sellers || []).find((seller) => isTeamCardName(seller.name));
+  const teamGoalMet = Number(teamSeller?.monthlyGoalPct) >= 100;
+  const reportSellers = (metrics.sellers || [])
+    .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
+    .map((seller) => {
+      const commission = isTeamCardName(seller.name)
+        ? teamManagerCommission(seller, metrics.period)
+        : sellerCommission(seller, teamGoalMet);
+      const activeAmount = Number(commission?.amount || 0);
+      const appliedRate = Number(commission?.ratePct || 0) / 100;
+      return {
+        name: seller.name,
+        reservations: Number(seller.reservationsMonth || 0),
+        sales: Number(seller.salesMonth || 0),
+        goal: Number(seller.monthlyGoal || 0),
+        projection: Number(seller.mtdGoalPct || 0) / 100,
+        icm: Number(seller.monthlyGoalPct || 0) / 100,
+        below: commission?.tier === "below" ? activeAmount : null,
+        belowRate: commission?.tier === "below" ? appliedRate : null,
+        goalCommission: commission?.tier === "goal" ? activeAmount : null,
+        goalRate: commission?.tier === "goal" ? appliedRate : null,
+        super: commission?.tier === "super" ? activeAmount : null,
+        superRate: commission?.tier === "super" ? appliedRate : null,
+        commission: activeAmount,
+        note: commission?.note || null
+      };
+    });
+
+  reportSellers.forEach((item, index) => {
+    const row = summarySheet.addRow(item);
+    row.height = 24;
+    row.font = { name: "Arial", size: 10, bold: isTeamCardName(item.name) };
+    row.alignment = { vertical: "middle" };
+    if (index % 2 === 1) {
+      row.eachCell((cell) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F3F7FA" } };
+      });
+    }
+    [7, 8].forEach((column) => {
+      if (row.getCell(column).value !== null) row.getCell(column).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FDE7E7" } };
+    });
+    [9, 10].forEach((column) => {
+      if (row.getCell(column).value !== null) row.getCell(column).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF4CC" } };
+    });
+    [11, 12].forEach((column) => {
+      if (row.getCell(column).value !== null) row.getCell(column).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "DDF6EA" } };
+    });
+  });
+
+  const summaryEndRow = 4 + reportSellers.length;
+  summarySheet.autoFilter = { from: "A4", to: `N${summaryEndRow}` };
+  summarySheet.getColumn(2).numFmt = "#,##0";
+  [3, 4, 7, 9, 11, 13].forEach((column) => { summarySheet.getColumn(column).numFmt = '"R$" #,##0.00'; });
+  [5, 6, 8, 10, 12].forEach((column) => { summarySheet.getColumn(column).numFmt = "0.00%"; });
+  summarySheet.getColumn(14).alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+  summarySheet.getRow(summaryEndRow + 2).values = [
+    "Totais do período", metrics.summary?.reservationsMonth || 0, metrics.summary?.salesMonth || 0,
+    metrics.summary?.monthlyGoal || 0, null, null, null, null, null, null, null, null,
+    reportSellers.reduce((total, item) => total + item.commission, 0), null
+  ];
+  const totalRow = summarySheet.getRow(summaryEndRow + 2);
+  totalRow.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFF" } };
+  totalRow.eachCell((cell) => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "2C3E50" } }; });
+  totalRow.getCell(2).numFmt = "#,##0";
+  [3, 4, 13].forEach((column) => { totalRow.getCell(column).numFmt = '"R$" #,##0.00'; });
+
+  const detailSheet = workbook.addWorksheet("Vendas completas", {
+    views: [{ state: "frozen", ySplit: 4, xSplit: 2, showGridLines: false }],
+    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+  });
+  detailSheet.columns = [
+    { key: "dataVenda", width: 13 }, { key: "codigoReserva", width: 28 }, { key: "hotel", width: 24 },
+    { key: "canal", width: 23 }, { key: "vendedor", width: 21 }, { key: "cliente", width: 34 },
+    { key: "checkin", width: 13 }, { key: "checkout", width: 13 }, { key: "diarias", width: 10 },
+    { key: "uh", width: 8 }, { key: "adultos", width: 10 }, { key: "criancas", width: 10 },
+    { key: "valorTotal", width: 16 }, { key: "recebido", width: 16 }, { key: "aReceber", width: 16 },
+    { key: "formaPagamento", width: 23 }, { key: "parcelas", width: 10 }, { key: "status", width: 15 },
+    { key: "fonte", width: 20 }, { key: "observacoes", width: 48 }
+  ];
+  addSalesReportTitle(
+    detailSheet,
+    "Vendas completas",
+    `Período: ${monthLabel} • ${Number(metrics.detailedSales?.length || 0)} vendas listadas`,
+    "T"
+  );
+  detailSheet.getRow(4).values = [
+    "Data Venda", "Código Reserva", "Hotel", "Canal", "Vendedor", "Cliente", "Check-in", "Check-out",
+    "Diárias", "UHs", "Adultos", "Crianças", "Valor Total", "Recebido", "A Receber", "Forma Pagto",
+    "Parcelas", "Status", "Fonte", "Observações"
+  ];
+  styleExcelHeader(detailSheet.getRow(4), "5A7D21");
+
+  (metrics.detailedSales || []).forEach((sale, index) => {
+    const normalizedSale = Object.fromEntries(
+      Object.entries(sale).map(([key, value]) => [key, value === "" ? null : value])
+    );
+    const row = detailSheet.addRow({
+      ...normalizedSale,
+      dataVenda: excelDateFromKey(sale.dataVenda),
+      checkin: excelDateFromKey(sale.checkin),
+      checkout: excelDateFromKey(sale.checkout)
+    });
+    row.height = 22;
+    row.font = { name: "Arial", size: 9 };
+    row.alignment = { vertical: "middle" };
+    if (index % 2 === 1) {
+      row.eachCell((cell) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "F1F6E7" } };
+      });
+    }
+  });
+  const detailEndRow = 4 + Number(metrics.detailedSales?.length || 0);
+  detailSheet.autoFilter = { from: "A4", to: `T${Math.max(detailEndRow, 4)}` };
+  [1, 7, 8].forEach((column) => { detailSheet.getColumn(column).numFmt = "dd/mm/yyyy"; });
+  [9, 10, 11, 12, 17].forEach((column) => { detailSheet.getColumn(column).numFmt = "#,##0"; });
+  [13, 14, 15].forEach((column) => { detailSheet.getColumn(column).numFmt = '"R$" #,##0.00'; });
+  detailSheet.getColumn(20).alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 function teamManagerCommission(seller, period = {}) {
@@ -7394,6 +7616,17 @@ async function handleRequest(req, res) {
         return json(res, 200, { ok: true, profile: access });
       }
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      if (url.searchParams.get("action") === "export") {
+        if (!isSalesLeadershipAccess(access)) return forbidden(res);
+        const metrics = await loadMetrics(periodFromUrl(url));
+        const workbook = await buildSalesCommissionWorkbook(metrics);
+        res.writeHead(200, {
+          "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-disposition": `attachment; filename="${salesReportFileName(metrics.period)}"`,
+          "cache-control": "no-store"
+        });
+        return res.end(workbook);
+      }
       const metrics = await loadMetrics(periodFromUrl(url));
       return json(res, 200, buildSellersPayload(metrics, access));
     }
@@ -7591,6 +7824,8 @@ module.exports = {
     buildOtherChannelsMetrics,
     buildAdvancePurchaseByChannel,
     buildSellersPayload,
+    buildSalesCommissionWorkbook,
+    isSalesLeadershipAccess,
     portalSellerAccessProfile,
     sellerCommission,
     teamManagerCommission,
