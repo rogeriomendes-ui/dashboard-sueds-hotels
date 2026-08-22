@@ -3546,26 +3546,56 @@ function buildTvPayload(metrics) {
 }
 
 const OPERATIONAL_RATING_FIELDS = [
-  { key: "generalImpression", headers: ["Impressao Geral"], block: "Geral" },
-  { key: "reservation", headers: ["Reserva"], block: "Geral" },
-  { key: "foodBreakfast", headers: ["Alimentos Cafe da Manha", "Cafe da manha"], block: "Alimentos" },
-  { key: "foodAfternoonTea", headers: ["Alimentos Cha da Tarde", "Cha da tarde"], block: "Alimentos" },
-  { key: "foodLunch", headers: ["Alimentos Almoco", "Almoco"], block: "Alimentos" },
-  { key: "foodDinner", headers: ["Alimentos Jantar", "Jantar"], block: "Alimentos" },
-  { key: "teamService", headers: ["Atendimento da equipe"], block: "Atendimento" },
-  { key: "beachClub", headers: ["Atendimento da equipe do Beach Club"], block: "Atendimento" },
-  { key: "roomCleaning", headers: ["Limpeza do quarto"], block: "Apartamento" },
-  { key: "roomComfort", headers: ["Conforto do quarto"], block: "Apartamento" },
+  { key: "generalImpression", headers: ["Impressao Geral"], block: "Geral", detailedBlock: "Geral" },
+  { key: "reservation", headers: ["Reserva"], block: "Geral", detailedBlock: "Reservas" },
+  { key: "foodBreakfast", headers: ["Alimentos Cafe da Manha", "Cafe da manha"], block: "Alimentos", detailedBlock: "A&B" },
+  { key: "foodAfternoonTea", headers: ["Alimentos Cha da Tarde", "Cha da tarde"], block: "Alimentos", detailedBlock: "A&B" },
+  { key: "foodLunch", headers: ["Alimentos Almoco", "Almoco"], block: "Alimentos", detailedBlock: "A&B" },
+  { key: "foodDinner", headers: ["Alimentos Jantar", "Jantar"], block: "Alimentos", detailedBlock: "A&B" },
+  { key: "teamService", headers: ["Atendimento da equipe"], block: "Atendimento", detailedBlock: "Atendimento Equipe" },
+  { key: "beachClub", headers: ["Atendimento da equipe do Beach Club"], block: "Atendimento", detailedBlock: "Atendimento Beach Club" },
+  { key: "roomCleaning", headers: ["Limpeza do quarto"], block: "Apartamento", detailedBlock: "Limpeza do Quarto" },
+  { key: "roomComfort", headers: ["Conforto do quarto"], block: "Apartamento", detailedBlock: "Conforto do Quarto" },
   { key: "apartmentComfort", headers: ["Conforto do apartamento"], block: "Apartamento" },
   { key: "apartmentInitialCleaning", headers: ["Limpeza inicial do apartamento"], block: "Apartamento" },
   { key: "apartmentEquipment", headers: ["Equipamentos / utensilios do apartamento"], block: "Apartamento" },
   { key: "apartmentLocation", headers: ["Localizacao do apartamento"], block: "Apartamento" },
-  { key: "frontDesk", headers: ["Recepcao / Check-in / Check-out"], block: "Serviços" },
-  { key: "wifi", headers: ["Qualidade do Wi-fi"], block: "Serviços" },
-  { key: "pool", headers: ["Area de lazer / piscina"], block: "Serviços" }
+  { key: "frontDesk", headers: ["Recepcao / Check-in / Check-out"], block: "Serviços", detailedBlock: "Recepção" },
+  { key: "wifi", headers: ["Qualidade do Wi-fi"], block: "Serviços", detailedBlock: "Wi-Fi" },
+  { key: "pool", headers: ["Area de lazer / piscina"], block: "Serviços", detailedBlock: "Área de Lazer" }
 ];
 
 const OPERATIONAL_BLOCKS = ["Geral", "Alimentos", "Atendimento", "Apartamento", "Serviços"];
+const DETAILED_OPERATIONAL_BLOCKS = [
+  "Geral",
+  "Reservas",
+  "Recepção",
+  "Atendimento Equipe",
+  "Conforto do Quarto",
+  "Limpeza do Quarto",
+  "Wi-Fi",
+  "Área de Lazer",
+  "Atendimento Beach Club",
+  "A&B"
+];
+const TRANCOSO_OPERATIONAL_BLOCKS = [
+  "Geral",
+  "Reservas",
+  "Recepção",
+  "Atendimento Equipe",
+  "Conforto do Quarto",
+  "Limpeza do Quarto",
+  "Wi-Fi",
+  "Área de Lazer",
+  "A&B"
+];
+const DETAILED_OPERATIONAL_HOTELS = new Set([
+  "sueds plaza",
+  "sueds premium",
+  "sueds segundo sol",
+  "sueds cabralia",
+  "sueds trancoso"
+]);
 const OPERATIONAL_HOTEL_ORDER = [
   "SUEDS CABRALIA",
   "SUEDS SEGUNDO SOL",
@@ -3581,6 +3611,14 @@ const OPERATIONAL_HOTELS_BY_SLUG = {
   "sueds-premium": "SUEDS PREMIUM",
   "sueds-trancoso": "SUEDS TRANCOSO",
   "casas-sueds-arraial": "CASAS SUEDS ARRAIAL"
+};
+const OPERATIONAL_REQUIRED_RATING_KEYS_BY_HOTEL = {
+  "sueds cabralia": ["generalImpression", "reservation", "frontDesk", "teamService", "roomComfort", "roomCleaning", "wifi", "pool", "beachClub", "foodBreakfast", "foodDinner"],
+  "sueds segundo sol": ["generalImpression", "reservation", "frontDesk", "teamService", "roomComfort", "roomCleaning", "wifi", "pool", "beachClub", "foodBreakfast", "foodLunch", "foodDinner"],
+  "sueds plaza": ["generalImpression", "reservation", "frontDesk", "teamService", "roomComfort", "roomCleaning", "wifi", "pool", "beachClub", "foodBreakfast", "foodLunch", "foodDinner"],
+  "sueds premium": ["generalImpression", "reservation", "frontDesk", "teamService", "roomComfort", "roomCleaning", "wifi", "pool", "beachClub", "foodBreakfast", "foodLunch", "foodDinner"],
+  "sueds trancoso": ["generalImpression", "reservation", "frontDesk", "teamService", "roomComfort", "roomCleaning", "wifi", "pool", "foodBreakfast", "foodAfternoonTea"],
+  "casas sueds arraial": ["generalImpression", "reservation", "teamService", "apartmentComfort", "apartmentInitialCleaning", "apartmentEquipment", "wifi", "apartmentLocation"]
 };
 
 const OPINION_SUBMISSION_HEADERS = [
@@ -3691,6 +3729,17 @@ function operationalWeekdayNumber(dateValue) {
   return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12)).getUTCDay();
 }
 
+function operationalOpinionMatchesPeriod(opinion, period = {}) {
+  const date = period.date || "";
+  const month = period.month || (date ? date.slice(0, 7) : "");
+  if (date) return opinion.dateKey === date;
+
+  const weekdayNumber = { tuesday: 2, friday: 5 }[period.weekday] ?? null;
+  const opinionWeekday = operationalWeekdayNumber(opinion.dateKey);
+  return (!opinion.monthKey || opinion.monthKey === month)
+    && (weekdayNumber === null || opinionWeekday === weekdayNumber);
+}
+
 function normalizeOperationalOpinion(item) {
   const processedAt = parseDate(item["Data Processamento"]);
   const capturedAt = operationalOpinionCapturedAt(item, processedAt);
@@ -3738,13 +3787,26 @@ function hasCurrentOperationalFormVersion(opinion) {
 function isOperationalTestOpinion(opinion) {
   const guest = comparableKey(opinion.guestName);
   const comments = comparableKey(opinion.comments);
-  return guest.includes("fake") || comments === "teste" || comments.startsWith("teste ");
+  return guest.includes("fake")
+    || comments === "teste"
+    || comments.startsWith("teste ")
+    || comments === "testando"
+    || comments === "testyando"
+    || comments.startsWith("testing ");
 }
 
 function isCurrentOperationalOpinion(opinion) {
   if (!hasCurrentOperationalFormVersion(opinion) || isOperationalTestOpinion(opinion)) return false;
   const status = normalizeTextKey(opinion.status);
-  return status === "aprovado" || status === "digital";
+  return status === "aprovado"
+    || status === "digital"
+    || (status === "revisao" && hasAllRecognizedOperationalRatings(opinion));
+}
+
+function hasAllRecognizedOperationalRatings(opinion) {
+  const requiredKeys = OPERATIONAL_REQUIRED_RATING_KEYS_BY_HOTEL[comparableKey(opinion.hotel)] || [];
+  return requiredKeys.length > 0
+    && requiredKeys.every((key) => Number.isFinite(opinion.fieldScores?.[key]));
 }
 
 function isCurrentOperationalRecord(opinion) {
@@ -3755,11 +3817,26 @@ function isCurrentOperationalRecord(opinion) {
 }
 
 function summarizeOperationalHotel(hotel, opinions) {
-  const blockScores = OPERATIONAL_BLOCKS.map((block) => {
+  const hotelKey = comparableKey(hotel);
+  const usesDetailedBlocks = DETAILED_OPERATIONAL_HOTELS.has(hotelKey);
+  const isTrancoso = hotelKey === "sueds trancoso";
+  const blocks = isTrancoso
+    ? TRANCOSO_OPERATIONAL_BLOCKS
+    : usesDetailedBlocks
+      ? DETAILED_OPERATIONAL_BLOCKS
+      : OPERATIONAL_BLOCKS;
+  const blockScores = blocks.map((block) => {
     const scores = [];
     opinions.forEach((opinion) => {
       OPERATIONAL_RATING_FIELDS
-        .filter((field) => field.block === block)
+        .filter((field) => {
+          const fieldBlock = isTrancoso
+            ? field.trancosoBlock || field.detailedBlock
+            : usesDetailedBlocks
+              ? field.detailedBlock
+              : field.block;
+          return fieldBlock === block;
+        })
         .forEach((field) => {
           const score = opinion.fieldScores[field.key];
           if (Number.isFinite(score)) scores.push(score);
@@ -5721,10 +5798,11 @@ async function sendOperationalOpinionImage(res, fileId, hotelSlug = "") {
 async function buildOperationalTvPayload(period = {}) {
   const opinions = await loadOperationalOpinions();
   const date = period.date || "";
+  const weekday = ["tuesday", "friday"].includes(period.weekday) ? period.weekday : "";
   const month = date ? date.slice(0, 7) : period.month || todayKey().slice(0, 7);
   const monthOpinions = opinions.filter((opinion) => (
     isCurrentOperationalOpinion(opinion)
-      && (date ? opinion.dateKey === date : (!opinion.monthKey || opinion.monthKey === month))
+      && operationalOpinionMatchesPeriod(opinion, { date, month, weekday })
   ));
   const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
     .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
@@ -5747,7 +5825,7 @@ async function buildOperationalTvPayload(period = {}) {
   return {
     audience: "tv-operacional",
     generatedAt: new Date().toISOString(),
-    period: { month, date: date || null },
+    period: { month, date: date || null, weekday: weekday || null },
     summary: {
       opinions: monthOpinions.length,
       hotels: orderedHotels.length,
@@ -5835,18 +5913,15 @@ async function buildOperationalHotelPayload(period = {}) {
   const opinions = await loadOperationalOpinions();
   const date = period.date || "";
   const weekday = ["tuesday", "friday"].includes(period.weekday) ? period.weekday : "";
-  const weekdayNumber = weekday === "tuesday" ? 2 : weekday === "friday" ? 5 : null;
   const month = date ? date.slice(0, 7) : period.month || todayKey().slice(0, 7);
   const hotelOpinions = opinions.filter((opinion) => {
-    const opinionWeekday = operationalWeekdayNumber(opinion.dateKey);
-    const samePeriod = date
-      ? opinion.dateKey === date
-      : (!opinion.monthKey || opinion.monthKey === month)
-        && (weekdayNumber === null || opinionWeekday === weekdayNumber);
+    const samePeriod = operationalOpinionMatchesPeriod(opinion, { date, month, weekday });
     return samePeriod && comparableKey(opinion.hotel) === comparableKey(selectedHotel.name);
   });
   const evaluatedOpinions = hotelOpinions.filter(isCurrentOperationalOpinion);
-  const reviewOpinions = hotelOpinions.filter((opinion) => normalizeTextKey(opinion.status) === "revisao");
+  const reviewOpinions = hotelOpinions.filter((opinion) => (
+    normalizeTextKey(opinion.status) === "revisao" && !isCurrentOperationalOpinion(opinion)
+  ));
   const evaluationBase = evaluatedOpinions.length
     ? summarizeOperationalHotel(selectedHotel.name, evaluatedOpinions)
     : emptyOperationalHotel(selectedHotel.name);
@@ -7820,6 +7895,10 @@ module.exports = {
     operationalOpinionDefaultStatus,
     operationalOpinionSituation,
     operationalWeekdayNumber,
+    operationalOpinionMatchesPeriod,
+    hasAllRecognizedOperationalRatings,
+    isCurrentOperationalOpinion,
+    summarizeOperationalHotel,
     buildMetrics,
     buildOtherChannelsMetrics,
     buildAdvancePurchaseByChannel,

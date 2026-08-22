@@ -28,7 +28,7 @@ function localDateKey(date = new Date()) {
 }
 
 function setPeriodMode(mode, shouldLoad = true) {
-  state.periodMode = mode === "day" ? "day" : "month";
+  state.periodMode = ["day", "tuesday", "friday"].includes(mode) ? mode : "month";
   const dayMode = state.periodMode === "day";
   byId("monthSelect").hidden = dayMode;
   byId("daySelect").hidden = !dayMode;
@@ -47,13 +47,14 @@ function setupPeriodControls() {
   const requested = new URLSearchParams(window.location.search);
   const requestedMonth = requested.get("month");
   const requestedDate = requested.get("date");
+  const requestedWeekday = requested.get("weekday");
   monthSelect.innerHTML = MONTHS.map((month) => `<option value="${month}">${MONTH_LABELS[month]}</option>`).join("");
   monthSelect.value = MONTHS.includes(requestedMonth) ? requestedMonth : defaultMonth();
   daySelect.value = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : localDateKey();
   daySelect.max = localDateKey();
 
   monthSelect.addEventListener("change", () => {
-    if (state.periodMode === "month") load().catch(renderLoadError);
+    if (state.periodMode !== "day") load().catch(renderLoadError);
   });
   daySelect.addEventListener("change", () => {
     const matchingMonth = daySelect.value.slice(0, 7);
@@ -63,7 +64,12 @@ function setupPeriodControls() {
   document.querySelectorAll("[data-period-mode]").forEach((button) => {
     button.addEventListener("click", () => setPeriodMode(button.dataset.periodMode));
   });
-  setPeriodMode(/^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? "day" : "month", false);
+  const initialMode = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "")
+    ? "day"
+    : ["tuesday", "friday"].includes(requestedWeekday)
+      ? requestedWeekday
+      : "month";
+  setPeriodMode(initialMode, false);
 }
 
 function escapeHtml(value) {
@@ -126,7 +132,7 @@ function hotelCard(hotel) {
       <div class="hotel-card-header">
         <div>
           <h2>${escapeHtml(hotel.hotel)}</h2>
-          <small>${hasData ? `${integer.format(hotel.opinions || 0)} opiniários | ${integer.format(hotel.answeredItems || 0)} itens avaliados` : `Sem opiniários no ${state.periodMode === "day" ? "dia" : "mês"}`}</small>
+          <small>${hasData ? `${integer.format(hotel.opinions || 0)} ${hotel.opinions === 1 ? "opinário" : "opinários"} | ${integer.format(hotel.answeredItems || 0)} itens avaliados` : `Sem opinários no ${state.periodMode === "day" ? "dia" : "período"}`}</small>
         </div>
         <div class="score-badge" style="--score:${score}; --score-color:${color}">
           <strong>${formatScore(hotel.finalScore)}</strong>
@@ -162,7 +168,10 @@ async function load() {
   const token = await window.suedsManagerAuthReady;
   const params = new URLSearchParams();
   if (state.periodMode === "day") params.set("date", byId("daySelect").value);
-  else params.set("month", byId("monthSelect").value);
+  else {
+    params.set("month", byId("monthSelect").value);
+    if (["tuesday", "friday"].includes(state.periodMode)) params.set("weekday", state.periodMode);
+  }
   window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
   const response = await fetch(`/api/operacional/tv?${params.toString()}`, {
     cache: "no-store",

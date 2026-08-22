@@ -631,7 +631,8 @@ function analyzeOpinionImage_(file, hotel, config) {
     const omrAutoApprove = isConfigYes_(config.OPINARIOS_OMR_AUTO_APPROVE);
     const hasCancelledRatings = Boolean(extracted.omrOk) && Number(extracted.omrAnswered || 0) < profile.fields.length;
     const hasAllExcellentRatings = hasAllExcellentOmrRatings_(extracted, hotel);
-    const confidenceOk = confidence >= minConfidence || hasCancelledRatings || hasAllExcellentRatings;
+    const hasAllRecognizedRatings = hasAllRecognizedOmrRatings_(extracted, hotel);
+    const confidenceOk = confidence >= minConfidence || hasCancelledRatings || hasAllExcellentRatings || hasAllRecognizedRatings;
     extracted.status = confidenceOk && completeness.ok && versionOk && omrAutoApprove ? "Aprovado" : "Revisao";
     extracted.reviewReason = extracted.status === "Aprovado"
       ? ""
@@ -683,6 +684,13 @@ function hasAllExcellentOmrRatings_(extracted, hotel) {
   return Boolean(extracted && extracted.omrOk) &&
     Number(extracted.omrAnswered || 0) === ratingFields.length &&
     ratingFields.every((field) => normalizeRating_(extracted[field]) === "Excelente");
+}
+
+function hasAllRecognizedOmrRatings_(extracted, hotel) {
+  const ratingFields = opinionProfile_(hotel).fields.map(([field]) => field);
+  return Boolean(extracted && extracted.omrOk) &&
+    Number(extracted.omrAnswered || 0) === ratingFields.length &&
+    ratingFields.every((field) => Boolean(normalizeRating_(extracted[field])));
 }
 
 function getAcceptedFormVersions_(config, hotel) {

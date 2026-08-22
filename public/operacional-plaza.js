@@ -6,56 +6,49 @@ const HOTEL_ROUTE_SLUGS = {
   trancoso: "sueds-trancoso",
   "casas-arraial": "casas-sueds-arraial"
 };
+const DETAILED_QUALITY_DESCRIPTIONS = {
+  Geral: "Questão 1 • avaliação da hospedagem",
+  Reservas: "Questão 2",
+  "Recepção": "Questão 3",
+  "Atendimento Equipe": "Questão 4",
+  "Conforto do Quarto": "Questão 5",
+  "Limpeza do Quarto": "Questão 6",
+  "Wi-Fi": "Questão 7",
+  "Área de Lazer": "Questão 8",
+  "Atendimento Beach Club": "Questão 9",
+  "A&B": "Questões 10, 11 e 12"
+};
+const TRANCOSO_QUALITY_DESCRIPTIONS = {
+  Geral: "Questão 1 • avaliação da hospedagem",
+  Reservas: "Questão 2",
+  "Recepção": "Questão 3",
+  "Atendimento Equipe": "Questão 4",
+  "Conforto do Quarto": "Questão 5",
+  "Limpeza do Quarto": "Questão 6",
+  "Wi-Fi": "Questão 7",
+  "Área de Lazer": "Questão 8",
+  "A&B": "Questões 9 e 10"
+};
 const HOTEL_CONFIG = {
   "sueds-plaza": {
     label: "SUEDS Plaza",
-    descriptions: {
-      Geral: "Impressão geral e reserva.",
-      Alimentos: "Café, almoço e jantar.",
-      Atendimento: "Do hotel e Beach Club.",
-      Apartamento: "Conforto e limpeza do apto.",
-      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
-    }
+    descriptions: DETAILED_QUALITY_DESCRIPTIONS
   },
   "sueds-cabralia": {
     label: "SUEDS Cabrália",
-    descriptions: {
-      Geral: "Impressão geral e reserva.",
-      Alimentos: "Café da manhã e jantar.",
-      Atendimento: "Do hotel e Beach Club.",
-      Apartamento: "Conforto e limpeza do apto.",
-      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
-    }
+    descriptions: DETAILED_QUALITY_DESCRIPTIONS
   },
   "sueds-segundo-sol": {
     label: "SUEDS Segundo Sol",
-    descriptions: {
-      Geral: "Impressão geral e reserva.",
-      Alimentos: "Café, almoço e jantar.",
-      Atendimento: "Do hotel e Beach Club.",
-      Apartamento: "Conforto e limpeza do apto.",
-      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
-    }
+    descriptions: DETAILED_QUALITY_DESCRIPTIONS
   },
   "sueds-premium": {
     label: "SUEDS Premium",
-    descriptions: {
-      Geral: "Impressão geral e reserva.",
-      Alimentos: "Café, almoço e jantar.",
-      Atendimento: "Do hotel e Beach Club.",
-      Apartamento: "Conforto e limpeza do apto.",
-      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
-    }
+    descriptions: DETAILED_QUALITY_DESCRIPTIONS
   },
   "sueds-trancoso": {
     label: "SUEDS Trancoso",
-    descriptions: {
-      Geral: "Impressão geral e reserva.",
-      Alimentos: "Café da manhã e chá da tarde.",
-      Atendimento: "Da equipe do hotel.",
-      Apartamento: "Conforto e limpeza do apto.",
-      "Serviços": "Recepção, Wi-Fi, lazer/piscina."
-    }
+    descriptions: TRANCOSO_QUALITY_DESCRIPTIONS
   },
   "casas-sueds-arraial": {
     label: "Casas SUEDS Arraial",
