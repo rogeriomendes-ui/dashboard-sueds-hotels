@@ -4,6 +4,7 @@ const logout = require("./auth/logout");
 const session = require("./auth/session");
 const password = require("./auth/password");
 const firstAccess = require("./auth/first-access");
+const sitePreview = require("./auth/site-preview");
 const users = require("./portal/users");
 const { getPortalProfile, hasEnvironment, withPortalEnvironment, withPortalRoles } = require("../lib/portal-auth");
 
@@ -20,6 +21,7 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/session") return session(req, res);
   if (pathname === "/api/auth/password") return password(req, res);
   if (pathname === "/api/auth/first-access") return firstAccess(req, res);
+  if (pathname === "/api/auth/site-preview") return sitePreview(req, res);
   if (pathname === "/api/portal/users") return adminUsersHandler(req, res);
   if (pathname === "/api/dashboard/vendedores" && req.method === "GET") {
     const profile = await getPortalProfile(req, res);
