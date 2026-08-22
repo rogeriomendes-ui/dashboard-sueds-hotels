@@ -248,7 +248,7 @@ body {
 .manager-shortcuts {
   grid-row: 1;
   display: grid;
-  grid-template-columns: repeat(10, minmax(76px, 1fr));
+  grid-template-columns: repeat(12, minmax(68px, 1fr));
   gap: 6px;
 }
 
@@ -279,6 +279,18 @@ body {
 
 .nav-link-button.manager-shortcut.public-shortcut {
   border-color: #0d2435;
+}
+
+.nav-link-button.manager-shortcut.site-preview-shortcut {
+  border-color: #b99137;
+  color: #725615;
+  background: #fffaf0;
+}
+
+.nav-link-button.manager-shortcut.site-preview-shortcut:hover {
+  border-color: #8f6b1d;
+  color: #5f4710;
+  background: #fff3d7;
 }
 
 .sr-only {
