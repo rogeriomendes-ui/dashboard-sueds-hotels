@@ -69,11 +69,13 @@ function setupGlobalFilters() {
   const dailyToggle = byId("dailySalesToggle");
   const dailyContent = byId("dailySalesContent");
   const dailyPanel = dailyToggle?.closest(".daily-panel");
+  const dailyToggleLabel = byId("dailySalesToggleLabel");
   dailyToggle?.addEventListener("click", () => {
     const isExpanded = dailyToggle.getAttribute("aria-expanded") === "true";
     dailyToggle.setAttribute("aria-expanded", String(!isExpanded));
     if (dailyContent) dailyContent.hidden = isExpanded;
     dailyPanel?.classList.toggle("is-collapsed", isExpanded);
+    if (dailyToggleLabel) dailyToggleLabel.textContent = isExpanded ? "Exibir" : "Ocultar";
   });
 }
 

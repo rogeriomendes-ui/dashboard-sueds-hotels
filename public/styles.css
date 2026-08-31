@@ -1583,6 +1583,29 @@ h2 {
   cursor: pointer;
 }
 
+.daily-toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 10px 0 7px;
+  border: 1px solid rgba(44, 62, 80, 0.2);
+  border-radius: 999px;
+  color: var(--panel-soft);
+  background: rgba(44, 62, 80, 0.06);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.daily-toggle:hover .daily-toggle-control,
+.daily-toggle:focus-visible .daily-toggle-control {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(30, 168, 150, 0.08);
+}
+
 .daily-toggle:hover .daily-title,
 .daily-toggle:focus-visible .daily-title {
   color: var(--green);
@@ -1611,10 +1634,17 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 50%;
   color: var(--green);
-  font-size: 18px;
-  line-height: 1;
   transform: rotate(0deg);
   transition: transform 180ms ease, background 180ms ease;
+}
+
+.daily-toggle-icon::before {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: "";
+  transform: translateY(-2px) rotate(45deg);
 }
 
 .daily-toggle[aria-expanded="true"] .daily-toggle-icon {
