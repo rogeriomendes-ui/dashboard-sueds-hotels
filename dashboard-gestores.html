@@ -97,15 +97,18 @@
         </article>
       </section>
 
-      <section class="panel daily-panel">
+      <section class="panel daily-panel is-collapsed">
         <div class="panel-header">
-          <div>
-            <p class="eyebrow">Calendário comercial</p>
-            <h2>Vendas por dia</h2>
-          </div>
+          <button id="dailySalesToggle" class="daily-toggle" type="button" aria-expanded="false" aria-controls="dailySalesContent">
+            <span>
+              <span class="eyebrow">Calendário comercial</span>
+              <span class="daily-title">Vendas por dia</span>
+            </span>
+            <span class="daily-toggle-icon" aria-hidden="true">⌄</span>
+          </button>
           <button id="exportDetailedSales" class="export-detail-button" type="button">Exportar detalhado</button>
         </div>
-        <div class="daily-table">
+        <div id="dailySalesContent" class="daily-table" hidden>
           <div class="daily-row daily-head">
             <span>Data</span>
             <span>Reservas</span>

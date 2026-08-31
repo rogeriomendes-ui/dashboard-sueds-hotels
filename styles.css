@@ -720,6 +720,61 @@ h2 {
   margin-top: 14px;
 }
 
+.daily-panel.is-collapsed {
+  min-height: 0;
+}
+
+.daily-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.daily-toggle:hover .daily-title,
+.daily-toggle:focus-visible .daily-title {
+  color: var(--green);
+}
+
+.daily-title {
+  display: block;
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.daily-toggle:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 5px;
+  border-radius: 4px;
+}
+
+.daily-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--green);
+  font-size: 18px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.daily-toggle[aria-expanded="true"] .daily-toggle-icon {
+  transform: rotate(180deg);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .export-detail-button {
   min-height: 34px;
   padding: 0 14px;

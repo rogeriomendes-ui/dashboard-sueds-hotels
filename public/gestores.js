@@ -66,6 +66,15 @@ function setupGlobalFilters() {
   byId("hotelSelect").addEventListener("change", load);
   byId("channelSelect").addEventListener("change", load);
   byId("exportDetailedSales")?.addEventListener("click", exportDetailedSales);
+  const dailyToggle = byId("dailySalesToggle");
+  const dailyContent = byId("dailySalesContent");
+  const dailyPanel = dailyToggle?.closest(".daily-panel");
+  dailyToggle?.addEventListener("click", () => {
+    const isExpanded = dailyToggle.getAttribute("aria-expanded") === "true";
+    dailyToggle.setAttribute("aria-expanded", String(!isExpanded));
+    if (dailyContent) dailyContent.hidden = isExpanded;
+    dailyPanel?.classList.toggle("is-collapsed", isExpanded);
+  });
 }
 
 function defaultTvMessageExpiration() {

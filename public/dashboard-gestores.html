@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Gestores</title>
-    <script src="manager-auth.js?v=20260807-portal"></script>
-    <link rel="stylesheet" href="styles.css?v=20260821-site-preview">
+    <script src="manager-auth.js?v=20260829-site-preview-access"></script>
+    <link rel="stylesheet" href="styles.css?v=20260822-menu-preview">
   </head>
   <body class="portal-shell-page">
     <main class="dashboard-shell">
@@ -51,14 +51,15 @@
             <a class="nav-link-button manager-shortcut public-shortcut" data-environment="tv_vendedores" data-portal-module="tv_vendedores" href="/gestores?modulo=tv_vendedores">TV painel<br>Vendedor</a>
             <button id="openTvMessageModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="mensagens_tv" type="button">MSG na TV<br>Vendedor</button>
             <a class="nav-link-button manager-shortcut public-shortcut" data-environment="ranking_vendedores" data-portal-module="ranking_vendedores" href="/gestores?modulo=ranking_vendedores">Ranking<br>Vendedor</a>
+            <a class="nav-link-button manager-shortcut" data-environment="redes_sociais" data-portal-module="redes_sociais" href="/gestores?modulo=redes_sociais">Redes<br>Sociais</a>
+            <a class="nav-link-button manager-shortcut" data-admin-only data-portal-module="usuarios" href="/gestores?modulo=usuarios">Usuários e<br>Acessos</a>
+            <a class="nav-link-button manager-shortcut" data-environment="marketing_competitividade" data-portal-module="marketing_competitividade" href="/gestores?modulo=marketing_competitividade">Marketing e<br>Competitividade</a>
             <button id="openHotelOpinionModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="opinarios_hotel" data-portal-group="opinarios_hotel" type="button">Opinário<br>Por hotel</button>
             <a class="nav-link-button manager-shortcut" data-environment="opinarios_rede" data-portal-module="opinarios_rede" href="/gestores?modulo=opinarios_rede">Opinário<br>Todos hotéis</a>
-            <a class="nav-link-button manager-shortcut" data-environment="redes_sociais" data-portal-module="redes_sociais" href="/gestores?modulo=redes_sociais">Redes<br>Sociais</a>
-            <a class="nav-link-button manager-shortcut" data-environment="marketing_competitividade" data-portal-module="marketing_competitividade" href="/gestores?modulo=marketing_competitividade">Marketing e<br>Competitividade</a>
             <a class="nav-link-button manager-shortcut" data-environment="inspecoes" data-portal-module="inspecoes" href="/gestores?modulo=inspecoes">Sueds<br>Inspeções</a>
+            <a class="nav-link-button manager-shortcut" data-admin-only data-portal-module="simulador_tributario" href="/gestores?modulo=simulador_tributario">Simulador<br>Tributário</a>
             <a class="nav-link-button manager-shortcut knowledge-shortcut" data-environment="treinamentos" href="/Treinamentos">Centro de<br>Conhecimentos</a>
-            <a class="nav-link-button manager-shortcut" data-admin-only data-portal-module="usuarios" href="/gestores?modulo=usuarios">Usuários e<br>Acessos</a>
-            <a class="nav-link-button manager-shortcut site-preview-shortcut" data-admin-only href="/api/auth/site-preview" target="_blank" rel="noopener">Site novo<br>Preview</a>
+            <a class="nav-link-button manager-shortcut site-preview-shortcut" data-environment="site_novo_preview" href="/api/auth/site-preview" target="_blank" rel="noopener">Site novo<br>Preview</a>
           </nav>
         </div>
       </header>
@@ -162,15 +163,18 @@
         </div>
       </section>
 
-      <section class="panel daily-panel">
+      <section class="panel daily-panel is-collapsed">
         <div class="panel-header">
-          <div>
-            <p class="eyebrow">Calendário comercial</p>
-            <h2>Vendas por dia</h2>
-          </div>
+          <button id="dailySalesToggle" class="daily-toggle" type="button" aria-expanded="false" aria-controls="dailySalesContent">
+            <span>
+              <span class="eyebrow">Calendário comercial</span>
+              <span class="daily-title">Vendas por dia</span>
+            </span>
+            <span class="daily-toggle-icon" aria-hidden="true">⌄</span>
+          </button>
           <button id="exportDetailedSales" class="export-detail-button" type="button">Exportar detalhado</button>
         </div>
-        <div class="daily-table">
+        <div id="dailySalesContent" class="daily-table" hidden>
           <div class="daily-row daily-head">
             <span>Data</span>
             <span>Reservas</span>
@@ -273,6 +277,6 @@
     </div>
 
     <script src="gestores.js?v=20260808-sales-first"></script>
-    <script src="portal-shell.js?v=20260811-social-compact"></script>
+    <script src="portal-shell.js?v=20260829-site-preview-access"></script>
   </body>
 </html>
