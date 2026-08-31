@@ -145,21 +145,29 @@
         </article>
       </section>
 
-      <section class="panel other-channels-panel">
+      <section class="panel other-channels-panel is-collapsed">
         <div class="panel-header">
-          <div>
-            <p class="eyebrow">Omnibees</p>
-            <h2>Vendas de outros canais</h2>
-          </div>
+          <button id="otherChannelsToggle" class="collapsible-toggle" type="button" aria-expanded="false" aria-controls="otherChannelsContent">
+            <span>
+              <span class="eyebrow">Omnibees</span>
+              <span class="daily-title">Vendas de outros canais</span>
+            </span>
+            <span class="daily-toggle-control">
+              <span class="daily-toggle-icon" aria-hidden="true"></span>
+              <span id="otherChannelsToggleLabel">Exibir</span>
+            </span>
+          </button>
           <div class="other-channels-total">
             <small>* Total sem SITE SUEDS e Central de Reservas</small>
             <strong id="otherChannelsTotal">R$ 0</strong>
           </div>
         </div>
-        <div id="otherChannelsSummary" class="other-channels-summary"></div>
-        <div class="other-channels-table-wrap">
-          <div id="otherChannelsHead" class="other-channels-row other-channels-head"></div>
-          <div id="otherChannelsList"></div>
+        <div id="otherChannelsContent" hidden>
+          <div id="otherChannelsSummary" class="other-channels-summary"></div>
+          <div class="other-channels-table-wrap">
+            <div id="otherChannelsHead" class="other-channels-row other-channels-head"></div>
+            <div id="otherChannelsList"></div>
+          </div>
         </div>
       </section>
 

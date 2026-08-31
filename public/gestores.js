@@ -77,6 +77,18 @@ function setupGlobalFilters() {
     dailyPanel?.classList.toggle("is-collapsed", isExpanded);
     if (dailyToggleLabel) dailyToggleLabel.textContent = isExpanded ? "Exibir" : "Ocultar";
   });
+
+  const otherChannelsToggle = byId("otherChannelsToggle");
+  const otherChannelsContent = byId("otherChannelsContent");
+  const otherChannelsPanel = otherChannelsToggle?.closest(".other-channels-panel");
+  const otherChannelsToggleLabel = byId("otherChannelsToggleLabel");
+  otherChannelsToggle?.addEventListener("click", () => {
+    const isExpanded = otherChannelsToggle.getAttribute("aria-expanded") === "true";
+    otherChannelsToggle.setAttribute("aria-expanded", String(!isExpanded));
+    if (otherChannelsContent) otherChannelsContent.hidden = isExpanded;
+    otherChannelsPanel?.classList.toggle("is-collapsed", isExpanded);
+    if (otherChannelsToggleLabel) otherChannelsToggleLabel.textContent = isExpanded ? "Exibir" : "Ocultar";
+  });
 }
 
 function defaultTvMessageExpiration() {

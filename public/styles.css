@@ -874,6 +874,10 @@ h2 {
   margin-bottom: 14px;
 }
 
+.other-channels-panel.is-collapsed {
+  min-height: 0;
+}
+
 .other-channels-total {
   display: flex;
   flex-wrap: wrap;
@@ -1571,7 +1575,8 @@ h2 {
   min-height: 0;
 }
 
-.daily-toggle {
+.daily-toggle,
+.collapsible-toggle {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -1600,14 +1605,18 @@ h2 {
 }
 
 .daily-toggle:hover .daily-toggle-control,
-.daily-toggle:focus-visible .daily-toggle-control {
+.daily-toggle:focus-visible .daily-toggle-control,
+.collapsible-toggle:hover .daily-toggle-control,
+.collapsible-toggle:focus-visible .daily-toggle-control {
   color: var(--green);
   border-color: var(--green);
   background: rgba(30, 168, 150, 0.08);
 }
 
 .daily-toggle:hover .daily-title,
-.daily-toggle:focus-visible .daily-title {
+.daily-toggle:focus-visible .daily-title,
+.collapsible-toggle:hover .daily-title,
+.collapsible-toggle:focus-visible .daily-title {
   color: var(--green);
 }
 
@@ -1619,7 +1628,8 @@ h2 {
   letter-spacing: 0;
 }
 
-.daily-toggle:focus-visible {
+.daily-toggle:focus-visible,
+.collapsible-toggle:focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 5px;
   border-radius: 4px;
@@ -1647,7 +1657,8 @@ h2 {
   transform: translateY(-2px) rotate(45deg);
 }
 
-.daily-toggle[aria-expanded="true"] .daily-toggle-icon {
+.daily-toggle[aria-expanded="true"] .daily-toggle-icon,
+.collapsible-toggle[aria-expanded="true"] .daily-toggle-icon {
   transform: rotate(180deg);
   background: rgba(255, 255, 255, 0.08);
 }
