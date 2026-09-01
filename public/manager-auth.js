@@ -31,12 +31,20 @@
     }
     window.suedsPortalProfile = payload.profile;
     window.suedsPortalAccess = payload.access;
+    const isAdmin = payload.profile?.roles?.includes("admin_geral");
+    const grantedEnvironments = Object.entries(payload.access || {})
+      .filter(([key, value]) => key !== "landingPage" && key !== "gestores" && value === true)
+      .map(([key]) => key);
+    if (grantedEnvironments.length === 1 && grantedEnvironments[0] === "site_novo_preview") {
+      document.documentElement.classList.add("site-preview-only");
+    }
     whenDomReady(() => {
       document.querySelectorAll("[data-environment]").forEach((element) => {
-        element.hidden = !payload.access?.[element.dataset.environment];
+        const environment = element.dataset.environment;
+        element.hidden = !payload.access?.[environment] && !(environment === "site_novo_preview" && isAdmin);
       });
       document.querySelectorAll("[data-admin-only]").forEach((element) => {
-        element.hidden = !payload.profile?.roles?.includes("admin_geral");
+        element.hidden = !isAdmin;
       });
       document.documentElement.classList.remove("manager-auth-pending");
     });
