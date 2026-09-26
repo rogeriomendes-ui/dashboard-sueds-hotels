@@ -3985,14 +3985,29 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     .sort((a, b) => a.label.localeCompare(b.label))
     .map((item) => ({ ...item, key: item.label, label: checkinLabel(item.label) }));
   const firstFilteredMonth = period.start.slice(0, 7);
-  const futureCheckinMonths = checkinMonths
+  const priorCheckinMonths = checkinMonths.filter((item) => item.key < firstFilteredMonth);
+  const futureCheckinMonths = [
+    ...(priorCheckinMonths.length ? [{
+      key: `before-${firstFilteredMonth}`,
+      label: `Antes de ${checkinLabel(firstFilteredMonth)}`,
+      roomNights: sum(priorCheckinMonths, (item) => Number(item.roomNights || 0)),
+      value: sum(priorCheckinMonths, (item) => Number(item.value || 0))
+    }] : []),
+    ...checkinMonths
     .filter((item) => item.key >= firstFilteredMonth)
     .map((item) => ({
       key: item.key,
       label: item.label,
       roomNights: item.roomNights,
       value: item.value
-    }));
+    })),
+    ...(() => {
+      const missingRows = rows.filter((record) => !recordCheckinMonth(record));
+      if (!missingRows.length) return [];
+      const metrics = biReportsRateMetrics(missingRows);
+      return [{ key: "not-informed", label: "Check-in não informado", roomNights: metrics.roomNights, value: sum(missingRows, (record) => Number(record.total || 0)) }];
+    })()
+  ];
   const historicalCheckinMonths = summarize(historicalRows, recordCheckinMonth)
     .filter((item) => item.label)
     .map((item) => ({ ...item, key: shiftMonthKey(item.label, 1) }))
