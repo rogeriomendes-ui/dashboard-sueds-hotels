@@ -1895,6 +1895,8 @@ function normalizeHotelName(value) {
     ["plaza", "SUEDS PLAZA"],
     ["premium", "SUEDS PREMIUM"],
     ["trancoso", "SUEDS TRANCOSO"],
+    ["villa romana", "CASAS SUEDS ARRAIAL"],
+    ["vila romana", "CASAS SUEDS ARRAIAL"],
     ["casas", "CASAS SUEDS ARRAIAL"],
     ["arraial", "CASAS SUEDS ARRAIAL"]
   ];
@@ -3674,6 +3676,7 @@ const BI_REPORTS_HOTEL_INVENTORY = new Map([
   [comparableKey("SUEDS PREMIUM"), { label: "SUEDS PREMIUM", apartments: 50 }],
   [comparableKey("SUEDS TRANCOSO"), { label: "SUEDS TRANCOSO", apartments: 9 }],
   [comparableKey("SUEDS VILA ROMANA"), BI_REPORTS_VILA_ROMANA],
+  [comparableKey("SUEDS VILLA ROMANA"), BI_REPORTS_VILA_ROMANA],
   [comparableKey("CASAS SUEDS ARRAIAL"), BI_REPORTS_VILA_ROMANA]
 ]);
 

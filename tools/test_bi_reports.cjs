@@ -136,7 +136,7 @@ const sameMonthPastStay = __test.normalizeKpiReportRows([
   kpiRows[0],
   ["SUEDS VILA ROMANA", "", "AIRBNB PLATAFORMA", "VILA-PAST", "Cliente", "08/09", "09/09", 500, 1, 0, "42", "", "Confirmada", 1, "", "18/09/2026", "", "", "", "", "", "", "", 500]
 ], 2026);
-assert.equal(sameMonthPastStay[0].hotel, "SUEDS VILA ROMANA");
+assert.equal(sameMonthPastStay[0].hotel, "CASAS SUEDS ARRAIAL");
 assert.equal(sameMonthPastStay[0].checkin, "08/09/2026");
 assert.equal(sameMonthPastStay[0].checkout, "09/09/2026");
 
