@@ -205,10 +205,6 @@
       const clipped = label.length > (w < 420 ? 17 : 22) ? `${label.slice(0, w < 420 ? 15 : 20)}…` : label;
       const previousShare = options.previousTotal ? row.previous / options.previousTotal * 100 : 0;
       const currentShare = options.currentTotal ? row.current / options.currentTotal * 100 : 0;
-      const currentPeriodLabel = String(row.label || "");
-      const previousPeriodLabel = /^\d{4}-\d{2}$/.test(String(row.key || ""))
-        ? currentPeriodLabel.replace(/(20\d{2})$/, (year) => String(Number(year) - 1))
-        : "2025";
       const shareFormatter = options.showGrowth ? wholePercent : percent;
       const previousText = `${shortMoney.format(row.previous)}${options.showShare ? ` · ${shareFormatter.format(previousShare)}%` : ""}`;
       const currentText = `${shortMoney.format(row.current)}${options.showShare ? ` · ${shareFormatter.format(currentShare)}%` : ""}`;
@@ -264,6 +260,10 @@
       const label = availableWidth < 520 ? String(row.label).replace(/\/20\d\d$/, "") : row.label;
       const previousShare = options.previousTotal ? row.previous / options.previousTotal * 100 : 0;
       const currentShare = options.currentTotal ? row.current / options.currentTotal * 100 : 0;
+      const currentPeriodLabel = String(row.label || "");
+      const previousPeriodLabel = /^\d{4}-\d{2}$/.test(String(row.key || ""))
+        ? currentPeriodLabel.replace(/(20\d{2})$/, (year) => String(Number(year) - 1))
+        : "2025";
       const shareMarkup = options.showShare
         ? `${row.previous ? `<text x="${previousX + barW / 2}" y="${Math.max(12, pad.t + ih - previousHeight - 6)}" text-anchor="middle" fill="#ac8440" font-size="8.5" font-weight="800">${safe(percent.format(previousShare))}%</text>` : ""}${row.current ? `<text x="${currentX + barW / 2}" y="${Math.max(12, pad.t + ih - currentHeight - 6)}" text-anchor="middle" fill="#20384a" font-size="8.5" font-weight="800">${safe(percent.format(currentShare))}%</text>` : ""}`
         : "";
