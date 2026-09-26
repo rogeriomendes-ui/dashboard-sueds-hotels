@@ -33,7 +33,8 @@
     topAdrPrevious: document.getElementById("topAdrPrevious"), topAdrGrowth: document.getElementById("topAdrGrowth"),
     topOccupancy: document.getElementById("topOccupancy"), topOccupancyPrevious: document.getElementById("topOccupancyPrevious"), topOccupancyGrowth: document.getElementById("topOccupancyGrowth"),
     topRevpar: document.getElementById("topRevpar"), topRevparPrevious: document.getElementById("topRevparPrevious"), topRevparGrowth: document.getElementById("topRevparGrowth"),
-    hotelSalesSummary: document.getElementById("hotelSalesSummary"), channelShareSummary: document.getElementById("channelShareSummary")
+    hotelSalesSummary: document.getElementById("hotelSalesSummary"), channelShareSummary: document.getElementById("channelShareSummary"),
+    channelHotelComparisonSummary: document.getElementById("channelHotelComparisonSummary")
   };
   let currentPayload = null;
   let resizeTimer = null;
@@ -325,6 +326,23 @@
     els.channelShareSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Share de vendas por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)} · 2026</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th>${headers}<th>Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td>${share.groups.map((group) => cell(totals.values?.[group] || 0, totals.total || 0, group)).join("")}<td>100%</td></tr></tfoot></table></div></article>`;
   }
 
+  function renderChannelHotelComparisons(payload) {
+    if (!els.channelHotelComparisonSummary) return;
+    const growthCell = (now, before) => {
+      if (!(before > 0)) return now > 0 ? '<span class="positive">novo</span>' : "—";
+      const growth = (now - before) / before * 100;
+      return `<span class="${growth < 0 ? "negative" : growth > 0 ? "positive" : ""}">${percent.format(growth)}%</span>`;
+    };
+    els.channelHotelComparisonSummary.innerHTML = ["AZUL", "CVC"].map((group) => {
+      const data = payload.channelHotelComparison?.[group] || { current: {}, previous: {} };
+      const labels = [...new Set([...Object.keys(data.current), ...Object.keys(data.previous)])].sort((a, b) => a.localeCompare(b, "pt-BR"));
+      const rows = labels.map((label) => { const now = data.current[label] || 0; const before = data.previous[label] || 0; return `<tr><td>${safe(label)}</td><td>${safe(money.format(now))}</td><td>${safe(money.format(before))}</td><td>${growthCell(now, before)}</td></tr>`; }).join("");
+      const currentTotal = Object.values(data.current).reduce((total, value) => total + value, 0);
+      const previousTotal = Object.values(data.previous).reduce((total, value) => total + value, 0);
+      return `<article class="comparison-table-card"><div class="comparison-table-title ${group.toLowerCase()}">Vendas — ${group} por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th><th>2026</th><th>2025</th><th>Variação</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td>${safe(money.format(currentTotal))}</td><td>${safe(money.format(previousTotal))}</td><td>${growthCell(currentTotal, previousTotal)}</td></tr></tfoot></table></div></article>`;
+    }).join("");
+  }
+
   function render(payload) {
     currentPayload = payload;
     setOptions(els.hotel, payload.filters.hotels || [], payload.selected.hotel, "Todos os hotéis");
@@ -370,6 +388,7 @@
     renderOccupancy(payload.occupancy || []);
     renderHotelSalesSummary(payload);
     renderChannelShareSummary(payload);
+    renderChannelHotelComparisons(payload);
     els.averageRate2025.textContent = money.format(payload.comparison?.summary?.averageDailyRate || 0);
     els.averageRate2026.textContent = money.format(payload.summary.averageDailyRate || 0);
     els.roomNights2025.textContent = `${integer.format(payload.comparison?.summary?.roomNights || 0)} UHs-noite`;

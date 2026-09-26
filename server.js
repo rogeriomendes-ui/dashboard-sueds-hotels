@@ -3853,6 +3853,11 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     total: sum(rows, (record) => Number(record.total || 0)),
     values: Object.fromEntries(shareGroups.map((group) => [group, sum(rows.filter((record) => shareChannelGroup(record) === group), (record) => Number(record.total || 0))]))
   };
+  const channelHotelComparison = Object.fromEntries(["AZUL", "CVC"].map((group) => {
+    const hotelValues = (sourceRows) => Object.fromEntries([...groupBy(sourceRows.filter((record) => shareChannelGroup(record) === group), (record) => biReportsHotelLabel(record.hotel) || "Não informado").entries()]
+      .map(([label, groupedRows]) => [label, sum(groupedRows, (record) => Number(record.total || 0))]));
+    return [group, { current: hotelValues(rows), previous: hotelValues(historicalRows) }];
+  }));
   const checkinLabel = (value) => {
     if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
     const [year, month] = value.split("-").map(Number);
@@ -4161,6 +4166,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     byChannel: summarize(rows, biReportsChannelLabel),
     byHotel: summarize(rows, (record) => biReportsHotelLabel(record.hotel) || "Não informado"),
     channelShare: { groups: shareGroups, byHotel: channelShareByHotel, totals: channelShareTotals },
+    channelHotelComparison,
     byCheckinMonth: checkinMonths,
     daily,
     pickup,
