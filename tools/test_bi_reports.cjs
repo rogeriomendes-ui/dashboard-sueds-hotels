@@ -31,6 +31,12 @@ const payload = __test.buildBiReportsPayload({
     record({ reservationCode: "H-1", dateKey: "2025-09-01", monthKey: "2025-09", checkin: "01/10/2025", seller: "", source: "OMNIBEES", total: 900 }),
     record({ reservationCode: "H-2", dateKey: "2025-09-02", monthKey: "2025-09", checkin: "03/10/2025", seller: "", source: "OMNIBEES", status: "Alterada", total: 100 }),
     record({ reservationCode: "H-3", dateKey: "2025-09-02", monthKey: "2025-09", checkin: "03/10/2025", seller: "", source: "CVC", status: "Cancelada", total: 500 })
+  ],
+  goals: [
+    { month: "2026-09", type: "Hotel - Total Geral", channel: "", revenueGoal: 4000 },
+    { month: "2026-09", type: "Venda Direta", channel: "", revenueGoal: 2000 },
+    { month: "2026-09", type: "", channel: "SITE", revenueGoal: 500 },
+    { month: "2026-09", type: "RDS", channel: "", revenueGoal: 1000 }
   ]
 }, { start: "2026-09-01", end: "2026-09-18" });
 
@@ -55,8 +61,10 @@ assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").ave
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.SUEDS, 1500);
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.AZUL, 1500);
 assert.equal(payload.channelHotelComparison.AZUL.current["SUEDS PLAZA"], 1500);
-assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[8].actual, 3000);
-assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[8].actual, null);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].actual, 3000);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].target, 4000);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].actual, null);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].target, 1000);
 assert.equal(payload.daily.at(-1).averageDailyRate, 500);
 assert.equal(payload.pickup[0].daily.at(-1).cumulative, 3000);
 assert.equal(payload.pickup[0].comparisonDaily.at(-1).cumulative, 1000);
@@ -171,6 +179,7 @@ assert.equal(occupancyPayload.occupancy[0].apartments, 117);
 assert.equal(occupancyPayload.occupancy[0].days[1].occupied, 2);
 assert.equal(occupancyPayload.occupancy[0].days[1].available, 115);
 assert.equal(occupancyPayload.occupancy[0].days[3].occupied, 0);
+assert.equal(occupancyPayload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].actual, 1000);
 assert.ok(Math.abs(occupancyPayload.revpar.summary.revpar - (occupancyPayload.revpar.summary.averageDailyRate * occupancyPayload.revpar.summary.occupancyRate / 100)) < 0.000001);
 assert.ok(Math.abs(occupancyPayload.revpar.byHotel[0].revpar - (occupancyPayload.revpar.byHotel[0].averageDailyRate * occupancyPayload.revpar.byHotel[0].occupancyRate / 100)) < 0.000001);
 const overbookingPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ reservationCode: "OVER-1", checkin: "02/09/2026", checkout: "03/09/2026", reservationCount: 119 })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS PLAZA" });

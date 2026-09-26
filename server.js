@@ -3858,20 +3858,47 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       .map(([label, groupedRows]) => [label, sum(groupedRows, (record) => Number(record.total || 0))]));
     return [group, { current: hotelValues(rows), previous: hotelValues(historicalRows) }];
   }));
-  const yearRows = filterRows(counted2026.filter((record) => record.dateKey >= "2026-01-01" && record.dateKey <= period.end), checkinMonth);
-  const monthKeysYtd = Array.from({ length: Math.max(1, Math.min(12, Number(period.end.slice(5, 7)) || 1)) }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
-  const monthlySeries = (sourceRows, hasSource = true) => monthKeysYtd.map((key) => {
+  const filteredMonthKeys = [];
+  const monthCursor = new Date(`${period.start.slice(0, 7)}-01T12:00:00Z`);
+  const lastFilteredMonth = period.end.slice(0, 7);
+  while (monthCursor.toISOString().slice(0, 7) <= lastFilteredMonth && filteredMonthKeys.length < 12) {
+    filteredMonthKeys.push(monthCursor.toISOString().slice(0, 7));
+    monthCursor.setUTCMonth(monthCursor.getUTCMonth() + 1);
+  }
+  const monthlySeries = (sourceRows, hasSource = true, keyGetter = (record) => record.dateKey?.slice(0, 7)) => filteredMonthKeys.map((key) => {
     if (!hasSource) return { key, actual: null, target: null };
-    const monthRows = sourceRows.filter((record) => record.dateKey?.slice(0, 7) === key);
+    const monthRows = sourceRows.filter((record) => keyGetter(record) === key);
     return { key, actual: monthRows.length ? sum(monthRows, (record) => Number(record.total || 0)) : null, target: null };
   });
-  const siteRows = yearRows.filter((record) => comparableKey(biReportsChannelLabel(record)).includes("site"));
-  const directRows = yearRows.filter((record) => shareChannelGroup(record) === "SUEDS");
+  const siteRows = rows.filter((record) => comparableKey(biReportsChannelLabel(record)).includes("site"));
+  const directRows = rows.filter((record) => shareChannelGroup(record) === "SUEDS");
+  const rdsRows = filterRows(combined.filter((record) => {
+    if (!isCountedSaleStatus(record)) return false;
+    const checkout = parseDate(record.checkout);
+    const checkoutKey = checkout ? dateKey(checkout) : "";
+    return checkoutKey >= period.start && checkoutKey <= period.end;
+  }), checkinMonth);
+  const goals = dataset.goals || [];
+  const goalValue = (month, tableKey) => {
+    const matches = goals.filter((goal) => {
+      if (goal.month !== month) return false;
+      const type = comparableKey(goal.type);
+      const channel = comparableKey(goal.channel);
+      if (tableKey === "sales") return type === comparableKey(HOTEL_TOTAL_GOAL_TYPE);
+      if (tableKey === "direct") return type === comparableKey(HOTEL_DIRECT_GOAL_TYPE);
+      if (tableKey === "site") return type.includes("site") || channel.includes("site");
+      if (tableKey === "rds") return type.includes("rds") || channel.includes("rds");
+      return false;
+    });
+    const value = sum(matches, (goal) => Number(goal.revenueGoal || 0));
+    return value > 0 ? value : null;
+  };
+  const withGoals = (tableKey, series) => series.map((row) => ({ ...row, target: goalValue(row.key, tableKey) }));
   const monthlyGoalTables = [
-    { key: "sales", title: "Venda 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: monthlySeries(yearRows) },
-    { key: "rds", title: "RDS Diárias 2026 vs Meta 2026", actualLabel: "RDS 2026", rows: monthlySeries([], false) },
-    { key: "direct", title: "Venda Direta Total 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: monthlySeries(directRows) },
-    { key: "site", title: "Venda Site 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: monthlySeries(siteRows) }
+    { key: "sales", title: "Venda 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: withGoals("sales", monthlySeries(rows)) },
+    { key: "rds", title: "RDS Diárias 2026 vs Meta 2026", actualLabel: "RDS 2026", rows: withGoals("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7))) },
+    { key: "direct", title: "Venda Direta Total 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: withGoals("direct", monthlySeries(directRows)) },
+    { key: "site", title: "Venda Site 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: withGoals("site", monthlySeries(siteRows)) }
   ];
   const checkinLabel = (value) => {
     if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
@@ -8768,6 +8795,7 @@ async function loadBiKpiReportsDataset() {
         records: [],
         otherChannelRecords: [],
         historicalRecords: [],
+        goals: [],
         loadedAt: new Date().toISOString(),
         audience: "bi-relatorios-kpi",
         comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full."
@@ -8789,13 +8817,20 @@ async function loadBiKpiReportsDataset() {
       ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
       ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
     ];
-    const values = await getSheetValueRanges(ranges);
+    const [values, goalRows] = await Promise.all([
+      getSheetValueRanges(ranges),
+      getSheetValues(METAS_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      })
+    ]);
     const records = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length)), 2026);
     const historicalRecords = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(compactColumns.length)), 2025);
     const payload = {
       records,
       otherChannelRecords: [],
       historicalRecords,
+      goals: rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal),
       loadedAt: new Date().toISOString(),
       audience: "bi-relatorios-kpi",
       comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full. Reservas com mais de uma linha foram consolidadas."
