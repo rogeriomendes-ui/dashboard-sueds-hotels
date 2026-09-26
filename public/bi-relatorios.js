@@ -6,6 +6,7 @@
   const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
   const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
   const percent = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const wholePercent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
   const shortMoney = new Intl.NumberFormat("pt-BR", { notation: "compact", style: "currency", currency: "BRL", maximumFractionDigits: 1 });
   const dayLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
   const dateLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
@@ -188,18 +189,19 @@
       const clipped = label.length > (w < 420 ? 17 : 22) ? `${label.slice(0, w < 420 ? 15 : 20)}…` : label;
       const previousShare = options.previousTotal ? row.previous / options.previousTotal * 100 : 0;
       const currentShare = options.currentTotal ? row.current / options.currentTotal * 100 : 0;
-      const previousText = `${shortMoney.format(row.previous)}${options.showShare ? ` · ${percent.format(previousShare)}%` : ""}`;
-      const currentText = `${shortMoney.format(row.current)}${options.showShare ? ` · ${percent.format(currentShare)}%` : ""}`;
+      const shareFormatter = options.showGrowth ? wholePercent : percent;
+      const previousText = `${shortMoney.format(row.previous)}${options.showShare ? ` · ${shareFormatter.format(previousShare)}%` : ""}`;
+      const currentText = `${shortMoney.format(row.current)}${options.showShare ? ` · ${shareFormatter.format(currentShare)}%` : ""}`;
       const growth = row.previous > 0 ? (row.current - row.previous) / row.previous * 100 : null;
       const growthDirection = growth === null ? (row.current > 0 ? "up" : "flat") : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
       const growthArrow = growthDirection === "up" ? "↑" : growthDirection === "down" ? "↓" : "→";
-      const growthText = growth === null ? `${growthArrow} novo em 2026` : `${growthArrow} ${percent.format(Math.abs(growth))}%`;
+      const growthText = growth === null ? `${growthArrow} novo em 2026` : `${growthArrow} ${wholePercent.format(Math.abs(growth))}%`;
       const growthColor = growthDirection === "up" ? "#137a5a" : growthDirection === "down" ? "#c64b47" : "#607885";
       const valueFontSize = options.showGrowth ? (options.showShare ? 10.5 : 11.5) : (options.showShare ? 8.5 : 9);
       const growthMarkup = options.showGrowth
         ? `<text x="0" y="${y + 43}" fill="${growthColor}" font-size="11.5" font-weight="850">${safe(growthText)}</text>`
         : "";
-      return `<g><title>${safe(label)} — 2025: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(percent.format(previousShare))}%)` : ""}; 2026: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(percent.format(currentShare))}%)` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
+      return `<g><title>${safe(label)} — 2025: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(shareFormatter.format(previousShare))}%)` : ""}; 2026: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(shareFormatter.format(currentShare))}%)` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
         <text x="0" y="${y + (options.showGrowth ? 21 : 25)}" fill="#435d6d" font-size="10.5">${safe(clipped)}</text>
         <rect x="${barX}" y="${y + 5}" width="${usable}" height="12" rx="4" fill="#f4eee3"/>
         <rect x="${barX}" y="${y + 5}" width="${previousLength}" height="12" rx="4" fill="#d7b16b"/>
