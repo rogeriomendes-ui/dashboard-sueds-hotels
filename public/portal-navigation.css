@@ -140,15 +140,15 @@
   .portal-sidebar-heading > span { font-size: 13px; letter-spacing: 1.7px; }
   #portalSidebarClose { display: inline-grid; }
   .portal-drawer-open { overflow: hidden; }
-  .portal-favorites h2 { margin-bottom: 10px; font-size: 14px; }
-  #portalFavoritesEmpty { font-size: 14px; }
+  .portal-favorites h2 { margin-bottom: 10px; font-size: 17px; }
+  #portalFavoritesEmpty { font-size: 16px; }
   .portal-nav-group > summary,
-  .portal-sidebar .portal-standalone-row { min-height: 50px; padding: 9px 10px; font-size: 13px; gap: 10px; }
+  .portal-sidebar .portal-standalone-row { min-height: 52px; padding: 9px 10px; font-size: 15px; line-height: 1.25; gap: 10px; }
   .portal-group-icon { width: 30px; height: 30px; }
   .portal-group-icon svg { width: 20px; height: 20px; }
   .portal-group-items { margin-top: 9px; margin-left: 12px; padding-left: 8px; }
   .portal-nav-row { margin: 4px 0; }
-  .portal-sidebar .portal-nav-link { min-height: 46px; padding: 10px; font-size: 14px; line-height: 1.4; }
+  .portal-sidebar .portal-nav-link { min-height: 48px; padding: 10px; font-size: 17px; line-height: 1.35; }
   .portal-favorite-button { flex-basis: 46px; width: 46px; min-height: 46px; font-size: 23px; }
   .portal-sidebar .portal-standalone-row .portal-nav-link,
   .portal-sidebar .portal-standalone-row .portal-favorite-button { min-height: 30px; }
