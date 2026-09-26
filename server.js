@@ -3500,7 +3500,7 @@ function kpiDateWithReference(value, deltaYears, reference) {
   let inferredKey = `${year}-${month}-${day}`;
   const referenceMonth = Number(reference.key.slice(5, 7));
   const inferredMonth = Number(month);
-  if (referenceMonth - inferredMonth >= 6) {
+  if (inferredMonth < referenceMonth) {
     year += 1;
     inferredKey = `${year}-${month}-${day}`;
   }
@@ -3985,14 +3985,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     .sort((a, b) => a.label.localeCompare(b.label))
     .map((item) => ({ ...item, key: item.label, label: checkinLabel(item.label) }));
   const firstFilteredMonth = period.start.slice(0, 7);
-  const priorCheckinMonths = checkinMonths.filter((item) => item.key < firstFilteredMonth);
   const futureCheckinMonths = [
-    ...(priorCheckinMonths.length ? [{
-      key: `before-${firstFilteredMonth}`,
-      label: `Antes de ${checkinLabel(firstFilteredMonth)}`,
-      roomNights: sum(priorCheckinMonths, (item) => Number(item.roomNights || 0)),
-      value: sum(priorCheckinMonths, (item) => Number(item.value || 0))
-    }] : []),
     ...checkinMonths
     .filter((item) => item.key >= firstFilteredMonth)
     .map((item) => ({

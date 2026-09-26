@@ -83,7 +83,7 @@ const pastCheckinPayload = __test.buildBiReportsPayload({
   records: [record({ reservationCode: "PAST-1", checkin: "20/08/2026", checkout: "22/08/2026", total: 700 })],
   otherChannelRecords: []
 }, { start: "2026-09-01", end: "2026-09-18" });
-assert.deepEqual(pastCheckinPayload.futureCheckinMonths, [{ key: "before-2026-09", label: "Antes de Set/2026", roomNights: 2, value: 700 }]);
+assert.deepEqual(pastCheckinPayload.futureCheckinMonths, []);
 
 const sameMonthCheckinPayload = __test.buildBiReportsPayload({
   records: [record({ reservationCode: "SAME-1", dateKey: "2026-08-01", monthKey: "2026-08", checkin: "20/08/2026", checkout: "22/08/2026", total: 700 })],
@@ -157,6 +157,14 @@ const rolloverKpi = __test.normalizeKpiReportRows([
 assert.equal(rolloverKpi[0].dateKey, "2026-09-18");
 assert.equal(rolloverKpi[0].checkin, "02/01/2027");
 assert.equal(rolloverKpi[0].checkout, "07/01/2027");
+
+const shortDateNextYearKpi = __test.normalizeKpiReportRows([
+  kpiRows[0],
+  ["SUEDS PLAZA", "", "Azul Viagens", "NEXT-YEAR-1", "Cliente", "10/03", "15/03", 500, 2, 0, "101", "LOC", "Confirmada", 5, "", "18/08", "", "", "", "", "", "", "", 2500]
+], 2026);
+assert.equal(shortDateNextYearKpi[0].dateKey, "2026-08-18");
+assert.equal(shortDateNextYearKpi[0].checkin, "10/03/2027");
+assert.equal(shortDateNextYearKpi[0].checkout, "15/03/2027");
 
 const sameMonthPastStay = __test.normalizeKpiReportRows([
   kpiRows[0],
