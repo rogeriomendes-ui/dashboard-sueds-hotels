@@ -23,6 +23,7 @@ const JUNIPER_RANGE = process.env.GOOGLE_JUNIPER_RANGE || "Metas!O29:P33";
 const CVC_RANGE = process.env.GOOGLE_CVC_RANGE || "Metas!R29:S33";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
+const DESKHOTEL_ATTENDANTS_RANGE = process.env.GOOGLE_DESKHOTEL_ATTENDANTS_RANGE || "'Atendimentos Deskhotel'!A:I";
 const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
 const OPERATIONAL_SHEET_ID = process.env.GOOGLE_OPERATIONAL_SHEET_ID || "";
 const OPINIONS_RANGE = process.env.GOOGLE_OPINIONS_RANGE || "Opinarios!A:AZ";
@@ -2496,6 +2497,80 @@ function advancePurchaseChannelLabel(record, source = "direct", month = "") {
 
   const label = String(record.rawChannel || record.channel || "Não informado").trim();
   return isBookingEngineChannel(label) ? "SITE SUEDS" : label;
+}
+
+function normalizeDeskhotelAttendantRecord(item) {
+  const rawMonth = item["Mês"] || item.Mes || item.MES || "";
+  const monthText = String(rawMonth).trim();
+  let month = monthText;
+  if (typeof rawMonth === "number") {
+    const date = parseDate(rawMonth);
+    month = date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 7) : "";
+  } else if (/^\d{1,2}\/\d{4}$/.test(monthText)) {
+    const [monthPart, year] = monthText.split("/");
+    month = `${year}-${monthPart.padStart(2, "0")}`;
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(monthText)) {
+    month = monthText.slice(0, 7);
+  }
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return null;
+  const attendeeName = String(item.Atendente || "").trim();
+  const seller = comparableKey(attendeeName) === "amanda sales melgaco"
+    ? "Amanda Melgaco"
+    : normalizeSellerName(attendeeName);
+  if (!seller || comparableKey(seller) === "total") return null;
+  const rawConversion = item["% Atend. X Vendas"];
+  const conversion = parseDecimalNumber(rawConversion);
+  return {
+    monthKey: month,
+    seller,
+    attendances: parseDecimalNumber(item.Atendimentos),
+    quotations: parseDecimalNumber(item["Cotações"]),
+    sales: parseDecimalNumber(item.Vendas),
+    revenue: parseNumber(item["Valor Total"]),
+    conversionPct: rawConversion === "" || rawConversion === undefined
+      ? null
+      : typeof rawConversion === "number" && rawConversion <= 1
+        ? rawConversion * 100
+        : conversion
+  };
+}
+
+function buildDeskhotelAttendantMetrics(records, period = {}) {
+  const month = period.month || (period.date || todayKey()).slice(0, 7);
+  const bySeller = new Map();
+  records.filter((row) => row.monthKey === month).forEach((row) => {
+    bySeller.set(comparableKey(row.seller), row);
+  });
+  const sellerMetrics = TEAM_SELLERS.map((seller) => {
+    const row = bySeller.get(comparableKey(seller));
+    const attendances = row?.attendances || 0;
+    const quotations = row?.quotations || 0;
+    const sales = row?.sales || 0;
+    return {
+      name: seller,
+      source: "Deskhotel",
+      attendances,
+      opportunities: quotations,
+      sales,
+      revenue: row?.revenue || 0,
+      conversionPct: row?.conversionPct ?? null
+    };
+  });
+  const attendances = sum(sellerMetrics, (row) => row.attendances);
+  const opportunities = sum(sellerMetrics, (row) => row.opportunities);
+  const sales = sum(sellerMetrics, (row) => row.sales);
+  return [
+    ...sellerMetrics,
+    {
+      name: TEAM_CARD_NAME,
+      source: "Deskhotel",
+      attendances,
+      opportunities,
+      sales,
+      revenue: sum(sellerMetrics, (row) => row.revenue),
+      conversionPct: pct(sales, attendances)
+    }
+  ];
 }
 
 function isCountedSaleStatus(record) {
@@ -8707,6 +8782,7 @@ async function loadDataset() {
   let goals;
   let carts;
   let asksuite;
+  let deskhotelAttendants;
   let otherChannelRecords;
   let juniperRows;
   let cvcRows;
@@ -8718,16 +8794,21 @@ async function loadDataset() {
     goals = demo.goals;
     carts = demo.carts;
     asksuite = demo.asksuite || [];
+    deskhotelAttendants = [];
     otherChannelRecords = [];
     juniperRows = [];
     cvcRows = [];
     historicalRecords = [];
   } else {
-    const [baseRows, goalRows, cartRows, asksuiteRows, otherChannelRows, loadedJuniperRows, loadedCvcRows, historicalRows] = await Promise.all([
+    const [baseRows, goalRows, cartRows, asksuiteRows, deskhotelRows, otherChannelRows, loadedJuniperRows, loadedCvcRows, historicalRows] = await Promise.all([
       getFirstAvailableSheetValues([SALES_RANGE, BASE_RANGE]),
       getSheetValues(METAS_RANGE),
       getSheetValues(CARTS_RANGE),
       getSheetValues(ASKSUITE_RANGE),
+      getSheetValues(DESKHOTEL_ATTENDANTS_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      }),
       getSheetValues(OTHER_CHANNELS_RANGE).catch((error) => {
         if (isMissingSheetError(error)) return [];
         throw error;
@@ -8749,6 +8830,9 @@ async function loadDataset() {
     goals = rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal);
     carts = rowsToObjects(cartRows, { keepAnyValue: true }).map(normalizeCartRecord);
     asksuite = dedupeAsksuiteRecords(rowsToObjects(asksuiteRows, { keepAnyValue: true }).map(normalizeAsksuiteRecord));
+    deskhotelAttendants = rowsToObjects(deskhotelRows, { keepAnyValue: true })
+      .map(normalizeDeskhotelAttendantRecord)
+      .filter(Boolean);
     otherChannelRecords = rowsToObjects(otherChannelRows).map(normalizeRecord);
     juniperRows = loadedJuniperRows;
     cvcRows = loadedCvcRows;
@@ -8756,7 +8840,7 @@ async function loadDataset() {
   }
 
   const routed = require("./lib/sales-routing").dashboardSources(records, otherChannelRecords);
-  const payload = { ...routed, goals, carts, asksuite, juniperRows, cvcRows, historicalRecords, loadedAt: new Date().toISOString() };
+  const payload = { ...routed, goals, carts, asksuite, deskhotelAttendants, juniperRows, cvcRows, historicalRecords, loadedAt: new Date().toISOString() };
   dataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
   return payload;
 }
@@ -8892,7 +8976,10 @@ async function loadMetrics(period) {
     metrics.otherChannels = buildOtherChannelsMetrics(dataset.otherChannelRecords || [], period, dataset.juniperRows || [], dataset.cvcRows || []);
   metrics.sellers = mergeRobotSeller(metrics.sellers, buildRobotSellerFromAsksuiteMarketRows(asksuiteMarketRows, period), period);
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
-  metrics.asksuite = buildAsksuiteMetrics(dataset.asksuite || [], period);
+  const selectedMonth = period.month || (period.date || todayKey()).slice(0, 7);
+  metrics.asksuite = selectedMonth >= ROBOT_SALES_CUTOVER_MONTH
+    ? buildDeskhotelAttendantMetrics(dataset.deskhotelAttendants || [], period)
+    : buildAsksuiteMetrics(dataset.asksuite || [], period);
   metrics.analytics = analytics;
   return metrics;
 }
@@ -9270,6 +9357,8 @@ module.exports = {
     normalizeOperationalOpinion,
     normalizeRecord,
     normalizeSellerName,
+    normalizeDeskhotelAttendantRecord,
+    buildDeskhotelAttendantMetrics,
     operationalOpinionResponse,
     opinionOmrProfile,
     detectOmrGuideMarkers,

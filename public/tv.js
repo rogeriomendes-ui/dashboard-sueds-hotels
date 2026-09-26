@@ -235,16 +235,17 @@ function renderCartRecoveryBlock(seller) {
 
 function renderAsksuiteBlock(seller) {
   if (!seller) return "";
+  const isDeskhotel = seller.source === "Deskhotel";
   return `
-    <section class="asksuite-card" aria-label="Asksuite de ${escapeHtml(seller.name)}">
+    <section class="asksuite-card" aria-label="${isDeskhotel ? "Deskhotel" : "Asksuite"} de ${escapeHtml(seller.name)}">
       <div class="asksuite-title">
-        <span>Asksuite</span>
+        <span>${isDeskhotel ? "Deskhotel" : "Asksuite"}</span>
       </div>
       <div class="asksuite-kpis">
         <div><strong>${integer.format(seller.attendances || 0)}</strong><span>atend.</span></div>
-        <div><strong>${integer.format(seller.opportunities || 0)}</strong><span>oport.</span></div>
+        <div><strong>${integer.format(seller.opportunities || 0)}</strong><span>${isDeskhotel ? "cotação" : "oport."}</span></div>
         <div><strong>${integer.format(seller.sales || 0)}</strong><span>vendas</span></div>
-        <div><strong>${formatDetailedPct(pctFromValues(seller.sales, seller.attendances))}</strong><span>conv. vendas</span></div>
+        <div><strong>${formatDetailedPct(isDeskhotel ? seller.conversionPct : pctFromValues(seller.sales, seller.attendances))}</strong><span>conv. vendas</span></div>
       </div>
     </section>
   `;

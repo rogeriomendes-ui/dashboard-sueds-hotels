@@ -166,17 +166,18 @@ function renderCartRecoveryBlock(seller) {
 
 function renderAsksuiteBlock(seller) {
   if (!seller) return "";
+  const isDeskhotel = seller.source === "Deskhotel";
   return `
-    <section class="asksuite-card" aria-label="Asksuite de ${escapeHtml(seller.name)}">
+    <section class="asksuite-card" aria-label="${isDeskhotel ? "Deskhotel" : "Asksuite"} de ${escapeHtml(seller.name)}">
       <div class="asksuite-title">
-        <span>Asksuite</span>
-        <strong>Conversão diálogo → venda ${formatDetailedPct(seller.salesConvPct)}</strong>
+        <span>${isDeskhotel ? "Deskhotel" : "Asksuite"}</span>
+        <strong>${isDeskhotel ? "Conversão atendimento → venda" : "Conversão diálogo → venda"} ${formatDetailedPct(isDeskhotel ? seller.conversionPct : seller.salesConvPct)}</strong>
       </div>
       <div class="asksuite-kpis">
         <div><strong>${integer.format(seller.attendances || 0)}</strong><span>atend.</span></div>
-        <div><strong>${integer.format(seller.opportunities || 0)}</strong><span>oport.</span></div>
+        <div><strong>${integer.format(seller.opportunities || 0)}</strong><span>${isDeskhotel ? "cotação" : "oport."}</span></div>
         <div><strong>${integer.format(seller.sales || 0)}</strong><span>vendas</span></div>
-        <div><strong>${formatCartPct(seller.chatConvPct)}</strong><span>conv. atend.</span></div>
+        <div><strong>${isDeskhotel ? formatDetailedPct(seller.conversionPct) : formatCartPct(seller.chatConvPct)}</strong><span>conv. atend.</span></div>
       </div>
     </section>
   `;
