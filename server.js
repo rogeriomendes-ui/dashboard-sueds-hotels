@@ -3831,6 +3831,28 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       ...biReportsRateMetrics(groupedRows)
     }))
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+  const shareChannelGroup = (record) => {
+    const key = comparableKey(biReportsChannelLabel(record));
+    if (key.includes("reserva direta") || key.includes("central de reservas") || key.includes("site")) return "SUEDS";
+    if (key.includes("azul")) return "AZUL";
+    if (key.includes("cvc")) return "CVC";
+    if (key.includes("decolar")) return "DECOLAR";
+    if (key.includes("booking")) return "BOOKING";
+    if (key.includes("orinter")) return "ORINTER";
+    return "OUTROS";
+  };
+  const shareGroups = ["SUEDS", "AZUL", "CVC", "DECOLAR", "BOOKING", "ORINTER", "OUTROS"];
+  const channelShareByHotel = [...groupBy(rows, (record) => biReportsHotelLabel(record.hotel) || "Não informado").entries()]
+    .map(([label, hotelRows]) => {
+      const total = sum(hotelRows, (record) => Number(record.total || 0));
+      const values = Object.fromEntries(shareGroups.map((group) => [group, sum(hotelRows.filter((record) => shareChannelGroup(record) === group), (record) => Number(record.total || 0))]));
+      return { label, total, values };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  const channelShareTotals = {
+    total: sum(rows, (record) => Number(record.total || 0)),
+    values: Object.fromEntries(shareGroups.map((group) => [group, sum(rows.filter((record) => shareChannelGroup(record) === group), (record) => Number(record.total || 0))]))
+  };
   const checkinLabel = (value) => {
     if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
     const [year, month] = value.split("-").map(Number);
@@ -4138,6 +4160,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     },
     byChannel: summarize(rows, biReportsChannelLabel),
     byHotel: summarize(rows, (record) => biReportsHotelLabel(record.hotel) || "Não informado"),
+    channelShare: { groups: shareGroups, byHotel: channelShareByHotel, totals: channelShareTotals },
     byCheckinMonth: checkinMonths,
     daily,
     pickup,

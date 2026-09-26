@@ -52,6 +52,8 @@ assert.equal(payload.summary.averageDailyRate, 500);
 assert.equal(payload.daily[1].cumulative, 3000);
 assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").value, 1500);
 assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").averageDailyRate, 750);
+assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.SUEDS, 1500);
+assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.AZUL, 1500);
 assert.equal(payload.daily.at(-1).averageDailyRate, 500);
 assert.equal(payload.pickup[0].daily.at(-1).cumulative, 3000);
 assert.equal(payload.pickup[0].comparisonDaily.at(-1).cumulative, 1000);

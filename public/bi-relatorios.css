@@ -132,6 +132,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .occupancy-table .occupancy-rate { color: #fff; background: #187f77; }
 .comparison-tables { margin-top: 34px; }
 .comparison-table-card { overflow: hidden; border: 1px solid #b8c6cc; border-radius: 12px; background: #fff; box-shadow: 0 5px 18px rgba(23,45,61,.05); }
+.comparison-table-card + .comparison-table-card { margin-top: 18px; }
 .comparison-table-title { padding: 9px 14px; color: #152f3f; background: #d8ebcb; font-size: 18px; font-weight: 900; text-align: center; text-transform: uppercase; }
 .comparison-table-period { padding: 8px 14px; border-bottom: 1px solid #b8c6cc; color: var(--navy-deep); font-size: 17px; font-weight: 850; text-align: center; }
 .comparison-table-scroll { overflow-x: auto; }
@@ -143,6 +144,9 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .comparison-table .negative { color: #d8232a; font-weight: 900; }
 .comparison-table .positive { color: #137a5a; font-weight: 900; }
 .comparison-table tfoot td { color: var(--navy-deep); background: #e9edef; font-size: 16px; font-weight: 900; }
+.comparison-table .share-sueds { background: #ffe08a; }
+.comparison-table .share-azul { background: #59c7ef; }
+.comparison-table .share-cvc { background: #fff318; }
 .rate-section { margin-top: 34px; padding-top: 3px; border-top: 1px solid var(--line); }
 .rate-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
 .rate-summary-card { min-width: 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: 13px; background: #fff; box-shadow: 0 5px 18px rgba(23,45,61,.05); }
