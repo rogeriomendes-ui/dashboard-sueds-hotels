@@ -2,6 +2,7 @@
   "use strict";
 
   const apiUrl = document.documentElement.dataset.biApi || "/api/dashboard/bi-relatorios";
+  const isKpiReport = document.documentElement.dataset.requiredEnvironment === "bi_relatorios_kpi";
   const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
   const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
   const percent = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -170,12 +171,14 @@
     const rows = combineComparisonTail(mergeComparisonRows(source, comparisonSource), 8);
     if (!rows.length || !rows.some((row) => row.current > 0 || row.previous > 0)) return empty(target, "Sem vendas para exibir neste recorte.");
     const w = widthOf(target);
-    const rowH = 52;
+    const rowH = options.showGrowth ? 66 : 52;
     const h = Math.max(245, rows.length * rowH + 16);
     const labelW = Math.min(w * (options.showShare ? .34 : .39), options.showShare ? 155 : 170);
     const max = Math.max(...rows.flatMap((row) => [row.current, row.previous]), 1);
     const barX = labelW + 10;
-    const valueW = options.showShare ? (w < 420 ? 108 : 126) : (w < 420 ? 68 : 92);
+    const valueW = options.showGrowth
+      ? (w < 420 ? 122 : 150)
+      : options.showShare ? (w < 420 ? 108 : 126) : (w < 420 ? 68 : 92);
     const usable = Math.max(40, w - barX - valueW - 6);
     const body = rows.map((row, index) => {
       const y = 10 + index * rowH;
@@ -187,14 +190,24 @@
       const currentShare = options.currentTotal ? row.current / options.currentTotal * 100 : 0;
       const previousText = `${shortMoney.format(row.previous)}${options.showShare ? ` · ${percent.format(previousShare)}%` : ""}`;
       const currentText = `${shortMoney.format(row.current)}${options.showShare ? ` · ${percent.format(currentShare)}%` : ""}`;
-      return `<g><title>${safe(label)} — 2025: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(percent.format(previousShare))}%)` : ""}; 2026: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(percent.format(currentShare))}%)` : ""}</title>
-        <text x="0" y="${y + 25}" fill="#435d6d" font-size="10.5">${safe(clipped)}</text>
+      const growth = row.previous > 0 ? (row.current - row.previous) / row.previous * 100 : null;
+      const growthDirection = growth === null ? (row.current > 0 ? "up" : "flat") : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
+      const growthArrow = growthDirection === "up" ? "↑" : growthDirection === "down" ? "↓" : "→";
+      const growthText = growth === null ? `${growthArrow} novo em 2026` : `${growthArrow} ${percent.format(Math.abs(growth))}%`;
+      const growthColor = growthDirection === "up" ? "#137a5a" : growthDirection === "down" ? "#c64b47" : "#607885";
+      const valueFontSize = options.showGrowth ? (options.showShare ? 10.5 : 11.5) : (options.showShare ? 8.5 : 9);
+      const growthMarkup = options.showGrowth
+        ? `<text x="${w - 2}" y="${y + 51}" text-anchor="end" fill="${growthColor}" font-size="11" font-weight="850">${safe(growthText)}</text>`
+        : "";
+      return `<g><title>${safe(label)} — 2025: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(percent.format(previousShare))}%)` : ""}; 2026: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(percent.format(currentShare))}%)` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
+        <text x="0" y="${y + (options.showGrowth ? 30 : 25)}" fill="#435d6d" font-size="10.5">${safe(clipped)}</text>
         <rect x="${barX}" y="${y + 5}" width="${usable}" height="12" rx="4" fill="#f4eee3"/>
         <rect x="${barX}" y="${y + 5}" width="${previousLength}" height="12" rx="4" fill="#d7b16b"/>
         <rect x="${barX}" y="${y + 23}" width="${usable}" height="12" rx="4" fill="#edf2f3"/>
         <rect x="${barX}" y="${y + 23}" width="${currentLength}" height="12" rx="4" fill="#315269"/>
-        <text x="${w - 2}" y="${y + 15}" text-anchor="end" fill="#ac8440" font-size="${options.showShare ? 8.5 : 9}" font-weight="750">${safe(previousText)}</text>
-        <text x="${w - 2}" y="${y + 33}" text-anchor="end" fill="#20384a" font-size="${options.showShare ? 8.5 : 9}" font-weight="750">${safe(currentText)}</text>
+        <text x="${w - 2}" y="${y + 15}" text-anchor="end" fill="#ac8440" font-size="${valueFontSize}" font-weight="800">${safe(previousText)}</text>
+        <text x="${w - 2}" y="${y + 33}" text-anchor="end" fill="#20384a" font-size="${valueFontSize}" font-weight="800">${safe(currentText)}</text>
+        ${growthMarkup}
       </g>`;
     }).join("");
     target.style.height = `${h}px`;
@@ -274,10 +287,11 @@
     });
     renderBars(els.channels, payload.byChannel || [], payload.comparison?.byChannel || [], {
       showShare: true,
+      showGrowth: isKpiReport,
       currentTotal: payload.summary.sales || 0,
       previousTotal: payload.comparison?.summary?.sales || 0
     });
-    renderBars(els.hotelChart, payload.byHotel || [], payload.comparison?.byHotel || []);
+    renderBars(els.hotelChart, payload.byHotel || [], payload.comparison?.byHotel || [], { showGrowth: isKpiReport });
     renderColumns(els.checkinChart, payload.byCheckinMonth || [], payload.comparison?.byCheckinMonth || [], {
       showShare: true,
       currentTotal: payload.summary.sales || 0,
