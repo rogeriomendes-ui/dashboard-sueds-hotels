@@ -8817,18 +8817,31 @@ async function loadBiKpiReportsDataset() {
       ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
       ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
     ];
-    const [values, goalRows] = await Promise.all([
+    const [values, goalRows, sellerRows, channelRows] = await Promise.all([
       getSheetValueRanges(ranges),
       getSheetValues(METAS_RANGE).catch((error) => {
         if (isMissingSheetError(error)) return [];
         throw error;
+      }),
+      getFirstAvailableSheetValues([BI_SALES_RANGE, BASE_RANGE]),
+      getSheetValues(BI_OTHER_CHANNELS_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
       })
     ]);
-    const records = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length)), 2026);
+    const kpiRecords = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length)), 2026);
     const historicalRecords = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(compactColumns.length)), 2025);
+    const routedSales = require("./lib/sales-routing").dashboardSources(
+      rowsToObjects(sellerRows).map(normalizeRecord),
+      rowsToObjects(channelRows).map(normalizeRecord)
+    );
+    const siteRecords = [...(routedSales.records || []), ...(routedSales.otherChannelRecords || [])]
+      .filter((record) => comparableKey(biReportsChannelLabel(record)) === comparableKey("SITE SUEDS"));
+    const siteKeys = new Set(siteRecords.map((record) => `${comparableKey(record.reservationCode)}|${comparableKey(biReportsHotelLabel(record.hotel))}`));
+    const records = kpiRecords.filter((record) => !siteKeys.has(`${comparableKey(record.reservationCode)}|${comparableKey(biReportsHotelLabel(record.hotel))}`));
     const payload = {
       records,
-      otherChannelRecords: [],
+      otherChannelRecords: siteRecords,
       historicalRecords,
       goals: rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal),
       loadedAt: new Date().toISOString(),
