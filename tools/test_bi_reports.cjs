@@ -61,7 +61,7 @@ assert.equal(payload.revpar.summary.revpar, 0);
 assert.ok(Math.abs(payload.revpar.summary.revpar - (payload.revpar.summary.averageDailyRate * payload.revpar.summary.occupancyRate / 100)) < 0.000001);
 assert.equal(payload.comparison.revpar.summary.revpar, 0);
 assert.equal(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").apartments, 117);
-assert.ok(Math.abs(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").revpar - (3000 / (117 * 31))) < 0.000001);
+assert.equal(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").revpar, 0);
 assert.equal(payload.revpar.byCheckinMonth[0].key, "2026-10");
 
 const filtered = __test.buildBiReportsPayload({ records: [record()], otherChannelRecords: [] }, {
@@ -158,6 +158,7 @@ assert.equal(occupancyPayload.occupancy[0].days[1].occupied, 2);
 assert.equal(occupancyPayload.occupancy[0].days[1].available, 115);
 assert.equal(occupancyPayload.occupancy[0].days[3].occupied, 0);
 assert.ok(Math.abs(occupancyPayload.revpar.summary.revpar - (occupancyPayload.revpar.summary.averageDailyRate * occupancyPayload.revpar.summary.occupancyRate / 100)) < 0.000001);
+assert.ok(Math.abs(occupancyPayload.revpar.byHotel[0].revpar - (occupancyPayload.revpar.byHotel[0].averageDailyRate * occupancyPayload.revpar.byHotel[0].occupancyRate / 100)) < 0.000001);
 const overbookingPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ reservationCode: "OVER-1", checkin: "02/09/2026", checkout: "03/09/2026", reservationCount: 119 })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS PLAZA" });
 assert.equal(overbookingPayload.occupancy[0].days[0].available, -2);
 const vilaRomanaPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ hotel: "CASAS SUEDS ARRAIAL", reservationCode: "VILA-1", checkin: "02/09/2026", checkout: "03/09/2026" })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS VILA ROMANA" });

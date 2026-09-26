@@ -4027,6 +4027,16 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   };
   alignRevparWithOccupancy(currentRevparSummary, rows, currentOccupancyMetrics);
   alignRevparWithOccupancy(previousRevparSummary, historicalRows, previousOccupancyMetrics);
+  currentRevparByHotel.forEach((target) => {
+    const inventory = biReportsInventory(target.label);
+    const rateRows = rows.filter((record) => comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(target.label));
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(occupancyRows, dateKeys, [inventory]));
+  });
+  previousRevparByHotel.forEach((target) => {
+    const inventory = biReportsInventory(target.label);
+    const rateRows = historicalRows.filter((record) => comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(target.label));
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(historicalStayRows, previousDateKeys, [inventory]));
+  });
   const currentCheckinByKey = new Map(checkinMonths.map((item) => [item.key, item]));
   const historicalCheckinByKey = new Map(historicalCheckinMonths.map((item) => [item.key, item]));
   const pickupKeys = [...new Set([...currentCheckinByKey.keys(), ...historicalCheckinByKey.keys()])].sort().slice(0, 8);
