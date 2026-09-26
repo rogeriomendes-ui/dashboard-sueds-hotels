@@ -107,6 +107,17 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin: 27px 0 13px; }
 .section-heading > p, .section-heading .heading-tools > p { max-width: 440px; margin-bottom: 0; color: var(--muted); font-size: 12px; text-align: right; }
 .pickup-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.future-rooming-card { max-width: 720px; margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 5px 18px rgba(23,45,61,.05); }
+.future-rooming-title { padding: 13px 15px; border-bottom: 1px solid #c8d7de; background: #eef5f8; }
+.future-rooming-title .card-kicker { margin-bottom: 3px; }
+.future-rooming-title h2 { margin: 0; color: var(--navy-deep); font-size: 17px; }
+.future-rooming-scroll { overflow-x: auto; }
+.future-rooming-table { width: 100%; min-width: 440px; border-collapse: collapse; font-size: 12px; }
+.future-rooming-table th, .future-rooming-table td { padding: 9px 12px; border-bottom: 1px solid #e2e9ec; text-align: right; }
+.future-rooming-table th { color: #fff; background: #438fbc; font-weight: 850; }
+.future-rooming-table th:first-child, .future-rooming-table td:first-child { text-align: left; }
+.future-rooming-table tbody tr:nth-child(even) { background: #f4f7f9; }
+.future-rooming-table tfoot td { color: var(--navy-deep); background: #f8fafb; font-weight: 900; }
 .pickup-card { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .pickup-card header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .pickup-card h3 { margin: 0; color: var(--navy-deep); font-size: 14px; }
@@ -171,6 +182,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .pickup-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
+  .future-rooming-card { max-width: none; }
   .bi-page { padding: 16px; }
   .bi-header { align-items: flex-start; }
   .data-stamp { display: none; }

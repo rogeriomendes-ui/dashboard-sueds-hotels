@@ -5,7 +5,7 @@
     tv_vendedores: { url: "/dashboard-tv.html", permission: "tv_vendedores", title: "TV Painel Vendedor" },
     ranking_vendedores: { url: "/dashboard-vendedores.html", permission: "ranking_vendedores", title: "Ranking de Vendedores" },
     bi_relatorios: { url: "/bi-relatorios.html?v=20260920-checkin-share", permission: "bi_relatorios", title: "BI - Relatórios" },
-    bi_relatorios_kpi: { url: "/bi-relatorios-kpi.html?v=20260926-tooltip-years-final", permission: "bi_relatorios_kpi", title: "BI - Relatórios by KPI" },
+    bi_relatorios_kpi: { url: "/bi-relatorios-kpi.html?v=20260926-rooming-nights-table", permission: "bi_relatorios_kpi", title: "BI - Relatórios by KPI" },
     mesas_vip_reveillon: { url: "/mesas-vip-reveillon", permission: "mesas_vip_reveillon", title: "Mesas VIP Réveillon" },
     opinarios_rede: { url: "/dashboard-operacional-tv.html", permission: "opinarios_rede", title: "Opinários de todos os hotéis" },
     opinarios_plaza: { url: "/operacional/plaza", permission: "opinarios_hotel", title: "Opinários — SUEDS Plaza" },

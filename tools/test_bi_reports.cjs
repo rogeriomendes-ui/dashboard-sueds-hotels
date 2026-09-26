@@ -58,6 +58,7 @@ assert.equal(payload.summary.averageDailyRate, 500);
 assert.equal(payload.daily[1].cumulative, 3000);
 assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").value, 1500);
 assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").averageDailyRate, 750);
+assert.deepEqual(payload.futureCheckinMonths, [{ key: "2026-10", label: "Out/2026", roomNights: 6, value: 3000 }]);
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.SUEDS, 1500);
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.AZUL, 1500);
 assert.equal(payload.channelHotelComparison.AZUL.current["SUEDS PLAZA"], 1500);

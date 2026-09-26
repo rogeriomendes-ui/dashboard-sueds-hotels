@@ -4,6 +4,7 @@
   const apiUrl = document.documentElement.dataset.biApi || "/api/dashboard/bi-relatorios";
   const isKpiReport = document.documentElement.dataset.requiredEnvironment === "bi_relatorios_kpi";
   const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const moneyCents = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
   const percent = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const wholePercent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
@@ -21,7 +22,7 @@
     sales: document.getElementById("totalSales"), previousSales: document.getElementById("previousPeriodSales"), previousLabel: document.getElementById("previousPeriodLabel"), previousSummary: document.getElementById("previousPeriodSummary"), reservations: document.getElementById("totalReservations"), ticket: document.getElementById("averageTicket"),
     hotels: document.getElementById("activeHotels"), period: document.getElementById("periodCaption"), daily: document.getElementById("dailyChart"),
     channels: document.getElementById("channelChart"), hotelChart: document.getElementById("hotelChart"), checkinChart: document.getElementById("checkinChart"),
-    pickup: document.getElementById("pickupGrid"), averageRate2025: document.getElementById("averageRate2025"),
+    pickup: document.getElementById("pickupGrid"), futureRooming: document.getElementById("futureRoomingTable"), averageRate2025: document.getElementById("averageRate2025"),
     averageRate2026: document.getElementById("averageRate2026"), roomNights2025: document.getElementById("roomNights2025"),
     roomNights2026: document.getElementById("roomNights2026"), averageRateDaily: document.getElementById("averageRateDailyChart"),
     averageRateChannels: document.getElementById("averageRateChannelChart"), averageRateHotels: document.getElementById("averageRateHotelChart"),
@@ -283,6 +284,15 @@
     }));
   }
 
+  function renderFutureRooming(rows = []) {
+    if (!els.futureRooming) return;
+    if (!rows.length) return empty(els.futureRooming, "Sem vendas para check-in no mês da venda ou nos meses seguintes.");
+    const totalRoomNights = rows.reduce((total, row) => total + Number(row.roomNights || 0), 0);
+    const totalSales = rows.reduce((total, row) => total + Number(row.value || 0), 0);
+    const body = rows.map((row) => `<tr><td>${safe(row.label)}</td><td>${safe(integer.format(row.roomNights || 0))}</td><td>${safe(moneyCents.format(row.value || 0))}</td></tr>`).join("");
+    els.futureRooming.innerHTML = `<table class="future-rooming-table"><thead><tr><th>Mês/Ano</th><th>UH</th><th>Venda</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td>Total</td><td>${safe(integer.format(totalRoomNights))}</td><td>${safe(moneyCents.format(totalSales))}</td></tr></tfoot></table>`;
+  }
+
   function renderOccupancy(hotels = []) {
     if (!els.occupancy) return;
     if (!hotels.length) return empty(els.occupancy, "Sem estadias capturadas para este período.");
@@ -403,6 +413,7 @@
       currentTotal: payload.summary.sales || 0,
       previousTotal: payload.comparison?.summary?.sales || 0
     });
+    renderFutureRooming(payload.futureCheckinMonths || []);
     renderPickup(payload.pickup || []);
     renderOccupancy(payload.occupancy || []);
     renderHotelSalesSummary(payload);
