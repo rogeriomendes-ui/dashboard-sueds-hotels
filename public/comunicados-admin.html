@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="comunicados" class="manager-auth-pending">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Inclusão de Comunicados | Portal SUEDS</title>
+    <script src="/manager-auth.js?v=20260911-comunicados"></script>
+    <link rel="stylesheet" href="/comunicados.css?v=20260911-comunicados">
+  </head>
+  <body>
+    <main class="announcements-page admin-page">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Administração</p>
+          <h1>Inclusão de comunicados</h1>
+          <p class="intro">Publique avisos e acompanhe quem confirmou a leitura.</p>
+        </div>
+      </header>
+
+      <section class="composer-card" aria-labelledby="composerTitle">
+        <div class="section-heading">
+          <div><p class="eyebrow">Novo aviso</p><h2 id="composerTitle">Publicar comunicado</h2></div>
+        </div>
+        <form id="announcementForm">
+          <div class="form-grid">
+            <label>Título<input id="announcementTitle" required minlength="3" maxlength="160" placeholder="Ex.: Reunião da equipe comercial"></label>
+            <label>Departamento<select id="announcementDepartment" required></select></label>
+          </div>
+          <label>Texto do comunicado<textarea id="announcementBody" required maxlength="12000" rows="6" placeholder="Escreva aqui todas as informações que o colaborador precisa ler."></textarea></label>
+          <fieldset class="media-fields">
+            <legend>Imagem ou vídeo <span>(opcional)</span></legend>
+            <label>Enviar arquivo<input id="announcementFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"><small>Até 4 MB. Para vídeos maiores, use um link.</small></label>
+            <div class="media-divider" aria-hidden="true">ou</div>
+            <label>Link da mídia<input id="announcementMediaUrl" type="url" maxlength="2000" placeholder="https://..."><small>Pode ser um link de imagem ou vídeo.</small></label>
+            <label id="mediaTypeField">Tipo do link<select id="announcementMediaType"><option value="image">Imagem</option><option value="video">Vídeo</option></select></label>
+          </fieldset>
+          <p id="formMessage" class="form-message" role="status"></p>
+          <div class="form-actions"><button id="publishButton" class="primary-button" type="submit">Publicar comunicado</button></div>
+        </form>
+      </section>
+
+      <section class="history-section" aria-labelledby="historyTitle">
+        <div class="section-heading">
+          <div><p class="eyebrow">Confirmações</p><h2 id="historyTitle">Histórico de leitura</h2></div>
+          <button id="refreshButton" class="secondary-button" type="button">↻ Atualizar</button>
+        </div>
+        <p id="pageMessage" class="page-message" role="status" aria-live="polite">Carregando histórico…</p>
+        <div id="adminAnnouncementsList" class="admin-announcements-list"></div>
+      </section>
+    </main>
+    <script src="/comunicados-admin.js?v=20260911-comunicados"></script>
+  </body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="mesas_vip_reveillon" class="manager-auth-pending">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mesas VIP Réveillon | Portal SUEDS</title>
+    <script src="/manager-auth.js?v=20260902-vip-tables"></script>
+    <link rel="stylesheet" href="/mesas-vip-reveillon.css?v=20260910-excel-palco-v1">
+  </head>
+  <body>
+    <main class="vip-page">
+      <header class="vip-header">
+        <div>
+          <p class="eyebrow">Réveillon SUEDS</p>
+          <h1>Mesas VIP</h1>
+          <p class="intro"><strong>Este painel não realiza vendas.</strong> Ele registra a disponibilidade das mesas para evitar reservas duplicadas; a venda continua sendo feita no sistema habitual.</p>
+        </div>
+        <button id="refreshButton" class="refresh-button" type="button" aria-label="Atualizar mapa">↻ <span>Atualizar</span></button>
+      </header>
+
+      <section class="summary" aria-label="Resumo das mesas">
+        <article class="summary-card available"><span class="status-dot"></span><div><strong id="availableCount">59</strong><small>Disponíveis</small></div></article>
+        <article class="summary-card sold"><span class="status-dot"></span><div><strong id="soldCount">0</strong><small>Pagas (5/5)</small></div></article>
+        <article class="summary-card blocked"><span class="status-dot"></span><div><strong id="blockedCount">0</strong><small>Em andamento</small></div></article>
+        <button id="exportTickets" class="export-excel" type="button">Gerar Excel Ingressos</button>
+        <p id="lastUpdated" class="last-updated" aria-live="polite">Carregando mapa…</p>
+      </section>
+
+      <section class="map-card" aria-labelledby="mapTitle">
+        <div class="map-toolbar">
+          <div>
+            <h2 id="mapTitle">Mapa das 59 mesas</h2>
+            <p>Verde disponível · amarelo com lugar bloqueado/pago · vermelho com 5 lugares pagos</p>
+          </div>
+          <p class="map-tip">Passe o mouse ou toque em uma mesa para ver os dados.</p>
+        </div>
+        <div class="map-scroll" tabindex="0" aria-label="Mapa com rolagem horizontal em telas pequenas">
+          <div id="mapStage" class="map-stage">
+            <div class="map-entrances" aria-hidden="true">
+              <strong>Entrada Pista</strong>
+              <strong>Entrada Área VIP</strong>
+            </div>
+            <div class="map-plan">
+              <img src="/assets/mapa-mesas-vip-reveillon.png?v=20260902-praia-tipografica" alt="Planta da área VIP do Réveillon, com mesas de 1 a 59">
+              <div id="tableMarkers" class="table-markers" aria-label="Mesas VIP"></div>
+            </div>
+            <div class="map-context" aria-label="Referências do espaço: palco, tenda e praia">
+              <span>Palco</span><span>Tenda</span><span>Praia</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p id="pageMessage" class="page-message" role="status" aria-live="polite"></p>
+    </main>
+
+    <dialog id="tableDialog" class="table-dialog">
+      <form id="tableForm" method="dialog">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow" id="dialogEyebrow">Editar mesa</p>
+            <h2>Mesa <span id="dialogTableNumber"></span></h2>
+          </div>
+          <button id="closeDialog" class="close-button" type="button" aria-label="Fechar">×</button>
+        </header>
+
+        <div id="readOnlyNotice" class="read-only-notice" hidden></div>
+        <label class="field">Tipo de mesa
+          <select id="tableType" required>
+            <option value="shared">Compartilhada (até 5 pessoas)</option>
+            <option value="exclusive">Exclusiva (mesa inteira)</option>
+          </select>
+        </label>
+        <fieldset id="participantsField" class="participants-field">
+          <legend>Nomes / famílias da mesa</legend>
+          <div id="participantInputs"></div>
+          <button id="addParticipant" class="secondary-button participant-add" type="button">+ Adicionar lugar</button>
+          <small id="participantHint">Cada lugar deve ter nome/família, reserva, status e vendedor. Mesa exclusiva usa um único registro para os 5 lugares.</small>
+        </fieldset>
+        <div id="recordMetadata" class="record-metadata" hidden></div>
+        <p id="formMessage" class="form-message" role="status"></p>
+        <footer>
+          <button id="cancelDialog" class="secondary-button" type="button">Fechar</button>
+          <button id="saveTable" class="primary-button" type="submit">Salvar controle</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script src="/mesas-vip-reveillon.js?v=20260910-excel-palco-v1"></script>
+  </body>
+</html>

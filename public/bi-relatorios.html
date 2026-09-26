@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="bi_relatorios" class="manager-auth-pending">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#172d3d">
+    <title>BI - Relatórios | Portal SUEDS</title>
+    <script src="/manager-auth.js?v=20260918-bi-history-2025"></script>
+    <link rel="stylesheet" href="/bi-relatorios.css?v=20260922-multi-channel">
+  </head>
+  <body>
+    <main class="bi-page">
+      <header class="bi-header">
+        <div>
+          <p class="eyebrow">Comercial · Comparativo 2025 × 2026</p>
+          <h1>BI - Relatórios</h1>
+          <p class="bi-subtitle">Desempenho das vendas no período selecionado.</p>
+        </div>
+        <div class="data-stamp" id="dataStamp" aria-live="polite">Atualizando dados…</div>
+      </header>
+
+      <form class="filters" id="filterForm" aria-label="Filtros do relatório">
+        <label><span>Venda inicial</span><input type="date" id="startDate" name="start" min="2026-01-01" max="2026-12-31" value="2026-09-01"></label>
+        <label><span>Venda final</span><input type="date" id="endDate" name="end" min="2026-01-01" max="2026-12-31" value="2026-09-18"></label>
+        <label><span>Hotel</span><select id="hotelFilter" name="hotel"><option value="">Todos os hotéis</option></select></label>
+        <div class="channel-filter"><span class="filter-label">Canal</span><details class="channel-picker" id="channelFilter"><summary id="channelSummary">Todos os canais</summary><div class="channel-picker-menu"><button type="button" class="channel-clear" id="clearChannels">Todos os canais</button><div id="channelOptions" class="channel-options"></div></div></details></div>
+        <label><span>Mês do check-in</span><select id="checkinFilter" name="checkinMonth"><option value="">Todos os meses</option></select></label>
+        <div class="filter-actions">
+          <button class="button button-primary" type="submit">Aplicar</button>
+          <button class="button button-quiet" type="button" id="clearFilters">Limpar</button>
+        </div>
+      </form>
+
+      <aside class="pending-note" id="comparisonNote">
+        <span class="pending-icon" aria-hidden="true">2025</span>
+        <div><strong id="comparisonTitle">Comparativo 2025 × 2026</strong><p id="comparisonReason">Carregando a cobertura histórica disponível…</p></div>
+      </aside>
+
+      <div class="notice notice-error" id="errorNotice" role="alert" hidden></div>
+      <div class="loading" id="loadingState" role="status"><span></span> Carregando relatório…</div>
+
+      <section id="dashboardContent" hidden>
+        <div class="summary-grid" aria-label="Resumo do período">
+          <article class="summary-card summary-primary"><span>Vendido no período</span><strong id="totalSales">R$ 0</strong><div class="summary-prior" id="previousPeriodSummary"><span id="previousPeriodLabel">Mesmo período em 2025</span><b id="previousPeriodSales">R$ 0</b></div><small id="periodCaption">—</small></article>
+          <article class="summary-card"><span>Reservas</span><strong id="totalReservations">0</strong><small>reservas consideradas</small></article>
+          <article class="summary-card"><span>Ticket médio</span><strong id="averageTicket">R$ 0</strong><small>valor médio por reserva</small></article>
+          <article class="summary-card"><span>Hotéis com vendas</span><strong id="activeHotels">0</strong><small>no recorte selecionado</small></article>
+        </div>
+
+        <section class="chart-card chart-wide">
+          <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada de vendas</h2></div><div class="legend-group"><span class="legend legend-2025"><i></i> 2025 <b id="comparisonTotal">—</b></span><span class="legend"><i></i> 2026</span></div></div>
+          <div class="chart chart-line" id="dailyChart"></div>
+        </section>
+
+        <div class="chart-grid">
+          <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Vendas por canal</h2></div><div class="heading-tools"><span class="card-help">Valor · share do total</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div><div class="chart chart-bars" id="channelChart"></div></section>
+          <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>Vendas por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="hotelChart"></div></section>
+        </div>
+
+        <section class="chart-card chart-wide">
+          <div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>Vendas por mês do check-in</h2></div><div class="heading-tools"><span class="card-help">Percentual do total vendido no período</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+          <div class="chart chart-columns" id="checkinChart"></div>
+        </section>
+
+        <section class="pickup-section">
+          <div class="section-heading"><div><p class="card-kicker">Ritmo de venda</p><h2>Curvas por mês do check-in</h2></div><div class="heading-tools"><p>Como cada mês de hospedagem foi ganhando receita ao longo do período.</p><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+          <div class="pickup-grid" id="pickupGrid"></div>
+        </section>
+
+        <section class="rate-section" aria-labelledby="averageRateTitle">
+          <div class="section-heading"><div><p class="card-kicker">Rentabilidade da hospedagem</p><h2 id="averageRateTitle">Diária média</h2></div><div class="heading-tools"><p>Receita das reservas com hospedagem válida dividida pelas UHs-noite.</p><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+
+          <div class="rate-summary-grid" aria-label="Resumo da diária média">
+            <article class="rate-summary-card rate-2025"><span>Diária média 2025</span><strong id="averageRate2025">R$ 0</strong><small id="roomNights2025">0 UHs-noite</small></article>
+            <article class="rate-summary-card rate-2026"><span>Diária média 2026</span><strong id="averageRate2026">R$ 0</strong><small id="roomNights2026">0 UHs-noite</small></article>
+          </div>
+
+          <section class="chart-card chart-wide">
+            <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada da diária média</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div>
+            <div class="chart chart-line" id="averageRateDailyChart"></div>
+          </section>
+
+          <div class="chart-grid">
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Diária média por canal</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="averageRateChannelChart"></div></section>
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>Diária média por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="averageRateHotelChart"></div></section>
+          </div>
+
+          <section class="chart-card chart-wide">
+            <div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>Diária média por mês do check-in</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div>
+            <div class="chart chart-columns" id="averageRateCheckinChart"></div>
+          </section>
+        </section>
+
+        <section class="rate-section revpar-section" aria-labelledby="revparTitle">
+          <div class="section-heading"><div><p class="card-kicker">Receita por disponibilidade</p><h2 id="revparTitle">RevPAR gerado pelas vendas</h2></div><div class="heading-tools"><p>Receita do recorte dividida pelos apartamentos disponíveis nos respectivos meses de hospedagem.</p><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+
+          <div class="rate-summary-grid" aria-label="Resumo do RevPAR">
+            <article class="rate-summary-card rate-2025"><span>RevPAR gerado em 2025</span><strong id="revpar2025">R$ 0</strong><small id="availableRoomNights2025">0 aptos-noite disponíveis</small></article>
+            <article class="rate-summary-card rate-2026"><span>RevPAR gerado em 2026</span><strong id="revpar2026">R$ 0</strong><small id="availableRoomNights2026">0 aptos-noite disponíveis</small></article>
+          </div>
+
+          <section class="chart-card chart-wide">
+            <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada de geração de RevPAR</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div>
+            <div class="chart chart-line" id="revparDailyChart"></div>
+          </section>
+
+          <div class="chart-grid revpar-grid">
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>RevPAR por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="revparHotelChart"></div></section>
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>RevPAR por mês do check-in</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-columns" id="revparCheckinChart"></div></section>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="/bi-relatorios.js?v=20260922-multi-channel"></script>
+  </body>
+</html>

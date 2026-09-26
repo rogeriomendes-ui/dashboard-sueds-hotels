@@ -1,0 +1,32 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const routing = require('../lib/sales-routing');
+const current = {rowNumber:410,codigo:'RES-A',hotel:'SUEDS PLAZA',dataVenda:'03/07/2026',canal:'CENTRAL DE RESERVAS',vendedor:'Aline Nunes',fonte:'',formaPagamento:'PIX',status:'Alterada'};
+const record = {...current,operation:'status-update',previousStatus:'Alterada',status:'Confirmada',targetSheet:routing.SELLERS_SHEET,evidence:'Google revision prior to erroneous write'};
+const request = {updateCells:{range:{sheetId:1945937754,startRowIndex:409,endRowIndex:410,startColumnIndex:17,endColumnIndex:18},rows:[{values:[{userEnteredValue:{stringValue:'Confirmada'}}]}],fields:'userEnteredValue'}};
+const plan = {records:[record],existingSellers:[current],existingChannels:[{...current,rowNumber:12,fonte:'OMNIBEES'}],requests:[request]};
+const dir = fs.mkdtempSync(path.join(os.tmpdir(),'sueds-status-guard-'));
+function validate(input) {
+  const file = path.join(dir,'plan.json');
+  fs.writeFileSync(file,JSON.stringify(input));
+  return spawnSync(process.execPath,[path.join(__dirname,'validate_sales_write.cjs'),file],{encoding:'utf8'});
+}
+assert.equal(validate(plan).status,0,'Restore existing row without rerouting history');
+assert.throws(()=>routing.assertSalesWrite({...current,status:'Alterada'},routing.SELLERS_SHEET),/Status nao permitido/);
+assert.throws(()=>routing.assertStatusUpdate({...record,sourceSystem:'OMNIBEES'},[current],[]),/Omnibees nao pode/);
+assert.throws(()=>routing.assertStatusUpdate(record,[{...current,status:'Cancelada'}],[]),/Status anterior/);
+assert.throws(()=>routing.assertStatusUpdate({...record,vendedor:'Outro'},[current],[]),/vendedor/);
+assert.notEqual(validate({...plan,records:[]}).status,0,'Unvalidated status requests must fail');
+assert.notEqual(validate({...plan,requests:[]}).status,0,'Missing requests must fail');
+assert.notEqual(validate({...plan,existingSellers:undefined}).status,0,'Old insert-only plans must fail');
+const outside = structuredClone(plan); outside.requests[0].updateCells.fields='*';
+assert.notEqual(validate(outside).status,0,'Formatting and unrelated fields must not change');
+const duplicate = structuredClone(plan);
+duplicate.records.push({...record,rowNumber:411}); duplicate.existingSellers.push({...current,rowNumber:411});
+const second = structuredClone(request); second.updateCells.range.startRowIndex=410; second.updateCells.range.endRowIndex=411; duplicate.requests.push(second);
+assert.equal(validate(duplicate).status,0,'Historical duplicate keys may restore distinct cells');
+fs.rmSync(path.join(dir,'plan.json')); fs.rmdirSync(dir);
+console.log('PASS: invalid statuses, Omnibees seller writes, stale reads, unvalidated requests and historical duplicate restoration.');

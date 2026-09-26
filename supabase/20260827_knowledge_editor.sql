@@ -1,0 +1,13 @@
+-- Editor colaborativo do Centro de Conhecimentos (idempotente).
+-- Aplicar no mesmo projeto Supabase do Portal SUEDS.
+create table if not exists public.ecosystem_organizations (id uuid primary key default gen_random_uuid(), slug text not null unique, name text not null, active boolean not null default true, metadata jsonb not null default '{}'::jsonb, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table if not exists public.knowledge_documents (id uuid primary key default gen_random_uuid(), organization_id uuid not null references public.ecosystem_organizations(id), slug text not null, title text not null, module text not null default 'geral', document_type text not null default 'treinamento', scope_type text not null default 'global', visibility text not null default 'internal', status text not null default 'draft', owner_key text not null, review_at date, published_version integer, metadata jsonb not null default '{}'::jsonb, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), unique (organization_id, slug));
+create table if not exists public.knowledge_document_versions (id uuid primary key default gen_random_uuid(), document_id uuid not null references public.knowledge_documents(id) on delete cascade, version integer not null, title text not null, summary text, content_markdown text not null, change_note text, author_email text not null, reviewed_by text, reviewed_at timestamptz, published_at timestamptz, created_at timestamptz not null default now(), unique (document_id, version));
+create table if not exists public.knowledge_audit_log (id bigint generated always as identity primary key, organization_id uuid not null references public.ecosystem_organizations(id), document_id uuid references public.knowledge_documents(id) on delete set null, actor_email text not null, action text not null, before_state jsonb, after_state jsonb, created_at timestamptz not null default now());
+alter table public.user_environment_access add column if not exists knowledge_role text not null default 'viewer';
+alter table public.user_environment_access drop constraint if exists user_environment_access_knowledge_role_check;
+alter table public.user_environment_access add constraint user_environment_access_knowledge_role_check check (knowledge_role in ('viewer','editorial','reviewer','admin'));
+alter table public.ecosystem_organizations enable row level security;
+alter table public.knowledge_documents enable row level security;
+alter table public.knowledge_document_versions enable row level security;
+alter table public.knowledge_audit_log enable row level security;

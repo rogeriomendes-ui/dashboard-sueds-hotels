@@ -88,7 +88,7 @@ function formatScore(value) {
 function scoreColor(value) {
   if (value === null || value === undefined) return "#9aa7b4";
   if (value >= 90) return "#168a4a";
-  if (value >= 75) return "#7bcf5f";
+  if (value >= 80) return "#7bcf5f";
   if (value >= 60) return "#f2c94c";
   return "#ff6969";
 }

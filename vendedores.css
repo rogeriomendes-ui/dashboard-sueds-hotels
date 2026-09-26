@@ -154,6 +154,13 @@ h2 {
   font-weight: 900;
 }
 
+.metric-card .sales-share {
+  color: var(--ink);
+  font-weight: 900;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .panel {
   padding: 18px;
 }

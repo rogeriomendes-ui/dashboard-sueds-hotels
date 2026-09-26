@@ -15,6 +15,11 @@ const number = new Intl.NumberFormat("pt-BR");
 const pctNumber = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0
 });
+const salesShare = new Intl.NumberFormat("pt-BR", {
+  style: "percent",
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1
+});
 
 const MONTHS = [
   "2026-05",
@@ -107,6 +112,9 @@ function renderSummary(summary = {}) {
   byId("salesMonth").textContent = money.format(summary.salesMonth || 0);
   byId("receivedMonth").textContent = money.format(summary.receivedMonth || 0);
   byId("remainingMonth").textContent = money.format(summary.remainingMonth || 0);
+  const salesMonth = summary.salesMonth || 0;
+  byId("receivedMonthPct").textContent = `${salesShare.format(salesMonth > 0 ? (summary.receivedMonth || 0) / salesMonth : 0)} do total de vendas`;
+  byId("remainingMonthPct").textContent = `${salesShare.format(salesMonth > 0 ? (summary.remainingMonth || 0) / salesMonth : 0)} do total de vendas`;
   byId("reservationsToday").textContent = `${number.format(summary.reservationsToday || 0)} reservas hoje`;
   byId("monthHint").textContent = `${number.format(summary.reservationsMonth || 0)} reservas no mês`;
   byId("dailyGoal").textContent = `Meta do dia ${money.format(summary.dailyGoal || 0)}`;

@@ -11,7 +11,16 @@ const SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const BASE_RANGE = process.env.GOOGLE_BASE_RANGE || "Base_Dashboard!A:Y";
 const SALES_RANGE = process.env.GOOGLE_SALES_RANGE || process.env.GOOGLE_LANCAMENTOS_RANGE || "Lancamento_Vendas!A:Y";
 const OTHER_CHANNELS_RANGE = process.env.GOOGLE_OTHER_CHANNELS_RANGE || "'teste lancamento_vendas'!A:T";
+const HISTORICAL_CHANNELS_RANGE = process.env.GOOGLE_HISTORICAL_CHANNELS_RANGE || "'Historico_Canais_AA'!A:Y";
+const BI_SALES_RANGE = process.env.GOOGLE_BI_SALES_RANGE || "Lancamento_Vendas!A:S";
+const BI_OTHER_CHANNELS_RANGE = process.env.GOOGLE_BI_OTHER_CHANNELS_RANGE || "'teste lancamento_vendas'!A:S";
+const BI_HISTORICAL_CHANNELS_RANGE = process.env.GOOGLE_BI_HISTORICAL_CHANNELS_RANGE || "'Historico_Canais_AA'!A:S";
+const BI_KPI_2025_RANGE = process.env.GOOGLE_BI_KPI_2025_RANGE || "'base kpi 2025'!A:X";
+const BI_KPI_2026_RANGE = process.env.GOOGLE_BI_KPI_2026_RANGE || "'base kpi 2026'!A:X";
+const BI_KPI_CACHE_TTL_MS = Number(process.env.BI_KPI_CACHE_TTL_SECONDS || 300) * 1000;
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
+const JUNIPER_RANGE = process.env.GOOGLE_JUNIPER_RANGE || "Metas!O29:P33";
+const CVC_RANGE = process.env.GOOGLE_CVC_RANGE || "Metas!R29:S33";
 const CARTS_RANGE = process.env.GOOGLE_CARTS_RANGE || "'Recuperação de carrinhos'!A:U";
 const ASKSUITE_RANGE = process.env.GOOGLE_ASKSUITE_RANGE || "Asksuite_Atendimentos!A:H";
 const ASKSUITE_MARKET_RANGE = process.env.GOOGLE_ASKSUITE_MARKET_RANGE || "Asksuite_Detalhado!A:L";
@@ -32,6 +41,12 @@ const OPINION_UPLOAD_FOLDERS = {
 };
 const CACHE_TTL_MS = Number(process.env.CACHE_TTL_SECONDS || 60) * 1000;
 const TIME_ZONE = "America/Sao_Paulo";
+const DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+});
 const DEFAULT_SUPABASE_URL = "https://pjcmjytiovuukbkewxjj.supabase.co";
 const SUPABASE_URL = DEFAULT_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
@@ -131,6 +146,10 @@ const MIME_TYPES = {
 
 const tokenCache = new Map();
 let dataCache = { expiresAt: 0, payload: null };
+let biReportsDataCache = { expiresAt: 0, payload: null };
+let biKpiReportsDataCache = { expiresAt: 0, payload: null };
+let biKpiReportsLoadingPromise = null;
+const biKpiReportsPayloadCache = new Map();
 let analyticsCache = { expiresAt: 0, payload: null };
 let operationalCache = { expiresAt: 0, payload: null };
 let googleAdsCache = { expiresAt: 0, key: "", payload: null };
@@ -375,6 +394,9 @@ function sellerAccessProfile(req, url) {
   if (req.portalProfile?.roles?.includes("admin_geral")) {
     return { role: "manager", username: "gestor", displayName: req.portalProfile.name || "Gestor" };
   }
+  if (url.searchParams.get("action") === "export-tickets" && req.portalProfile?.environments?.includes("mesas_vip_reveillon")) {
+    return { role: "vip_export", username: normalizeAccessUsername(req.portalProfile.email), displayName: req.portalProfile.name || "Mesas VIP" };
+  }
   if (req.portalProfile?.environments?.includes("ranking_vendedores")) {
     return portalSellerAccessProfile(req.portalProfile);
   }
@@ -480,6 +502,27 @@ async function getSheetValues(range, sheetId = SHEET_ID) {
 
   const payload = await response.json();
   return payload.values || [];
+}
+
+async function getSheetValueRanges(ranges, sheetId = SHEET_ID) {
+  const token = await getAccessToken("https://www.googleapis.com/auth/spreadsheets.readonly");
+  const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchGet`);
+  ranges.forEach((range) => url.searchParams.append("ranges", range));
+  url.searchParams.set("majorDimension", "ROWS");
+  url.searchParams.set("valueRenderOption", "UNFORMATTED_VALUE");
+  url.searchParams.set("dateTimeRenderOption", "FORMATTED_STRING");
+
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${token}` }
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Google Sheets batch request failed: ${response.status} ${text}`);
+  }
+
+  const payload = await response.json();
+  return (payload.valueRanges || []).map((item) => item.values || []);
 }
 
 function sheetRange(range) {
@@ -1777,7 +1820,13 @@ function rowsToObjectsAny(rows) {
 function parseNumber(value) {
   if (typeof value === "number") return value;
   if (!value) return 0;
-  const normalized = String(value).replace(/[R$\s.]/g, "").replace(",", ".");
+  const text = String(value).replace(/[R$\s]/g, "").trim();
+  // Omnibees/Sheets may return either Brazilian decimals (1.234,56)
+  // or plain decimal strings (1234.56). Do not strip the dot in the
+  // latter case, otherwise values are inflated by 100x (e.g. 1202.04).
+  const normalized = text.includes(",")
+    ? text.replace(/\./g, "").replace(",", ".")
+    : text;
   const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
 }
@@ -1854,12 +1903,7 @@ function normalizeHotelName(value) {
 }
 
 function dateKey(date) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
+  return DATE_KEY_FORMATTER.format(date);
 }
 
 function monthKey(date) {
@@ -1877,8 +1921,14 @@ function normalizeRecord(item) {
   const remaining = parseNumber(item["A Receber"]);
   const paymentMethod = String(item["Forma Pagto"] || item["Forma Pagamento"] || "").trim();
   const installments = String(item["Parcelas"] || "").trim();
-  const status = String(item["Status"] || "").trim() || "Confirmada";
+  // A record without an explicit status must not be counted as confirmed.
+  // The other-channels panel is intentionally restricted to confirmed rows.
+  const status = String(item["Status"] || "").trim();
   const notes = String(item["Observacoes"] || item["Observações"] || item["Observacao"] || item["Observação"] || "").trim();
+  const phone = String(item["Telefone"] || "").trim();
+  const email = String(item["Email"] || item["E-mail"] || "").trim();
+  const table = String(item["MESA"] || item["Mesa"] || "").trim();
+  const mobilityDifficulty = String(item["DIFICULDADE MOBILIDADE?"] || item["Dificuldade mobilidade?"] || item["Dificuldade de mobilidade"] || "").trim();
   const checkin = String(item["Checkin"] || item["Check-in"] || "").trim();
   const checkout = String(item["Checkout"] || item["Check-out"] || "").trim();
   const days = String(item["Diar"] || item["Diarias"] || item["Diárias"] || "").trim();
@@ -1911,6 +1961,10 @@ function normalizeRecord(item) {
     paymentMethod,
     installments,
     notes,
+    phone,
+    email,
+    table,
+    mobilityDifficulty,
     total,
     received,
     remaining,
@@ -1940,6 +1994,7 @@ function normalizeSellerName(value) {
   if (key.includes("AMANDA MELGACO")) return "Amanda Melgaco";
   if (key.includes("JULIA RECHE")) return "Julia Reche";
   if (key.includes("EMANOEL CESAR")) return "Emanoel Cesar";
+  if (key === "ALICE (ASSISTENTE VIRTUAL)" || key === "ALICE (ROBO)") return "Robo";
   return map[key] || raw;
 }
 
@@ -2441,6 +2496,12 @@ function advancePurchaseChannelLabel(record, source = "direct", month = "") {
   return isBookingEngineChannel(label) ? "SITE SUEDS" : label;
 }
 
+function isCountedSaleStatus(record) {
+  const status = comparableKey(record.status);
+  if (status === "confirmada") return true;
+  return status === "alterada" && comparableKey(record.source) === "omnibees";
+}
+
 function advancePurchasePeriodRecords(records, period = {}) {
   const today = period.date || todayKey();
   const requestedMonth = period.month || today.slice(0, 7);
@@ -2448,7 +2509,7 @@ function advancePurchasePeriodRecords(records, period = {}) {
   const ytdStart = `${today.slice(0, 4)}-01-01`;
   const selectedDay = period.day || "";
   const selectedHotel = period.hotel || "";
-  const confirmed = records.filter((record) => comparableKey(record.status) === comparableKey("Confirmada"));
+  const confirmed = records.filter(isCountedSaleStatus);
   const periodRecords = confirmed.filter((record) => {
     const matchesPeriod = isYearToDate
       ? record.dateKey >= ytdStart && record.dateKey <= today
@@ -2539,7 +2600,11 @@ function salesDetailRow(record, channelLabelForRecord) {
     parcelas: record.installments,
     status: record.status,
     fonte: record.source,
-    observacoes: record.notes
+    observacoes: record.notes,
+    telefone: record.phone,
+    email: record.email,
+    mesa: record.table,
+    dificuldadeMobilidade: record.mobilityDifficulty
   };
 }
 
@@ -2667,6 +2732,7 @@ const TEAM_CARD_NAME = "Equipe Sueds";
 const TEAM_CARD_DISPLAY_NAME = "EQUIPE SUEDS";
 const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Tatiana Vieira", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
+const ROBOT_SALES_CUTOVER_MONTH = "2026-09";
 const OFFICIAL_SALES_CHANNELS = [
   "SITE",
   "CENTRAL DE RESERVAS",
@@ -2675,8 +2741,36 @@ const OFFICIAL_SALES_CHANNELS = [
   "GRUPOS",
   "RECEPÇÃO"
 ];
+const ADDITIONAL_SALES_CHANNEL_FILTERS = [
+  "Azul Viagens",
+  "Booking",
+  "Orinter Tour e Travel",
+  "SITE SUEDS",
+  "Cativa Operadora",
+  "WebBeds - DU",
+  "BestBuy Travel",
+  "Incomum Viagens"
+];
 const HOTEL_OTHER_CHANNELS_GOAL_TYPE = "Hotel - Operadoras + OTAs";
 const HOTEL_TOTAL_GOAL_TYPE = "Hotel - Total Geral";
+const HOTEL_DIRECT_GOAL_TYPE = "Venda Direta";
+
+function directHotelGoal(goals, label, period) {
+  const hotelKey = comparableKey(label);
+  const candidates = goals.filter((goal) => (
+    goal.month === period
+    && comparableKey(goal.hotel) === hotelKey
+  ));
+
+  return candidates.find((goal) => comparableKey(goal.type) === comparableKey(HOTEL_DIRECT_GOAL_TYPE))
+    || candidates.find((goal) => !comparableKey(goal.type))
+    || null;
+}
+
+function ytdDirectHotelGoal(goals, label, months) {
+  const revenueGoal = sum(months, (period) => directHotelGoal(goals, label, period)?.revenueGoal || 0);
+  return revenueGoal ? { revenueGoal } : null;
+}
 
 function isTeamCardName(value) {
   return comparableKey(value) === comparableKey(TEAM_CARD_NAME);
@@ -2695,7 +2789,7 @@ function displaySellerName(value) {
 
 function isBookingEngineChannel(value) {
   const key = comparableKey(value);
-  return key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile");
+  return key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile") || key.includes("be mobille");
 }
 
 function normalizeOfficialSalesChannel(value, record = {}, month = "") {
@@ -2705,6 +2799,7 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
     : (value || record.channel || record.rawChannel);
   const key = comparableKey(sourceValue);
   if (!key || key === "selecione") return "";
+  if (key === "robo" || comparableKey(record.seller) === comparableKey("Robo")) return "Robo";
 
   if (useHistoricalChannel) {
     if (isBookingEngineChannel(sourceValue) || key === "site") return "SITE";
@@ -2772,7 +2867,9 @@ function buildCartRecoveryMetrics(carts, period = {}) {
 function buildAsksuiteMetrics(asksuite, period = {}) {
   const today = period.date || todayKey();
   const month = period.month || today.slice(0, 7);
-  const monthRows = asksuite.filter((row) => row.monthKey === month);
+  const monthRows = asksuite.filter((row) => (
+    row.monthKey === month && row.monthKey < ROBOT_SALES_CUTOVER_MONTH
+  ));
 
   function rowsForSellerPeriod(seller) {
     const rows = monthRows.filter((row) => comparableKey(row.seller) === comparableKey(seller));
@@ -2833,6 +2930,14 @@ function buildAsksuiteMetrics(asksuite, period = {}) {
   ];
 }
 
+function isEventTicket(record) {
+  return /^(ingresso natal|pista reveillon|vip reveillon|mesa fechada(?: vip)? reveillon)$/.test(comparableKey(record.hotel));
+}
+
+function ticketQuantity(record) {
+  return parseNumber(record.adults) + parseNumber(record.children);
+}
+
 function buildMetrics(records, goals, period = {}) {
   const today = period.date || todayKey();
   const requestedMonth = period.month || today.slice(0, 7);
@@ -2845,8 +2950,17 @@ function buildMetrics(records, goals, period = {}) {
   const goalDate = selectedDay || today;
   const selectedHotel = period.hotel || "";
   const selectedChannel = period.channel || "";
+  const selectedDirectChannel = comparableKey(selectedChannel) === comparableKey("SITE SUEDS")
+    ? "SITE"
+    : selectedChannel;
   const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record, record.monthKey || activeMonth);
-  const confirmed = records.filter((record) => record.status.toLowerCase() === "confirmada");
+  const ticketRecords = records.filter((record) => isEventTicket(record)
+    && comparableKey(record.status) === "confirmada"
+    && (isYearToDate ? record.dateKey >= ytdStart && record.dateKey <= today : record.monthKey === month)
+    && (!selectedDay || record.dateKey === selectedDay)
+    && (!selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel))
+    && (!selectedDirectChannel || comparableKey(channelLabelForRecord(record)) === comparableKey(selectedDirectChannel)));
+  const confirmed = records.filter((record) => !isEventTicket(record) && isCountedSaleStatus(record));
   const rawMonthRecords = confirmed.filter((record) => {
     if (isYearToDate) return record.dateKey >= ytdStart && record.dateKey <= today;
     return record.monthKey === month;
@@ -2858,7 +2972,7 @@ function buildMetrics(records, goals, period = {}) {
   const filteredRecords = monthRecords.filter((record) => {
     const matchesDay = !selectedDay || record.dateKey === selectedDay;
     const matchesHotel = !selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel);
-    const matchesChannel = !selectedChannel || comparableKey(channelLabelForRecord(record)) === comparableKey(selectedChannel);
+    const matchesChannel = !selectedDirectChannel || comparableKey(channelLabelForRecord(record)) === comparableKey(selectedDirectChannel);
     return matchesDay && matchesHotel && matchesChannel;
   });
   const summaryRecords = comparableKey(selectedChannel) === comparableKey("SITE")
@@ -2875,6 +2989,7 @@ function buildMetrics(records, goals, period = {}) {
   const workdaysRemaining = isYearToDate ? 1 : businessDaysRemaining(month, goalDate);
 
   const sellerNames = new Set([
+    ...ticketRecords.map((record) => record.seller).filter(Boolean),
     ...filteredRecords.map((record) => record.seller).filter(Boolean),
     ...goals.filter((goal) => ytdMonths.includes(goal.month) || goal.date === goalDate).map((goal) => goal.seller).filter(Boolean)
   ]);
@@ -2882,7 +2997,14 @@ function buildMetrics(records, goals, period = {}) {
   const recordsBySeller = groupBy(filteredRecords, (record) => record.seller);
   let sellers = [...sellerNames]
     .map((seller) => {
-      const sellerRecords = recordsBySeller.get(seller) || [];
+      const allSellerRecords = recordsBySeller.get(seller) || [];
+      const sellerRecords = comparableKey(seller) === comparableKey("Robo")
+        ? allSellerRecords.filter((record) => (
+          isYearToDate
+            ? record.monthKey >= ROBOT_SALES_CUTOVER_MONTH
+            : month >= ROBOT_SALES_CUTOVER_MONTH
+        ))
+        : allSellerRecords;
       const dayRecords = selectedDay ? sellerRecords : sellerRecords.filter((record) => record.dateKey === today);
       const mtdRecords = sellerRecords.filter((record) => isOnOrBeforeDateKey(record, goalDate));
       const beforeGoalDateRecords = sellerRecords.filter((record) => record.dateKey && goalDate && record.dateKey < goalDate);
@@ -2902,6 +3024,8 @@ function buildMetrics(records, goals, period = {}) {
 
       return {
         name: seller,
+        ticketQuantity: sum(ticketRecords.filter((record) => record.seller === seller), ticketQuantity),
+        ticketSales: sum(ticketRecords.filter((record) => record.seller === seller), (record) => record.total),
         salesToday: dayRevenue,
         salesMtd: mtdRevenue,
         salesMonth: monthRevenue,
@@ -2939,6 +3063,8 @@ function buildMetrics(records, goals, period = {}) {
     teamCard.reservationsToday = teamReservationsToday;
     teamCard.reservationsMtd = teamReservationsMtd;
     teamCard.reservationsMonth = teamReservationsMonth;
+    teamCard.ticketQuantity = sum(teamSellers, (seller) => seller.ticketQuantity);
+    teamCard.ticketSales = sum(teamSellers, (seller) => seller.ticketSales);
     teamCard.dailyGoal = teamDailyGoal;
     teamCard.mtdGoal = teamMtdGoal;
     teamCard.monthlyGoal = teamMonthlyGoal;
@@ -2955,6 +3081,7 @@ function buildMetrics(records, goals, period = {}) {
 
   const channelLabels = new Set([
     ...OFFICIAL_SALES_CHANNELS,
+    "Robo",
     ...goals
       .filter((goal) => ytdMonths.includes(goal.month) && goal.channel)
       .map((goal) => normalizeOfficialSalesChannel(goal.channel, {}, goal.month || activeMonth))
@@ -2979,8 +3106,8 @@ function buildMetrics(records, goals, period = {}) {
       };
     })
     .sort((a, b) => OFFICIAL_SALES_CHANNELS.indexOf(a.label) - OFFICIAL_SALES_CHANNELS.indexOf(b.label));
-  const selectedChannelMetrics = selectedChannel
-    ? channels.find((channel) => comparableKey(channel.label) === comparableKey(selectedChannel))
+  const selectedChannelMetrics = selectedDirectChannel
+    ? channels.find((channel) => comparableKey(channel.label) === comparableKey(selectedDirectChannel))
     : null;
   const siteChannelMetrics = channels.find((channel) => comparableKey(channel.label) === comparableKey("SITE"));
   const managerMonthlyGoal = selectedChannel
@@ -2999,12 +3126,8 @@ function buildMetrics(records, goals, period = {}) {
     .map((label) => {
       const rows = recordsByHotel.get(label) || [];
       const goal = isYearToDate
-        ? ytdGoal(goals, (item) => (
-          comparableKey(item.hotel) === comparableKey(label)
-          && comparableKey(item.type) !== comparableKey(HOTEL_OTHER_CHANNELS_GOAL_TYPE)
-          && comparableKey(item.type) !== comparableKey(HOTEL_TOTAL_GOAL_TYPE)
-        ), ytdMonths)
-        : dimensionGoal(goals, "hotel", label, month);
+        ? ytdDirectHotelGoal(goals, label, ytdMonths)
+        : directHotelGoal(goals, label, month);
       const otherChannelsGoal = isYearToDate
         ? ytdGoal(goals, (item) => (
           comparableKey(item.hotel) === comparableKey(label)
@@ -3062,7 +3185,7 @@ function buildMetrics(records, goals, period = {}) {
       selectedChannel,
       days: sortLabels(new Set(monthRecords.map((record) => record.dateKey))),
       hotels: sortLabels(new Set(monthRecords.map((record) => record.hotel))),
-      channels: [...OFFICIAL_SALES_CHANNELS, "Robo"]
+      channels: [...OFFICIAL_SALES_CHANNELS, ...ADDITIONAL_SALES_CHANNEL_FILTERS, "Robo"]
     },
     summary: {
       salesToday: sum(selectedSummaryDayRecords, (record) => record.total),
@@ -3096,39 +3219,67 @@ function buildMetrics(records, goals, period = {}) {
       withoutGroups: buildAdvancePurchase(advancePurchaseWithoutGroups)
     },
     dailySales,
+    detailedTickets: ticketRecords.map((record) => ({ ...salesDetailRow(record, channelLabelForRecord), quantidade: ticketQuantity(record) })),
     detailedSales
   };
 }
 
-function buildOtherChannelsMetrics(records, period = {}) {
+function buildOtherChannelsMetrics(records, period = {}, juniperRows = [], cvcRows = []) {
   const today = period.date || todayKey();
   const requestedMonth = period.month || today.slice(0, 7);
   const isYearToDate = requestedMonth === "ytd";
   const ytdStart = `${today.slice(0, 4)}-01-01`;
   const selectedDay = period.day || "";
   const selectedHotel = period.hotel || "";
+  const selectedChannel = period.channel || "";
+
+  const channelLabel = (record) => {
+    const label = record.rawChannel || record.channel || "Não informado";
+    const key = comparableKey(label);
+    if (comparableKey(record.source) === "juniper" && key === comparableKey("Azul Viagens")) {
+      return "Azul Viagens (Via Juniper)";
+    }
+    return key.includes("booking engine") || key.includes("be mobile")
+      ? "SITE SUEDS"
+      : label;
+  };
 
   const filteredRecords = records.filter((record) => {
-    if (record.status.toLowerCase() !== "confirmada") return false;
+    if (!isCountedSaleStatus(record)) return false;
     const matchesPeriod = isYearToDate
       ? record.dateKey >= ytdStart && record.dateKey <= today
       : record.monthKey === requestedMonth;
     const matchesDay = !selectedDay || record.dateKey === selectedDay;
     const matchesHotel = !selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel);
-    return matchesPeriod && matchesDay && matchesHotel;
+    const matchesChannel = !selectedChannel || comparableKey(channelLabel(record)) === comparableKey(selectedChannel);
+    return matchesPeriod && matchesDay && matchesHotel && matchesChannel;
   });
-  const channelLabel = (record) => {
-    const label = record.rawChannel || record.channel || "Não informado";
-    const key = comparableKey(label);
-    return key.includes("booking engine") || key.includes("be mobile")
-      ? "SITE SUEDS"
-      : label;
-  };
   const isExcludedFromDisplayedTotal = (label) => {
     const key = comparableKey(label);
     return key === comparableKey("SITE SUEDS") || key === comparableKey("CENTRAL DE RESERVAS");
   };
-  const grossTotalSales = sum(filteredRecords, (record) => record.total);
+  const hasDetailedJuniper = filteredRecords.some((record) => (
+    comparableKey(channelLabel(record)) === comparableKey("Azul Viagens (Via Juniper)")
+  ));
+  // August remains on the historical manual totals. Once detailed Juniper
+  // rows exist in the sales sheet, they replace the manual fallback so the
+  // same source is never counted twice.
+  const juniperByHotel = requestedMonth === "2026-08" && !hasDetailedJuniper
+    ? juniperRows
+      .map((row) => ({
+        hotel: normalizeHotelName(row?.[0] || ""),
+        value: parseNumber(row?.[1])
+      }))
+      .filter((row) => row.hotel && row.value)
+    : [];
+  const juniperTotalSales = sum(juniperByHotel, (row) => row.value);
+  const cvcByHotel = requestedMonth === "2026-08"
+    ? cvcRows
+      .map((row) => ({ hotel: normalizeHotelName(row?.[0] || ""), value: parseNumber(row?.[1]) }))
+      .filter((row) => row.hotel && row.value)
+    : [];
+  const cvcTotalSales = sum(cvcByHotel, (row) => row.value);
+  const grossTotalSales = sum(filteredRecords, (record) => record.total) + juniperTotalSales + cvcTotalSales;
   const excludedTotalSales = sum(
     filteredRecords.filter((record) => isExcludedFromDisplayedTotal(channelLabel(record))),
     (record) => record.total
@@ -3142,7 +3293,7 @@ function buildOtherChannelsMetrics(records, period = {}) {
   ];
   const uniqueHotelLabels = [...new Map(hotelLabels.map((label) => [comparableKey(label), label])).values()];
   const recordsByChannel = groupBy(filteredRecords, channelLabel);
-  const channels = [...recordsByChannel.entries()]
+  let channels = [...recordsByChannel.entries()]
     .map(([label, rows]) => {
       const value = sum(rows, (record) => record.total);
       return {
@@ -3161,25 +3312,114 @@ function buildOtherChannelsMetrics(records, period = {}) {
         })
       };
     })
-    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+
+  if (cvcByHotel.length) {
+    const cvc = channels.find((channel) => comparableKey(channel.label).includes("cvc"));
+    const cvcChannel = cvc || {
+      label: "CVC Viagens",
+      excludedFromTotal: false,
+      reservations: null,
+      value: 0,
+      sharePct: 0,
+      hotels: uniqueHotelLabels.map((hotel) => ({ label: hotel, reservations: null, value: 0 }))
+    };
+    cvcChannel.hotels = uniqueHotelLabels.map((hotel) => ({
+      label: hotel,
+      reservations: null,
+      value: (cvc?.hotels?.find((item) => comparableKey(item.label) === comparableKey(hotel))?.value || 0)
+        + cvcByHotel.filter((row) => comparableKey(row.hotel) === comparableKey(hotel)).reduce((total, row) => total + row.value, 0)
+    }));
+    cvcChannel.value = sum(cvcChannel.hotels, (hotel) => hotel.value);
+    cvcChannel.reservations = null;
+    cvcChannel.sharePct = grossTotalSales ? (cvcChannel.value / grossTotalSales) * 100 : 0;
+    if (!cvc) channels.push(cvcChannel);
+  }
+
+  channels.sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+
+  const detailedJuniper = channels.find((channel) => (
+    comparableKey(channel.label) === comparableKey("Azul Viagens (Via Juniper)")
+  ));
+  if (detailedJuniper || juniperByHotel.length) {
+    const azul = channels.find((channel) => comparableKey(channel.label) === comparableKey("Azul Viagens"));
+    const azulHotels = azul?.hotels || uniqueHotelLabels.map((hotel) => ({ label: hotel, reservations: 0, value: 0 }));
+    const juniperChannel = detailedJuniper || {
+      label: "Azul Viagens (Via Juniper)",
+      excludedFromTotal: false,
+      reservations: null,
+      value: juniperTotalSales,
+      sharePct: 0,
+      hotels: uniqueHotelLabels.map((hotel) => ({
+        label: hotel,
+        reservations: null,
+        value: juniperByHotel
+          .filter((row) => comparableKey(row.hotel) === comparableKey(hotel))
+          .reduce((total, row) => total + row.value, 0)
+      }))
+    };
+    if (detailedJuniper) channels.splice(channels.indexOf(detailedJuniper), 1);
+    const azulTotal = {
+      label: "Azul Viagens Total",
+      excludedFromTotal: true,
+      summaryOnly: true,
+      reservations: null,
+      value: (azul?.value || 0) + juniperChannel.value,
+      sharePct: 0,
+      hotels: uniqueHotelLabels.map((hotel) => ({
+        label: hotel,
+        reservations: null,
+        value: (azulHotels.find((item) => comparableKey(item.label) === comparableKey(hotel))?.value || 0)
+          + juniperChannel.hotels.find((item) => comparableKey(item.label) === comparableKey(hotel)).value
+      }))
+    };
+    const combinedAzulShare = grossTotalSales ? (azulTotal.value / grossTotalSales) * 100 : 0;
+    // Show the combined participation only once, on the total row, as a
+    // visually merged cell for the three Azul rows.
+    if (azul) azul.sharePct = null;
+    juniperChannel.sharePct = null;
+    azulTotal.sharePct = combinedAzulShare;
+    // Rank the grouped Azul rows by their combined sales, not only Omnibees.
+    // The summary remains display-only and never contributes to totals.
+    if (azul) channels.splice(channels.indexOf(azul), 1);
+    const groupIndex = channels.findIndex((channel) =>
+      channel.value < azulTotal.value || (channel.value === azulTotal.value
+        && channel.label.localeCompare("Azul Viagens", "pt-BR") > 0));
+    channels.splice(groupIndex < 0 ? channels.length : groupIndex, 0,
+      ...(azul ? [azul] : []), juniperChannel, azulTotal);
+  }
 
   return {
     totalSales,
     reservations: filteredRecords.length,
     ticketAverage: filteredRecords.length ? grossTotalSales / filteredRecords.length : 0,
     channelCount: channels.length,
+    days: sortLabels(new Set(filteredRecords.map((record) => record.dateKey).filter(Boolean))),
     hotels: uniqueHotelLabels,
     channels
   };
 }
 
 function buildManagerPayload(metrics) {
+  const teamSeller = (metrics.sellers || []).find((seller) => isTeamCardName(seller.name));
+  const managerSummary = metrics.managerSummary || metrics.summary;
+  const filters = {
+    ...metrics.filters,
+    days: sortLabels(new Set([
+      ...(metrics.filters?.days || []),
+      ...(metrics.otherChannels?.days || [])
+    ]))
+  };
   return {
     audience: "gestores",
     generatedAt: metrics.generatedAt,
     period: metrics.period,
-    summary: metrics.managerSummary || metrics.summary,
-    filters: metrics.filters,
+    summary: {
+      ...managerSummary,
+      salesToday: teamSeller?.salesToday ?? metrics.summary.salesToday,
+      reservationsToday: teamSeller?.reservationsToday ?? metrics.summary.reservationsToday
+    },
+    filters,
     sellers: metrics.sellers,
     strategicChannels: metrics.sellers.filter((seller) => (
       STRATEGIC_CHANNEL_SELLERS.includes(seller.name) &&
@@ -3193,6 +3433,644 @@ function buildManagerPayload(metrics) {
     otherChannels: metrics.otherChannels,
     analytics: metrics.analytics || null
   };
+}
+
+function biReportsAccess(req, url, environment = "bi_relatorios") {
+  if (req.portalProfile?.roles?.includes("admin_geral") || req.portalProfile?.environments?.includes(environment)) return true;
+  return !GESTORES_ACCESS_TOKEN || hasManagerAccess(req, url);
+}
+
+function normalizeKpiChannel(value) {
+  const raw = String(value || "").trim();
+  const key = comparableKey(raw);
+  const mappings = [
+    [/azul viagens/, "Azul Viagens"],
+    [/^cvc\b/, "CVC"],
+    [/^orinter\b/, "Orinter Tour e Travel"],
+    [/^decolar/, "Decolar"],
+    [/^cativa turismo/, "Cativa Operadora"],
+    [/^frt operadora/, "FRT Operadora de Turismo"],
+    [/^incomum turismo/, "Incomum Viagens"],
+    [/^trend viagens/, "Trend Dynamics"],
+    [/^airbnb/, "Airbnb"],
+    [/^grupos reservas/, "GRUPOS"],
+    [/^walk in$/, "BALCÃO"]
+  ];
+  return mappings.find(([pattern]) => pattern.test(key))?.[1] || raw || "Não informado";
+}
+
+function kpiDateKey(value) {
+  if (!value) return "";
+  if (typeof value === "number") {
+    const parsed = new Date(Date.UTC(1899, 11, 30 + value));
+    return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+  }
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? "" : dateKey(value);
+  const text = String(value).trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  const parsed = parseDate(value);
+  return parsed ? dateKey(parsed) : "";
+}
+
+function kpiDateWithDelta(value, deltaYears) {
+  const sourceKey = kpiDateKey(value);
+  if (!sourceKey) return { date: null, key: "", display: "" };
+  const shiftedKey = shiftDateYear(sourceKey, deltaYears);
+  const [year, month, day] = shiftedKey.split("-");
+  return {
+    date: new Date(`${shiftedKey}T12:00:00-03:00`),
+    key: shiftedKey,
+    display: `${day}/${month}/${year}`
+  };
+}
+
+function kpiDateWithReference(value, deltaYears, reference) {
+  const text = String(value || "").trim();
+  const withoutYear = text.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!withoutYear || !reference?.key) return kpiDateWithDelta(value, deltaYears);
+
+  let year = Number(reference.key.slice(0, 4));
+  const month = withoutYear[2].padStart(2, "0");
+  const day = withoutYear[1].padStart(2, "0");
+  let inferredKey = `${year}-${month}-${day}`;
+  if (inferredKey < reference.key) {
+    year += 1;
+    inferredKey = `${year}-${month}-${day}`;
+  }
+  return {
+    date: new Date(`${inferredKey}T12:00:00-03:00`),
+    key: inferredKey,
+    display: `${day}/${month}/${year}`
+  };
+}
+
+function kpiObjectsFromColumnRanges(columnRanges = []) {
+  const [identityRows = [], stayRows = [], roomRows = [], saleDateRows = [], totalRows = []] = columnRanges;
+  const rowCount = Math.max(identityRows.length, stayRows.length, roomRows.length, saleDateRows.length, totalRows.length);
+  const objects = [];
+
+  for (let index = 1; index < rowCount; index += 1) {
+    const identity = identityRows[index] || [];
+    const stay = stayRows[index] || [];
+    const room = roomRows[index] || [];
+    const saleDate = saleDateRows[index] || [];
+    const total = totalRows[index] || [];
+    const item = {
+      Hotel: identity[0] ?? "",
+      Origem: identity[2] ?? "",
+      Reserva: identity[3] ?? "",
+      IN: stay[0] ?? "",
+      OUT: stay[1] ?? "",
+      Apto: room[0] ?? "",
+      Status: room[2] ?? "",
+      RN: room[3] ?? "",
+      "D.Res": saleDate[0] ?? "",
+      Total: total[0] ?? ""
+    };
+    if (Object.values(item).some((value) => value !== "" && value !== null && value !== undefined)) objects.push(item);
+  }
+
+  return objects;
+}
+
+function normalizeKpiReportObjects(objects = [], targetYear) {
+  const yearCounts = new Map();
+  objects.forEach((item) => {
+    const saleDateKey = kpiDateKey(item["D.Res"]);
+    if (!saleDateKey) return;
+    const year = Number(saleDateKey.slice(0, 4));
+    yearCounts.set(year, (yearCounts.get(year) || 0) + 1);
+  });
+  const sourceYear = [...yearCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || targetYear;
+  const deltaYears = Number(targetYear) - sourceYear;
+  const groups = new Map();
+
+  objects.forEach((item) => {
+    const hotel = normalizeHotelName(item.Hotel);
+    const reservationCode = String(item.Reserva || item.Localizador || "").trim();
+    if (!hotel || !reservationCode) return;
+    const key = `${comparableKey(hotel)}|${comparableKey(reservationCode)}`;
+    const sale = kpiDateWithDelta(item["D.Res"], deltaYears);
+    const checkin = kpiDateWithReference(item.IN, deltaYears, sale);
+    const checkout = kpiDateWithReference(item.OUT, deltaYears, checkin);
+    const row = {
+      hotel,
+      reservationCode,
+      sale,
+      checkin,
+      checkout,
+      channel: normalizeKpiChannel(item.Origem),
+      status: String(item.Status || "").trim(),
+      apartment: String(item.Apto || "").trim(),
+      roomNights: Math.max(0, parseNumber(item.RN)),
+      total: parseNumber(item.Total)
+    };
+    const group = groups.get(key) || [];
+    group.push(row);
+    groups.set(key, group);
+  });
+
+  const countedStatuses = new Set([
+    "check out",
+    "early check out",
+    "confirmada",
+    "alterada",
+    "bloqueio",
+    "manutencao",
+    "no hotel",
+    "transferencia - out"
+  ]);
+  return [...groups.values()].map((group) => {
+    const representative = group.find((row) => row.sale.key) || group[0];
+    const sellable = group.filter((row) => countedStatuses.has(comparableKey(row.status)));
+    const validRows = sellable.length ? sellable : group;
+    const uniqueStayRowsByKey = new Map();
+    validRows.forEach((row) => {
+      const stayKey = [row.hotel, row.reservationCode, row.checkin.key, row.checkout.key, row.roomNights, row.apartment].join("|");
+      const existing = uniqueStayRowsByKey.get(stayKey);
+      if (!existing || row.total > existing.total) uniqueStayRowsByKey.set(stayKey, row);
+    });
+    const uniqueStayRows = [...uniqueStayRowsByKey.values()];
+    const saleDates = uniqueStayRows.map((row) => row.sale).filter((value) => value.key).sort((a, b) => a.key.localeCompare(b.key));
+    const checkins = uniqueStayRows.map((row) => row.checkin).filter((value) => value.key).sort((a, b) => a.key.localeCompare(b.key));
+    const checkouts = uniqueStayRows.map((row) => row.checkout).filter((value) => value.key).sort((a, b) => b.key.localeCompare(a.key));
+    const sale = saleDates[0] || representative.sale;
+    const checkin = checkins[0] || representative.checkin;
+    const checkout = checkouts[0] || representative.checkout;
+    const roomNights = uniqueStayRows.reduce((total, row) => total + row.roomNights, 0);
+    const occupiedApartments = new Set(uniqueStayRows
+      .filter((row) => row.apartment)
+      .map((row) => comparableKey(row.apartment)));
+    const valueByApartment = new Map();
+    uniqueStayRows
+      .filter((row) => row.apartment)
+      .forEach((row) => {
+        const apartmentKey = comparableKey(row.apartment);
+        valueByApartment.set(apartmentKey, Math.max(valueByApartment.get(apartmentKey) || 0, row.total));
+      });
+    const apartmentTotal = [...valueByApartment.values()].reduce((total, value) => total + value, 0);
+    return {
+      date: sale.date,
+      dateKey: sale.key,
+      monthKey: sale.key.slice(0, 7),
+      reservationCode: representative.reservationCode,
+      hotel: representative.hotel,
+      channel: representative.channel,
+      rawChannel: representative.channel,
+      seller: "",
+      checkin: checkin.display,
+      checkout: checkout.display,
+      days: String(roomNights || ""),
+      uh: "1",
+      status: sellable.length ? "Confirmada" : representative.status,
+      reservationCount: Math.max(1, occupiedApartments.size),
+      total: apartmentTotal || Math.max(0, ...validRows.map((row) => row.total)),
+      source: "KPI FULL"
+    };
+  }).filter((record) => record.dateKey && record.total > 0);
+}
+
+function normalizeKpiReportRows(rows = [], targetYear) {
+  return normalizeKpiReportObjects(rowsToObjectsAny(rows), targetYear);
+}
+
+function biReportsChannelLabel(record = {}) {
+  const raw = String(record.rawChannel || record.channel || "").trim();
+  const channelKey = comparableKey(raw);
+  if (channelKey === "robo" || comparableKey(record.seller) === comparableKey("Robo")) return "Robo";
+  if (channelKey === "site" || comparableKey(record.seller) === comparableKey("Site") || isBookingEngineChannel(raw)) return "SITE SUEDS";
+  if (channelKey.includes("central de reservas") || channelKey === "whatsapp") return "CENTRAL DE RESERVAS";
+  return raw || String(record.source || "Não informado").trim() || "Não informado";
+}
+
+function biReportsDateRange(query = {}) {
+  const fallback = { start: "2026-09-01", end: "2026-09-18" };
+  const start = /^2026-\d{2}-\d{2}$/.test(query.start || "") ? query.start : fallback.start;
+  const end = /^2026-\d{2}-\d{2}$/.test(query.end || "") ? query.end : fallback.end;
+  return start <= end ? { start, end } : fallback;
+}
+
+function biReportsDateKeys(start, end) {
+  const keys = [];
+  const current = new Date(`${start}T12:00:00Z`);
+  const finish = new Date(`${end}T12:00:00Z`);
+  while (current <= finish && keys.length < 366) {
+    keys.push(current.toISOString().slice(0, 10));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return keys;
+}
+
+const BI_REPORTS_HOTEL_INVENTORY = new Map([
+  [comparableKey("SUEDS PLAZA"), { label: "SUEDS PLAZA", apartments: 117 }],
+  [comparableKey("SUEDS CABRALIA"), { label: "SUEDS CABRALIA", apartments: 29 }],
+  [comparableKey("SUEDS SEGUNDO SOL"), { label: "SUEDS SEGUNDO SOL", apartments: 100 }],
+  [comparableKey("SUEDS PREMIUM"), { label: "SUEDS PREMIUM", apartments: 50 }],
+  [comparableKey("SUEDS TRANCOSO"), { label: "SUEDS TRANCOSO", apartments: 9 }],
+  [comparableKey("CASAS SUEDS ARRAIAL"), { label: "CASAS SUEDS ARRAIAL", apartments: 6 }]
+]);
+
+function biReportsInventory(hotel) {
+  return BI_REPORTS_HOTEL_INVENTORY.get(comparableKey(hotel)) || null;
+}
+
+function biReportsDaysInMonth(value) {
+  if (!/^\d{4}-\d{2}$/.test(value || "")) return 0;
+  const [year, month] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function biReportsRevparMetrics(sourceRows = [], monthKeys = [], hotels = [], checkinMonthForRecord = null) {
+  const hotelKeys = new Set(hotels.map((hotel) => comparableKey(hotel.label || hotel)));
+  const allowedMonths = new Set(monthKeys);
+  const roomRevenue = sum(sourceRows.filter((record) => {
+    const inventory = biReportsInventory(record.hotel);
+    if (!inventory || (hotelKeys.size && !hotelKeys.has(comparableKey(inventory.label)))) return false;
+    if (checkinMonthForRecord) return allowedMonths.has(checkinMonthForRecord(record));
+    const checkin = parseDate(record.checkin);
+    return checkin && allowedMonths.has(monthKey(checkin));
+  }), (record) => record.total);
+  const availableRoomNights = hotels.reduce((total, hotel) => {
+    const inventory = typeof hotel === "object" ? hotel : biReportsInventory(hotel);
+    if (!inventory) return total;
+    return total + monthKeys.reduce((days, key) => days + biReportsDaysInMonth(key), 0) * inventory.apartments;
+  }, 0);
+  return {
+    roomRevenue,
+    availableRoomNights,
+    revpar: availableRoomNights ? roomRevenue / availableRoomNights : 0
+  };
+}
+
+function biReportsStayNights(record = {}) {
+  const stated = parseNumber(record.days);
+  if (stated > 0 && stated <= 365) return stated;
+  const checkin = parseDate(record.checkin);
+  const checkout = parseDate(record.checkout);
+  if (!checkin || !checkout) return 0;
+  const nights = Math.round((checkout.getTime() - checkin.getTime()) / 86400000);
+  return nights > 0 && nights <= 365 ? nights : 0;
+}
+
+function biReportsRoomCount(record = {}) {
+  const raw = String(record.uh || "").trim();
+  if (!raw) return 1;
+  const numeric = parseNumber(raw);
+  if (numeric > 0 && numeric <= 50) return numeric;
+  const listed = raw.split(/[,;/|]+/).map((value) => value.trim()).filter(Boolean);
+  return listed.length > 1 ? listed.length : 1;
+}
+
+function biReportsRateMetrics(sourceRows = []) {
+  let qualifiedSales = 0;
+  let roomNights = 0;
+  sourceRows.forEach((record) => {
+    const nights = biReportsStayNights(record) * biReportsRoomCount(record);
+    if (!(nights > 0)) return;
+    roomNights += nights;
+    qualifiedSales += Number(record.total || 0);
+  });
+  return {
+    qualifiedSales,
+    roomNights,
+    averageDailyRate: roomNights ? qualifiedSales / roomNights : 0
+  };
+}
+
+function biReportsReservationCount(sourceRows = []) {
+  return sourceRows.reduce((total, record) => total + Math.max(1, parseNumber(record.reservationCount)), 0);
+}
+
+function buildBiReportsPayload(dataset = {}, query = {}) {
+  const period = biReportsDateRange(query);
+  const identity = (record, index, origin) => record.reservationCode
+    ? `${comparableKey(record.reservationCode)}|${comparableKey(record.hotel)}`
+    : `${origin}|${index}`;
+  const combined = [];
+  const seen = new Set();
+  [
+    [dataset.records || [], "vendas"],
+    [dataset.otherChannelRecords || [], "canais"]
+  ].forEach(([rows, origin]) => rows.forEach((record, index) => {
+    const key = identity(record, index, origin);
+    if (seen.has(key)) return;
+    seen.add(key);
+    combined.push(record);
+  }));
+
+  const counted2026 = combined.filter((record) => (
+    record.dateKey?.startsWith("2026-") && isCountedSaleStatus(record)
+  ));
+  const periodRows = counted2026.filter((record) => record.dateKey >= period.start && record.dateKey <= period.end);
+  const previousPeriod = {
+    start: shiftDateYear(period.start, -1),
+    end: shiftDateYear(period.end, -1)
+  };
+  const historicalRecords = [];
+  const historicalSeen = new Set();
+  (dataset.historicalRecords || []).forEach((record, index) => {
+    const key = identity(record, index, "historico-2025");
+    if (historicalSeen.has(key)) return;
+    historicalSeen.add(key);
+    historicalRecords.push(record);
+  });
+  const historicalPeriodRows = historicalRecords.filter((record) => (
+    record.dateKey >= previousPeriod.start
+    && record.dateKey <= previousPeriod.end
+    && isCountedSaleStatus(record)
+  ));
+  const hotel = String(query.hotel || "").trim();
+  const channels = [...new Set((Array.isArray(query.channels) ? query.channels : Array.isArray(query.channel) ? query.channel : [query.channel])
+    .map((value) => String(value || "").trim()).filter(Boolean))];
+  const channelKeys = new Set(channels.map(comparableKey));
+  const checkinMonth = /^20\d{2}-\d{2}$/.test(query.checkinMonth || "") ? query.checkinMonth : "";
+  const previousCheckinMonth = checkinMonth
+    ? `${Number(checkinMonth.slice(0, 4)) - 1}${checkinMonth.slice(4)}`
+    : "";
+  const checkinMonthCache = new WeakMap();
+  const recordCheckinMonth = (record) => {
+    if (checkinMonthCache.has(record)) return checkinMonthCache.get(record);
+    const parsed = parseDate(record.checkin);
+    const value = parsed ? monthKey(parsed) : "";
+    checkinMonthCache.set(record, value);
+    return value;
+  };
+  const filterRows = (sourceRows, selectedCheckinMonth) => sourceRows.filter((record) => {
+    return (!hotel || comparableKey(record.hotel) === comparableKey(hotel))
+      && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
+      && (!selectedCheckinMonth || recordCheckinMonth(record) === selectedCheckinMonth);
+  });
+  const rows = filterRows(periodRows, checkinMonth);
+  const historicalRows = filterRows(historicalPeriodRows, previousCheckinMonth);
+
+  const summarize = (sourceRows, keyGetter) => [...groupBy(sourceRows, keyGetter).entries()]
+    .map(([label, groupedRows]) => ({
+      label,
+      reservations: biReportsReservationCount(groupedRows),
+      value: sum(groupedRows, (record) => record.total),
+      ...biReportsRateMetrics(groupedRows)
+    }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+  const checkinLabel = (value) => {
+    if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
+    const [year, month] = value.split("-").map(Number);
+    const label = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric", timeZone: TIME_ZONE })
+      .format(new Date(Date.UTC(year, month - 1, 2)))
+      .replace(" de ", "/");
+    return label.charAt(0).toUpperCase() + label.slice(1).replace(".", "");
+  };
+  const shiftMonthKey = (value, years) => {
+    if (!/^\d{4}-\d{2}$/.test(value)) return "";
+    return `${Number(value.slice(0, 4)) + years}${value.slice(4)}`;
+  };
+  const dateKeys = biReportsDateKeys(period.start, period.end);
+  const previousDateKeys = biReportsDateKeys(previousPeriod.start, previousPeriod.end);
+  const aggregateDaily = (sourceRows) => {
+    const byDate = new Map();
+    const revenueByDateAndCheckin = new Map();
+    const revparRevenueByDateAndCheckin = new Map();
+    sourceRows.forEach((record) => {
+      const nights = biReportsStayNights(record) * biReportsRoomCount(record);
+      const day = byDate.get(record.dateKey) || { sales: 0, reservations: 0, qualifiedSales: 0, roomNights: 0 };
+      day.sales += Number(record.total || 0);
+      day.reservations += Math.max(1, parseNumber(record.reservationCount));
+      if (nights > 0) {
+        day.qualifiedSales += Number(record.total || 0);
+        day.roomNights += nights;
+      }
+      byDate.set(record.dateKey, day);
+      const stayMonth = recordCheckinMonth(record);
+      if (!stayMonth) return;
+      const byMonth = revenueByDateAndCheckin.get(record.dateKey) || new Map();
+      byMonth.set(stayMonth, (byMonth.get(stayMonth) || 0) + Number(record.total || 0));
+      revenueByDateAndCheckin.set(record.dateKey, byMonth);
+      if (biReportsInventory(record.hotel)) {
+        const revparByMonth = revparRevenueByDateAndCheckin.get(record.dateKey) || new Map();
+        revparByMonth.set(stayMonth, (revparByMonth.get(stayMonth) || 0) + Number(record.total || 0));
+        revparRevenueByDateAndCheckin.set(record.dateKey, revparByMonth);
+      }
+    });
+    return { byDate, revenueByDateAndCheckin, revparRevenueByDateAndCheckin };
+  };
+  const currentAggregates = aggregateDaily(rows);
+  const previousAggregates = aggregateDaily(historicalRows);
+  let cumulative = 0;
+  let cumulativeQualifiedSales = 0;
+  let cumulativeRoomNights = 0;
+  const daily = dateKeys.map((date) => {
+    const day = currentAggregates.byDate.get(date) || { sales: 0, reservations: 0, qualifiedSales: 0, roomNights: 0 };
+    const sales = day.sales;
+    cumulative += sales;
+    cumulativeQualifiedSales += day.qualifiedSales;
+    cumulativeRoomNights += day.roomNights;
+    return {
+      date,
+      sales,
+      cumulative,
+      reservations: day.reservations,
+      roomNights: day.roomNights,
+      averageDailyRate: cumulativeRoomNights ? cumulativeQualifiedSales / cumulativeRoomNights : 0
+    };
+  });
+  let previousCumulative = 0;
+  let previousCumulativeQualifiedSales = 0;
+  let previousCumulativeRoomNights = 0;
+  const previousDaily = previousDateKeys.map((sourceDate, index) => {
+    const day = previousAggregates.byDate.get(sourceDate) || { sales: 0, reservations: 0, qualifiedSales: 0, roomNights: 0 };
+    const sales = day.sales;
+    previousCumulative += sales;
+    previousCumulativeQualifiedSales += day.qualifiedSales;
+    previousCumulativeRoomNights += day.roomNights;
+    return {
+      date: dateKeys[index] || shiftDateYear(sourceDate, 1),
+      sourceDate,
+      sales,
+      cumulative: previousCumulative,
+      reservations: day.reservations,
+      roomNights: day.roomNights,
+      averageDailyRate: previousCumulativeRoomNights ? previousCumulativeQualifiedSales / previousCumulativeRoomNights : 0
+    };
+  });
+  const checkinMonths = summarize(rows, recordCheckinMonth)
+    .filter((item) => item.label)
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((item) => ({ ...item, key: item.label, label: checkinLabel(item.label) }));
+  const historicalCheckinMonths = summarize(historicalRows, recordCheckinMonth)
+    .filter((item) => item.label)
+    .map((item) => ({ ...item, key: shiftMonthKey(item.label, 1) }))
+    .filter((item) => item.key)
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((item) => ({ ...item, label: checkinLabel(item.key) }));
+  const alignedRevparMonthKeys = [...new Set([
+    ...rows.map(recordCheckinMonth).filter(Boolean),
+    ...historicalRows.map(recordCheckinMonth).filter(Boolean).map((key) => shiftMonthKey(key, 1))
+  ])].sort().slice(0, 12);
+  const previousRevparMonthKeys = alignedRevparMonthKeys.map((key) => shiftMonthKey(key, -1));
+  const selectedInventory = hotel
+    ? [biReportsInventory(hotel)].filter(Boolean)
+    : [...BI_REPORTS_HOTEL_INVENTORY.values()];
+  const currentRevparSummary = biReportsRevparMetrics(rows, alignedRevparMonthKeys, selectedInventory, recordCheckinMonth);
+  const previousRevparSummary = biReportsRevparMetrics(historicalRows, previousRevparMonthKeys, selectedInventory, recordCheckinMonth);
+  const buildRevparDaily = (aggregates, saleDates, stayMonthKeys, availability, mapDate) => {
+    const allowedStayMonths = new Set(stayMonthKeys);
+    let cumulativeRevenue = 0;
+    return saleDates.map((sourceDate, index) => {
+      const monthRevenue = aggregates.revparRevenueByDateAndCheckin.get(sourceDate);
+      const dayRevenue = monthRevenue
+        ? [...monthRevenue.entries()].reduce((total, [stayMonth, revenue]) => total + (allowedStayMonths.has(stayMonth) ? revenue : 0), 0)
+        : 0;
+      cumulativeRevenue += dayRevenue;
+      return {
+        date: mapDate(sourceDate, index),
+        sourceDate,
+        roomRevenue: cumulativeRevenue,
+        value: availability ? cumulativeRevenue / availability : 0
+      };
+    });
+  };
+  const currentRevparDaily = buildRevparDaily(currentAggregates, dateKeys, alignedRevparMonthKeys, currentRevparSummary.availableRoomNights, (date) => date);
+  const previousRevparDaily = buildRevparDaily(previousAggregates, previousDateKeys, previousRevparMonthKeys, previousRevparSummary.availableRoomNights, (date, index) => dateKeys[index] || shiftDateYear(date, 1));
+  const currentRevparByHotel = selectedInventory.map((inventory) => ({
+    label: inventory.label,
+    apartments: inventory.apartments,
+    ...biReportsRevparMetrics(rows, alignedRevparMonthKeys, [inventory], recordCheckinMonth)
+  }));
+  const previousRevparByHotel = selectedInventory.map((inventory) => ({
+    label: inventory.label,
+    apartments: inventory.apartments,
+    ...biReportsRevparMetrics(historicalRows, previousRevparMonthKeys, [inventory], recordCheckinMonth)
+  }));
+  const currentRevparByCheckinMonth = alignedRevparMonthKeys.map((key) => ({
+    key,
+    label: checkinLabel(key),
+    ...biReportsRevparMetrics(rows, [key], selectedInventory, recordCheckinMonth)
+  }));
+  const previousRevparByCheckinMonth = alignedRevparMonthKeys.map((key) => ({
+    key,
+    label: checkinLabel(key),
+    sourceKey: shiftMonthKey(key, -1),
+    ...biReportsRevparMetrics(historicalRows, [shiftMonthKey(key, -1)], selectedInventory, recordCheckinMonth)
+  }));
+  const currentCheckinByKey = new Map(checkinMonths.map((item) => [item.key, item]));
+  const historicalCheckinByKey = new Map(historicalCheckinMonths.map((item) => [item.key, item]));
+  const pickupKeys = [...new Set([...currentCheckinByKey.keys(), ...historicalCheckinByKey.keys()])].sort().slice(0, 8);
+  const pickup = pickupKeys.map((key) => {
+    const item = currentCheckinByKey.get(key) || { key, label: checkinLabel(key), value: 0, reservations: 0 };
+    const comparisonItem = historicalCheckinByKey.get(key) || { value: 0, reservations: 0 };
+    const historicalKey = shiftMonthKey(key, -1);
+    let monthCumulative = 0;
+    let historicalMonthCumulative = 0;
+    return {
+      key,
+      label: item.label,
+      value: item.value,
+      comparisonValue: comparisonItem.value,
+      comparisonReservations: comparisonItem.reservations,
+      daily: dateKeys.map((date) => {
+        monthCumulative += currentAggregates.revenueByDateAndCheckin.get(date)?.get(key) || 0;
+        return { date, cumulative: monthCumulative };
+      }),
+      comparisonDaily: previousDateKeys.map((sourceDate, index) => {
+        historicalMonthCumulative += previousAggregates.revenueByDateAndCheckin.get(sourceDate)?.get(historicalKey) || 0;
+        return { date: dateKeys[index] || shiftDateYear(sourceDate, 1), sourceDate, cumulative: historicalMonthCumulative };
+      })
+    };
+  });
+  const allCheckinOptions = [...new Set(periodRows.map(recordCheckinMonth).filter(Boolean))].sort();
+  const historicalSourceLabels = {
+    CVC: "CVC",
+    JUNIPER: "Juniper",
+    OMNIBEES: "Omnibees",
+    DESKHOTEL: "DeskHotel"
+  };
+  const historicalSources = [...new Set(historicalRecords.map((record) => String(record.source || "").trim().toUpperCase()).filter(Boolean))]
+    .sort((a, b) => (historicalSourceLabels[a] || a).localeCompare(historicalSourceLabels[b] || b, "pt-BR"))
+    .map((source) => historicalSourceLabels[source] || source);
+  const formattedHistoricalSources = historicalSources.length > 1
+    ? `${historicalSources.slice(0, -1).join(", ")} e ${historicalSources.at(-1)}`
+    : historicalSources[0] || "fontes disponíveis";
+  const hasHistoricalDirectSales = historicalRecords.some((record) => (
+    comparableKey(record.source) === comparableKey("DESKHOTEL") || String(record.seller || "").trim()
+  ));
+  const historicalCoverage = dataset.comparisonCoverage || `Base histórica de 2025 atualizada: ${formattedHistoricalSources}.${hasHistoricalDirectSales
+    ? " As vendas diretas presentes na planilha também estão incluídas."
+    : " Vendas diretas da equipe e do DeskHotel ainda não constam nesta base."}`;
+
+  return {
+    audience: dataset.audience || "bi-relatorios",
+    generatedAt: new Date().toISOString(),
+    comparison: {
+      available: historicalPeriodRows.length > 0,
+      year: 2025,
+      period: previousPeriod,
+      coverage: historicalCoverage,
+      sources: historicalSources,
+      summary: {
+        sales: sum(historicalRows, (record) => record.total),
+        reservations: biReportsReservationCount(historicalRows),
+        ticketAverage: biReportsReservationCount(historicalRows) ? sum(historicalRows, (record) => record.total) / biReportsReservationCount(historicalRows) : 0,
+        ...biReportsRateMetrics(historicalRows)
+      },
+      daily: previousDaily,
+      byChannel: summarize(historicalRows, biReportsChannelLabel),
+      byHotel: summarize(historicalRows, (record) => record.hotel || "Não informado"),
+      byCheckinMonth: historicalCheckinMonths,
+      revpar: {
+        summary: previousRevparSummary,
+        daily: previousRevparDaily,
+        byHotel: previousRevparByHotel,
+        byCheckinMonth: previousRevparByCheckinMonth
+      }
+    },
+    period,
+    selected: { hotel, channel: channels.length === 1 ? channels[0] : "", channels, checkinMonth },
+    filters: {
+      hotels: sortLabels(new Set(periodRows.map((record) => record.hotel).filter(Boolean))),
+      channels: sortLabels(new Set(periodRows.map(biReportsChannelLabel).filter(Boolean))),
+      checkinMonths: allCheckinOptions.map((key) => ({ key, label: checkinLabel(key) }))
+    },
+    summary: {
+      sales: sum(rows, (record) => record.total),
+      reservations: biReportsReservationCount(rows),
+      ticketAverage: biReportsReservationCount(rows) ? sum(rows, (record) => record.total) / biReportsReservationCount(rows) : 0,
+      hotels: new Set(rows.map((record) => comparableKey(record.hotel)).filter(Boolean)).size,
+      ...biReportsRateMetrics(rows)
+    },
+    byChannel: summarize(rows, biReportsChannelLabel),
+    byHotel: summarize(rows, (record) => record.hotel || "Não informado"),
+    byCheckinMonth: checkinMonths,
+    daily,
+    pickup,
+    revpar: {
+      summary: currentRevparSummary,
+      daily: currentRevparDaily,
+      byHotel: currentRevparByHotel,
+      byCheckinMonth: currentRevparByCheckinMonth
+    }
+  };
+}
+
+function buildCachedBiKpiReportsPayload(dataset = {}, query = {}) {
+  const key = JSON.stringify([
+    dataset.loadedAt || "",
+    query.start || "",
+    query.end || "",
+    query.hotel || "",
+    query.channels || query.channel || "",
+    query.checkinMonth || ""
+  ]);
+  const cached = biKpiReportsPayloadCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached.payload;
+
+  const payload = buildBiReportsPayload(dataset, query);
+  biKpiReportsPayloadCache.set(key, { payload, expiresAt: Date.now() + BI_KPI_CACHE_TTL_MS });
+  while (biKpiReportsPayloadCache.size > 24) {
+    biKpiReportsPayloadCache.delete(biKpiReportsPayloadCache.keys().next().value);
+  }
+  return payload;
 }
 
 function buildSellersPayload(metrics, access = {}) {
@@ -3223,6 +4101,8 @@ function buildSellersPayload(metrics, access = {}) {
         const includeCommission = canViewLeadershipData || (!isTeamSeller && isAuthenticatedSeller);
         const payload = {
           name: seller.name,
+          ticketQuantity: seller.ticketQuantity || 0,
+          ticketSales: seller.ticketSales || 0,
           reservationsMonth: seller.reservationsMonth,
           salesMonth: seller.salesMonth,
           dailyGoal: seller.dailyGoal,
@@ -3278,6 +4158,35 @@ function addSalesReportTitle(sheet, title, subtitle, lastColumn) {
   sheet.getCell("A2").font = { name: "Arial", size: 10, italic: true, color: { argb: "5B6A78" } };
   sheet.getCell("A2").alignment = { vertical: "middle", horizontal: "left" };
   sheet.getRow(2).height = 22;
+}
+
+async function buildTicketWorkbook(metrics) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "SUEDS Hotels";
+  const sheet = workbook.addWorksheet("Ingressos", { views: [{ state: "frozen", ySplit: 4 }] });
+  sheet.columns = [
+    { key: "dataVenda", width: 14 }, { key: "codigoReserva", width: 28 },
+    { key: "hotel", width: 30 }, { key: "vendedor", width: 24 }, { key: "cliente", width: 32 },
+    { key: "quantidade", width: 14 }, { key: "valorTotal", width: 18 }, { key: "recebido", width: 18 },
+    { key: "aReceber", width: 18 }, { key: "canal", width: 24 }, { key: "formaPagamento", width: 24 },
+    { key: "parcelas", width: 12 }, { key: "status", width: 16 }, { key: "observacoes", width: 45 },
+    { key: "telefone", width: 20 }, { key: "email", width: 32 }, { key: "mesa", width: 14 },
+    { key: "dificuldadeMobilidade", width: 28 }
+  ];
+  addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${metrics.period.month} • Vendas confirmadas • Valores separados da hospedagem`, "R");
+  sheet.getRow(4).values = ["Data Venda", "Código Reserva", "Ingresso / evento", "Vendedor", "Cliente", "Quantidade", "Valor Total", "Recebido", "A Receber", "Canal", "Forma Pagto", "Parcelas", "Status", "Observações", "Telefone", "Email", "MESA", "DIFICULDADE MOBILIDADE?"];
+  styleExcelHeader(sheet.getRow(4));
+  const sales = metrics.detailedTickets || [];
+  sales.forEach((sale) => {
+    const row = sheet.addRow({ ...sale, dataVenda: excelDateFromKey(sale.dataVenda) });
+    row.height = 24;
+  });
+  sheet.autoFilter = `A4:R${Math.max(4, 4 + sales.length)}`;
+  sheet.getColumn(1).numFmt = "dd/mm/yyyy";
+  sheet.getColumn(6).numFmt = "#,##0";
+  [7, 8, 9].forEach((column) => { sheet.getColumn(column).numFmt = '"R$" #,##0.00'; });
+  sheet.addRow({ hotel: "TOTAL", quantidade: sum(sales, (sale) => sale.quantidade), valorTotal: sum(sales, (sale) => sale.valorTotal), recebido: sum(sales, (sale) => sale.recebido), aReceber: sum(sales, (sale) => sale.aReceber) }).font = { bold: true };
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 async function buildSalesCommissionWorkbook(metrics) {
@@ -4168,8 +5077,8 @@ function driveQueryValue(value) {
   return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
-async function findUploadedOpinionPhoto(folderId, uploadId, token) {
-  const query = `'${driveQueryValue(folderId)}' in parents and trashed = false and appProperties has { key='uploadId' and value='${driveQueryValue(uploadId)}' }`;
+async function findUploadedOpinionPhotoByProperty(folderId, property, value, token) {
+  const query = `'${driveQueryValue(folderId)}' in parents and trashed = false and appProperties has { key='${driveQueryValue(property)}' and value='${driveQueryValue(value)}' }`;
   const url = new URL("https://www.googleapis.com/drive/v3/files");
   url.searchParams.set("q", query);
   url.searchParams.set("fields", "files(id,name,webViewLink,size,createdTime)");
@@ -4217,6 +5126,7 @@ async function uploadOpinionPhoto(req, buffer) {
   if (!allowedTypes.has(mimeType)) throw new Error("Formato de foto nao aceito. Use JPG, PNG ou WEBP.");
 
   const uploadId = safeOpinionUploadId(getHeader(req, "x-upload-id"));
+  const contentHash = crypto.createHash("sha256").update(buffer).digest("hex");
   const uploadAttempt = Math.max(1, Math.min(10, Number(getHeader(req, "x-upload-attempt")) || 1));
   const originalName = safeDecodedHeader(req, "x-file-name", 160) || "foto-opinario";
   const uploader = safeDecodedHeader(req, "x-uploader", 80);
@@ -4228,6 +5138,7 @@ async function uploadOpinionPhoto(req, buffer) {
       folderId,
       mimeType,
       uploadId,
+      contentHash,
       uploadAttempt,
       originalName,
       uploader,
@@ -4237,8 +5148,10 @@ async function uploadOpinionPhoto(req, buffer) {
   }
 
   const accessToken = await getAccessToken("https://www.googleapis.com/auth/drive");
+  const sameContent = await findUploadedOpinionPhotoByProperty(folderId, "contentHash", contentHash, accessToken);
+  if (sameContent) return { ...sameContent, duplicate: true, uploadId, contentHash };
   if (uploadAttempt > 1) {
-    const existing = await findUploadedOpinionPhoto(folderId, uploadId, accessToken);
+    const existing = await findUploadedOpinionPhotoByProperty(folderId, "uploadId", uploadId, accessToken);
     if (existing) return { ...existing, duplicate: true, uploadId };
   }
 
@@ -4256,6 +5169,7 @@ async function uploadOpinionPhoto(req, buffer) {
     ].filter(Boolean).join(" "),
     appProperties: {
       uploadId,
+      contentHash,
       hotelSlug,
       source: "reception-upload",
       ...(periodFrom ? { periodFrom } : {}),
@@ -4941,11 +5855,11 @@ function detectOmrBubbleCandidates(gray, width, height) {
       const aspect = componentWidth / componentHeight;
       if (
         componentWidth >= 7 &&
-        componentWidth <= 48 &&
+        componentWidth <= Math.max(48, width * 0.045) &&
         componentHeight >= 7 &&
-        componentHeight <= 48 &&
+        componentHeight <= Math.max(48, width * 0.045) &&
         area >= 16 &&
-        area <= 850 &&
+        area <= Math.max(850, width * width * 0.0018) &&
         aspect >= 0.55 &&
         aspect <= 1.75
       ) {
@@ -5090,13 +6004,45 @@ function omrDarkRatio(gray, width, height, cx, cy, radius, threshold = 145) {
   return total ? dark / total : 0;
 }
 
-function omrColorInkRatio(rgb, width, height, channels, cx, cy, radius) {
+function omrColorInkRatio(rgb, width, height, channels, cx, cy, radius, includeRim = false) {
   if (!rgb || channels < 3) return 0;
-  const minX = Math.max(0, Math.floor(cx - radius));
-  const maxX = Math.min(width - 1, Math.ceil(cx + radius));
-  const minY = Math.max(0, Math.floor(cy - radius));
-  const maxY = Math.min(height - 1, Math.ceil(cy + radius));
-  const radiusSq = radius * radius;
+  // Compare ink with this circle's paper, not with absolute RGB saturation.
+  // Warm lighting/yellow paper must not become a red-pen mark.
+  const paperSamples = [[], [], []];
+  for (let angle = 0; angle < 32; angle += 1) {
+    const theta = angle * Math.PI / 16;
+    const x = Math.max(0, Math.min(width - 1, Math.round(cx + Math.cos(theta) * radius * 1.4)));
+    const y = Math.max(0, Math.min(height - 1, Math.round(cy + Math.sin(theta) * radius * 1.4)));
+    const index = (y * width + x) * channels;
+    for (let channel = 0; channel < 3; channel += 1) paperSamples[channel].push(rgb[index + channel]);
+  }
+  const paper = paperSamples.map(samples => Math.max(30, median(samples)));
+  // Learn the local printed-ink color as well as the paper color. The RGB
+  // segment between these two represents a blank (possibly warm-lit) outline.
+  // Pen color must deviate from that segment, not merely look saturated.
+  let printedInk = null;
+  if (includeRim) {
+    const samples = [[], [], []];
+    for (let angle = 0; angle < 32; angle += 1) {
+      const theta = angle * Math.PI / 16;
+      let darkestSample = null;
+      for (const fraction of [0.82, 0.9, 0.98, 1.06]) {
+        const x = Math.max(0, Math.min(width - 1, Math.round(cx + Math.cos(theta) * radius * fraction)));
+        const y = Math.max(0, Math.min(height - 1, Math.round(cy + Math.sin(theta) * radius * fraction)));
+        const index = (y * width + x) * channels;
+        const sample = [rgb[index], rgb[index + 1], rgb[index + 2]];
+        if (!darkestSample || sample.reduce((a,b)=>a+b,0) < darkestSample.reduce((a,b)=>a+b,0)) darkestSample = sample;
+      }
+      darkestSample.forEach((value, channel) => samples[channel].push(value));
+    }
+    printedInk = samples.map(median);
+  }
+  const inkRadius = radius * (includeRim ? 0.82 : 0.65);
+  const minX = Math.max(0, Math.floor(cx - inkRadius));
+  const maxX = Math.min(width - 1, Math.ceil(cx + inkRadius));
+  const minY = Math.max(0, Math.floor(cy - inkRadius));
+  const maxY = Math.min(height - 1, Math.ceil(cy + inkRadius));
+  const radiusSq = inkRadius * inkRadius;
   let total = 0;
   let colorInk = 0;
 
@@ -5110,10 +6056,20 @@ function omrColorInkRatio(rgb, width, height, channels, cx, cy, radius) {
       const red = rgb[index];
       const green = rgb[index + 1];
       const blue = rgb[index + 2];
-      const darkest = Math.min(red, green, blue);
-      const lightest = Math.max(red, green, blue);
-      const brightness = (red + green + blue) / 3;
-      if (lightest - darkest >= 42 && darkest <= 185 && brightness <= 220) colorInk += 1;
+      const balanced = [red / paper[0], green / paper[1], blue / paper[2]];
+      const darkest = Math.min(...balanced);
+      const lightest = Math.max(...balanced);
+      const brightness = (balanced[0] + balanced[1] + balanced[2]) / 3;
+      if (includeRim) {
+        const paperBrightness = paper.reduce((a,b)=>a+b,0), inkBrightness = printedInk.reduce((a,b)=>a+b,0);
+        const alpha = Math.max(0, Math.min(1, (red+green+blue-inkBrightness)/Math.max(1,paperBrightness-inkBrightness)));
+        const residual = [red,green,blue].map((value,channel)=>value-(printedInk[channel]+alpha*(paper[channel]-printedInk[channel])));
+        // Recover faint RED edge strokes only. Scanner blue/cyan fringes and
+        // tiny blue print artifacts are not reliably separable from weak blue
+        // pen strokes; blue/black ink keeps the established central detector.
+        const redPen = residual[0]-residual[1]>=12 && residual[0]-residual[2]>=12;
+        if (redPen && Math.max(...residual)-Math.min(...residual)>=14 && alpha<=0.94)colorInk+=1;
+      } else if (lightest - darkest >= 0.18 && darkest <= 0.80 && brightness <= 0.94) colorInk += 1;
     }
   }
 
@@ -5153,34 +6109,52 @@ function omrAdaptiveInkRatios(gray, width, height, cx, cy, innerRadius, coreRadi
 }
 
 function analyzeOmrGuideRow(gray, width, height, grid, rowIndex, colorImage = null) {
-  const innerRadius = Math.max(7, Math.round(grid.horizontalSpan * 0.0115));
-  const coreRadius = Math.max(5, Math.round(grid.horizontalSpan * 0.0065));
-  const bubbleRadius = Math.max(11, grid.horizontalSpan * 0.0185);
+  const bubbleRadius = grid.bubbleRadius || Math.max(11, grid.horizontalSpan * 0.0185);
+  const innerRadius = Math.max(5, Math.round(bubbleRadius * 0.60));
+  const coreRadius = Math.max(3, Math.round(bubbleRadius * 0.35));
   const measurements = grid.points[rowIndex].map((point) => ({
     cx: Math.round(point.x),
     cy: Math.round(point.y),
     colorInk: colorImage
       ? omrColorInkRatio(colorImage.data, width, height, colorImage.channels, point.x, point.y, bubbleRadius)
       : 0,
+    rimInk: colorImage
+      ? omrColorInkRatio(colorImage.data, width, height, colorImage.channels, point.x, point.y, bubbleRadius, true)
+      : 0,
     ...omrAdaptiveInkRatios(gray, width, height, point.x, point.y, innerRadius, coreRadius, bubbleRadius)
   }));
   const innerBaseline = median(measurements.map((item) => item.inner).sort((a, b) => a - b).slice(0, 2));
   const coreBaseline = median(measurements.map((item) => item.core).sort((a, b) => a - b).slice(0, 2));
+  const rimBaseline = median(measurements.map((item) => item.rimInk).sort((a, b) => a - b).slice(0, 2));
+  const hasCentralSelection = measurements.some(item => {
+    const excess = Math.max(0, item.inner - innerBaseline), coreExcess = Math.max(0, item.core - coreBaseline);
+    return Math.max(excess * 0.72 + coreExcess * 0.28, Math.min(1,item.colorInk * 3.5)) >= 0.052 &&
+      (excess >= 0.03 || coreExcess >= 0.055 || item.colorInk >= 0.012);
+  });
+  const allAlternativesMarked = measurements.every(item => item.inner >= 0.055 || item.core >= 0.08);
   const scores = measurements.map((item) => {
     const innerExcess = Math.max(0, item.inner - innerBaseline);
     const coreExcess = Math.max(0, item.core - coreBaseline);
     const grayscaleScore = innerExcess * 0.72 + coreExcess * 0.28;
+    // A colored cast on the printed outlines affects the blank alternatives
+    // too. In that situation use only the established central-ink evidence.
+    // Rim evidence may recover a missed mark, but must never resolve an
+    // existing multi-mark ambiguity or override a recognized central mark.
+    const rimExcess = !hasCentralSelection && !allAlternativesMarked && rimBaseline <= 0.015
+      ? Math.max(0, item.rimInk - rimBaseline) : 0;
     return {
       ...item,
       outer: item.inner,
       excess: innerExcess,
-      score: Math.max(grayscaleScore, Math.min(1, item.colorInk * 3.5))
+      rimExcess,
+      score: Math.max(grayscaleScore, Math.min(1, item.colorInk * 3.5), rimExcess >= 0.018 ? Math.min(1, rimExcess * 3.5) : 0)
     };
   });
+  if (allAlternativesMarked) return { value: "", selectedIndexes: [0, 1, 2, 3], uncertain: true, scores };
   const selected = scores
     .map((item, index) => ({ ...item, index }))
     .filter((item) => item.score >= 0.052 && (
-      item.excess >= 0.03 || item.core - coreBaseline >= 0.055 || item.colorInk >= 0.012
+      item.excess >= 0.03 || item.core - coreBaseline >= 0.055 || item.colorInk >= 0.012 || item.rimExcess >= 0.018
     ))
     .sort((a, b) => b.score - a.score);
 
@@ -5301,7 +6275,7 @@ function analyzeOmrGridRow(gray, width, height, grid, rowIndex) {
   };
 }
 
-async function readOpinionOmr(body) {
+async function readOpinionOmr(body, orientationAttempt = 0) {
   const sharp = require("sharp");
   const profile = opinionOmrProfile(body);
   const imageBuffer = imageBufferFromOmrBody(body);
@@ -5322,11 +6296,26 @@ async function readOpinionOmr(body) {
   const height = info.height;
   let template = opinionOmrTemplate(profile, body.formVersion);
   const guideMarkers = detectOmrGuideMarkers(data, width, height);
-  const guideBubbleCandidates = guideMarkers ? detectOmrBubbleCandidates(data, width, height) : [];
-  const guideGrid = guideMarkers
+  // A fixed threshold merges circles with grey table bands and shadows.
+  // Detect outlines against their local paper background instead.
+  const background = await sharp(data, { raw: { width, height, channels: 1 } })
+    .blur(15).grayscale().raw().toBuffer();
+  const outlineMask = Buffer.alloc(data.length);
+  for (let index = 0; index < data.length; index += 1) {
+    outlineMask[index] = data[index] < background[index] - 25 ? 0 : 255;
+  }
+  const guideBubbleCandidates = detectOmrBubbleCandidates(outlineMask, width, height);
+  let guideGrid = guideMarkers
     ? selectOpinionOmrGuideGrid(guideMarkers, guideBubbleCandidates, profile, body.formVersion)
     : null;
   if (guideGrid?.template) template = guideGrid.template;
+  const { calibrateCircleGrid, calibrateUnanchoredGrid, calibrateRecoveredGrid } = require('./lib/opinion-omr-calibration');
+  const anchoredGrid = guideMarkers
+    ? calibrateCircleGrid(data, width, height, guideMarkers, guideBubbleCandidates, template.guides)
+    : null;
+  const verifiedGrid = anchoredGrid || calibrateUnanchoredGrid(data, width, height, guideBubbleCandidates, template.guides)
+    || calibrateRecoveredGrid(data, width, height, guideBubbleCandidates, template.guides);
+  if (verifiedGrid) guideGrid = { ...guideGrid, ...verifiedGrid };
   const bubbleGrid = guideGrid ? null : detectOmrBubbleGrid(data, width, height, profile.fields.length);
   const box = guideGrid ? guideGrid.box : (bubbleGrid ? bubbleGrid.box : detectOmrFormBox(data, width, height));
   const aspect = box.height / box.width;
@@ -5361,6 +6350,8 @@ async function readOpinionOmr(body) {
         outer: Number(score.outer.toFixed(4)),
         excess: Number(score.excess.toFixed(4)),
         colorInk: Number((score.colorInk || 0).toFixed(4)),
+        rimInk: Number((score.rimInk || 0).toFixed(4)),
+        rimExcess: Number((score.rimExcess || 0).toFixed(4)),
         score: Number(score.score.toFixed(4))
       }))
     });
@@ -5369,7 +6360,7 @@ async function readOpinionOmr(body) {
   const colorMarkedRows = debugRows.filter((row) => (
     Math.max(...row.scores.map((score) => score.colorInk || 0)) >= 0.025
   )).length;
-  if (colorMarkedRows >= 3) {
+  if (!verifiedGrid && colorMarkedRows >= 3) {
     debugRows.forEach((row) => {
       if (!ratings[row.field] || row.selectedIndexes.length !== 1) return;
       const selectedScore = row.scores[row.selectedIndexes[0]];
@@ -5383,13 +6374,22 @@ async function readOpinionOmr(body) {
     });
   }
 
+  const alignmentVerified = Boolean(verifiedGrid);
+  // EXIF is not always present: some uploads contain a sideways/upside-down
+  // page. Try quarter turns on an in-memory copy; never overwrite the source.
+  if (!alignmentVerified && orientationAttempt < 3) {
+    const oriented = await sharp(imageBuffer).rotate().png().toBuffer();
+    const rotated = await sharp(oriented).rotate(90).png().toBuffer();
+    return readOpinionOmr({ ...body, imageBase64: rotated.toString('base64') }, orientationAttempt + 1);
+  }
+  if (!alignmentVerified) Object.keys(ratings).forEach(field => { ratings[field] = ""; });
   const answered = Object.values(ratings).filter(Boolean).length;
-  const confidence = guideGrid ? 98 : (bubbleGrid ? 92 : (boxLooksValid ? 95 : 72));
-  const reviewReason = boxLooksValid ? "" : "OMR nao confirmou proporcao/posicao esperada da ficha. Conferir enquadramento da foto.";
+  const confidence = alignmentVerified ? 98 : 0;
+  const reviewReason = alignmentVerified ? "" : "OMR nao confirmou o alinhamento de todas as alternativas impressas. Conferir a foto antes de aprovar; nenhuma nota foi presumida.";
 
   return {
-    ok: true,
-    engine: guideGrid ? "pixel-omr-v2-guides" : "pixel-omr-v1",
+    ok: alignmentVerified,
+    engine: "pixel-omr-v5-three-circle-verified",
     form: `${profile.slug}-${String(body.formVersion || "").replace(/\D/g, "") || template.form.split("-").pop()}`,
     confidence,
     ratings,
@@ -5404,7 +6404,7 @@ async function readOpinionOmr(body) {
       templateVersion: guideGrid?.templateVersion || template.form.split("-").pop(),
       refinedRows: guideGrid?.refinedRows,
       calibrationMethod: guideGrid?.calibrationMethod,
-      guideMarkers: guideGrid
+      guideMarkers: guideGrid?.markers
         ? Object.fromEntries(Object.entries(guideGrid.markers)
             .filter(([, value]) => value && typeof value === "object" && Number.isFinite(value.x))
             .map(([key, value]) => [key, { x: Math.round(value.x), y: Math.round(value.y) }]))
@@ -5416,7 +6416,11 @@ async function readOpinionOmr(body) {
             rows: bubbleGrid.rows.map((value) => Math.round(value))
           }
         : undefined,
-      boxLooksValid
+      boxLooksValid,
+      alignmentVerified,
+      rotationDegrees: orientationAttempt * 90,
+      minRingCoverage: verifiedGrid?.minRingCoverage
+      ,minVerifiedCirclesPerRow: verifiedGrid?.minVerifiedCirclesPerRow
     },
     debugRows: body.debug ? debugRows : undefined
   };
@@ -5892,6 +6896,8 @@ function opinionOperationalIncident(opinion, index) {
 function operationalOpinionResponse(opinion, index) {
   const submittedAt = opinion.capturedAt || opinion.processedAt;
   const text = opinion.comments || opinion.issues || opinion.highlights || "";
+  const hasPhoto = Boolean(opinion.photoUrl);
+  const isQrCode = !hasPhoto && normalizeTextKey(opinion.origin) === "qr code";
   return {
     id: opinion.fileId || `opinario-${index + 1}`,
     submittedAt: submittedAt ? submittedAt.toISOString() : null,
@@ -5903,7 +6909,8 @@ function operationalOpinionResponse(opinion, index) {
     status: opinion.status,
     text,
     hasText: Boolean(text),
-    hasPhoto: Boolean(opinion.photoUrl),
+    hasPhoto,
+    isQrCode,
     fieldScores: opinion.fieldScores
   };
 }
@@ -6487,6 +7494,7 @@ function buildRobotSellerFromAsksuiteMarketRows(rawRows = [], period = {}) {
 
   const periodRows = rawRows.filter((row) => {
     const rowMonth = String(row.month || "");
+    if (rowMonth >= ROBOT_SALES_CUTOVER_MONTH) return false;
     if (isYearToDate) return rowMonth.startsWith(today.slice(0, 4)) && (!row.dateKey || row.dateKey >= ytdStart);
     return rowMonth === activeMonth;
   });
@@ -6527,24 +7535,31 @@ function buildRobotSellerFromAsksuiteMarketRows(rawRows = [], period = {}) {
   };
 }
 
-function mergeRobotSeller(sellers = [], robotSeller) {
+function mergeRobotSeller(sellers = [], robotSeller, period = {}) {
   if (!robotSeller) return sellers;
   const existingIndex = sellers.findIndex((seller) => comparableKey(seller.name) === comparableKey(robotSeller.name));
   if (existingIndex === -1) return [...sellers, robotSeller].sort(sellerRankingSort);
 
+  const combineHistoricalWithCurrent = period.month === "ytd";
   return sellers.map((seller, index) => {
     if (index !== existingIndex) return seller;
+    const salesToday = combineHistoricalWithCurrent ? seller.salesToday + robotSeller.salesToday : robotSeller.salesToday;
+    const salesMtd = combineHistoricalWithCurrent ? seller.salesMtd + robotSeller.salesMtd : robotSeller.salesMtd;
+    const salesMonth = combineHistoricalWithCurrent ? seller.salesMonth + robotSeller.salesMonth : robotSeller.salesMonth;
+    const reservationsToday = combineHistoricalWithCurrent ? seller.reservationsToday + robotSeller.reservationsToday : robotSeller.reservationsToday;
+    const reservationsMtd = combineHistoricalWithCurrent ? seller.reservationsMtd + robotSeller.reservationsMtd : robotSeller.reservationsMtd;
+    const reservationsMonth = combineHistoricalWithCurrent ? seller.reservationsMonth + robotSeller.reservationsMonth : robotSeller.reservationsMonth;
     return {
       ...seller,
-      salesToday: robotSeller.salesToday,
-      salesMtd: robotSeller.salesMtd,
-      salesMonth: robotSeller.salesMonth,
-      reservationsToday: robotSeller.reservationsToday,
-      reservationsMtd: robotSeller.reservationsMtd,
-      reservationsMonth: robotSeller.reservationsMonth,
-      dailyGoalPct: pct(robotSeller.salesToday, seller.dailyGoal),
-      mtdGoalPct: pct(robotSeller.salesMtd, seller.mtdGoal),
-      monthlyGoalPct: pct(robotSeller.salesMonth, seller.monthlyGoal)
+      salesToday,
+      salesMtd,
+      salesMonth,
+      reservationsToday,
+      reservationsMtd,
+      reservationsMonth,
+      dailyGoalPct: pct(salesToday, seller.dailyGoal),
+      mtdGoalPct: pct(salesMtd, seller.mtdGoal),
+      monthlyGoalPct: pct(salesMonth, seller.monthlyGoal)
     };
   }).sort(sellerRankingSort);
 }
@@ -7505,6 +8520,9 @@ async function loadDataset() {
   let carts;
   let asksuite;
   let otherChannelRecords;
+  let juniperRows;
+  let cvcRows;
+  let historicalRecords;
 
   if (!SHEET_ID || !getServiceAccount()) {
     const demo = demoDataset();
@@ -7513,13 +8531,28 @@ async function loadDataset() {
     carts = demo.carts;
     asksuite = demo.asksuite || [];
     otherChannelRecords = [];
+    juniperRows = [];
+    cvcRows = [];
+    historicalRecords = [];
   } else {
-    const [baseRows, goalRows, cartRows, asksuiteRows, otherChannelRows] = await Promise.all([
+    const [baseRows, goalRows, cartRows, asksuiteRows, otherChannelRows, loadedJuniperRows, loadedCvcRows, historicalRows] = await Promise.all([
       getFirstAvailableSheetValues([SALES_RANGE, BASE_RANGE]),
       getSheetValues(METAS_RANGE),
       getSheetValues(CARTS_RANGE),
       getSheetValues(ASKSUITE_RANGE),
       getSheetValues(OTHER_CHANNELS_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      }),
+      getSheetValues(JUNIPER_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      }),
+      getSheetValues(CVC_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      }),
+      getSheetValues(HISTORICAL_CHANNELS_RANGE).catch((error) => {
         if (isMissingSheetError(error)) return [];
         throw error;
       })
@@ -7529,11 +8562,110 @@ async function loadDataset() {
     carts = rowsToObjects(cartRows, { keepAnyValue: true }).map(normalizeCartRecord);
     asksuite = dedupeAsksuiteRecords(rowsToObjects(asksuiteRows, { keepAnyValue: true }).map(normalizeAsksuiteRecord));
     otherChannelRecords = rowsToObjects(otherChannelRows).map(normalizeRecord);
+    juniperRows = loadedJuniperRows;
+    cvcRows = loadedCvcRows;
+    historicalRecords = rowsToObjects(historicalRows).map(normalizeRecord);
   }
 
-  const payload = { records, goals, carts, asksuite, otherChannelRecords, loadedAt: new Date().toISOString() };
+  const routed = require("./lib/sales-routing").dashboardSources(records, otherChannelRecords);
+  const payload = { ...routed, goals, carts, asksuite, juniperRows, cvcRows, historicalRecords, loadedAt: new Date().toISOString() };
   dataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
   return payload;
+}
+
+async function loadBiReportsDataset() {
+  if (biReportsDataCache.payload && Date.now() < biReportsDataCache.expiresAt) {
+    return biReportsDataCache.payload;
+  }
+
+  if (!SHEET_ID || !getServiceAccount()) {
+    const demo = demoDataset();
+    const payload = { records: demo.records, otherChannelRecords: [], historicalRecords: [] };
+    biReportsDataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
+    return payload;
+  }
+
+  // The BI only needs sales fields through column S. Loading the unrelated
+  // goals, carts and Asksuite tabs made annual requests exceed the function's
+  // memory limit. Parse the two smaller current tabs first, then release their
+  // raw rows before reading the larger historical tab.
+  let [salesRows, channelRows] = await Promise.all([
+    getFirstAvailableSheetValues([BI_SALES_RANGE, BASE_RANGE]),
+    getSheetValues(BI_OTHER_CHANNELS_RANGE).catch((error) => {
+      if (isMissingSheetError(error)) return [];
+      throw error;
+    })
+  ]);
+  const sellerRecords = rowsToObjects(salesRows).map(normalizeRecord);
+  const channelRecords = rowsToObjects(channelRows).map(normalizeRecord);
+  salesRows = null;
+  channelRows = null;
+  const routed = require("./lib/sales-routing").dashboardSources(sellerRecords, channelRecords);
+
+  const historicalRows = await getSheetValues(BI_HISTORICAL_CHANNELS_RANGE).catch((error) => {
+    if (isMissingSheetError(error)) return [];
+    throw error;
+  });
+  const historicalRecords = rowsToObjects(historicalRows).map(normalizeRecord);
+  const payload = { ...routed, historicalRecords };
+  biReportsDataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
+  return payload;
+}
+
+async function loadBiKpiReportsDataset() {
+  if (biKpiReportsDataCache.payload && Date.now() < biKpiReportsDataCache.expiresAt) {
+    return biKpiReportsDataCache.payload;
+  }
+
+  if (biKpiReportsLoadingPromise) return biKpiReportsLoadingPromise;
+
+  biKpiReportsLoadingPromise = (async () => {
+    if (!SHEET_ID || !getServiceAccount()) {
+      const payload = {
+        records: [],
+        otherChannelRecords: [],
+        historicalRecords: [],
+        loadedAt: new Date().toISOString(),
+        audience: "bi-relatorios-kpi",
+        comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full."
+      };
+      biKpiReportsDataCache = { payload, expiresAt: Date.now() + BI_KPI_CACHE_TTL_MS };
+      return payload;
+    }
+
+    // Only ten KPI fields feed the reports. Fetch their compact column groups
+    // in one request instead of downloading both complete 24-column tabs.
+    const compactColumns = ["A:D", "F:G", "K:N", "P:P", "X:X"];
+    const sheetPrefix = (range) => {
+      const separator = String(range).lastIndexOf("!");
+      return separator >= 0 ? String(range).slice(0, separator) : String(range);
+    };
+    const currentSheet = sheetPrefix(BI_KPI_2026_RANGE);
+    const historicalSheet = sheetPrefix(BI_KPI_2025_RANGE);
+    const ranges = [
+      ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
+      ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
+    ];
+    const values = await getSheetValueRanges(ranges);
+    const records = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length)), 2026);
+    const historicalRecords = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(compactColumns.length)), 2025);
+    const payload = {
+      records,
+      otherChannelRecords: [],
+      historicalRecords,
+      loadedAt: new Date().toISOString(),
+      audience: "bi-relatorios-kpi",
+      comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full. Reservas com mais de uma linha foram consolidadas."
+    };
+    biKpiReportsDataCache = { payload, expiresAt: Date.now() + BI_KPI_CACHE_TTL_MS };
+    return payload;
+  })();
+
+  try {
+    return await biKpiReportsLoadingPromise;
+  } finally {
+    biKpiReportsLoadingPromise = null;
+  }
 }
 
 async function loadMetrics(period) {
@@ -7548,8 +8680,8 @@ async function loadMetrics(period) {
     dataset.otherChannelRecords || [],
     period
   );
-  metrics.otherChannels = buildOtherChannelsMetrics(dataset.otherChannelRecords || [], period);
-  metrics.sellers = mergeRobotSeller(metrics.sellers, buildRobotSellerFromAsksuiteMarketRows(asksuiteMarketRows, period));
+    metrics.otherChannels = buildOtherChannelsMetrics(dataset.otherChannelRecords || [], period, dataset.juniperRows || [], dataset.cvcRows || []);
+  metrics.sellers = mergeRobotSeller(metrics.sellers, buildRobotSellerFromAsksuiteMarketRows(asksuiteMarketRows, period), period);
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
   metrics.asksuite = buildAsksuiteMetrics(dataset.asksuite || [], period);
   metrics.analytics = analytics;
@@ -7575,7 +8707,18 @@ function periodFromUrl(url) {
 
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const requested = url.pathname === "/" ? "/dashboard-tv.html" : url.pathname;
+  const aliases = {
+    "/comunicados": "/comunicados.html",
+    "/comunicados/admin": "/comunicados-admin.html",
+    "/mesas-vip-reveillon": "/mesas-vip-reveillon.html",
+    "/Treinamentos": "/treinamentos.html",
+    "/treinamentos": "/treinamentos.html",
+    "/Treinamentos/KPIFull": "/treinamentos-kpifull.html",
+    "/treinamentos/kpifull": "/treinamentos-kpifull.html",
+    "/Treinamentos/Admin": "/treinamentos-admin.html",
+    "/treinamentos/admin": "/treinamentos-admin.html"
+  };
+  const requested = aliases[url.pathname] || (url.pathname === "/" ? "/dashboard-tv.html" : url.pathname);
   const safePath = path.normalize(requested).replace(/^(\.\.[/\\])+/, "");
   const relativePath = safePath.replace(/^[/\\]+/, "");
   const candidates = [
@@ -7661,6 +8804,32 @@ async function handleRequest(req, res) {
       return json(res, 200, buildManagerPayload(metrics));
     }
 
+    if (url.pathname === "/api/dashboard/bi-relatorios") {
+      if (!biReportsAccess(req, url)) return forbidden(res);
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      const dataset = await loadBiReportsDataset();
+      return json(res, 200, buildBiReportsPayload(dataset, {
+        start: url.searchParams.get("start") || "",
+        end: url.searchParams.get("end") || "",
+        hotel: url.searchParams.get("hotel") || "",
+        channels: url.searchParams.getAll("channel"),
+        checkinMonth: url.searchParams.get("checkinMonth") || ""
+      }));
+    }
+
+    if (url.pathname === "/api/dashboard/bi-relatorios-kpi") {
+      if (!biReportsAccess(req, url, "bi_relatorios_kpi")) return forbidden(res);
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      const dataset = await loadBiKpiReportsDataset();
+      return json(res, 200, buildCachedBiKpiReportsPayload(dataset, {
+        start: url.searchParams.get("start") || "",
+        end: url.searchParams.get("end") || "",
+        hotel: url.searchParams.get("hotel") || "",
+        channels: url.searchParams.getAll("channel"),
+        checkinMonth: url.searchParams.get("checkinMonth") || ""
+      }));
+    }
+
     if (url.pathname === "/api/dashboard/vendedores") {
       if (req.method === "POST" && url.searchParams.get("action") === "login") {
         const body = await readJsonBody(req);
@@ -7691,13 +8860,14 @@ async function handleRequest(req, res) {
         return json(res, 200, { ok: true, profile: access });
       }
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
-      if (url.searchParams.get("action") === "export") {
-        if (!isSalesLeadershipAccess(access)) return forbidden(res);
+      if (["export", "export-tickets"].includes(url.searchParams.get("action"))) {
+        const ticketsOnly = url.searchParams.get("action") === "export-tickets";
+        if (!isSalesLeadershipAccess(access) && !(ticketsOnly && access.role === "vip_export")) return forbidden(res);
         const metrics = await loadMetrics(periodFromUrl(url));
-        const workbook = await buildSalesCommissionWorkbook(metrics);
+        const workbook = await (ticketsOnly ? buildTicketWorkbook(metrics) : buildSalesCommissionWorkbook(metrics));
         res.writeHead(200, {
           "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "content-disposition": `attachment; filename="${salesReportFileName(metrics.period)}"`,
+          "content-disposition": `attachment; filename="${ticketsOnly ? `relatorio-ingressos-${metrics.period.month}.xlsx` : salesReportFileName(metrics.period)}"`,
           "cache-control": "no-store"
         });
         return res.end(workbook);
@@ -7888,6 +9058,11 @@ if (require.main === module) {
 module.exports = {
   handleRequest,
   __test: {
+    normalizeOperationalOpinion,
+    normalizeRecord,
+    normalizeSellerName,
+    operationalOpinionResponse,
+    opinionOmrProfile,
     detectOmrGuideMarkers,
     detectOmrBubbleCandidates,
     detectOmrBubbleGrid,
@@ -7900,12 +9075,23 @@ module.exports = {
     isCurrentOperationalOpinion,
     summarizeOperationalHotel,
     buildMetrics,
+    buildRobotSellerFromAsksuiteMarketRows,
+    mergeRobotSeller,
     buildOtherChannelsMetrics,
     buildAdvancePurchaseByChannel,
     buildSellersPayload,
+    buildManagerPayload,
+    buildBiReportsPayload,
+    buildCachedBiKpiReportsPayload,
+    kpiObjectsFromColumnRanges,
+    normalizeKpiReportObjects,
+    normalizeKpiReportRows,
     buildSalesCommissionWorkbook,
+    buildTicketWorkbook,
+    isEventTicket,
     isSalesLeadershipAccess,
     portalSellerAccessProfile,
+    sellerAccessProfile,
     sellerCommission,
     teamManagerCommission,
     readPlazaOpinionOmr: readOpinionOmr,

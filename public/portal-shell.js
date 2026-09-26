@@ -1,7 +1,12 @@
 (function setupUnifiedPortal() {
   const routes = {
+    comunicados: { url: "/comunicados", permission: "comunicados", title: "Comunicados" },
+    inclusao_comunicados: { url: "/comunicados/admin", permission: "admin_geral", title: "Inclusão de Comunicados" },
     tv_vendedores: { url: "/dashboard-tv.html", permission: "tv_vendedores", title: "TV Painel Vendedor" },
     ranking_vendedores: { url: "/dashboard-vendedores.html", permission: "ranking_vendedores", title: "Ranking de Vendedores" },
+    bi_relatorios: { url: "/bi-relatorios.html?v=20260920-checkin-share", permission: "bi_relatorios", title: "BI - Relatórios" },
+    bi_relatorios_kpi: { url: "/bi-relatorios-kpi.html?v=20260920-checkin-share", permission: "bi_relatorios_kpi", title: "BI - Relatórios by KPI" },
+    mesas_vip_reveillon: { url: "/mesas-vip-reveillon", permission: "mesas_vip_reveillon", title: "Mesas VIP Réveillon" },
     opinarios_rede: { url: "/dashboard-operacional-tv.html", permission: "opinarios_rede", title: "Opinários de todos os hotéis" },
     opinarios_plaza: { url: "/operacional/plaza", permission: "opinarios_hotel", title: "Opinários — SUEDS Plaza" },
     opinarios_cabralia: { url: "/operacional/cabralia", permission: "opinarios_hotel", title: "Opinários — SUEDS Cabrália" },
@@ -12,6 +17,7 @@
     redes_sociais: { url: "/dashboard-redes-sociais.html?v=20260811-compact", permission: "redes_sociais", title: "Redes Sociais" },
     marketing_competitividade: { url: "/dashboard-inteligencia-mercado.html", permission: "marketing_competitividade", title: "Marketing e Competitividade" },
     inspecoes: { url: "/inspecoes/dashboard", permission: "inspecoes", title: "Sueds Inspeções" },
+    simulador_tributario: { url: "/inspecoes/simulador-tributario", permission: "admin_geral", title: "Simulador Tributário" },
     usuarios: { url: "/usuarios?v=20260808-embedded", permission: "admin_geral", title: "Usuários e Acessos" }
   };
 
@@ -21,7 +27,10 @@
   const loading = document.getElementById("portalModuleLoading");
   const header = document.querySelector(".manager-topbar");
   const logoutButton = document.getElementById("portalLogoutButton");
+  const announcementBell = document.getElementById("portalAnnouncementBell");
+  const announcementBadge = document.getElementById("portalAnnouncementBadge");
   let activeModule = "";
+  let notificationRequest = 0;
 
   const roleLabels = {
     admin_geral: "Administrador geral",
@@ -59,6 +68,36 @@
     return Boolean(window.suedsPortalAccess?.[route.permission]);
   }
 
+  function updateAnnouncementBell(unreadCount) {
+    if (!announcementBell || !announcementBadge) return;
+    const count = Math.max(0, Number(unreadCount) || 0);
+    const hasUnread = count > 0;
+    announcementBadge.textContent = count > 99 ? "99+" : String(count);
+    announcementBell.dataset.state = hasUnread ? "unread" : "current";
+    announcementBell.hidden = false;
+    const label = hasUnread
+      ? `${count} comunicado${count === 1 ? " não lido" : "s não lidos"}. Abrir comunicados.`
+      : "Nenhum comunicado não lido. Abrir comunicados.";
+    announcementBell.setAttribute("aria-label", label);
+    announcementBell.title = label;
+  }
+
+  async function refreshAnnouncementNotifications() {
+    if (!hasPermission(routes.comunicados)) {
+      if (announcementBell) announcementBell.hidden = true;
+      return;
+    }
+    const request = ++notificationRequest;
+    try {
+      const response = await fetch("/api/portal/announcements?summary=1", { credentials: "same-origin", cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "Não foi possível consultar os comunicados.");
+      if (request === notificationRequest) updateAnnouncementBell(payload.unreadCount);
+    } catch (error) {
+      console.error("[portal-announcement-notifications]", error.message || error);
+    }
+  }
+
   function updateHeaderHeight() {
     const height = header?.getBoundingClientRect().height || 0;
     document.documentElement.style.setProperty("--portal-header-height", `${Math.ceil(height)}px`);
@@ -72,6 +111,7 @@
       element.classList.toggle("active", selected);
       if (element.matches("a,button")) element.setAttribute("aria-current", selected ? "page" : "false");
     });
+    window.suedsPortalNavigation?.sync(moduleKey, routes[moduleKey]?.title);
   }
 
   function writeHistory(moduleKey, replace) {
@@ -82,6 +122,16 @@
   }
 
   function showHome(options = {}) {
+    if (document.documentElement.classList.contains("site-preview-only")) {
+      activeModule = "";
+      document.body.classList.remove("portal-module-open");
+      home.hidden = true;
+      moduleArea.hidden = true;
+      frame.removeAttribute("src");
+      setActiveButton("");
+      updateHeaderHeight();
+      return;
+    }
     if (!window.suedsPortalAccess?.painel_gestores) {
       const fallback = Object.keys(routes).find((key) => hasPermission(routes[key]));
       if (fallback) showModule(fallback, { replace: Boolean(options.replace) });
@@ -134,6 +184,16 @@
     } catch {}
   });
 
+  announcementBell?.addEventListener("click", () => showModule("comunicados"));
+  window.addEventListener("message", (event) => {
+    if (event.origin !== window.location.origin || event.source !== frame.contentWindow || event.data?.type !== "sueds:announcement-status") return;
+    updateAnnouncementBell(event.data.unreadCount);
+  });
+  window.addEventListener("focus", refreshAnnouncementNotifications);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshAnnouncementNotifications();
+  });
+
   document.addEventListener("click", (event) => {
     const homeLink = event.target.closest("[data-portal-home]");
     if (homeLink) {
@@ -161,13 +221,20 @@
   Promise.resolve(window.suedsManagerAuthReady).then(() => {
     showUser(window.suedsPortalProfile);
     const isAdmin = window.suedsPortalProfile?.roles?.includes("admin_geral");
+    if (document.documentElement.classList.contains("site-preview-only")) {
+      document.querySelectorAll("[data-home-only], #portalHome, #openTvMessageModal, #openHotelOpinionModal").forEach((element) => {
+        element.hidden = true;
+      });
+    }
     const hotelCodes = new Set((window.suedsPortalProfile?.hotels || []).map((hotel) => hotel.code));
     document.querySelectorAll("[data-hotel-code]").forEach((element) => {
       element.hidden = !isAdmin && !hotelCodes.has(element.dataset.hotelCode);
     });
+    window.suedsPortalNavigation?.init();
     const requestedModule = new URLSearchParams(window.location.search).get("modulo") || "";
     if (requestedModule) showModule(requestedModule, { replace: true });
     else showHome({ replace: true, instant: true });
     updateHeaderHeight();
+    refreshAnnouncementNotifications();
   });
 })();

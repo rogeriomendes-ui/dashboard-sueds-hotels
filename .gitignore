@@ -1,4 +1,5 @@
 .env
+reports/status-repair-*.json
 *.local
 *.key
 *service-account*.json

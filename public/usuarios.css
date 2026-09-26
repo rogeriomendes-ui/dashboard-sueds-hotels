@@ -46,9 +46,11 @@ h1 { margin-top: 5px; font-size: clamp(30px, 4vw, 44px); }
 .avatar { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #f1e3cc; color: #765126; font-weight: 900; }
 .user-identity strong, .user-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .user-identity small { margin-top: 3px; color: var(--muted); }
+.user-departments { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; white-space: normal; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag { border-radius: 999px; padding: 5px 9px; background: #eaf2f5; color: #31576a; font-size: 11px; font-weight: 800; }
 .tag.role { background: #eaf5ef; color: #286449; }
+.tag.department { background: #fff3d5; color: #765126; }
 .edit-button { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 9px; background: white; color: var(--navy); font-size: 18px; }
 .empty-state { padding: 55px 20px; text-align: center; color: var(--muted); }
 
@@ -67,12 +69,17 @@ h1 { margin-top: 5px; font-size: clamp(30px, 4vw, 44px); }
 .user-form fieldset { padding: 0; border: 0; }
 .user-form legend { font-size: 15px; font-weight: 900; }
 .user-form fieldset > p { margin: 4px 0 11px; color: var(--muted); font-size: 12px; }
+.department-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.department-option { display: inline-flex !important; align-items: center; gap: 7px !important; min-height: 40px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: white; color: var(--ink); }
+.department-option:has(input:checked) { border-color: #c99a52; background: #fff7e8; color: #765126; }
+.department-option input { width: 17px; height: 17px; min-height: auto; margin: 0; accent-color: var(--navy); }
 .option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .environment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .check-card { min-height: 58px; display: flex !important; grid-template-columns: none !important; align-items: flex-start; gap: 10px !important; border: 1px solid var(--line); border-radius: 10px; background: white; padding: 11px; font-weight: 750 !important; }
 .check-card input { width: 18px; height: 18px; min-height: auto; margin: 1px 0 0; accent-color: var(--navy); }
 .check-card span { display: grid; gap: 3px; }
 .check-card small { color: var(--muted); font-size: 10px; font-weight: 600; line-height: 1.25; }
+.check-card select { min-height: 32px; margin-top: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; color: var(--ink); background: #fff; font-size: 11px; font-weight: 700; }
 .user-form > footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 10px; margin-left: 0; margin-right: 0; padding: 17px 22px; border-top: 1px solid var(--line); background: white; }
 
 @media (max-width: 850px) {

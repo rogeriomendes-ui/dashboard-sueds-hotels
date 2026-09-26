@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="comunicados" class="manager-auth-pending">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Comunicados | Portal SUEDS</title>
+    <script src="/manager-auth.js?v=20260911-comunicados"></script>
+    <link rel="stylesheet" href="/comunicados.css?v=20260911-leitores">
+  </head>
+  <body>
+    <main class="announcements-page">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Portal SUEDS</p>
+          <h1>Comunicados</h1>
+          <p class="intro">Informações importantes para você e sua equipe.</p>
+        </div>
+        <button id="refreshButton" class="secondary-button" type="button">↻ Atualizar</button>
+      </header>
+
+      <nav id="departmentFilters" class="department-filters" aria-label="Filtrar comunicados por departamento"></nav>
+      <p id="pageMessage" class="page-message" role="status" aria-live="polite">Carregando comunicados…</p>
+      <section id="announcementsList" class="announcements-list" aria-live="polite"></section>
+    </main>
+    <dialog id="readersDialog" class="readers-dialog" aria-labelledby="readersDialogTitle" aria-describedby="readersAnnouncementTitle">
+      <div class="readers-dialog-heading">
+        <h2 id="readersDialogTitle">Quem confirmou a leitura</h2>
+        <button id="closeReadersDialog" class="secondary-button" type="button" aria-label="Fechar lista de leitores" autofocus>Fechar</button>
+      </div>
+      <p id="readersAnnouncementTitle" class="intro"></p>
+      <p id="readersSummary" class="readers-summary"></p>
+      <ul id="readersDialogList" class="confirmed-readers-list"></ul>
+    </dialog>
+    <script src="/comunicados.js?v=20260911-sino-comunicados"></script>
+  </body>
+</html>

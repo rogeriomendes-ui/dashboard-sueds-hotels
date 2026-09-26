@@ -21,11 +21,11 @@
 
   function renderUsers() {
     const query = state.query.toLocaleLowerCase("pt-BR");
-    const users = state.catalog.users.filter((user) => [user.name, user.email, ...user.roleNames, ...user.hotelNames, ...user.environmentNames].join(" ").toLocaleLowerCase("pt-BR").includes(query));
+    const users = state.catalog.users.filter((user) => [user.name, user.email, ...(user.departments || []), ...user.roleNames, ...user.hotelNames, ...user.environmentNames].join(" ").toLocaleLowerCase("pt-BR").includes(query));
     byId("userCount").textContent = `${users.length} usuário${users.length === 1 ? "" : "s"}`;
     list.innerHTML = users.length ? users.map((user) => `
       <article class="user-row ${user.status === "inactive" ? "inactive" : ""}">
-        <div class="user-identity"><span class="avatar">${escapeHtml(initials(user.name))}</span><div><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email || "E-mail não disponível")}</small></div></div>
+        <div class="user-identity"><span class="avatar">${escapeHtml(initials(user.name))}</span><div><strong>${escapeHtml(user.name)}</strong><small>${escapeHtml(user.email || "E-mail não disponível")}</small><div class="user-departments">${tags(user.departments || [], "department")}</div></div></div>
         <div class="tag-list">${tags(user.roleNames, "role")}</div>
         <div class="tag-list">${tags(user.environmentNames)}</div>
         <button class="edit-button" type="button" data-edit-user="${escapeHtml(user.id)}" aria-label="Editar ${escapeHtml(user.name)}">✎</button>
@@ -34,11 +34,16 @@
   }
 
   function checkCard(item, group, checked) {
-    return `<label class="check-card"><input type="checkbox" name="${group}" value="${escapeHtml(item.id)}" ${checked ? "checked" : ""}><span>${escapeHtml(item.name)}${item.description ? `<small>${escapeHtml(item.description)}</small>` : ""}</span></label>`;
+    const knowledge = group === "environments" && item.slug === "treinamentos" ? `<select name="knowledgeRole" aria-label="Permissão no Centro de Conhecimentos"><option value="viewer">Visualizador</option><option value="editorial">Colaborador editorial</option><option value="reviewer">Gestor/revisor</option><option value="admin">Administrador</option></select>` : "";
+    return `<label class="check-card"><input type="checkbox" name="${group}" value="${escapeHtml(item.id)}" ${checked ? "checked" : ""}><span>${escapeHtml(item.name)}${item.description ? `<small>${escapeHtml(item.description)}</small>` : ""}${knowledge}</span></label>`;
   }
 
   function selected(name) {
     return [...form.querySelectorAll(`input[name="${name}"]:checked`)].map((input) => input.value);
+  }
+
+  function departmentOption(department, checked) {
+    return `<label class="department-option"><input type="checkbox" name="departments" value="${escapeHtml(department)}" ${checked ? "checked" : ""}><span>${escapeHtml(department)}</span></label>`;
   }
 
   function openEditor(user = null) {
@@ -49,10 +54,13 @@
     byId("userName").value = user?.name || "";
     byId("userEmail").value = user?.email || "";
     byId("userEmail").disabled = Boolean(user);
+    byId("departmentOptions").innerHTML = (state.catalog.departments || []).map((department) => departmentOption(department, user?.departments?.includes(department))).join("");
     byId("userStatus").value = user?.status || "active";
     byId("statusField").hidden = !user;
     byId("rolesOptions").innerHTML = state.catalog.roles.map((role) => checkCard(role, "roles", user?.roleIds.includes(Number(role.id)))).join("");
     byId("environmentOptions").innerHTML = state.catalog.environments.map((environment) => checkCard(environment, "environments", user?.environmentIds.includes(Number(environment.id)))).join("");
+    const knowledgeSelect = form.querySelector('select[name="knowledgeRole"]');
+    if (knowledgeSelect) knowledgeSelect.value = user?.knowledgeRole || "viewer";
     byId("hotelOptions").innerHTML = state.catalog.hotels.map((hotel) => checkCard(hotel, "hotels", user?.hotelIds.includes(hotel.id))).join("");
     byId("saveUser").textContent = user ? "Salvar acessos" : "Enviar convite";
     formMessage.textContent = "";
@@ -61,12 +69,12 @@
   }
 
   function suggestEnvironment(roleSlug) {
-    const suggestions = { vendedor: "ranking_vendedores", lider_operacional: "opinarios_hotel", gestor_unidade: "inspecoes", inspetor: "inspecoes", responsavel_correcao: "inspecoes" };
-    const environmentSlug = suggestions[roleSlug];
-    if (!environmentSlug) return;
-    const environment = state.catalog.environments.find((item) => item.slug === environmentSlug);
-    const input = environment && form.querySelector(`input[name="environments"][value="${environment.id}"]`);
-    if (input) input.checked = true;
+    const suggestions = { vendedor: ["ranking_vendedores", "mesas_vip_reveillon"], lider_operacional: ["opinarios_hotel"], gestor_unidade: ["inspecoes"], inspetor: ["inspecoes"], responsavel_correcao: ["inspecoes"] };
+    (suggestions[roleSlug] || []).forEach((environmentSlug) => {
+      const environment = state.catalog.environments.find((item) => item.slug === environmentSlug);
+      const input = environment && form.querySelector(`input[name="environments"][value="${environment.id}"]`);
+      if (input) input.checked = true;
+    });
   }
 
   async function loadCatalog() {
@@ -97,11 +105,18 @@
       id: byId("userId").value,
       name: byId("userName").value.trim(),
       email: byId("userEmail").value.trim(),
+      departments: selected("departments"),
       status: byId("userStatus").value,
       roleIds: selected("roles").map(Number),
       hotelIds: selected("hotels"),
-      environmentIds: selected("environments").map(Number)
+      environmentIds: selected("environments").map(Number),
+      knowledgeRole: form.querySelector('select[name="knowledgeRole"]')?.value || "viewer"
     };
+    if (!state.editing && !payload.departments.length) {
+      formMessage.textContent = "Selecione pelo menos um departamento para o novo usuário.";
+      formMessage.className = "form-message error";
+      return;
+    }
     if (!payload.roleIds.length || !payload.environmentIds.length) {
       formMessage.textContent = "Selecione pelo menos um perfil e um ambiente.";
       formMessage.className = "form-message error";

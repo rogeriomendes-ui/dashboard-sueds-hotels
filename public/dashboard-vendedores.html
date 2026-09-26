@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Vendedores</title>
     <script>document.documentElement.classList.add("seller-auth-pending");</script>
-    <link rel="stylesheet" href="vendedores.css?v=20260820-leader-excel">
+    <link rel="stylesheet" href="vendedores.css?v=20260917-percentuais">
   </head>
   <body>
     <main class="seller-shell">
@@ -41,11 +41,13 @@
           <span>Recebido no mês</span>
           <strong id="receivedMonth">R$ 0</strong>
           <small>Confirmadas</small>
+          <small id="receivedMonthPct" class="sales-share">0,0% do total de vendas</small>
         </article>
         <article class="metric-card">
           <span>A receber</span>
           <strong id="remainingMonth">R$ 0</strong>
           <small>No mês</small>
+          <small id="remainingMonthPct" class="sales-share">0,0% do total de vendas</small>
         </article>
       </section>
 
@@ -55,12 +57,15 @@
             <p class="eyebrow">Equipe</p>
             <h2>Ranking de vendedores</h2>
           </div>
-          <button id="exportExcel" class="export-excel" type="button" hidden>Gerar Excel</button>
+          <div class="export-actions">
+            <button id="exportExcel" class="export-excel" type="button" hidden>Gerar Excel</button>
+            <button id="exportTickets" class="export-excel" type="button" hidden>Gerar Excel Ingressos</button>
+          </div>
         </div>
         <div id="sellerRanking" class="ranking-list"></div>
       </section>
     </main>
 
-    <script src="vendedores.js?v=20260820-leader-excel"></script>
+    <script src="vendedores.js?v=20260917-percentuais"></script>
   </body>
 </html>

@@ -530,19 +530,19 @@ function renderOtherChannels(data) {
           const hotelMetrics = new Map((item.hotels || []).map((hotel) => [hotel.label, hotel]));
           return `
           <div class="other-channels-row" style="--other-channel-columns: ${columnTemplate}">
-            <span class="row-label">${escapeHtml(item.label)}${item.excludedFromTotal ? '<sup class="excluded-total-marker">*</sup>' : ""}</span>
+            <span class="row-label">${escapeHtml(item.label)}${item.excludedFromTotal && !item.summaryOnly ? '<sup class="excluded-total-marker">*</sup>' : ""}</span>
             ${hotels.map((hotel) => {
               const metrics = hotelMetrics.get(hotel) || {};
               return `
                 <span class="other-channel-hotel-values" data-label="${escapeHtml(displayLabel(hotel))}">
                   <strong title="Venda">${money.format(metrics.value || 0)}</strong>
-                  <strong title="Reservas">${number.format(metrics.reservations || 0)}</strong>
+                  <strong title="Reservas">${metrics.reservations == null ? "" : number.format(metrics.reservations || 0)}</strong>
                 </span>
               `;
             }).join("")}
-            <strong data-label="Reservas">${number.format(item.reservations || 0)}</strong>
+            <strong data-label="Reservas">${item.reservations == null ? "" : number.format(item.reservations || 0)}</strong>
             <strong data-label="Venda">${money.format(item.value || 0)}</strong>
-            <strong data-label="Participação">${percentage.format(item.sharePct || 0)}%</strong>
+            <strong data-label="Participação">${item.sharePct == null ? "" : `${percentage.format(item.sharePct)}%`}</strong>
           </div>
         `;
         })
@@ -553,7 +553,7 @@ function renderOtherChannels(data) {
 function hotelSalesBreakdowns(data) {
   const directHotels = data.hotels || [];
   const otherChannels = data.otherChannels || {};
-  const includedOtherChannels = (otherChannels.channels || []).filter((channel) => !channel.excludedFromTotal);
+  const includedOtherChannels = (otherChannels.channels || []).filter((channel) => !channel.excludedFromTotal && !channel.summaryOnly);
   const hotelLabels = [];
   const seenHotels = new Set();
   [...directHotels.map((hotel) => hotel.label), ...(otherChannels.hotels || [])].forEach((label) => {
@@ -616,7 +616,7 @@ function render(data) {
     ? displayLabel(data.filters.selectedChannel)
     : "Equipe + Site";
   const salesPeriodLabel = `${hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês"} ( ${salesScopeLabel} ) (Venda Direta)`;
-  byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Venda Direta)`;
+  byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Equipe SUEDS)`;
   byId("salesMonthLabel").textContent = salesPeriodLabel;
   byId("hotelSalesLabel").textContent = salesPeriodLabel;
   const hotelChannelPeriodLabel = hasHotelOrDayFilter ? "Vendas no recorte" : "Vendas no mês";
@@ -668,6 +668,7 @@ function render(data) {
       <span>Venda</span>
       <span>Meta</span>
       <span>ICM %</span>
+      <span>Ingressos</span>
     </div>
     ${rankingSellers
       .map((seller, index) => `
@@ -680,6 +681,7 @@ function render(data) {
           <strong data-label="Venda">${money.format(seller.salesMonth)}</strong>
           <strong data-label="Meta">${money.format(seller.monthlyGoal || 0)}</strong>
           <strong data-label="ICM" class="icm-value ${icmClass(seller.monthlyGoalPct)}">${pct(seller.monthlyGoalPct)}</strong>
+          <strong data-label="Ingressos" class="ticket-cell">${number.format(seller.ticketQuantity || 0)} ingressos<br>${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(seller.ticketSales || 0)}</strong>
         </div>
       `)
       .join("")}

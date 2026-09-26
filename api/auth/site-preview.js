@@ -1,5 +1,5 @@
 const crypto = require("node:crypto");
-const { getPortalProfile, json } = require("../../lib/portal-auth");
+const { getPortalProfile, hasEnvironment, json } = require("../../lib/portal-auth");
 
 const TICKET_AUDIENCE = "sueds-site-preview";
 const DEFAULT_PREVIEW_URL = "https://novo-site-sueds.vercel.app";
@@ -18,7 +18,8 @@ function signTicket(profile) {
     aud: TICKET_AUDIENCE,
     sub: profile.id,
     email: profile.email,
-    roles: ["admin_geral"],
+    roles: profile.roles,
+    environments: profile.environments,
     nonce: crypto.randomBytes(16).toString("base64url"),
     exp: Math.floor(Date.now() / 1000) + 60
   })).toString("base64url");
@@ -43,7 +44,10 @@ function verifyTicket(ticket) {
       || typeof decoded.sub !== "string"
       || typeof decoded.email !== "string"
       || !Array.isArray(decoded.roles)
-      || !decoded.roles.includes("admin_geral")
+      || decoded.roles.some((role) => typeof role !== "string")
+      || !Array.isArray(decoded.environments)
+      || decoded.environments.some((environment) => typeof environment !== "string")
+      || (!decoded.roles.includes("admin_geral") && !decoded.environments.some((environment) => ["site_novo_preview", "gerenciar_site", "gerenciar_portal_agente"].includes(environment)))
       || typeof decoded.exp !== "number"
       || decoded.exp <= Math.floor(Date.now() / 1000)
     ) return null;
@@ -70,13 +74,17 @@ module.exports = async function sitePreview(req, res) {
       res.setHeader("location", "/login?next=%2Fgestores");
       return res.end();
     }
-    if (!profile.roles.includes("admin_geral")) return json(res, 403, { error: "forbidden" });
+    const requestUrl = new URL(req.url || "/api/auth/site-preview", "https://portalsueds.com.br");
+    const mode = requestUrl.searchParams.get("mode");
+    const isManagement = mode === "manage" || mode === "manage-agent";
+    const requiredEnvironment = mode === "manage-agent" ? "gerenciar_portal_agente" : isManagement ? "gerenciar_site" : "site_novo_preview";
+    if (!hasEnvironment(profile, requiredEnvironment)) return json(res, 403, { error: "forbidden" });
     const ticket = signTicket(profile);
     if (!ticket) return json(res, 503, { error: "preview_sso_not_configured" });
     const previewUrl = new URL(process.env.SITE_PREVIEW_URL || DEFAULT_PREVIEW_URL);
     previewUrl.pathname = "/api/preview/access";
     previewUrl.searchParams.set("ticket", ticket);
-    previewUrl.searchParams.set("next", "/");
+    previewUrl.searchParams.set("next", mode === "manage-agent" ? "/gerenciar-portal-agente" : isManagement ? "/gerenciar-site" : "/");
     res.statusCode = 302;
     res.setHeader("location", previewUrl.toString());
     return res.end();
@@ -88,7 +96,7 @@ module.exports = async function sitePreview(req, res) {
     if (!ticket) return json(res, 401, { error: "invalid_or_expired_ticket" });
     return json(res, 200, {
       ok: true,
-      profile: { id: ticket.sub, email: ticket.email, roles: ticket.roles }
+      profile: { id: ticket.sub, email: ticket.email, roles: ticket.roles, environments: ticket.environments }
     });
   }
 

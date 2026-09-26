@@ -20,8 +20,20 @@
       "dest": "/public/dashboard-gestores.html"
     },
     {
+      "src": "/mesas-vip-reveillon",
+      "dest": "/public/mesas-vip-reveillon.html"
+    },
+    {
       "src": "/usuarios",
       "dest": "/public/usuarios.html"
+    },
+    {
+      "src": "/comunicados/admin",
+      "dest": "/public/comunicados-admin.html"
+    },
+    {
+      "src": "/comunicados",
+      "dest": "/public/comunicados.html"
     },
     {
       "src": "/Treinamentos",
@@ -30,6 +42,14 @@
     {
       "src": "/Treinamentos/KPIFull",
       "dest": "/public/treinamentos-kpifull.html"
+    },
+    {
+      "src": "/Treinamentos/Admin",
+      "dest": "/public/treinamentos-admin.html"
+    },
+    {
+      "src": "/treinamentos/admin",
+      "dest": "/public/treinamentos-admin.html"
     },
     {
       "src": "/treinamentos",

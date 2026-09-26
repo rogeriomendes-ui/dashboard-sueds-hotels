@@ -580,6 +580,7 @@ function opinionResponseCard(opinion) {
           ${opinion.checkOut ? `<span>Saída: ${escapeHtml(formatStayDate(opinion.checkOut))}</span>` : ""}
           ${opinion.language ? `<span>Idioma: ${escapeHtml(String(opinion.language).toUpperCase())}</span>` : ""}
           ${opinion.hasPhoto ? `<button type="button" data-opinion-photo="${escapeHtml(opinion.id)}"><i data-lucide="image" aria-hidden="true"></i>Ver foto</button>` : ""}
+          ${opinion.isQrCode ? `<span class="opinion-origin-badge"><i data-lucide="qr-code" aria-hidden="true"></i>QR CODE</span>` : ""}
         </div>
       </div>
     </details>`;

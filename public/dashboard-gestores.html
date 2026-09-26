@@ -4,17 +4,77 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Gestores</title>
-    <script src="manager-auth.js?v=20260901-site-preview-fix"></script>
-    <link rel="stylesheet" href="styles.css?v=20260822-menu-preview">
+    <script src="manager-auth.js?v=20260901-site-management"></script>
+    <link rel="stylesheet" href="styles.css?v=20260910-ingressos">
+    <link rel="stylesheet" href="portal-navigation.css?v=20260918-valores-responsivos">
   </head>
   <body class="portal-shell-page">
-    <main class="dashboard-shell">
+    <aside id="portalSidebar" class="portal-sidebar" aria-label="Menu do portal">
+      <div class="portal-sidebar-heading"><span>EXPLORAR PORTAL</span><button id="portalSidebarClose" class="portal-icon-button" type="button" aria-label="Fechar menu">×</button></div>
+      <nav aria-label="Navegação principal">
+        <section class="portal-favorites" aria-labelledby="portalFavoritesTitle">
+          <h2 id="portalFavoritesTitle">Favoritos <span aria-hidden="true">☆</span></h2>
+          <div id="portalFavoritesList"></div>
+          <p id="portalFavoritesEmpty">Marque a estrela ao lado de um item para adicioná-lo aqui.</p>
+        </section>
+        <div class="portal-nav-row portal-standalone-row"><a data-nav-key="comunicados" class="portal-nav-link manager-shortcut" data-environment="comunicados" data-portal-module="comunicados" href="/gestores?modulo=comunicados">Comunicados</a></div>
+        <details class="portal-nav-group" data-nav-category="Comercial" open>
+          <summary>Comercial<span class="portal-group-chevron" aria-hidden="true">›</span></summary>
+          <div class="portal-group-items">
+            <div class="portal-nav-row"><a data-nav-key="vendas" class="portal-nav-link manager-shortcut" data-environment="painel_gestores" data-portal-home href="/gestores">Vendas</a></div>
+            <div class="portal-nav-row"><a data-nav-key="ranking_vendedores" class="portal-nav-link manager-shortcut" data-environment="ranking_vendedores" data-portal-module="ranking_vendedores" href="/gestores?modulo=ranking_vendedores">Ranking de Vendedores</a></div>
+            <div class="portal-nav-row"><a data-nav-key="bi_relatorios" class="portal-nav-link manager-shortcut" data-environment="bi_relatorios" data-portal-module="bi_relatorios" href="/gestores?modulo=bi_relatorios">BI - Relatórios</a></div>
+            <div class="portal-nav-row"><a data-nav-key="bi_relatorios_kpi" class="portal-nav-link manager-shortcut" data-environment="bi_relatorios_kpi" data-portal-module="bi_relatorios_kpi" href="/gestores?modulo=bi_relatorios_kpi">BI - Relatórios by KPI</a></div>
+            <div class="portal-nav-row"><a data-nav-key="tv_vendedores" class="portal-nav-link manager-shortcut" data-environment="tv_vendedores" data-portal-module="tv_vendedores" href="/gestores?modulo=tv_vendedores">TV de Vendas</a></div>
+            <div class="portal-nav-row"><button id="openTvMessageModal" data-nav-key="mensagens_tv" class="portal-nav-link manager-shortcut" data-environment="mensagens_tv" type="button">Mensagens na TV</button></div>
+            <div class="portal-nav-row"><a data-nav-key="mesas_vip_reveillon" class="portal-nav-link manager-shortcut" data-environment="mesas_vip_reveillon" data-portal-module="mesas_vip_reveillon" href="/gestores?modulo=mesas_vip_reveillon">Mesas VIP Réveillon</a></div>
+          </div>
+        </details>
+        <details class="portal-nav-group" data-nav-category="Operação">
+          <summary>Operação<span class="portal-group-chevron" aria-hidden="true">›</span></summary>
+          <div class="portal-group-items">
+            <div class="portal-nav-row"><button id="openHotelOpinionModal" data-nav-key="opinarios_hotel" class="portal-nav-link manager-shortcut" data-environment="opinarios_hotel" data-portal-group="opinarios_hotel" type="button">Opinários por Hotel</button></div>
+            <div class="portal-nav-row"><a data-nav-key="opinarios_rede" class="portal-nav-link manager-shortcut" data-environment="opinarios_rede" data-portal-module="opinarios_rede" href="/gestores?modulo=opinarios_rede">Opinários da Rede</a></div>
+            <div class="portal-nav-row"><a data-nav-key="inspecoes" class="portal-nav-link manager-shortcut" data-environment="inspecoes" data-portal-module="inspecoes" href="/gestores?modulo=inspecoes">Sueds Inspeções</a></div>
+          </div>
+        </details>
+        <details class="portal-nav-group" data-nav-category="Marketing e Site">
+          <summary>Marketing e Site<span class="portal-group-chevron" aria-hidden="true">›</span></summary>
+          <div class="portal-group-items">
+            <div class="portal-nav-row"><a data-nav-key="redes_sociais" class="portal-nav-link manager-shortcut" data-environment="redes_sociais" data-portal-module="redes_sociais" href="/gestores?modulo=redes_sociais">Redes Sociais</a></div>
+            <div class="portal-nav-row"><a data-nav-key="marketing_competitividade" class="portal-nav-link manager-shortcut" data-environment="marketing_competitividade" data-portal-module="marketing_competitividade" href="/gestores?modulo=marketing_competitividade">Marketing e Competitividade</a></div>
+            <div class="portal-nav-row"><a data-nav-key="gerenciar_site" class="portal-nav-link manager-shortcut" data-environment="gerenciar_site" href="/api/auth/site-preview?mode=manage" target="_blank" rel="noopener">Gerenciar Site<span class="portal-external" aria-label="abre em nova aba">↗</span></a></div>
+            <div class="portal-nav-row"><a data-nav-key="gerenciar_portal_agente" class="portal-nav-link manager-shortcut" data-environment="gerenciar_portal_agente" href="/api/auth/site-preview?mode=manage-agent" target="_blank" rel="noopener">Gerenciar Portal do Agente<span class="portal-external" aria-label="abre em nova aba">↗</span></a></div>
+            <div class="portal-nav-row"><a data-nav-key="site_novo_preview" class="portal-nav-link manager-shortcut" data-environment="site_novo_preview" href="/api/auth/site-preview" target="_blank" rel="noopener">Prévia do Site<span class="portal-external" aria-label="abre em nova aba">↗</span></a></div>
+          </div>
+        </details>
+        <details class="portal-nav-group" data-nav-category="Conhecimento">
+          <summary>Conhecimento<span class="portal-group-chevron" aria-hidden="true">›</span></summary>
+          <div class="portal-group-items">
+            <div class="portal-nav-row"><a data-nav-key="treinamentos" class="portal-nav-link manager-shortcut" data-environment="treinamentos" href="/Treinamentos">Centro de Conhecimentos</a></div>
+          </div>
+        </details>
+        <details class="portal-nav-group" data-nav-category="Administração">
+          <summary>Administração<span class="portal-group-chevron" aria-hidden="true">›</span></summary>
+          <div class="portal-group-items">
+            <div class="portal-nav-row"><a data-nav-key="inclusao_comunicados" class="portal-nav-link manager-shortcut" data-admin-only data-portal-module="inclusao_comunicados" href="/gestores?modulo=inclusao_comunicados">Inclusão de Comunicados</a></div>
+            <div class="portal-nav-row"><a data-nav-key="usuarios" class="portal-nav-link manager-shortcut" data-admin-only data-portal-module="usuarios" href="/gestores?modulo=usuarios">Usuários e Acessos</a></div>
+            <div class="portal-nav-row"><a data-nav-key="simulador_tributario" class="portal-nav-link manager-shortcut" data-admin-only data-portal-module="simulador_tributario" href="/gestores?modulo=simulador_tributario">Simulador Tributário</a></div>
+          </div>
+        </details>
+      </nav>
+      <p class="portal-sidebar-footnote">SUEDS HOTELS · PORTAL</p>
+    </aside>
+    <div id="portalSidebarBackdrop" class="portal-sidebar-backdrop" hidden></div>
+    <main id="portalMain" class="dashboard-shell">
       <header class="topbar manager-topbar">
-        <div class="manager-identity">
-          <a class="manager-brand" href="/gestores" data-portal-home aria-label="Abrir Painel de Gestores">
-            <img src="sueds-hotels-gold.png" alt="SUEDS Hotels">
-            <h1 class="sr-only">SUEDS Hotels - Gestores</h1>
-          </a>
+        <button id="portalMenuToggle" class="portal-icon-button" type="button" aria-controls="portalSidebar" aria-expanded="true" aria-label="Recolher menu" title="Recolher menu">☰</button>
+        <a class="manager-brand" href="/gestores" data-portal-home aria-label="Abrir Painel de Gestores"><img src="sueds-hotels-gold.png" alt="SUEDS Hotels"></a>
+        <div class="portal-page-heading"><span id="portalPageCategory">Comercial</span><h1 id="portalPageTitle" tabindex="-1">Vendas</h1></div>
+          <button id="portalAnnouncementBell" class="portal-announcement-bell" type="button" hidden aria-label="Abrir comunicados" title="Abrir comunicados">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+            <span id="portalAnnouncementBadge" class="portal-announcement-badge" aria-hidden="true">0</span>
+          </button>
           <div class="portal-user-summary" aria-label="Usuário conectado">
             <span id="portalUserInitials" class="portal-user-avatar" aria-hidden="true">US</span>
             <span class="portal-user-copy">
@@ -26,9 +86,10 @@
               <span aria-hidden="true">↪</span>
             </button>
           </div>
-        </div>
-        <div class="manager-topbar-main">
-          <div class="topbar-controls manager-filter-row" data-home-only>
+      </header>
+
+      <div id="portalHome" class="portal-home">
+          <div class="topbar-controls portal-sales-filters" data-home-only>
             <label class="month-control" for="monthSelect">
               <span>Mês</span>
               <select id="monthSelect"></select>
@@ -46,25 +107,7 @@
               <select id="channelSelect"></select>
             </label>
           </div>
-          <nav class="manager-shortcuts" aria-label="Atalhos dos gestores">
-            <a class="nav-link-button manager-shortcut" data-environment="painel_gestores" data-portal-home href="/gestores">Vendas</a>
-            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="tv_vendedores" data-portal-module="tv_vendedores" href="/gestores?modulo=tv_vendedores">TV painel<br>Vendedor</a>
-            <button id="openTvMessageModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="mensagens_tv" type="button">MSG na TV<br>Vendedor</button>
-            <a class="nav-link-button manager-shortcut public-shortcut" data-environment="ranking_vendedores" data-portal-module="ranking_vendedores" href="/gestores?modulo=ranking_vendedores">Ranking<br>Vendedor</a>
-            <a class="nav-link-button manager-shortcut" data-environment="redes_sociais" data-portal-module="redes_sociais" href="/gestores?modulo=redes_sociais">Redes<br>Sociais</a>
-            <a class="nav-link-button manager-shortcut" data-admin-only data-portal-module="usuarios" href="/gestores?modulo=usuarios">Usuários e<br>Acessos</a>
-            <a class="nav-link-button manager-shortcut" data-environment="marketing_competitividade" data-portal-module="marketing_competitividade" href="/gestores?modulo=marketing_competitividade">Marketing e<br>Competitividade</a>
-            <button id="openHotelOpinionModal" class="nav-link-button manager-action-button manager-shortcut" data-environment="opinarios_hotel" data-portal-group="opinarios_hotel" type="button">Opinário<br>Por hotel</button>
-            <a class="nav-link-button manager-shortcut" data-environment="opinarios_rede" data-portal-module="opinarios_rede" href="/gestores?modulo=opinarios_rede">Opinário<br>Todos hotéis</a>
-            <a class="nav-link-button manager-shortcut" data-environment="inspecoes" data-portal-module="inspecoes" href="/gestores?modulo=inspecoes">Sueds<br>Inspeções</a>
-            <a class="nav-link-button manager-shortcut" data-admin-only data-portal-module="simulador_tributario" href="/gestores?modulo=simulador_tributario">Simulador<br>Tributário</a>
-            <a class="nav-link-button manager-shortcut knowledge-shortcut" data-environment="treinamentos" href="/Treinamentos">Centro de<br>Conhecimentos</a>
-            <a class="nav-link-button manager-shortcut site-preview-shortcut" data-environment="site_novo_preview" href="/api/auth/site-preview" target="_blank" rel="noopener">Site novo<br>Preview</a>
-          </nav>
-        </div>
-      </header>
 
-      <div id="portalHome" class="portal-home">
 
       <section class="hero-metrics">
         <article class="metric-card primary">
@@ -149,7 +192,7 @@
         <div class="panel-header">
           <button id="otherChannelsToggle" class="collapsible-toggle" type="button" aria-expanded="false" aria-controls="otherChannelsContent">
             <span>
-              <span class="eyebrow">Omnibees</span>
+              <span class="eyebrow">OMNIBEES + JUNIPER + CVC</span>
               <span class="daily-title">Vendas de outros canais</span>
             </span>
             <span class="daily-toggle-control">
@@ -287,7 +330,8 @@
       </section>
     </div>
 
-    <script src="gestores.js?v=20260808-sales-first"></script>
-    <script src="portal-shell.js?v=20260829-site-preview-access"></script>
+    <script src="gestores.js?v=20260911-equipe-hoje"></script>
+    <script src="portal-navigation.js?v=20260918-bi-history-2025"></script>
+    <script src="portal-shell.js?v=20260918-bi-history-2025"></script>
   </body>
 </html>

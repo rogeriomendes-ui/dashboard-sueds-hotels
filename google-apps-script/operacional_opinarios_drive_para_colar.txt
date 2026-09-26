@@ -263,14 +263,15 @@ function doPost(e) {
       ? periodFrom.replace(/-/g, "")
       : Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "America/Sao_Paulo", "yyyyMMdd");
     const hotelPrefix = hotelSlug.replace(/[^a-z0-9]+/g, "_").toUpperCase();
-    const fileName = `${hotelPrefix}_${datePart}_${uploadId}.${extensions[mimeType]}`;
+    const contentHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)
+      .map(function(value) { return (value < 0 ? value + 256 : value).toString(16).padStart(2, "0"); })
+      .join("");
+    const fileName = `${hotelPrefix}_${contentHash.slice(0, 40)}.${extensions[mimeType]}`;
     const folder = DriveApp.getFolderById(folderId);
     const uploadAttempt = Math.max(1, Number(body.uploadAttempt || 1));
-    if (uploadAttempt > 1) {
-      const existingFiles = folder.getFilesByName(fileName);
-      if (existingFiles.hasNext()) {
-        return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(existingFiles.next(), uploadId, true) });
-      }
+    const existingFiles = folder.getFilesByName(fileName);
+    if (existingFiles.hasNext()) {
+      return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(existingFiles.next(), uploadId, true) });
     }
 
     const file = folder.createFile(Utilities.newBlob(bytes, mimeType, fileName));
@@ -281,7 +282,8 @@ function doPost(e) {
       uploader ? `Responsavel: ${uploader}.` : "",
       periodFrom ? `Periodo informado: ${periodFrom}${periodTo && periodTo !== periodFrom ? ` a ${periodTo}` : ""}.` : "",
       originalName ? `Arquivo original: ${originalName}.` : "",
-      `Upload ID: ${uploadId}.`
+      `Upload ID: ${uploadId}.`,
+      `SHA-256: ${contentHash}.`
     ].filter(Boolean).join(" "));
 
     return opinionUploadJson_({ ok: true, photo: opinionUploadPhoto_(file, uploadId, false) });

@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const routing = require("../lib/sales-routing");
 
 const ROOT = path.resolve(__dirname, "..");
 const INPUT_FILE = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
@@ -152,7 +153,23 @@ function normalizeName(value) {
     .replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("pt-BR"));
 }
 
+function isAliceVirtualAssistant(value) {
+  const key = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/gi, " ")
+    .trim()
+    .toUpperCase();
+  return key === "ALICE ASSISTENTE VIRTUAL" || key === "ALICE ROBO";
+}
+
+function isRobotSale(channel, seller) {
+  const normalizedChannel = String(channel || "").trim().toLocaleUpperCase("pt-BR");
+  return normalizedChannel === "ROBO" || isAliceVirtualAssistant(seller);
+}
+
 function normalizeSeller(value) {
+  if (isAliceVirtualAssistant(value)) return "Alice (Robo)";
   const raw = String(value || "").trim().toLocaleUpperCase("pt-BR");
   const map = {
     SITE: "Site",
@@ -182,6 +199,15 @@ function normalizeHotel(value) {
 function parseInstallments(payment) {
   const match = String(payment || "").match(/(\d+)\s*X/i);
   return match ? match[1] : "";
+}
+
+function isBookingEngineChannel(value) {
+  const key = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+  return key.includes("BOOKING ENGINE") || key.includes("BOOK ENGINE") || key.includes("BE MOBILE") || key.includes("BE MOBILLE");
 }
 
 function dateKey(value) {
@@ -256,24 +282,28 @@ function parseRows(rows) {
 
     if (String(dataVenda || "").toLocaleUpperCase("pt-BR") === "DATA VENDA") return;
     if (!dataVenda || !hotel || !cliente) return;
+    const aliceRobotSale = isRobotSale(canal, vendedor);
+    const bookingEngineSale = isBookingEngineChannel(canal);
+    const prepaidCardSale = bookingEngineSale || aliceRobotSale;
+    const normalizedTotal = parseMoney(valorTotal);
     records.push({
       sourceLine: index + 2,
       codigo,
       dataVenda,
       hotel: normalizeHotel(hotel),
-      canal,
-      vendedor: normalizeSeller(vendedor),
+      canal: aliceRobotSale ? "Robo" : canal,
+      vendedor: aliceRobotSale ? "Alice (Robo)" : normalizeSeller(vendedor),
       cliente,
       checkin,
       checkout,
       uhs: 1,
       adultos: "",
       criancas: "",
-      valorTotal: parseMoney(valorTotal),
-      recebido: parseMoney(recebido),
-      aReceber: parseMoney(aReceber),
-      formaPagamento,
-      parcelas: parseInstallments(formaPagamento),
+      valorTotal: normalizedTotal,
+      recebido: prepaidCardSale ? normalizedTotal : parseMoney(recebido),
+      aReceber: prepaidCardSale ? 0 : parseMoney(aReceber),
+      formaPagamento: prepaidCardSale ? "Cartao credito" : formaPagamento,
+      parcelas: prepaidCardSale ? "" : parseInstallments(formaPagamento),
       status: "Confirmada",
       observacoes: ""
     });
@@ -308,6 +338,7 @@ function rowToRecord(row, rowNumber) {
     hotel: row[2] || "",
     canal: row[3] || "",
     vendedor: row[4] || "",
+    fonte: row[18] || "",
     cliente: row[5] || "",
     checkin: row[6] || "",
     checkout: row[7] || "",
@@ -337,7 +368,7 @@ function buildWriteRow(record, rowNumber) {
     record.formaPagamento,
     record.parcelas,
     record.status,
-    "",
+    record.fonte || "",
     record.observacoes
   ];
 }
@@ -347,11 +378,41 @@ async function main() {
   const sourceRecords = readInputRecords(INPUT_FILE);
   const targetMonth = MONTH || monthKey(sourceRecords.find((record) => monthKey(record.dataVenda))?.dataVenda);
   if (!targetMonth) throw new Error("Nao foi possivel identificar o mes. Use --month=AAAA-MM.");
-  const records = sourceRecords.filter((record) => monthKey(record.dataVenda) === targetMonth);
+  const monthRecords = sourceRecords.filter((record) => monthKey(record.dataVenda) === targetMonth);
+  const otherRows = (await sheetsRequest("GET", "'teste lancamento_vendas'!A2:T5000")).values || [];
   const currentRows = (await sheetsRequest("GET", RANGE)).values || [];
   const currentMonthRows = currentRows
     .map((row, index) => rowToRecord(row, index + 2))
     .filter((record) => monthKey(record.dataVenda) === targetMonth);
+  const existingRobotReservations = new Set(currentMonthRows.concat(otherRows.map(row => rowToRecord(row, 0)))
+    .filter((record) => isRobotSale(record.canal, record.vendedor))
+    .map((record) => `${String(record.codigo).trim().toUpperCase()}|${String(record.hotel).trim().toUpperCase()}`));
+  const existingChannels = new Map(otherRows.map(row => rowToRecord(row, 0)).filter(record => routing.destination(record) === routing.CHANNELS_SHEET)
+    .map(record => [`${String(record.codigo).trim().toUpperCase()}|${String(record.hotel).trim().toUpperCase()}`, record]));
+  monthRecords.forEach((record) => {
+    const key = `${String(record.codigo).trim().toUpperCase()}|${String(record.hotel).trim().toUpperCase()}`;
+    const existing = existingChannels.get(key);
+    if (existing) {
+      record.canal = existing.canal;
+      record.vendedor = existing.vendedor;
+      record.fonte = existing.fonte;
+    }
+    if (!existingRobotReservations.has(key)) return;
+    record.canal = "Robo";
+    record.vendedor = "Alice (Robo)";
+    if (String(record.status).trim().toLowerCase() === "confirmada") {
+      record.recebido = record.valorTotal;
+      record.aReceber = 0;
+    }
+    record.formaPagamento = "Cartao credito";
+    record.parcelas = "";
+  });
+  const records = monthRecords.filter(record => routing.destination(record) === routing.SELLERS_SHEET);
+  const channelRecords = monthRecords.filter(record => routing.destination(record) === routing.CHANNELS_SHEET);
+  const otherKeys = new Set(otherRows.map(row => `${String(row[1] || '').trim().toUpperCase()}|${String(row[2] || '').trim().toUpperCase()}`));
+  const newChannels = channelRecords.filter(record => !otherKeys.has(`${String(record.codigo).trim().toUpperCase()}|${String(record.hotel).trim().toUpperCase()}`));
+  records.concat(newChannels).forEach(record => routing.assertSalesWrite(record, routing.destination(record), otherRows.map(row => rowToRecord(row, 0))));
+  const channelStartRow = otherRows.reduce((last, row, index) => row[1] ? index + 3 : last, 2);
   const emptyRows = currentRows
     .map((row, index) => ({ row, rowNumber: index + 2 }))
     .filter(({ row }) => !row.some((cell) => String(cell || "").trim()))
@@ -372,6 +433,7 @@ async function main() {
     current: totals(currentMonthRows),
     rowsToClear: reusableRows.length,
     rowsToWrite: records.length,
+    channelRowsToInsert: newChannels.length,
     firstWriteRow: targetRows[0] || null,
     lastWriteRow: targetRows[records.length - 1] || null
   };
@@ -382,6 +444,10 @@ async function main() {
   }
 
   const data = [];
+  newChannels.forEach((record, index) => {
+    const rowNumber = channelStartRow + index;
+    data.push({ range: `'teste lancamento_vendas'!A${rowNumber}:T${rowNumber}`, values: [buildWriteRow(record, rowNumber)] });
+  });
   reusableRows.forEach((rowNumber) => {
     data.push({
       range: `Lancamento_Vendas!A${rowNumber}:T${rowNumber}`,

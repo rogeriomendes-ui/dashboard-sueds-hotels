@@ -154,6 +154,13 @@ h2 {
   font-weight: 900;
 }
 
+.metric-card .sales-share {
+  color: var(--ink);
+  font-weight: 900;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .panel {
   padding: 18px;
 }
@@ -199,13 +206,16 @@ h2 {
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 40px minmax(150px, 1.25fr) repeat(6, minmax(78px, .9fr)) repeat(3, minmax(110px, 1fr));
-  gap: 9px;
+  grid-template-columns: 30px minmax(130px, 1.25fr) 70px repeat(3, minmax(85px, .9fr)) repeat(2, minmax(52px, .55fr)) repeat(3, minmax(92px, 1fr)) minmax(100px, 1fr);
+  gap: 5px;
   align-items: center;
   min-height: 54px;
   border-bottom: 1px solid #edf1f4;
-  font-size: 15px;
+  font-size: 14px;
 }
+
+.export-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.ticket-cell { text-align: right; line-height: 1.4; font-variant-numeric: tabular-nums; }
 
 .ranking-row:last-child {
   border-bottom: 0;

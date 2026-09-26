@@ -10,6 +10,7 @@ pnpm-workspace.yaml
 .codex-tmp/
 .codex-remote-attachments/
 tmp/
+reports/status-repair-*
 *.xlsx
 *.xls
 *.csv

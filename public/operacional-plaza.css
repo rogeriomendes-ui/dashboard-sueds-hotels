@@ -593,6 +593,8 @@ td.description-cell { font-size: 12px; line-height: 1.3; }
 .opinion-response-meta { margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: 10px; font-weight: 700; }
 .opinion-response-meta button { min-height: 32px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; color: #15516a; background: #fff; border: 1px solid #aebbc0; border-radius: 3px; font-weight: 800; cursor: pointer; }
 .opinion-response-meta button svg { width: 14px; height: 14px; }
+.opinion-origin-badge { min-height: 32px; padding: 0 9px; display: inline-flex; align-items: center; gap: 6px; color: #15516a; background: #e8f5f2; border: 1px solid #60b8a9; border-radius: 3px; font-size: 10px; font-weight: 900; letter-spacing: .04em; }
+.opinion-origin-badge svg { width: 14px; height: 14px; }
 .opinions-empty { margin: 0; padding: 28px 12px; color: var(--muted); font-size: 13px; font-weight: 700; text-align: center; }
 
 .opinion-photo-dialog {

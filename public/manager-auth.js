@@ -35,7 +35,7 @@
     const grantedEnvironments = Object.entries(payload.access || {})
       .filter(([key, value]) => key !== "landingPage" && key !== "gestores" && value === true)
       .map(([key]) => key);
-    if (grantedEnvironments.length === 1 && grantedEnvironments[0] === "site_novo_preview") {
+    if (grantedEnvironments.length > 0 && grantedEnvironments.every((environment) => ["site_novo_preview", "gerenciar_site", "gerenciar_portal_agente"].includes(environment))) {
       document.documentElement.classList.add("site-preview-only");
     }
     whenDomReady(() => {

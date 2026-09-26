@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const routing = require("../lib/sales-routing");
 
 const ROOT = path.resolve(__dirname, "..");
 const inputArg = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
@@ -150,7 +151,23 @@ function normalizeName(value) {
     .replace(/(^|\s)\S/g, (letter) => letter.toLocaleUpperCase("pt-BR"));
 }
 
+function isAliceVirtualAssistant(value) {
+  const key = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/gi, " ")
+    .trim()
+    .toUpperCase();
+  return key === "ALICE ASSISTENTE VIRTUAL" || key === "ALICE ROBO";
+}
+
+function isRobotSale(channel, seller) {
+  const normalizedChannel = String(channel || "").trim().toLocaleUpperCase("pt-BR");
+  return normalizedChannel === "ROBO" || isAliceVirtualAssistant(seller);
+}
+
 function normalizeSeller(value) {
+  if (isAliceVirtualAssistant(value)) return "Alice (Robo)";
   const raw = String(value || "").trim().toLocaleUpperCase("pt-BR");
   const map = {
     "SITE": "Site",
@@ -181,8 +198,17 @@ function parseInstallments(payment) {
   return match ? match[1] : "";
 }
 
+function isBookingEngineChannel(value) {
+  const key = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+  return key.includes("BOOKING ENGINE") || key.includes("BOOK ENGINE") || key.includes("BE MOBILE") || key.includes("BE MOBILLE");
+}
+
 function makeKey(record) {
-  if (record.codigo) return `codigo:${String(record.codigo).toLocaleUpperCase("pt-BR")}`;
+  if (record.codigo) return `codigo:${String(record.codigo).trim().toLocaleUpperCase("pt-BR")}|hotel:${String(record.hotel || "").trim().toLocaleUpperCase("pt-BR")}`;
   return [
     "manual",
     record.dataVenda,
@@ -263,24 +289,28 @@ function parseRows(rows) {
 
     if (String(dataVenda || "").toLocaleUpperCase("pt-BR") === "DATA VENDA") return;
     if (!dataVenda || !hotel || !cliente) return;
+    const aliceRobotSale = isRobotSale(canal, vendedor);
+    const bookingEngineSale = isBookingEngineChannel(canal);
+    const prepaidCardSale = bookingEngineSale || aliceRobotSale;
+    const normalizedTotal = parseMoney(valorTotal);
     records.push({
       sourceLine: index + 2,
       codigo,
       dataVenda,
       hotel: normalizeHotel(hotel),
-      canal,
-      vendedor: normalizeSeller(vendedor),
+      canal: aliceRobotSale ? "Robo" : canal,
+      vendedor: aliceRobotSale ? "Alice (Robo)" : normalizeSeller(vendedor),
       cliente,
       checkin,
       checkout,
       uhs: 1,
       adultos: "",
       criancas: "",
-      valorTotal: parseMoney(valorTotal),
-      recebido: parseMoney(recebido),
-      aReceber: parseMoney(aReceber),
-      formaPagamento,
-      parcelas: parseInstallments(formaPagamento),
+      valorTotal: normalizedTotal,
+      recebido: prepaidCardSale ? normalizedTotal : parseMoney(recebido),
+      aReceber: prepaidCardSale ? 0 : parseMoney(aReceber),
+      formaPagamento: prepaidCardSale ? "Cartao credito" : formaPagamento,
+      parcelas: prepaidCardSale ? "" : parseInstallments(formaPagamento),
       status: "Confirmada",
       observacoes: aReceber && parseMoney(aReceber) > 0 ? `A receber informado na origem: ${aReceber}` : ""
     });
@@ -319,19 +349,26 @@ function firstEmptyRows(rows, count) {
 async function main() {
   const parsed = readInputRecords(INPUT_FILE);
   const current = (await sheetsRequest("GET", RANGE)).values || [];
-  const keys = existingKeys(current);
+  const other = (await sheetsRequest("GET", "'teste lancamento_vendas'!A2:T5000")).values || [];
+  const keys = existingKeys(current.concat(other));
   const pending = parsed.filter((record) => !keys.has(makeKey(record)));
-  const targetRows = firstEmptyRows(current, pending.length);
+  const sellersPending = pending.filter(record => routing.destination(record) === routing.SELLERS_SHEET);
+  const targetRows = firstEmptyRows(current, sellersPending.length);
 
-  if (targetRows.length < pending.length) {
-    throw new Error(`Linhas livres insuficientes: precisa ${pending.length}, encontrou ${targetRows.length}.`);
+  if (targetRows.length < sellersPending.length) {
+    throw new Error(`Linhas livres insuficientes: precisa ${sellersPending.length}, encontrou ${targetRows.length}.`);
   }
 
   const data = [];
-  pending.forEach((record, index) => {
-    const row = targetRows[index];
+  let sellerIndex = 0;
+  let otherNext = other.reduce((last, row, index) => row[1] ? index + 3 : last, 2);
+  pending.forEach((record) => {
+    const targetSheet = routing.destination(record);
+    routing.assertSalesWrite(record, targetSheet, other.map(row => ({dataVenda:row[0],codigo:row[1],hotel:row[2],canal:row[3],vendedor:row[4],fonte:row[18]})));
+    const row = targetSheet === routing.SELLERS_SHEET ? targetRows[sellerIndex++] : otherNext++;
+    const prefix = `'${targetSheet}'`;
     data.push({
-      range: `Lancamento_Vendas!A${row}:H${row}`,
+      range: `${prefix}!A${row}:H${row}`,
       values: [[
         record.dataVenda,
         record.codigo,
@@ -344,23 +381,23 @@ async function main() {
       ]]
     });
     data.push({
-      range: `Lancamento_Vendas!I${row}:I${row}`,
+      range: `${prefix}!I${row}:I${row}`,
       values: [[`=IF(OR(G${row}="";H${row}="");"";H${row}-G${row})`]]
     });
     data.push({
-      range: `Lancamento_Vendas!J${row}:N${row}`,
+      range: `${prefix}!J${row}:N${row}`,
       values: [[record.uhs, record.adultos, record.criancas, record.valorTotal, record.recebido]]
     });
     data.push({
-      range: `Lancamento_Vendas!O${row}:O${row}`,
+      range: `${prefix}!O${row}:O${row}`,
       values: [[record.aReceber]]
     });
     data.push({
-      range: `Lancamento_Vendas!P${row}:R${row}`,
+      range: `${prefix}!P${row}:R${row}`,
       values: [[record.formaPagamento, record.parcelas, record.status]]
     });
     data.push({
-      range: `Lancamento_Vendas!T${row}:T${row}`,
+      range: `${prefix}!T${row}:T${row}`,
       values: [[record.observacoes]]
     });
   });

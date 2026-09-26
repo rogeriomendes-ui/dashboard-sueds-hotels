@@ -145,12 +145,27 @@ async function preparePhoto(file) {
   return blob;
 }
 
+async function photoFingerprint(file) {
+  const bytes = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
 async function addFiles(fileList) {
   if (state.sending) return;
   const files = [...fileList].filter((file) => file.type.startsWith("image/"));
   const firstNewIndex = state.photos.length;
-  const newPhotos = files.map((file, index) => ({
+  const fingerprints = await Promise.all(files.map(photoFingerprint));
+  const knownFingerprints = new Set(state.photos.map((photo) => photo.fingerprint).filter(Boolean));
+  const newPhotos = files.map((file, index) => ({ file, fingerprint: fingerprints[index] }))
+    .filter(({ fingerprint }) => {
+      if (knownFingerprints.has(fingerprint)) return false;
+      knownFingerprints.add(fingerprint);
+      return true;
+    })
+    .map(({ file, fingerprint }, index) => ({
       id: makeUploadId(),
+      fingerprint,
       originalName: file.name || `opinario-${firstNewIndex + index + 1}.jpg`,
       source: file,
       blob: null,
@@ -159,6 +174,9 @@ async function addFiles(fileList) {
       message: "Aguardando preparo...",
       attempts: 0
     }));
+  if (newPhotos.length < files.length) {
+    setMessage("uploadMessage", `${files.length - newPhotos.length} foto repetida foi ignorada para evitar duplicidade.`, "success");
+  }
   state.photos.push(...newPhotos);
   renderQueue();
 
