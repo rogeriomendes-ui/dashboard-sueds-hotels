@@ -208,7 +208,7 @@
 }
 
 .seller-card {
-  min-height: 690px;
+  min-height: 500px;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -367,10 +367,8 @@
 }
 
 .cart-card {
-  min-width: 0;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
+  /* Temporarily hidden until a new cart recovery data source is available. */
+  display: none;
 }
 
 .asksuite-card {
