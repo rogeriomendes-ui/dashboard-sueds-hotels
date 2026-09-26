@@ -83,7 +83,13 @@ const pastCheckinPayload = __test.buildBiReportsPayload({
   records: [record({ reservationCode: "PAST-1", checkin: "20/08/2026", checkout: "22/08/2026", total: 700 })],
   otherChannelRecords: []
 }, { start: "2026-09-01", end: "2026-09-18" });
-assert.deepEqual(pastCheckinPayload.futureCheckinMonths, [{ key: "2026-08", label: "Ago/2026", roomNights: 2, value: 700 }]);
+assert.deepEqual(pastCheckinPayload.futureCheckinMonths, []);
+
+const sameMonthCheckinPayload = __test.buildBiReportsPayload({
+  records: [record({ reservationCode: "SAME-1", dateKey: "2026-08-01", monthKey: "2026-08", checkin: "20/08/2026", checkout: "22/08/2026", total: 700 })],
+  otherChannelRecords: []
+}, { start: "2026-08-01", end: "2026-08-31" });
+assert.deepEqual(sameMonthCheckinPayload.futureCheckinMonths, [{ key: "2026-08", label: "Ago/2026", roomNights: 2, value: 700 }]);
 
 const filtered = __test.buildBiReportsPayload({ records: [record()], otherChannelRecords: [] }, {
   start: "2026-09-01",
