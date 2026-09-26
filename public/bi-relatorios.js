@@ -205,6 +205,10 @@
       const clipped = label.length > (w < 420 ? 17 : 22) ? `${label.slice(0, w < 420 ? 15 : 20)}…` : label;
       const previousShare = options.previousTotal ? row.previous / options.previousTotal * 100 : 0;
       const currentShare = options.currentTotal ? row.current / options.currentTotal * 100 : 0;
+      const currentPeriodLabel = String(row.label || "");
+      const previousPeriodLabel = /^\d{4}-\d{2}$/.test(String(row.key || ""))
+        ? currentPeriodLabel.replace(/(20\d{2})$/, (year) => String(Number(year) - 1))
+        : "2025";
       const shareFormatter = options.showGrowth ? wholePercent : percent;
       const previousText = `${shortMoney.format(row.previous)}${options.showShare ? ` · ${shareFormatter.format(previousShare)}%` : ""}`;
       const currentText = `${shortMoney.format(row.current)}${options.showShare ? ` · ${shareFormatter.format(currentShare)}%` : ""}`;
@@ -263,7 +267,7 @@
       const shareMarkup = options.showShare
         ? `${row.previous ? `<text x="${previousX + barW / 2}" y="${Math.max(12, pad.t + ih - previousHeight - 6)}" text-anchor="middle" fill="#ac8440" font-size="8.5" font-weight="800">${safe(percent.format(previousShare))}%</text>` : ""}${row.current ? `<text x="${currentX + barW / 2}" y="${Math.max(12, pad.t + ih - currentHeight - 6)}" text-anchor="middle" fill="#20384a" font-size="8.5" font-weight="800">${safe(percent.format(currentShare))}%</text>` : ""}`
         : "";
-      markup += `<g><title>${safe(row.label)} — 2025: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(percent.format(previousShare))}%)` : ""}; 2026: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(percent.format(currentShare))}%)` : ""}</title><rect x="${previousX}" y="${pad.t + ih - previousHeight}" width="${barW}" height="${row.previous ? Math.max(2, previousHeight) : 0}" rx="4" fill="#d7b16b"/><rect x="${currentX}" y="${pad.t + ih - currentHeight}" width="${barW}" height="${row.current ? Math.max(2, currentHeight) : 0}" rx="4" fill="#315269"/>${shareMarkup}<text x="${groupX}" y="${h - 16}" text-anchor="middle" fill="#617681" font-size="9">${safe(label)}</text></g>`;
+      markup += `<g><title>${safe(previousPeriodLabel)}: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(percent.format(previousShare))}%)` : ""}; ${safe(currentPeriodLabel)}: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(percent.format(currentShare))}%)` : ""}</title><rect x="${previousX}" y="${pad.t + ih - previousHeight}" width="${barW}" height="${row.previous ? Math.max(2, previousHeight) : 0}" rx="4" fill="#d7b16b"/><rect x="${currentX}" y="${pad.t + ih - currentHeight}" width="${barW}" height="${row.current ? Math.max(2, currentHeight) : 0}" rx="4" fill="#315269"/>${shareMarkup}<text x="${groupX}" y="${h - 16}" text-anchor="middle" fill="#617681" font-size="9">${safe(label)}</text></g>`;
     });
     target.style.overflowX = w > availableWidth ? "auto" : "hidden";
     target.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:${w}px;min-width:${w}px" role="img" aria-label="${safe(options.label || "Comparação de vendas por mês do check-in em 2025 e 2026")}">${markup}</svg>`;
