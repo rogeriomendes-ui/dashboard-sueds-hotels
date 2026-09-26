@@ -3664,17 +3664,23 @@ function biReportsDateKeys(start, end) {
   return keys;
 }
 
+const BI_REPORTS_VILA_ROMANA = { label: "SUEDS VILA ROMANA", apartments: 6 };
 const BI_REPORTS_HOTEL_INVENTORY = new Map([
   [comparableKey("SUEDS PLAZA"), { label: "SUEDS PLAZA", apartments: 117 }],
   [comparableKey("SUEDS CABRALIA"), { label: "SUEDS CABRALIA", apartments: 29 }],
   [comparableKey("SUEDS SEGUNDO SOL"), { label: "SUEDS SEGUNDO SOL", apartments: 100 }],
   [comparableKey("SUEDS PREMIUM"), { label: "SUEDS PREMIUM", apartments: 50 }],
   [comparableKey("SUEDS TRANCOSO"), { label: "SUEDS TRANCOSO", apartments: 9 }],
-  [comparableKey("CASAS SUEDS ARRAIAL"), { label: "CASAS SUEDS ARRAIAL", apartments: 6 }]
+  [comparableKey("SUEDS VILA ROMANA"), BI_REPORTS_VILA_ROMANA],
+  [comparableKey("CASAS SUEDS ARRAIAL"), BI_REPORTS_VILA_ROMANA]
 ]);
 
 function biReportsInventory(hotel) {
   return BI_REPORTS_HOTEL_INVENTORY.get(comparableKey(hotel)) || null;
+}
+
+function biReportsHotelLabel(hotel) {
+  return biReportsInventory(hotel)?.label || String(hotel || "").trim();
 }
 
 function biReportsDaysInMonth(value) {
@@ -3799,7 +3805,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     return value;
   };
   const filterRows = (sourceRows, selectedCheckinMonth) => sourceRows.filter((record) => {
-    return (!hotel || comparableKey(record.hotel) === comparableKey(hotel))
+    return (!hotel || comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(biReportsHotelLabel(hotel)))
       && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
       && (!selectedCheckinMonth || recordCheckinMonth(record) === selectedCheckinMonth);
   });
@@ -3911,7 +3917,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   const previousRevparMonthKeys = alignedRevparMonthKeys.map((key) => shiftMonthKey(key, -1));
   const selectedInventory = hotel
     ? [biReportsInventory(hotel)].filter(Boolean)
-    : [...BI_REPORTS_HOTEL_INVENTORY.values()];
+    : [...new Set(BI_REPORTS_HOTEL_INVENTORY.values())];
   const currentRevparSummary = biReportsRevparMetrics(rows, alignedRevparMonthKeys, selectedInventory, recordCheckinMonth);
   const previousRevparSummary = biReportsRevparMetrics(historicalRows, previousRevparMonthKeys, selectedInventory, recordCheckinMonth);
   const buildRevparDaily = (aggregates, saleDates, stayMonthKeys, availability, mapDate) => {
@@ -3956,13 +3962,13 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   }));
   const occupancyRows = counted2026.filter((record) => {
     return biReportsInventory(record.hotel)
-      && (!hotel || comparableKey(record.hotel) === comparableKey(hotel))
+      && (!hotel || comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(biReportsHotelLabel(hotel)))
       && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
       && (!checkinMonth || recordCheckinMonth(record) === checkinMonth);
   });
   const occupancy = dataset.audience === "bi-relatorios-kpi" ? selectedInventory.map((inventory) => {
     const occupiedByDate = new Map(dateKeys.map((date) => [date, 0]));
-    occupancyRows.filter((record) => comparableKey(record.hotel) === comparableKey(inventory.label)).forEach((record) => {
+    occupancyRows.filter((record) => comparableKey(biReportsInventory(record.hotel)?.label) === comparableKey(inventory.label)).forEach((record) => {
       const checkinDate = parseDate(record.checkin);
       const checkoutDate = parseDate(record.checkout);
       if (!checkinDate || !checkoutDate || checkoutDate <= checkinDate) return;
@@ -4044,7 +4050,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       },
       daily: previousDaily,
       byChannel: summarize(historicalRows, biReportsChannelLabel),
-      byHotel: summarize(historicalRows, (record) => record.hotel || "Não informado"),
+      byHotel: summarize(historicalRows, (record) => biReportsHotelLabel(record.hotel) || "Não informado"),
       byCheckinMonth: historicalCheckinMonths,
       revpar: {
         summary: previousRevparSummary,
@@ -4056,7 +4062,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     period,
     selected: { hotel, channel: channels.length === 1 ? channels[0] : "", channels, checkinMonth },
     filters: {
-      hotels: sortLabels(new Set(periodRows.map((record) => record.hotel).filter(Boolean))),
+      hotels: sortLabels(new Set(periodRows.map((record) => biReportsHotelLabel(record.hotel)).filter(Boolean))),
       channels: sortLabels(new Set(periodRows.map(biReportsChannelLabel).filter(Boolean))),
       checkinMonths: allCheckinOptions.map((key) => ({ key, label: checkinLabel(key) }))
     },
@@ -4068,7 +4074,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       ...biReportsRateMetrics(rows)
     },
     byChannel: summarize(rows, biReportsChannelLabel),
-    byHotel: summarize(rows, (record) => record.hotel || "Não informado"),
+    byHotel: summarize(rows, (record) => biReportsHotelLabel(record.hotel) || "Não informado"),
     byCheckinMonth: checkinMonths,
     daily,
     pickup,

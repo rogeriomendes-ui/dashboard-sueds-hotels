@@ -158,5 +158,8 @@ assert.equal(occupancyPayload.occupancy[0].days[1].available, 115);
 assert.equal(occupancyPayload.occupancy[0].days[3].occupied, 0);
 const overbookingPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ reservationCode: "OVER-1", checkin: "02/09/2026", checkout: "03/09/2026", reservationCount: 119 })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS PLAZA" });
 assert.equal(overbookingPayload.occupancy[0].days[0].available, -2);
+const vilaRomanaPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ hotel: "CASAS SUEDS ARRAIAL", reservationCode: "VILA-1", checkin: "02/09/2026", checkout: "03/09/2026" })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS VILA ROMANA" });
+assert.equal(vilaRomanaPayload.occupancy[0].hotel, "SUEDS VILA ROMANA");
+assert.equal(vilaRomanaPayload.occupancy[0].days[0].occupied, 1);
 
 console.log("BI validado com deduplicação, filtros e curvas comparativas de 2025 e 2026.");
