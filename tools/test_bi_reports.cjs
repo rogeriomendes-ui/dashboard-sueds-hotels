@@ -55,6 +55,8 @@ assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").ave
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.SUEDS, 1500);
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.AZUL, 1500);
 assert.equal(payload.channelHotelComparison.AZUL.current["SUEDS PLAZA"], 1500);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[8].actual, 3000);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[8].actual, null);
 assert.equal(payload.daily.at(-1).averageDailyRate, 500);
 assert.equal(payload.pickup[0].daily.at(-1).cumulative, 3000);
 assert.equal(payload.pickup[0].comparisonDaily.at(-1).cumulative, 1000);

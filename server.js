@@ -3858,6 +3858,21 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       .map(([label, groupedRows]) => [label, sum(groupedRows, (record) => Number(record.total || 0))]));
     return [group, { current: hotelValues(rows), previous: hotelValues(historicalRows) }];
   }));
+  const yearRows = filterRows(counted2026.filter((record) => record.dateKey >= "2026-01-01" && record.dateKey <= period.end), checkinMonth);
+  const monthKeysYtd = Array.from({ length: Math.max(1, Math.min(12, Number(period.end.slice(5, 7)) || 1)) }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}`);
+  const monthlySeries = (sourceRows, hasSource = true) => monthKeysYtd.map((key) => {
+    if (!hasSource) return { key, actual: null, target: null };
+    const monthRows = sourceRows.filter((record) => record.dateKey?.slice(0, 7) === key);
+    return { key, actual: monthRows.length ? sum(monthRows, (record) => Number(record.total || 0)) : null, target: null };
+  });
+  const siteRows = yearRows.filter((record) => comparableKey(biReportsChannelLabel(record)).includes("site"));
+  const directRows = yearRows.filter((record) => shareChannelGroup(record) === "SUEDS");
+  const monthlyGoalTables = [
+    { key: "sales", title: "Venda 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: monthlySeries(yearRows) },
+    { key: "rds", title: "RDS Diárias 2026 vs Meta 2026", actualLabel: "RDS 2026", rows: monthlySeries([], false) },
+    { key: "direct", title: "Venda Direta Total 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: monthlySeries(directRows) },
+    { key: "site", title: "Venda Site 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: monthlySeries(siteRows) }
+  ];
   const checkinLabel = (value) => {
     if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
     const [year, month] = value.split("-").map(Number);
@@ -4167,6 +4182,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     byHotel: summarize(rows, (record) => biReportsHotelLabel(record.hotel) || "Não informado"),
     channelShare: { groups: shareGroups, byHotel: channelShareByHotel, totals: channelShareTotals },
     channelHotelComparison,
+    monthlyGoalTables,
     byCheckinMonth: checkinMonths,
     daily,
     pickup,

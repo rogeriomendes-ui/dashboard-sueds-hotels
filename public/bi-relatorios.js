@@ -34,7 +34,7 @@
     topOccupancy: document.getElementById("topOccupancy"), topOccupancyPrevious: document.getElementById("topOccupancyPrevious"), topOccupancyGrowth: document.getElementById("topOccupancyGrowth"),
     topRevpar: document.getElementById("topRevpar"), topRevparPrevious: document.getElementById("topRevparPrevious"), topRevparGrowth: document.getElementById("topRevparGrowth"),
     hotelSalesSummary: document.getElementById("hotelSalesSummary"), channelShareSummary: document.getElementById("channelShareSummary"),
-    channelHotelComparisonSummary: document.getElementById("channelHotelComparisonSummary")
+    channelHotelComparisonSummary: document.getElementById("channelHotelComparisonSummary"), monthlyGoalTables: document.getElementById("monthlyGoalTables")
   };
   let currentPayload = null;
   let resizeTimer = null;
@@ -343,6 +343,21 @@
     }).join("");
   }
 
+  function renderMonthlyGoalTables(payload) {
+    if (!els.monthlyGoalTables) return;
+    const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" });
+    const value = (number) => number === null || number === undefined ? "" : money.format(number);
+    const ratio = (actual, target) => {
+      if (!(target > 0) || actual === null || actual === undefined) return "";
+      const result = actual / target * 100;
+      return `<span class="${result < 100 ? "negative" : "positive"}">${percent.format(result)}%</span>`;
+    };
+    els.monthlyGoalTables.innerHTML = (payload.monthlyGoalTables || []).map((table) => {
+      const rows = (table.rows || []).map((row) => `<tr><td>${safe(monthName.format(localDate(`${row.key}-01`)).toUpperCase())}</td><td>${safe(value(row.actual))}</td><td>${safe(value(row.target))}</td><td>${ratio(row.actual, row.target)}</td></tr>`).join("");
+      return `<article class="comparison-table-card"><div class="comparison-table-title ${safe(table.key)}">${safe(table.title)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Mês</th><th>${safe(table.actualLabel)}</th><th>Meta 2026</th><th>%</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
+    }).join("");
+  }
+
   function render(payload) {
     currentPayload = payload;
     setOptions(els.hotel, payload.filters.hotels || [], payload.selected.hotel, "Todos os hotéis");
@@ -389,6 +404,7 @@
     renderHotelSalesSummary(payload);
     renderChannelShareSummary(payload);
     renderChannelHotelComparisons(payload);
+    renderMonthlyGoalTables(payload);
     els.averageRate2025.textContent = money.format(payload.comparison?.summary?.averageDailyRate || 0);
     els.averageRate2026.textContent = money.format(payload.summary.averageDailyRate || 0);
     els.roomNights2025.textContent = `${integer.format(payload.comparison?.summary?.roomNights || 0)} UHs-noite`;
