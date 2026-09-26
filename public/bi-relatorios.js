@@ -32,7 +32,8 @@
     occupancy: document.getElementById("occupancyMap"), topAdr: document.getElementById("topAdr"),
     topAdrPrevious: document.getElementById("topAdrPrevious"), topAdrGrowth: document.getElementById("topAdrGrowth"),
     topOccupancy: document.getElementById("topOccupancy"), topOccupancyPrevious: document.getElementById("topOccupancyPrevious"), topOccupancyGrowth: document.getElementById("topOccupancyGrowth"),
-    topRevpar: document.getElementById("topRevpar"), topRevparPrevious: document.getElementById("topRevparPrevious"), topRevparGrowth: document.getElementById("topRevparGrowth")
+    topRevpar: document.getElementById("topRevpar"), topRevparPrevious: document.getElementById("topRevparPrevious"), topRevparGrowth: document.getElementById("topRevparGrowth"),
+    hotelSalesSummary: document.getElementById("hotelSalesSummary")
   };
   let currentPayload = null;
   let resizeTimer = null;
@@ -297,6 +298,23 @@
     }).join("");
   }
 
+  function renderHotelSalesSummary(payload) {
+    if (!els.hotelSalesSummary) return;
+    const current = new Map((payload.byHotel || []).map((item) => [item.label, item.value || 0]));
+    const previous = new Map((payload.comparison?.byHotel || []).map((item) => [item.label, item.value || 0]));
+    const labels = [...new Set([...current.keys(), ...previous.keys()])].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const growthCell = (now, before) => {
+      if (!(before > 0)) return now > 0 ? '<span class="positive">novo</span>' : "—";
+      const growth = (now - before) / before * 100;
+      const css = growth < 0 ? "negative" : growth > 0 ? "positive" : "";
+      return `<span class="${css}">${percent.format(growth)}%</span>`;
+    };
+    const rows = labels.map((label) => `<tr><td>${safe(label)}</td><td>${safe(money.format(current.get(label) || 0))}</td><td>${safe(money.format(previous.get(label) || 0))}</td><td>${growthCell(current.get(label) || 0, previous.get(label) || 0)}</td></tr>`).join("");
+    const currentTotal = payload.summary?.sales || 0;
+    const previousTotal = payload.comparison?.summary?.sales || 0;
+    els.hotelSalesSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Vendas totais por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th><th>2026</th><th>2025</th><th>Variação</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td>${safe(money.format(currentTotal))}</td><td>${safe(money.format(previousTotal))}</td><td>${growthCell(currentTotal, previousTotal)}</td></tr></tfoot></table></div></article>`;
+  }
+
   function render(payload) {
     currentPayload = payload;
     setOptions(els.hotel, payload.filters.hotels || [], payload.selected.hotel, "Todos os hotéis");
@@ -340,6 +358,7 @@
     });
     renderPickup(payload.pickup || []);
     renderOccupancy(payload.occupancy || []);
+    renderHotelSalesSummary(payload);
     els.averageRate2025.textContent = money.format(payload.comparison?.summary?.averageDailyRate || 0);
     els.averageRate2026.textContent = money.format(payload.summary.averageDailyRate || 0);
     els.roomNights2025.textContent = `${integer.format(payload.comparison?.summary?.roomNights || 0)} UHs-noite`;
