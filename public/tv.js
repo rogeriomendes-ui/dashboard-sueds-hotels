@@ -251,36 +251,8 @@ function renderAsksuiteBlock(seller) {
   `;
 }
 
-function analyticsPropertyCard(property, fallbackLabel) {
-  const data = property || {};
-  const realtime = data.realtime || {};
-  return `
-    <article class="analytics-card analytics-property-card">
-      <span class="analytics-property-title">${escapeHtml(fallbackLabel)}</span>
-      <div class="analytics-mini-grid">
-        <div>
-          <small>30 min</small>
-          <strong>${integer.format(realtime.activeUsers30m || 0)}</strong>
-        </div>
-        <div>
-          <small>5 min</small>
-          <strong>${integer.format(realtime.activeUsers5m || 0)}</strong>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function renderAnalytics(analytics) {
-  byId("analyticsStrip").innerHTML = `
-    ${analyticsPropertyCard(analytics?.site, "Sueds")}
-    ${analyticsPropertyCard(analytics?.omnibees, "Motor")}
-  `;
-}
-
 function render(data) {
   byId("lastUpdate").textContent = `Atualizado ${formatLastUpdate(data.generatedAt)}`;
-  renderAnalytics(data.analytics);
   renderTvMessages(data);
 
   const cartsBySeller = new Map((data.cartRecovery || []).map((item) => [normalizedName(item.name), item]));
