@@ -55,11 +55,11 @@ assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").ave
 assert.equal(payload.daily.at(-1).averageDailyRate, 500);
 assert.equal(payload.pickup[0].daily.at(-1).cumulative, 3000);
 assert.equal(payload.pickup[0].comparisonDaily.at(-1).cumulative, 1000);
-assert.equal(payload.revpar.summary.availableRoomNights, 9641);
-assert.equal(payload.comparison.revpar.summary.availableRoomNights, 9641);
-assert.ok(Math.abs(payload.revpar.summary.revpar - (3000 / 9641)) < 0.000001);
+assert.equal(payload.revpar.summary.availableRoomNights, 5598);
+assert.equal(payload.comparison.revpar.summary.availableRoomNights, 5598);
+assert.equal(payload.revpar.summary.revpar, 0);
 assert.ok(Math.abs(payload.revpar.summary.revpar - (payload.revpar.summary.averageDailyRate * payload.revpar.summary.occupancyRate / 100)) < 0.000001);
-assert.ok(Math.abs(payload.comparison.revpar.summary.revpar - (1000 / 9641)) < 0.000001);
+assert.equal(payload.comparison.revpar.summary.revpar, 0);
 assert.equal(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").apartments, 117);
 assert.ok(Math.abs(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").revpar - (3000 / (117 * 31))) < 0.000001);
 assert.equal(payload.revpar.byCheckinMonth[0].key, "2026-10");
@@ -157,10 +157,11 @@ assert.equal(occupancyPayload.occupancy[0].apartments, 117);
 assert.equal(occupancyPayload.occupancy[0].days[1].occupied, 2);
 assert.equal(occupancyPayload.occupancy[0].days[1].available, 115);
 assert.equal(occupancyPayload.occupancy[0].days[3].occupied, 0);
+assert.ok(Math.abs(occupancyPayload.revpar.summary.revpar - (occupancyPayload.revpar.summary.averageDailyRate * occupancyPayload.revpar.summary.occupancyRate / 100)) < 0.000001);
 const overbookingPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ reservationCode: "OVER-1", checkin: "02/09/2026", checkout: "03/09/2026", reservationCount: 119 })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS PLAZA" });
 assert.equal(overbookingPayload.occupancy[0].days[0].available, -2);
 const vilaRomanaPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ hotel: "CASAS SUEDS ARRAIAL", reservationCode: "VILA-1", checkin: "02/09/2026", checkout: "03/09/2026" })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS VILA ROMANA" });
-assert.equal(vilaRomanaPayload.occupancy[0].hotel, "SUEDS VILA ROMANA");
+assert.equal(vilaRomanaPayload.occupancy[0].hotel, "CASAS SUEDS ARRAIAL");
 assert.equal(vilaRomanaPayload.occupancy[0].days[0].occupied, 1);
 
 console.log("BI validado com deduplicação, filtros e curvas comparativas de 2025 e 2026.");

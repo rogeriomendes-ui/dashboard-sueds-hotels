@@ -3664,7 +3664,7 @@ function biReportsDateKeys(start, end) {
   return keys;
 }
 
-const BI_REPORTS_VILA_ROMANA = { label: "SUEDS VILA ROMANA", apartments: 6 };
+const BI_REPORTS_VILA_ROMANA = { label: "CASAS SUEDS ARRAIAL", apartments: 6 };
 const BI_REPORTS_HOTEL_INVENTORY = new Map([
   [comparableKey("SUEDS PLAZA"), { label: "SUEDS PLAZA", apartments: 117 }],
   [comparableKey("SUEDS CABRALIA"), { label: "SUEDS CABRALIA", apartments: 29 }],
@@ -3966,8 +3966,9 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     sourceKey: shiftMonthKey(key, -1),
     ...biReportsRevparMetrics(historicalRows, [shiftMonthKey(key, -1)], selectedInventory, recordCheckinMonth)
   }));
-  const occupancyRows = counted2026.filter((record) => {
+  const occupancyRows = combined.filter((record) => {
     return biReportsInventory(record.hotel)
+      && isCountedSaleStatus(record)
       && (!hotel || comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(biReportsHotelLabel(hotel)))
       && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
       && (!checkinMonth || recordCheckinMonth(record) === checkinMonth);
@@ -3994,6 +3995,38 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       })
     };
   }) : [];
+  const occupancyTotals = (sourceRows, keys, inventories) => {
+    const occupiedByDate = new Map(keys.map((date) => [date, 0]));
+    const inventoryKeys = new Set(inventories.map((item) => comparableKey(item.label)));
+    sourceRows.forEach((record) => {
+      const inventory = biReportsInventory(record.hotel);
+      if (!inventory || !inventoryKeys.has(comparableKey(inventory.label))) return;
+      const checkinDate = parseDate(record.checkin);
+      const checkoutDate = parseDate(record.checkout);
+      if (!checkinDate || !checkoutDate || checkoutDate <= checkinDate) return;
+      const startKey = dateKey(checkinDate);
+      const endKey = dateKey(checkoutDate);
+      const rooms = Math.max(biReportsRoomCount(record), parseNumber(record.reservationCount), 1);
+      keys.forEach((date) => {
+        if (date >= startKey && date < endKey) occupiedByDate.set(date, occupiedByDate.get(date) + rooms);
+      });
+    });
+    const occupiedRoomNights = sum([...occupiedByDate.values()], (value) => value);
+    const availableRoomNights = keys.length * sum(inventories, (item) => item.apartments);
+    return { occupiedRoomNights, availableRoomNights, occupancyRate: availableRoomNights ? occupiedRoomNights / availableRoomNights * 100 : 0 };
+  };
+  const currentOccupancyMetrics = occupancyTotals(occupancyRows, dateKeys, selectedInventory);
+  const historicalStayRows = filterRows(historicalRecords.filter(isCountedSaleStatus), previousCheckinMonth);
+  const previousOccupancyMetrics = occupancyTotals(historicalStayRows, previousDateKeys, selectedInventory);
+  const alignRevparWithOccupancy = (target, rateRows, occupancyMetrics) => {
+    const averageDailyRate = biReportsRateMetrics(rateRows).averageDailyRate;
+    Object.assign(target, occupancyMetrics, {
+      averageDailyRate,
+      revpar: averageDailyRate * occupancyMetrics.occupancyRate / 100
+    });
+  };
+  alignRevparWithOccupancy(currentRevparSummary, rows, currentOccupancyMetrics);
+  alignRevparWithOccupancy(previousRevparSummary, historicalRows, previousOccupancyMetrics);
   const currentCheckinByKey = new Map(checkinMonths.map((item) => [item.key, item]));
   const historicalCheckinByKey = new Map(historicalCheckinMonths.map((item) => [item.key, item]));
   const pickupKeys = [...new Set([...currentCheckinByKey.keys(), ...historicalCheckinByKey.keys()])].sort().slice(0, 8);
