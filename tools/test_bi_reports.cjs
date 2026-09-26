@@ -132,6 +132,14 @@ assert.equal(rolloverKpi[0].dateKey, "2026-09-18");
 assert.equal(rolloverKpi[0].checkin, "02/01/2027");
 assert.equal(rolloverKpi[0].checkout, "07/01/2027");
 
+const sameMonthPastStay = __test.normalizeKpiReportRows([
+  kpiRows[0],
+  ["SUEDS VILA ROMANA", "", "AIRBNB PLATAFORMA", "VILA-PAST", "Cliente", "08/09", "09/09", 500, 1, 0, "42", "", "Confirmada", 1, "", "18/09/2026", "", "", "", "", "", "", "", 500]
+], 2026);
+assert.equal(sameMonthPastStay[0].hotel, "SUEDS VILA ROMANA");
+assert.equal(sameMonthPastStay[0].checkin, "08/09/2026");
+assert.equal(sameMonthPastStay[0].checkout, "09/09/2026");
+
 const additionalKpiStatuses = __test.normalizeKpiReportRows([
   kpiRows[0],
   ["SUEDS PLAZA", "", "CVC", "STATUS-1", "Cliente", "01/10/2026", "02/10/2026", 100, 2, 0, "101", "", "Bloqueio", 1, "", "01/09/2026", "", "", "", "", "", "", "", 100],

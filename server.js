@@ -3496,7 +3496,9 @@ function kpiDateWithReference(value, deltaYears, reference) {
   const month = withoutYear[2].padStart(2, "0");
   const day = withoutYear[1].padStart(2, "0");
   let inferredKey = `${year}-${month}-${day}`;
-  if (inferredKey < reference.key) {
+  const referenceMonth = Number(reference.key.slice(5, 7));
+  const inferredMonth = Number(month);
+  if (referenceMonth - inferredMonth >= 6) {
     year += 1;
     inferredKey = `${year}-${month}-${day}`;
   }
