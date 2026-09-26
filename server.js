@@ -3984,14 +3984,12 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     .filter((item) => item.label)
     .sort((a, b) => a.label.localeCompare(b.label))
     .map((item) => ({ ...item, key: item.label, label: checkinLabel(item.label) }));
-  const futureCheckinMonths = summarize(rows.filter((record) => {
-    const saleMonth = String(record.dateKey || "").slice(0, 7);
-    const stayMonth = recordCheckinMonth(record);
-    return /^20\d{2}-\d{2}$/.test(saleMonth) && stayMonth >= saleMonth;
-  }), recordCheckinMonth)
-    .filter((item) => item.label)
-    .sort((a, b) => a.label.localeCompare(b.label))
-    .map((item) => ({ key: item.label, label: checkinLabel(item.label), roomNights: item.roomNights, value: item.value }));
+  const futureCheckinMonths = checkinMonths.map((item) => ({
+    key: item.key,
+    label: item.label,
+    roomNights: item.roomNights,
+    value: item.value
+  }));
   const historicalCheckinMonths = summarize(historicalRows, recordCheckinMonth)
     .filter((item) => item.label)
     .map((item) => ({ ...item, key: shiftMonthKey(item.label, 1) }))
