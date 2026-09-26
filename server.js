@@ -3954,6 +3954,34 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     sourceKey: shiftMonthKey(key, -1),
     ...biReportsRevparMetrics(historicalRows, [shiftMonthKey(key, -1)], selectedInventory, recordCheckinMonth)
   }));
+  const occupancyRows = counted2026.filter((record) => {
+    return biReportsInventory(record.hotel)
+      && (!hotel || comparableKey(record.hotel) === comparableKey(hotel))
+      && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
+      && (!checkinMonth || recordCheckinMonth(record) === checkinMonth);
+  });
+  const occupancy = dataset.audience === "bi-relatorios-kpi" ? selectedInventory.map((inventory) => {
+    const occupiedByDate = new Map(dateKeys.map((date) => [date, 0]));
+    occupancyRows.filter((record) => comparableKey(record.hotel) === comparableKey(inventory.label)).forEach((record) => {
+      const checkinDate = parseDate(record.checkin);
+      const checkoutDate = parseDate(record.checkout);
+      if (!checkinDate || !checkoutDate || checkoutDate <= checkinDate) return;
+      const startKey = dateKey(checkinDate);
+      const endKey = dateKey(checkoutDate);
+      const rooms = Math.max(biReportsRoomCount(record), parseNumber(record.reservationCount), 1);
+      dateKeys.forEach((date) => {
+        if (date >= startKey && date < endKey) occupiedByDate.set(date, occupiedByDate.get(date) + rooms);
+      });
+    });
+    return {
+      hotel: inventory.label,
+      apartments: inventory.apartments,
+      days: dateKeys.map((date) => {
+        const occupied = occupiedByDate.get(date) || 0;
+        return { date, occupied, available: Math.max(0, inventory.apartments - occupied), rate: inventory.apartments ? occupied / inventory.apartments * 100 : 0 };
+      })
+    };
+  }) : [];
   const currentCheckinByKey = new Map(checkinMonths.map((item) => [item.key, item]));
   const historicalCheckinByKey = new Map(historicalCheckinMonths.map((item) => [item.key, item]));
   const pickupKeys = [...new Set([...currentCheckinByKey.keys(), ...historicalCheckinByKey.keys()])].sort().slice(0, 8);
@@ -4044,6 +4072,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     byCheckinMonth: checkinMonths,
     daily,
     pickup,
+    occupancy,
     revpar: {
       summary: currentRevparSummary,
       daily: currentRevparDaily,

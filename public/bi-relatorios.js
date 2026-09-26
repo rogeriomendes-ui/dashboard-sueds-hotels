@@ -28,7 +28,8 @@
     averageRateCheckin: document.getElementById("averageRateCheckinChart"), revpar2025: document.getElementById("revpar2025"),
     revpar2026: document.getElementById("revpar2026"), availableRoomNights2025: document.getElementById("availableRoomNights2025"),
     availableRoomNights2026: document.getElementById("availableRoomNights2026"), revparDaily: document.getElementById("revparDailyChart"),
-    revparHotels: document.getElementById("revparHotelChart"), revparCheckin: document.getElementById("revparCheckinChart")
+    revparHotels: document.getElementById("revparHotelChart"), revparCheckin: document.getElementById("revparCheckinChart"),
+    occupancy: document.getElementById("occupancyMap")
   };
   let currentPayload = null;
   let resizeTimer = null;
@@ -263,6 +264,26 @@
     }));
   }
 
+  function renderOccupancy(hotels = []) {
+    if (!els.occupancy) return;
+    if (!hotels.length) return empty(els.occupancy, "Sem estadias capturadas para este período.");
+    const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+    const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" });
+    els.occupancy.innerHTML = hotels.map((hotel) => {
+      const months = [];
+      (hotel.days || []).forEach((day) => {
+        const key = day.date.slice(0, 7);
+        const current = months.at(-1);
+        if (current?.key === key) current.count += 1;
+        else months.push({ key, count: 1, label: monthName.format(localDate(day.date)) });
+      });
+      const monthRow = months.map((month) => `<th class="occupancy-month" colspan="${month.count}">${safe(month.label)}</th>`).join("");
+      const dayRow = (hotel.days || []).map((day) => `<th class="occupancy-day"><b>${safe(day.date.slice(8))}</b><small>${safe(weekday.format(localDate(day.date)).replace(".", ""))}</small></th>`).join("");
+      const cells = (getter, className = "") => (hotel.days || []).map((day) => `<td class="${className}">${safe(getter(day))}</td>`).join("");
+      return `<article class="occupancy-hotel"><h3>${safe(hotel.hotel)} · ${integer.format(hotel.apartments)} apartamentos</h3><div class="occupancy-scroll"><table class="occupancy-table"><thead><tr><th class="occupancy-row-label">Mês</th>${monthRow}</tr><tr><th class="occupancy-row-label">Dia</th>${dayRow}</tr></thead><tbody><tr><th class="occupancy-row-label">APT</th>${cells(() => integer.format(hotel.apartments))}</tr><tr><th class="occupancy-row-label">OCP</th>${cells((day) => integer.format(day.occupied))}</tr><tr><th class="occupancy-row-label">DIS</th>${cells((day) => integer.format(day.available))}</tr><tr><th class="occupancy-row-label">Ocupação</th>${cells((day) => `${wholePercent.format(day.rate)}%`, "occupancy-rate")}</tr></tbody></table></div></article>`;
+    }).join("");
+  }
+
   function render(payload) {
     currentPayload = payload;
     setOptions(els.hotel, payload.filters.hotels || [], payload.selected.hotel, "Todos os hotéis");
@@ -300,6 +321,7 @@
       previousTotal: payload.comparison?.summary?.sales || 0
     });
     renderPickup(payload.pickup || []);
+    renderOccupancy(payload.occupancy || []);
     els.averageRate2025.textContent = money.format(payload.comparison?.summary?.averageDailyRate || 0);
     els.averageRate2026.textContent = money.format(payload.summary.averageDailyRate || 0);
     els.roomNights2025.textContent = `${integer.format(payload.comparison?.summary?.roomNights || 0)} UHs-noite`;
