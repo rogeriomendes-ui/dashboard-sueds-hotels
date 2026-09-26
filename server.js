@@ -3978,7 +3978,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       apartments: inventory.apartments,
       days: dateKeys.map((date) => {
         const occupied = occupiedByDate.get(date) || 0;
-        return { date, occupied, available: Math.max(0, inventory.apartments - occupied), rate: inventory.apartments ? occupied / inventory.apartments * 100 : 0 };
+        return { date, occupied, available: inventory.apartments - occupied, rate: inventory.apartments ? occupied / inventory.apartments * 100 : 0 };
       })
     };
   }) : [];
