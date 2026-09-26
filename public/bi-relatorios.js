@@ -172,7 +172,7 @@
     const rows = combineComparisonTail(mergeComparisonRows(source, comparisonSource), 8);
     if (!rows.length || !rows.some((row) => row.current > 0 || row.previous > 0)) return empty(target, "Sem vendas para exibir neste recorte.");
     const w = widthOf(target);
-    const rowH = options.showGrowth ? 60 : 52;
+    const rowH = 52;
     const h = Math.max(245, rows.length * rowH + 16);
     const labelW = Math.min(w * (options.showShare ? .34 : .39), options.showShare ? 155 : 170);
     const max = Math.max(...rows.flatMap((row) => [row.current, row.previous]), 1);
@@ -199,10 +199,10 @@
       const growthColor = growthDirection === "up" ? "#137a5a" : growthDirection === "down" ? "#c64b47" : "#607885";
       const valueFontSize = options.showGrowth ? (options.showShare ? 10.5 : 11.5) : (options.showShare ? 8.5 : 9);
       const growthMarkup = options.showGrowth
-        ? `<text x="0" y="${y + 43}" fill="${growthColor}" font-size="11.5" font-weight="850">${safe(growthText)}</text>`
+        ? `<text x="0" y="${y + 33}" fill="${growthColor}" font-size="11.5" font-weight="850">${safe(growthText)}</text>`
         : "";
       return `<g><title>${safe(label)} — 2025: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(shareFormatter.format(previousShare))}%)` : ""}; 2026: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(shareFormatter.format(currentShare))}%)` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
-        <text x="0" y="${y + (options.showGrowth ? 21 : 25)}" fill="#435d6d" font-size="10.5">${safe(clipped)}</text>
+        <text x="0" y="${y + (options.showGrowth ? 15 : 25)}" fill="#435d6d" font-size="10.5">${safe(clipped)}</text>
         <rect x="${barX}" y="${y + 5}" width="${usable}" height="12" rx="4" fill="#f4eee3"/>
         <rect x="${barX}" y="${y + 5}" width="${previousLength}" height="12" rx="4" fill="#d7b16b"/>
         <rect x="${barX}" y="${y + 23}" width="${usable}" height="12" rx="4" fill="#edf2f3"/>
@@ -311,8 +311,8 @@
     });
     const channelRates = prepareAverageRateBars(payload.byChannel || [], payload.comparison?.byChannel || []);
     const hotelRates = prepareAverageRateBars(payload.byHotel || [], payload.comparison?.byHotel || []);
-    renderBars(els.averageRateChannels, channelRates.current, channelRates.previous);
-    renderBars(els.averageRateHotels, hotelRates.current, hotelRates.previous);
+    renderBars(els.averageRateChannels, channelRates.current, channelRates.previous, { showGrowth: isKpiReport });
+    renderBars(els.averageRateHotels, hotelRates.current, hotelRates.previous, { showGrowth: isKpiReport });
     renderColumns(
       els.averageRateCheckin,
       (payload.byCheckinMonth || []).map((item) => ({ ...item, value: item.averageDailyRate || 0 })),
