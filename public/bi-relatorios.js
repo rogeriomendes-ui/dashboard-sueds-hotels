@@ -29,7 +29,10 @@
     revpar2026: document.getElementById("revpar2026"), availableRoomNights2025: document.getElementById("availableRoomNights2025"),
     availableRoomNights2026: document.getElementById("availableRoomNights2026"), revparDaily: document.getElementById("revparDailyChart"),
     revparHotels: document.getElementById("revparHotelChart"), revparCheckin: document.getElementById("revparCheckinChart"),
-    occupancy: document.getElementById("occupancyMap")
+    occupancy: document.getElementById("occupancyMap"), topAdr: document.getElementById("topAdr"),
+    topAdrPrevious: document.getElementById("topAdrPrevious"), topAdrGrowth: document.getElementById("topAdrGrowth"),
+    topOccupancy: document.getElementById("topOccupancy"), topOccupancyPrevious: document.getElementById("topOccupancyPrevious"), topOccupancyGrowth: document.getElementById("topOccupancyGrowth"),
+    topRevpar: document.getElementById("topRevpar"), topRevparPrevious: document.getElementById("topRevparPrevious"), topRevparGrowth: document.getElementById("topRevparGrowth")
   };
   let currentPayload = null;
   let resizeTimer = null;
@@ -42,6 +45,16 @@
   function fmtDate(value) { return dateLabel.format(localDate(value)).replace(" de ", " ").replace(" de ", " "); }
   function empty(target, message) { target.innerHTML = `<div class="empty-chart">${safe(message)}</div>`; }
   function widthOf(target, fallback = 600) { return Math.max(280, Math.round(target.getBoundingClientRect().width || fallback)); }
+
+  function setPerformanceCard(valueEl, previousEl, growthEl, current, previous, formatter) {
+    if (!valueEl) return;
+    valueEl.textContent = formatter(current || 0);
+    previousEl.textContent = `2025: ${formatter(previous || 0)}`;
+    const growth = previous > 0 ? (current - previous) / previous * 100 : null;
+    const direction = growth === null ? "flat" : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
+    growthEl.className = direction;
+    growthEl.textContent = growth === null ? "—" : `${direction === "up" ? "↑" : direction === "down" ? "↓" : "→"} ${wholePercent.format(Math.abs(growth))}%`;
+  }
 
   function setOptions(select, values, selected, placeholder, valueGetter = (item) => item, labelGetter = (item) => item) {
     select.innerHTML = `<option value="">${safe(placeholder)}</option>` + values.map((item) => {
@@ -299,6 +312,13 @@
     els.reservations.textContent = integer.format(payload.summary.reservations || 0);
     els.ticket.textContent = money.format(payload.summary.ticketAverage || 0);
     els.hotels.textContent = integer.format(payload.summary.hotels || 0);
+    const currentAvailable = payload.revpar?.summary?.availableRoomNights || 0;
+    const previousAvailable = payload.comparison?.revpar?.summary?.availableRoomNights || 0;
+    const currentOccupancy = currentAvailable ? (payload.summary.roomNights || 0) / currentAvailable * 100 : 0;
+    const previousOccupancy = previousAvailable ? (payload.comparison?.summary?.roomNights || 0) / previousAvailable * 100 : 0;
+    setPerformanceCard(els.topAdr, els.topAdrPrevious, els.topAdrGrowth, payload.summary.averageDailyRate, payload.comparison?.summary?.averageDailyRate, money.format.bind(money));
+    setPerformanceCard(els.topOccupancy, els.topOccupancyPrevious, els.topOccupancyGrowth, currentOccupancy, previousOccupancy, (value) => `${wholePercent.format(value)}%`);
+    setPerformanceCard(els.topRevpar, els.topRevparPrevious, els.topRevparGrowth, payload.revpar?.summary?.revpar, payload.comparison?.revpar?.summary?.revpar, money.format.bind(money));
     els.period.textContent = `${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}`;
     els.comparisonTitle.textContent = payload.comparison?.available ? "Comparativo 2025 × 2026 atualizado" : "Comparativo 2025 × 2026 em preparação";
     els.reason.textContent = payload.comparison?.coverage || payload.comparison?.pendingReason || "A base histórica de 2025 ainda não está disponível.";

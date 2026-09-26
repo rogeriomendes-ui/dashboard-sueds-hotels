@@ -47,6 +47,12 @@
           <article class="summary-card"><span>Hotéis com vendas</span><strong id="activeHotels">0</strong><small>no recorte selecionado</small></article>
         </div>
 
+        <div class="performance-grid" aria-label="Indicadores de hospedagem">
+          <article class="performance-card"><span>ADR · Diária média</span><strong id="topAdr">R$ 0</strong><div class="performance-compare"><small id="topAdrPrevious">2025: R$ 0</small><b id="topAdrGrowth">—</b></div></article>
+          <article class="performance-card"><span>Taxa de ocupação</span><strong id="topOccupancy">0%</strong><div class="performance-compare"><small id="topOccupancyPrevious">2025: 0%</small><b id="topOccupancyGrowth">—</b></div></article>
+          <article class="performance-card"><span>RevPAR</span><strong id="topRevpar">R$ 0</strong><div class="performance-compare"><small id="topRevparPrevious">2025: R$ 0</small><b id="topRevparGrowth">—</b></div></article>
+        </div>
+
         <section class="chart-card chart-wide">
           <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada de vendas</h2></div><div class="legend-group"><span class="legend legend-2025"><i></i> 2025 <b id="comparisonTotal">—</b></span><span class="legend"><i></i> 2026</span></div></div>
           <div class="chart chart-line" id="dailyChart"></div>
@@ -116,6 +122,6 @@
         </section>
       </section>
     </main>
-    <script src="/bi-relatorios.js?v=20260926-kpi-occupancy-map"></script>
+    <script src="/bi-relatorios.js?v=20260926-kpi-top-metrics"></script>
   </body>
 </html>
