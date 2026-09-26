@@ -4037,6 +4037,15 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     const rateRows = historicalRows.filter((record) => comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(target.label));
     alignRevparWithOccupancy(target, rateRows, occupancyTotals(historicalStayRows, previousDateKeys, [inventory]));
   });
+  const monthDateKeys = (key) => biReportsDateKeys(`${key}-01`, `${key}-${String(biReportsDaysInMonth(key)).padStart(2, "0")}`);
+  currentRevparByCheckinMonth.forEach((target) => {
+    const rateRows = rows.filter((record) => recordCheckinMonth(record) === target.key);
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(rateRows, monthDateKeys(target.key), selectedInventory));
+  });
+  previousRevparByCheckinMonth.forEach((target) => {
+    const rateRows = historicalRows.filter((record) => recordCheckinMonth(record) === target.sourceKey);
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(rateRows, monthDateKeys(target.sourceKey), selectedInventory));
+  });
   const currentCheckinByKey = new Map(checkinMonths.map((item) => [item.key, item]));
   const historicalCheckinByKey = new Map(historicalCheckinMonths.map((item) => [item.key, item]));
   const pickupKeys = [...new Set([...currentCheckinByKey.keys(), ...historicalCheckinByKey.keys()])].sort().slice(0, 8);

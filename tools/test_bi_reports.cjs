@@ -63,6 +63,7 @@ assert.equal(payload.comparison.revpar.summary.revpar, 0);
 assert.equal(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").apartments, 117);
 assert.equal(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").revpar, 0);
 assert.equal(payload.revpar.byCheckinMonth[0].key, "2026-10");
+assert.ok(Math.abs(payload.revpar.byCheckinMonth[0].revpar - (payload.revpar.byCheckinMonth[0].averageDailyRate * payload.revpar.byCheckinMonth[0].occupancyRate / 100)) < 0.000001);
 
 const filtered = __test.buildBiReportsPayload({ records: [record()], otherChannelRecords: [] }, {
   start: "2026-09-01",
