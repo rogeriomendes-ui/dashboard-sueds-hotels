@@ -3692,22 +3692,28 @@ function biReportsDaysInMonth(value) {
 function biReportsRevparMetrics(sourceRows = [], monthKeys = [], hotels = [], checkinMonthForRecord = null) {
   const hotelKeys = new Set(hotels.map((hotel) => comparableKey(hotel.label || hotel)));
   const allowedMonths = new Set(monthKeys);
-  const roomRevenue = sum(sourceRows.filter((record) => {
+  const qualifiedRows = sourceRows.filter((record) => {
     const inventory = biReportsInventory(record.hotel);
     if (!inventory || (hotelKeys.size && !hotelKeys.has(comparableKey(inventory.label)))) return false;
     if (checkinMonthForRecord) return allowedMonths.has(checkinMonthForRecord(record));
     const checkin = parseDate(record.checkin);
     return checkin && allowedMonths.has(monthKey(checkin));
-  }), (record) => record.total);
+  });
+  const rateMetrics = biReportsRateMetrics(qualifiedRows);
+  const roomRevenue = rateMetrics.qualifiedSales;
   const availableRoomNights = hotels.reduce((total, hotel) => {
     const inventory = typeof hotel === "object" ? hotel : biReportsInventory(hotel);
     if (!inventory) return total;
     return total + monthKeys.reduce((days, key) => days + biReportsDaysInMonth(key), 0) * inventory.apartments;
   }, 0);
+  const occupancyRate = availableRoomNights ? rateMetrics.roomNights / availableRoomNights : 0;
   return {
     roomRevenue,
+    occupiedRoomNights: rateMetrics.roomNights,
     availableRoomNights,
-    revpar: availableRoomNights ? roomRevenue / availableRoomNights : 0
+    averageDailyRate: rateMetrics.averageDailyRate,
+    occupancyRate: occupancyRate * 100,
+    revpar: rateMetrics.averageDailyRate * occupancyRate
   };
 }
 
@@ -3853,7 +3859,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       const byMonth = revenueByDateAndCheckin.get(record.dateKey) || new Map();
       byMonth.set(stayMonth, (byMonth.get(stayMonth) || 0) + Number(record.total || 0));
       revenueByDateAndCheckin.set(record.dateKey, byMonth);
-      if (biReportsInventory(record.hotel)) {
+      if (nights > 0 && biReportsInventory(record.hotel)) {
         const revparByMonth = revparRevenueByDateAndCheckin.get(record.dateKey) || new Map();
         revparByMonth.set(stayMonth, (revparByMonth.get(stayMonth) || 0) + Number(record.total || 0));
         revparRevenueByDateAndCheckin.set(record.dateKey, revparByMonth);

@@ -58,6 +58,7 @@ assert.equal(payload.pickup[0].comparisonDaily.at(-1).cumulative, 1000);
 assert.equal(payload.revpar.summary.availableRoomNights, 9641);
 assert.equal(payload.comparison.revpar.summary.availableRoomNights, 9641);
 assert.ok(Math.abs(payload.revpar.summary.revpar - (3000 / 9641)) < 0.000001);
+assert.ok(Math.abs(payload.revpar.summary.revpar - (payload.revpar.summary.averageDailyRate * payload.revpar.summary.occupancyRate / 100)) < 0.000001);
 assert.ok(Math.abs(payload.comparison.revpar.summary.revpar - (1000 / 9641)) < 0.000001);
 assert.equal(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").apartments, 117);
 assert.ok(Math.abs(payload.revpar.byHotel.find((item) => item.label === "SUEDS PLAZA").revpar - (3000 / (117 * 31))) < 0.000001);

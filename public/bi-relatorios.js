@@ -312,10 +312,8 @@
     els.reservations.textContent = integer.format(payload.summary.reservations || 0);
     els.ticket.textContent = money.format(payload.summary.ticketAverage || 0);
     els.hotels.textContent = integer.format(payload.summary.hotels || 0);
-    const currentAvailable = payload.revpar?.summary?.availableRoomNights || 0;
-    const previousAvailable = payload.comparison?.revpar?.summary?.availableRoomNights || 0;
-    const currentOccupancy = currentAvailable ? (payload.summary.roomNights || 0) / currentAvailable * 100 : 0;
-    const previousOccupancy = previousAvailable ? (payload.comparison?.summary?.roomNights || 0) / previousAvailable * 100 : 0;
+    const currentOccupancy = payload.revpar?.summary?.occupancyRate || 0;
+    const previousOccupancy = payload.comparison?.revpar?.summary?.occupancyRate || 0;
     setPerformanceCard(els.topAdr, els.topAdrPrevious, els.topAdrGrowth, payload.summary.averageDailyRate, payload.comparison?.summary?.averageDailyRate, money.format.bind(money));
     setPerformanceCard(els.topOccupancy, els.topOccupancyPrevious, els.topOccupancyGrowth, currentOccupancy, previousOccupancy, (value) => `${wholePercent.format(value)}%`);
     setPerformanceCard(els.topRevpar, els.topRevparPrevious, els.topRevparGrowth, payload.revpar?.summary?.revpar, payload.comparison?.revpar?.summary?.revpar, money.format.bind(money));
