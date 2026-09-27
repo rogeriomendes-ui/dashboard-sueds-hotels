@@ -4358,12 +4358,18 @@ async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
   workbook.creator = "SUEDS Hotels";
   const sheet = workbook.addWorksheet("Base KPI 2026", { views: [{ state: "frozen", ySplit: 1 }] });
   const headers = Array.from({ length: 24 }, (_, index) => String(sourceRows[0]?.[index] || `Coluna ${index + 1}`));
+  const monetaryColumns = new Set(headers.map((header, index) =>
+    /^(deposito|diaria|total|valor|valor total|tarifa|preco|receita)$/.test(comparableKey(header)) ? index : -1
+  ).filter((index) => index >= 0));
   sheet.addRow(headers);
   styleExcelHeader(sheet.getRow(1));
   const rows = filterBiKpiSourceRows(sourceRows, query);
   rows.forEach((source) => {
     const values = headers.map((_, index) => {
       const value = source[index] ?? "";
+      if (monetaryColumns.has(index) && typeof value === "string" && /^(?:R\$\s*)?-?\d[\d.,]*$/.test(value.trim())) {
+        return parseNumber(value);
+      }
       if (![5, 6, 15].includes(index) || value === "") return value;
       const sale = kpiDateWithDelta(source[15], 0);
       const checkin = kpiDateWithReference(source[5], 0, sale);
@@ -4376,7 +4382,7 @@ async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
     column.width = Math.min(34, Math.max(14, headers[index].length + 3));
   });
   [6, 7, 16].forEach((index) => { sheet.getColumn(index).numFmt = "dd/mm/yyyy"; });
-  sheet.getColumn(24).numFmt = '"R$" #,##0.00';
+  monetaryColumns.forEach((index) => { sheet.getColumn(index + 1).numFmt = "#,##0.00"; });
   sheet.autoFilter = `A1:X${Math.max(1, rows.length + 1)}`;
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }

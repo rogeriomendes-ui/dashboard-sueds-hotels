@@ -213,11 +213,16 @@ assert.equal(vilaRomanaPayload.occupancy[0].hotel, "CASAS SUEDS ARRAIAL");
 assert.equal(vilaRomanaPayload.occupancy[0].days[0].occupied, 1);
 
 const kpiHeaders = Array.from({ length: 24 }, (_, index) => `Campo ${index + 1}`);
+kpiHeaders[1] = "Depósito";
+kpiHeaders[7] = "Diária";
+kpiHeaders[23] = "Total";
 const kpiSourceRow = (hotel, channel, date, checkin, total) => {
   const row = Array(24).fill("");
   row[0] = hotel;
+  row[1] = "1.234,56";
   row[2] = channel;
   row[5] = checkin;
+  row[7] = 586.43;
   row[15] = date;
   row[23] = total;
   return row;
@@ -236,7 +241,10 @@ __test.buildBiKpiSourceWorkbook(kpiSource, kpiExportQuery).then(async (buffer) =
   await workbook.xlsx.load(buffer);
   const sheet = workbook.getWorksheet("Base KPI 2026");
   assert.equal(sheet.rowCount, 2);
+  assert.equal(sheet.getCell("B2").value, 1234.56);
+  assert.equal(sheet.getCell("H2").value, 586.43);
   assert.equal(sheet.getCell("X2").value, 1200.5);
+  ["B2", "H2", "X2"].forEach((address) => assert.equal(sheet.getCell(address).numFmt, "#,##0.00"));
   assert.equal(sheet.getCell("A1").value, "Campo 1");
   assert.ok(sheet.getCell("P2").value instanceof Date);
   console.log("BI validado com deduplicação, filtros, comparativo e exportação XLSX.");
