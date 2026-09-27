@@ -51,6 +51,37 @@
   function empty(target, message) { target.innerHTML = `<div class="empty-chart">${safe(message)}</div>`; }
   function widthOf(target, fallback = 600) { return Math.max(280, Math.round(target.getBoundingClientRect().width || fallback)); }
 
+  function setupMobilePanels() {
+    if (!isKpiReport) return;
+    const selector = ".chart-card, .future-rooming-card, .pickup-section, .rate-section, .occupancy-section, .comparison-tables";
+    els.content.querySelectorAll(selector).forEach((panel, index) => {
+      const heading = Array.from(panel.children).find((child) => child.matches(".card-heading, .future-rooming-title, .section-heading"));
+      if (!heading) return;
+      const body = document.createElement("div");
+      body.className = "mobile-panel-body";
+      body.id = `bi-mobile-panel-${index}`;
+      while (heading.nextSibling) body.appendChild(heading.nextSibling);
+      panel.appendChild(body);
+      panel.classList.add("mobile-panel");
+      const title = heading.querySelector("h2")?.textContent.trim() || "seção";
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "mobile-panel-toggle";
+      toggle.setAttribute("aria-controls", body.id);
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", `Expandir ${title}`);
+      toggle.textContent = "+";
+      toggle.addEventListener("click", () => {
+        const expanded = panel.classList.toggle("is-expanded");
+        toggle.setAttribute("aria-expanded", String(expanded));
+        toggle.setAttribute("aria-label", `${expanded ? "Retrair" : "Expandir"} ${title}`);
+        toggle.textContent = expanded ? "−" : "+";
+        if (expanded && currentPayload) render(currentPayload);
+      });
+      heading.appendChild(toggle);
+    });
+  }
+
   function setPerformanceCard(valueEl, previousEl, growthEl, current, previous, formatter) {
     if (!valueEl) return;
     valueEl.textContent = formatter(current || 0);
@@ -298,17 +329,10 @@
   function renderOccupancy(hotels = []) {
     if (!els.occupancy) return;
     if (!hotels.length) return empty(els.occupancy, "Sem estadias capturadas para este período.");
-    const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+    const monthName = new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" });
     const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" });
     els.occupancy.innerHTML = hotels.map((hotel) => {
-      const months = [];
-      (hotel.days || []).forEach((day) => {
-        const key = day.date.slice(0, 7);
-        const current = months.at(-1);
-        if (current?.key === key) current.count += 1;
-        else months.push({ key, count: 1, label: monthName.format(localDate(day.date)) });
-      });
-      const monthRow = months.map((month) => `<th class="occupancy-month" colspan="${month.count}">${safe(month.label)}</th>`).join("");
+      const monthRow = (hotel.days || []).map((day) => `<th class="occupancy-month">${safe(monthName.format(localDate(day.date)).replace(".", "").slice(0, 3))}</th>`).join("");
       const dayRow = (hotel.days || []).map((day) => `<th class="occupancy-day"><b>${safe(day.date.slice(8))}</b><small>${safe(weekday.format(localDate(day.date)).replace(".", ""))}</small></th>`).join("");
       const cells = (getter, className = "") => (hotel.days || []).map((day) => `<td class="${typeof className === "function" ? className(day) : className}">${safe(getter(day))}</td>`).join("");
       return `<article class="occupancy-hotel"><h3>${safe(hotel.hotel)} · ${integer.format(hotel.apartments)} apartamentos</h3><div class="occupancy-scroll"><table class="occupancy-table"><thead><tr><th class="occupancy-row-label">Mês</th>${monthRow}</tr><tr><th class="occupancy-row-label">Dia</th>${dayRow}</tr></thead><tbody><tr><th class="occupancy-row-label">APT</th>${cells(() => integer.format(hotel.apartments))}</tr><tr><th class="occupancy-row-label">OCP</th>${cells((day) => integer.format(day.occupied))}</tr><tr><th class="occupancy-row-label">DIS</th>${cells((day) => integer.format(day.available), (day) => day.available < 0 ? "occupancy-over" : "")}</tr><tr><th class="occupancy-row-label">Ocupação</th>${cells((day) => `${wholePercent.format(day.rate)}%`, "occupancy-rate")}</tr></tbody></table></div></article>`;
@@ -335,11 +359,11 @@
   function renderChannelShareSummary(payload) {
     if (!els.channelShareSummary) return;
     const share = payload.channelShare || { groups: [], byHotel: [], totals: { total: 0, values: {} } };
-    const cell = (value, total, group) => `<td class="share-${group.toLowerCase()}">${total ? percent.format(value / total * 100) : "0,0"}%</td>`;
+    const cell = (value, total, group) => `<td class="share-${group.toLowerCase()}" data-label="${safe(group)}">${total ? percent.format(value / total * 100) : "0,0"}%</td>`;
     const headers = (share.groups || []).map((group) => `<th class="share-${group.toLowerCase()}">${safe(group)}</th>`).join("");
-    const rows = (share.byHotel || []).map((hotel) => `<tr><td>${safe(hotel.label)}</td>${share.groups.map((group) => cell(hotel.values?.[group] || 0, hotel.total || 0, group)).join("")}<td>100,0%</td></tr>`).join("");
+    const rows = (share.byHotel || []).map((hotel) => `<tr><td data-label="Hotel">${safe(hotel.label)}</td>${share.groups.map((group) => cell(hotel.values?.[group] || 0, hotel.total || 0, group)).join("")}<td data-label="Total">100,0%</td></tr>`).join("");
     const totals = share.totals || { total: 0, values: {} };
-    els.channelShareSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Share de vendas por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)} · 2026</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th>${headers}<th>Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td>${share.groups.map((group) => cell(totals.values?.[group] || 0, totals.total || 0, group)).join("")}<td>100%</td></tr></tfoot></table></div></article>`;
+    els.channelShareSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Share de vendas por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)} · 2026</div><div class="comparison-table-scroll"><table class="comparison-table share-table"><thead><tr><th>Hotel</th>${headers}<th>Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td data-label="Hotel">Total</td>${share.groups.map((group) => cell(totals.values?.[group] || 0, totals.total || 0, group)).join("")}<td data-label="Total">100%</td></tr></tfoot></table></div></article>`;
   }
 
   function renderChannelHotelComparisons(payload) {
@@ -553,5 +577,6 @@
       }
     }, 180);
   });
+  setupMobilePanels();
   load();
 })();
