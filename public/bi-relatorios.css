@@ -74,6 +74,12 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .summary-prior { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.14); }
 .summary-prior span { overflow: hidden; color: #bdd0d9; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .summary-prior b { color: #f0cd86; font-size: 14px; line-height: 1; white-space: nowrap; }
+.summary-compare { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 9px; }
+.summary-compare small { margin: 0; color: var(--muted); font-size: 11px; }
+.summary-compare b { padding: 4px 7px; border-radius: 6px; font-size: 12px; white-space: nowrap; }
+.summary-compare b.up { color: #137a5a; background: #e7f6ef; }
+.summary-compare b.down { color: #c64b47; background: #fff0ef; }
+.summary-compare b.flat { color: #607885; background: #edf2f4; }
 .performance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
 .performance-card { padding: 17px 19px; border: 1px solid var(--line); border-radius: 13px; background: #fff; box-shadow: 0 5px 18px rgba(23,45,61,.05); }
 .performance-card > span { display: block; margin-bottom: 8px; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
@@ -214,7 +220,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .mobile-panel > .card-heading, .mobile-panel > .future-rooming-title, .mobile-panel > .section-heading { position: relative; min-width: 0; padding-right: 42px; }
   .mobile-panel > .card-heading, .mobile-panel > .section-heading { margin-bottom: 0; }
   .mobile-panel.is-expanded > .card-heading, .mobile-panel.is-expanded > .section-heading { margin-bottom: 14px; }
-  .mobile-panel > .section-heading { margin-top: 20px; }
+  .mobile-panel > .section-heading { margin: 0; }
   .mobile-panel > .card-heading .heading-tools, .mobile-panel > .card-heading .legend-group, .mobile-panel > .card-heading > .compare-key,
   .mobile-panel > .section-heading > p, .mobile-panel > .section-heading .heading-tools { display: none; }
   .mobile-panel.is-expanded > .card-heading .heading-tools, .mobile-panel.is-expanded > .card-heading .legend-group, .mobile-panel.is-expanded > .card-heading > .compare-key { display: flex; }
@@ -240,6 +246,8 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .share-table td { display: flex; align-items: center; justify-content: space-between; gap: 5px; min-width: 0; padding: 4px; border: 0; text-align: right; }
   .share-table td:first-child { grid-column: 1 / -1; width: auto; font-size: 11px; text-align: left; }
   .share-table td:not(:first-child)::before { content: attr(data-label); min-width: 0; color: var(--muted); font-size: 9px; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
+  .pickup-section, .rate-section, .occupancy-section, .comparison-tables { min-width: 0; margin: 0 0 14px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: 0 5px 18px rgba(23,45,61,.05); }
+  .future-rooming-card { margin: 0 0 14px; }
 }
 @media (max-width: 480px) {
   .bi-page { padding: 13px; }
@@ -247,6 +255,11 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .bi-subtitle { font-size: 13px; }
   .pending-note p { line-height: 1.45; }
   .summary-grid { gap: 10px; }
+  .summary-primary { grid-column: 1 / -1; min-height: 135px; padding: 17px 18px; }
+  .summary-card.summary-primary strong { font-size: 30px; }
+  .summary-primary .summary-prior { align-items: center; margin-top: 12px; padding-top: 10px; }
+  .summary-primary .summary-prior span { font-size: 11px; }
+  .summary-primary .summary-prior b { font-size: 15px; }
   .performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .performance-card { min-width: 0; padding: 12px; }
   .performance-card > span { min-height: 28px; margin-bottom: 5px; font-size: 10px; }
@@ -258,6 +271,9 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .summary-card > span { margin-bottom: 10px; font-size: 11px; }
   .summary-card strong { overflow: visible; font-size: clamp(19px, 5.4vw, 25px); overflow-wrap: anywhere; text-overflow: clip; white-space: normal; }
   .summary-card small { display: none; }
+  .summary-card .summary-compare small { display: block; font-size: 9px; }
+  .summary-compare { flex-wrap: wrap; gap: 3px; }
+  .summary-compare b { margin-left: auto; font-size: 10px; }
   .summary-primary .summary-period { display: block; margin: -5px 0 8px; font-size: 11px; }
   .summary-prior { display: flex; margin-top: 8px; padding-top: 7px; }
   .summary-prior span { line-height: 1.2; white-space: normal; }
@@ -268,7 +284,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .chart { min-height: 245px; }
   .chart-line, .chart-columns { height: 250px; }
   .pickup-grid { grid-template-columns: 1fr; gap: 10px; }
-  .rate-section { margin-top: 28px; }
+  .rate-section { margin-top: 0; }
   .rate-summary-grid { gap: 10px; }
   .rate-summary-card { padding: 14px; }
   .rate-summary-card strong { font-size: 24px; }

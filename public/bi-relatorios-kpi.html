@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#172d3d">
     <title>BI - Relatórios by KPI | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20260919-bi-kpi"></script>
-    <link rel="stylesheet" href="/bi-relatorios.css?v=20260927-kpi-mobile">
+    <link rel="stylesheet" href="/bi-relatorios.css?v=20260927-kpi-mobile-2">
   </head>
   <body>
     <main class="bi-page">
@@ -45,8 +45,8 @@
       <section id="dashboardContent" hidden>
         <div class="summary-grid" aria-label="Resumo do período">
           <article class="summary-card summary-primary"><span>Vendido no período</span><small class="summary-period" id="periodCaption">—</small><strong id="totalSales">R$ 0</strong><div class="summary-prior" id="previousPeriodSummary"><span id="previousPeriodLabel">Mesmo período em 2025</span><b id="previousPeriodSales">R$ 0</b></div></article>
-          <article class="summary-card"><span>Reservas</span><strong id="totalReservations">0</strong><small>reservas consideradas</small></article>
-          <article class="summary-card"><span>Ticket médio</span><strong id="averageTicket">R$ 0</strong><small>valor médio por reserva</small></article>
+          <article class="summary-card"><span>Reservas</span><strong id="totalReservations">0</strong><div class="summary-compare" id="reservationsComparison"><small id="reservationsPrevious">2025: 0</small><b id="reservationsGrowth">—</b></div><small>reservas consideradas</small></article>
+          <article class="summary-card"><span>Ticket médio</span><strong id="averageTicket">R$ 0</strong><div class="summary-compare" id="ticketComparison"><small id="ticketPrevious">2025: R$ 0</small><b id="ticketGrowth">—</b></div><small>valor médio por reserva</small></article>
           <article class="summary-card"><span>Hotéis com vendas</span><strong id="activeHotels">0</strong><small>no recorte selecionado</small></article>
         </div>
 
@@ -140,6 +140,6 @@
         </section>
       </section>
     </main>
-    <script src="/bi-relatorios.js?v=20260927-kpi-mobile"></script>
+    <script src="/bi-relatorios.js?v=20260927-kpi-mobile-2"></script>
   </body>
 </html>

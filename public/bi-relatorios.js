@@ -21,6 +21,8 @@
     error: document.getElementById("errorNotice"), coverageNotice: document.getElementById("dataCoverageNotice"), stamp: document.getElementById("dataStamp"), reason: document.getElementById("comparisonReason"),
     comparisonTitle: document.getElementById("comparisonTitle"), comparisonTotal: document.getElementById("comparisonTotal"),
     sales: document.getElementById("totalSales"), previousSales: document.getElementById("previousPeriodSales"), previousLabel: document.getElementById("previousPeriodLabel"), previousSummary: document.getElementById("previousPeriodSummary"), reservations: document.getElementById("totalReservations"), ticket: document.getElementById("averageTicket"),
+    reservationsComparison: document.getElementById("reservationsComparison"), reservationsPrevious: document.getElementById("reservationsPrevious"), reservationsGrowth: document.getElementById("reservationsGrowth"),
+    ticketComparison: document.getElementById("ticketComparison"), ticketPrevious: document.getElementById("ticketPrevious"), ticketGrowth: document.getElementById("ticketGrowth"),
     hotels: document.getElementById("activeHotels"), period: document.getElementById("periodCaption"), daily: document.getElementById("dailyChart"),
     channels: document.getElementById("channelChart"), hotelChart: document.getElementById("hotelChart"), checkinChart: document.getElementById("checkinChart"),
     pickup: document.getElementById("pickupGrid"), futureRooming: document.getElementById("futureRoomingTable"), averageRate2025: document.getElementById("averageRate2025"),
@@ -418,8 +420,14 @@
     els.previousSummary.hidden = !hasPreviousSales;
     els.previousLabel.textContent = `Mesmo período em ${payload.comparison?.year || 2025}`;
     els.previousSales.textContent = money.format(payload.comparison?.summary?.sales || 0);
-    els.reservations.textContent = integer.format(payload.summary.reservations || 0);
-    els.ticket.textContent = money.format(payload.summary.ticketAverage || 0);
+    if (els.reservationsComparison) {
+      els.reservationsComparison.hidden = !hasPreviousSales;
+      setPerformanceCard(els.reservations, els.reservationsPrevious, els.reservationsGrowth, payload.summary.reservations, payload.comparison?.summary?.reservations, integer.format.bind(integer));
+    } else els.reservations.textContent = integer.format(payload.summary.reservations || 0);
+    if (els.ticketComparison) {
+      els.ticketComparison.hidden = !hasPreviousSales;
+      setPerformanceCard(els.ticket, els.ticketPrevious, els.ticketGrowth, payload.summary.ticketAverage, payload.comparison?.summary?.ticketAverage, money.format.bind(money));
+    } else els.ticket.textContent = money.format(payload.summary.ticketAverage || 0);
     els.hotels.textContent = integer.format(payload.summary.hotels || 0);
     const currentOccupancy = payload.revpar?.summary?.occupancyRate || 0;
     const previousOccupancy = payload.comparison?.revpar?.summary?.occupancyRate || 0;
