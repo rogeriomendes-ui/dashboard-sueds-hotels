@@ -3603,6 +3603,7 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
       Reserva: identity[3] ?? "",
       IN: stay[0] ?? "",
       OUT: stay[1] ?? "",
+      "Diária": stay[2] ?? "",
       Apto: room[0] ?? "",
       Status: room[2] ?? "",
       RN: room[3] ?? "",
@@ -3615,26 +3616,29 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
   return objects;
 }
 
-function kpiReservationNights(rows = []) {
-  if (rows.length === 1 && rows[0].roomNights > 0) return rows[0].roomNights;
-  const intervals = rows.map((row) => {
-    const start = row.checkin.key ? Date.parse(`${row.checkin.key}T00:00:00Z`) : NaN;
-    const end = row.checkout.key ? Date.parse(`${row.checkout.key}T00:00:00Z`) : NaN;
-    return { start, end };
-  }).filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start)
-    .sort((a, b) => a.start - b.start || a.end - b.end);
-  if (!intervals.length) return Math.max(0, ...rows.map((row) => row.roomNights));
-  let total = 0;
-  let { start, end } = intervals[0];
-  intervals.slice(1).forEach((interval) => {
-    if (interval.start <= end) {
-      end = Math.max(end, interval.end);
-    } else {
-      total += (end - start) / 86400000;
-      ({ start, end } = interval);
-    }
+function kpiUniqueStayRows(rows = []) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    // An apartment transfer may repeat the same stay in the KPI base. Keep
+    // distinct room-night segments, but never multiply an identical segment.
+    const key = [row.checkin.key, row.checkout.key, row.roomNights, row.dailyRate].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
-  return total + (end - start) / 86400000;
+}
+
+function kpiReservationNights(rows = []) {
+  return kpiUniqueStayRows(rows).reduce((total, row) => total + row.roomNights, 0);
+}
+
+function kpiReservationRevenue(rows = []) {
+  // KPI Full's Venda dashboard adds displayed Diária × RN per stay segment.
+  // The reservation's raw Total may include credits unrelated to the stay.
+  const cents = kpiUniqueStayRows(rows).reduce((total, row) => (
+    total + Math.round(row.dailyRate * row.roomNights * 100)
+  ), 0);
+  return cents / 100;
 }
 
 const KPI_COUNTED_STATUSES = new Set([
@@ -3672,6 +3676,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       status: String(item.Status || "").trim(),
       apartment: String(item.Apto || "").trim(),
       roomNights: Math.max(0, parseNumber(item.RN)),
+      dailyRate: Math.max(0, parseNumber(item["Diária"])),
       total: parseNumber(item.Total)
     };
     const group = groups.get(key) || [];
@@ -3705,7 +3710,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       uh: "1",
       status: sellable.length ? "Confirmada" : representative.status,
       reservationCount: 1,
-      total: Math.max(0, ...validRows.map((row) => row.total)),
+      total: kpiReservationRevenue(validRows),
       source: "KPI FULL"
     };
   }).filter((record) => record.dateKey && record.total > 0);
@@ -4371,6 +4376,7 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
     result[6] = record.checkout;
     result[13] = Number(record.days) || 0;
     result[15] = record.dateKey;
+    result[24] = result[23] ?? "";
     result[23] = record.total;
     return result;
   });
@@ -4381,8 +4387,10 @@ async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
   workbook.creator = "SUEDS Hotels";
   const sheet = workbook.addWorksheet("Base KPI 2026", { views: [{ state: "frozen", ySplit: 1 }] });
   const headers = Array.from({ length: 24 }, (_, index) => String(sourceRows[0]?.[index] || `Coluna ${index + 1}`));
+  headers[23] = "Venda (KPI)";
+  headers.push("Total bruto (planilha)");
   const monetaryColumns = new Set(headers.map((header, index) =>
-    /^(deposito|diaria|total|valor|valor total|tarifa|preco|receita)$/.test(comparableKey(header)) ? index : -1
+    /^(deposito|diaria|total|valor|valor total|tarifa|preco|receita)$/.test(comparableKey(header)) || index >= 23 ? index : -1
   ).filter((index) => index >= 0));
   sheet.addRow(headers);
   styleExcelHeader(sheet.getRow(1));
@@ -4406,7 +4414,7 @@ async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
   });
   [6, 7, 16].forEach((index) => { sheet.getColumn(index).numFmt = "dd/mm/yyyy"; });
   monetaryColumns.forEach((index) => { sheet.getColumn(index + 1).numFmt = "#,##0.00"; });
-  sheet.autoFilter = `A1:X${Math.max(1, rows.length + 1)}`;
+  sheet.autoFilter = `A1:Y${Math.max(1, rows.length + 1)}`;
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
@@ -8974,15 +8982,15 @@ async function loadBiKpiReportsDataset() {
         goals: [],
         loadedAt: new Date().toISOString(),
         audience: "bi-relatorios-kpi",
-        comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full."
+        comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full. Venda calculada por Diária × RN."
       };
       biKpiReportsDataCache = { payload, expiresAt: Date.now() + BI_KPI_CACHE_TTL_MS };
       return payload;
     }
 
-    // Only ten KPI fields feed the reports. Fetch their compact column groups
+    // Only the KPI fields used by the reports are fetched as compact groups
     // in one request instead of downloading both complete 24-column tabs.
-    const compactColumns = ["A:D", "F:G", "K:N", "P:P", "X:X"];
+    const compactColumns = ["A:D", "F:H", "K:N", "P:P", "X:X"];
     const sheetPrefix = (range) => {
       const separator = String(range).lastIndexOf("!");
       return separator >= 0 ? String(range).slice(0, separator) : String(range);
@@ -9009,7 +9017,7 @@ async function loadBiKpiReportsDataset() {
       goals: rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal),
       loadedAt: new Date().toISOString(),
       audience: "bi-relatorios-kpi",
-      comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full. Reservas com mais de uma linha foram consolidadas."
+      comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full. Venda calculada por Diária × RN; reservas com mais de uma linha foram consolidadas."
     };
     biKpiReportsDataCache = { payload, expiresAt: Date.now() + BI_KPI_CACHE_TTL_MS };
     return payload;
