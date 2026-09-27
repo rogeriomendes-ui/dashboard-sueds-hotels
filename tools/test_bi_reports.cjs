@@ -172,6 +172,23 @@ const kpiOnlyReport = __test.buildBiReportsPayload({
 assert.equal(kpiOnlyReport.summary.sales, 3824.76);
 assert.equal(kpiOnlyReport.summary.reservations, 1);
 
+assert.equal(__test.kpiLatestSaleDate([
+  { "D.Res": "25/09/2026" },
+  { "D.Res": "26/09/2026" },
+  { "D.Res": "" }
+]), "2026-09-26");
+const kpiCoverageDataset = {
+  audience: "bi-relatorios-kpi",
+  kpiLatestSaleDate: "2026-09-26",
+  records: [record({ reservationCode: "COVERAGE-1", dateKey: "2026-09-25", source: "KPI FULL" })]
+};
+const pastCoverage = __test.buildBiReportsPayload(kpiCoverageDataset, { start: "2026-09-01", end: "2026-09-27" });
+assert.deepEqual(pastCoverage.dataCoverage, { latestSaleDate: "2026-09-26", queryEndBeyondAvailable: true });
+assert.equal(pastCoverage.summary.sales, 1000);
+const withinCoverage = __test.buildBiReportsPayload(kpiCoverageDataset, { start: "2026-09-01", end: "2026-09-26" });
+assert.equal(withinCoverage.dataCoverage.queryEndBeyondAvailable, false);
+assert.equal(payload.dataCoverage, null);
+
 for (const year of [2025, 2026]) {
   const creditReservation = __test.normalizeKpiReportRows([
     kpiRows[0],

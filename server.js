@@ -3616,6 +3616,15 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
   return objects;
 }
 
+function kpiLatestSaleDate(objects = []) {
+  // The KPI base has no capture-through watermark. Its latest sale date is a
+  // conservative coverage proxy and may lag a capture that had zero new sales.
+  return objects.reduce((latest, item) => {
+    const saleDate = kpiDateKey(item["D.Res"]);
+    return saleDate > latest ? saleDate : latest;
+  }, "");
+}
+
 function kpiUniqueStayRows(rows = []) {
   const seen = new Set();
   return rows.filter((row) => {
@@ -4264,6 +4273,10 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   return {
     audience: dataset.audience || "bi-relatorios",
     generatedAt: new Date().toISOString(),
+    dataCoverage: dataset.audience === "bi-relatorios-kpi" ? {
+      latestSaleDate: dataset.kpiLatestSaleDate || "",
+      queryEndBeyondAvailable: Boolean(dataset.kpiLatestSaleDate && period.end > dataset.kpiLatestSaleDate)
+    } : null,
     comparison: {
       available: historicalPeriodRows.length > 0,
       year: 2025,
@@ -9008,10 +9021,12 @@ async function loadBiKpiReportsDataset() {
         throw error;
       })
     ]);
-    const kpiRecords = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length)), 2026);
+    const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length));
+    const kpiRecords = normalizeKpiReportObjects(currentKpiObjects, 2026);
     const historicalRecords = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(compactColumns.length)), 2025);
     const payload = {
       records: kpiRecords,
+      kpiLatestSaleDate: kpiLatestSaleDate(currentKpiObjects),
       otherChannelRecords: [],
       historicalRecords,
       goals: rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal),
@@ -9463,6 +9478,7 @@ module.exports = {
     buildBiReportsPayload,
     buildCachedBiKpiReportsPayload,
     kpiObjectsFromColumnRanges,
+    kpiLatestSaleDate,
     normalizeKpiReportObjects,
     normalizeKpiReportRows,
     filterBiKpiSourceRows,

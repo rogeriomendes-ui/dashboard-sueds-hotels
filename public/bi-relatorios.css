@@ -59,6 +59,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .loading span { width: 18px; height: 18px; border: 2px solid #ccd7db; border-top-color: var(--gold-deep); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .notice { margin: 16px 0; padding: 13px 15px; border-radius: 10px; font-size: 13px; }
+.notice-warning { color: #72551f; border: 1px solid #e3c788; background: #fff7e3; font-weight: 650; }
 .notice-error { color: var(--danger); border: 1px solid #edcccc; background: #fff3f3; }
 
 .summary-grid { display: grid; grid-template-columns: 1.45fr repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }

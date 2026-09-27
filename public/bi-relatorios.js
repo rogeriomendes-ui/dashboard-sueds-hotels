@@ -11,13 +11,14 @@
   const shortMoney = new Intl.NumberFormat("pt-BR", { notation: "compact", style: "currency", currency: "BRL", maximumFractionDigits: 1 });
   const dayLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
   const dateLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  const numericDateLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
   const els = {
     form: document.getElementById("filterForm"), start: document.getElementById("startDate"), end: document.getElementById("endDate"),
     hotel: document.getElementById("hotelFilter"), channel: document.getElementById("channelFilter"),
     channelSummary: document.getElementById("channelSummary"), channelOptions: document.getElementById("channelOptions"),
     clearChannels: document.getElementById("clearChannels"), checkin: document.getElementById("checkinFilter"),
     clear: document.getElementById("clearFilters"), exportXls: document.getElementById("exportXls"), loading: document.getElementById("loadingState"), content: document.getElementById("dashboardContent"),
-    error: document.getElementById("errorNotice"), stamp: document.getElementById("dataStamp"), reason: document.getElementById("comparisonReason"),
+    error: document.getElementById("errorNotice"), coverageNotice: document.getElementById("dataCoverageNotice"), stamp: document.getElementById("dataStamp"), reason: document.getElementById("comparisonReason"),
     comparisonTitle: document.getElementById("comparisonTitle"), comparisonTotal: document.getElementById("comparisonTotal"),
     sales: document.getElementById("totalSales"), previousSales: document.getElementById("previousPeriodSales"), previousLabel: document.getElementById("previousPeriodLabel"), previousSummary: document.getElementById("previousPeriodSummary"), reservations: document.getElementById("totalReservations"), ticket: document.getElementById("averageTicket"),
     hotels: document.getElementById("activeHotels"), period: document.getElementById("periodCaption"), daily: document.getElementById("dailyChart"),
@@ -375,6 +376,14 @@
 
   function render(payload) {
     currentPayload = payload;
+    if (els.coverageNotice) {
+      const latestSaleDate = payload.dataCoverage?.latestSaleDate;
+      const showCoverageWarning = isKpiReport && payload.dataCoverage?.queryEndBeyondAvailable && /^\d{4}-\d{2}-\d{2}$/.test(latestSaleDate || "");
+      els.coverageNotice.hidden = !showCoverageWarning;
+      els.coverageNotice.textContent = showCoverageWarning
+        ? `Atenção: a última data de venda registrada na base KPI é ${numericDateLabel.format(localDate(latestSaleDate))}. A consulta termina em ${numericDateLabel.format(localDate(payload.period.end))}; os dias posteriores ainda não têm vendas nessa base e o resultado pode estar incompleto.`
+        : "";
+    }
     setOptions(els.hotel, payload.filters.hotels || [], payload.selected.hotel, "Todos os hotéis");
     setChannelOptions(payload.filters.channels || [], payload.selected.channels || (payload.selected.channel ? [payload.selected.channel] : []));
     setOptions(els.checkin, payload.filters.checkinMonths || [], payload.selected.checkinMonth, "Todos os meses", (item) => item.key, (item) => item.label);
@@ -464,6 +473,7 @@
 
   async function load() {
     els.error.hidden = true;
+    if (els.coverageNotice) els.coverageNotice.hidden = true;
     els.loading.hidden = false;
     els.content.hidden = true;
     if (els.exportXls) els.exportXls.disabled = true;
