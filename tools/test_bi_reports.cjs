@@ -164,6 +164,14 @@ assert.equal(repeatedReservationReport.summary.reservations, 1);
 assert.equal(repeatedReservationReport.summary.sales, 2587.1);
 assert.equal(repeatedReservationReport.summary.roomNights, 4);
 
+const kpiOnlyReport = __test.buildBiReportsPayload({
+  audience: "bi-relatorios-kpi",
+  records: [record({ reservationCode: "49321", dateKey: "2026-09-05", total: 3824.76, source: "KPI FULL" })],
+  otherChannelRecords: [record({ reservationCode: "RES035889-11640", dateKey: "2026-09-05", total: 3824.76, channel: "SITE", rawChannel: "SITE" })]
+}, { start: "2026-09-05", end: "2026-09-05", hotel: "SUEDS PLAZA" });
+assert.equal(kpiOnlyReport.summary.sales, 3824.76);
+assert.equal(kpiOnlyReport.summary.reservations, 1);
+
 const rolloverKpi = __test.normalizeKpiReportRows([
   kpiRows[0],
   ["SUEDS PLAZA", "", "Azul Viagens", "ROLLOVER-1", "Cliente", "02/01", "07/01", 500, 2, 0, "101", "LOC", "Confirmada", 5, "", "18/09", "", "", "", "", "", "", "", 2500]
