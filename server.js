@@ -3713,7 +3713,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       total: kpiReservationRevenue(validRows),
       source: "KPI FULL"
     };
-  }).filter((record) => record.dateKey && record.total > 0);
+  }).filter((record) => record.dateKey && (record.total > 0 || Number(record.days) > 0));
 }
 
 function normalizeKpiReportRows(rows = [], targetYear) {

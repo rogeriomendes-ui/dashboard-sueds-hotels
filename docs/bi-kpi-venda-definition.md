@@ -5,6 +5,7 @@
 Para **2025 e 2026**, o valor de `Venda` no BI Relatórios by KPI e no XLS é a soma de `Diária × RN` de cada trecho de hospedagem da reserva na aba `base kpi 2025` ou `base kpi 2026`. A reserva conta uma vez nos indicadores de quantidade, mas trechos distintos de hospedagem contribuem com suas próprias diárias e room nights. Linhas com o mesmo hotel, número de reserva, check-in, check-out, diária e RN são tratadas como repetição do mesmo trecho.
 
 O campo `Total` bruto das abas permanece **inalterado**. No XLS, a coluna X é `Venda (KPI)` e a coluna Y preserva `Total bruto (planilha)` para auditoria.
+Trechos com `RN > 0` e diária zero continuam contribuindo para UH, sem aumentar a receita.
 
 ## Por que mudamos
 

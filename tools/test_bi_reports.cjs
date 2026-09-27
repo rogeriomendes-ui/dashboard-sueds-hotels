@@ -186,6 +186,14 @@ for (const year of [2025, 2026]) {
   assert.equal(creditReservation.find((item) => item.reservationCode === "SEG-1").days, "7");
 }
 
+const zeroRateStay = __test.normalizeKpiReportRows([
+  kpiRows[0],
+  ["SUEDS PLAZA", "", "Reserva Direta", "ZERO-1", "Cliente", "10/02", "14/02", 0, 2, 0, "101", "", "Bloqueio", 4, "", "10/01/2026", "", "", "", "", "", "", "", 0]
+], 2026);
+assert.equal(zeroRateStay.length, 1);
+assert.equal(zeroRateStay[0].total, 0);
+assert.equal(zeroRateStay[0].days, "4");
+
 const rolloverKpi = __test.normalizeKpiReportRows([
   kpiRows[0],
   ["SUEDS PLAZA", "", "Azul Viagens", "ROLLOVER-1", "Cliente", "02/01", "07/01", 500, 2, 0, "101", "LOC", "Confirmada", 5, "", "18/09", "", "", "", "", "", "", "", 2500]
