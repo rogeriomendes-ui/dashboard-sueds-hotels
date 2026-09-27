@@ -1,9 +1,15 @@
 const assert = require('node:assert/strict');
-const { DEPARTMENTS, canSeeDepartment, summarizeReads, visibleDepartments, listAnnouncements, announcementNotificationSummary } = require('../api/portal/announcements')._test;
+const { DEPARTMENTS, canManageAnnouncements, canSeeDepartment, summarizeReads, visibleDepartments, listAnnouncements, announcementNotificationSummary } = require('../api/portal/announcements')._test;
 
 async function main() {
   const profile = { id: 'ordinary-user', roles: [] };
   const salesProfile = { id: 'sales-user', roles: [], departments: ['Vendas / Reservas'] };
+  const publisherProfile = { id: 'publisher', roles: [], environments: ['comunicados', 'inclusao_comunicados'], departments: ['Vendas / Reservas'] };
+  assert.equal(canManageAnnouncements(profile),false,'Ordinary users cannot publish');
+  assert.equal(canManageAnnouncements(publisherProfile),true,'The individual environment grant permits publishing');
+  assert.equal(canManageAnnouncements({roles:['admin_geral']}),true,'General administrators retain access');
+  assert.equal(canSeeDepartment(publisherProfile,'Diretoria'),true,'Authorized publishers can manage all departments');
+  assert.deepEqual(visibleDepartments(publisherProfile),DEPARTMENTS);
   assert.ok(DEPARTMENTS.includes('Diretoria'),'Diretoria is available for announcements');
   assert.equal(canSeeDepartment(salesProfile,'Geral'),true);
   assert.equal(canSeeDepartment(salesProfile,'Vendas / Reservas'),true);

@@ -55,7 +55,7 @@
       const response = await fetch("/api/portal/announcements?admin=1", { cache: "no-store", credentials: "same-origin" });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || "Não foi possível carregar o histórico.");
-      if (!payload.isAdmin) throw new Error("Somente administradores podem acessar esta página.");
+      if (!payload.canManage) throw new Error("Sem permissão para incluir comunicados.");
       department.innerHTML = (payload.departments || []).map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("");
       renderHistory(payload.announcements || []);
       pageMessage.textContent = `${(payload.announcements || []).length} comunicado${(payload.announcements || []).length === 1 ? " publicado" : "s publicados"}. Abra um item para ver os colaboradores.`;
@@ -114,8 +114,8 @@
 
   syncMediaFields();
   Promise.resolve(window.suedsManagerAuthReady).then(() => {
-    if (!window.suedsPortalProfile?.roles?.includes("admin_geral")) {
-      document.body.innerHTML = '<main class="announcements-page"><div class="empty-state"><strong>Acesso restrito.</strong><br>Somente administradores podem incluir comunicados.</div></main>';
+    if (!window.suedsPortalAccess?.inclusao_comunicados) {
+      document.body.innerHTML = '<main class="announcements-page"><div class="empty-state"><strong>Acesso restrito.</strong><br>Este usuário não possui permissão para incluir comunicados.</div></main>';
       return;
     }
     load();

@@ -38,6 +38,13 @@ async function catalog(supabase) {
       description: "Acesso aos relatórios comerciais comparativos originados nas bases do KPI Full.",
       sort_order: 47,
       status: "active"
+    },
+    {
+      slug: "inclusao_comunicados",
+      name: "Inclusão de Comunicados",
+      description: "Permite publicar comunicados e acompanhar as confirmações de leitura.",
+      sort_order: 6,
+      status: "active"
     }
   ], { onConflict: "slug" });
   if (biEnvironments.error) throw biEnvironments.error;

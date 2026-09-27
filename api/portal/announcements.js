@@ -1,6 +1,6 @@
 const { randomUUID } = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
-const { json } = require("../../lib/portal-auth");
+const { hasEnvironment, json } = require("../../lib/portal-auth");
 const { PORTAL_DEPARTMENTS, normalizePortalDepartment } = require("../../lib/portal-departments");
 
 const DEFAULT_SUPABASE_URL = "https://pjcmjytiovuukbkewxjj.supabase.co";
@@ -32,19 +32,23 @@ function isAdmin(profile) {
   return Boolean(profile?.roles?.includes("admin_geral"));
 }
 
+function canManageAnnouncements(profile) {
+  return hasEnvironment(profile, "inclusao_comunicados");
+}
+
 function normalizeDepartment(value) {
   return normalizePortalDepartment(value);
 }
 
 function canSeeDepartment(profile, department) {
   const normalized = normalizeDepartment(department);
-  if (isAdmin(profile) || normalized === "Geral") return true;
+  if (canManageAnnouncements(profile) || normalized === "Geral") return true;
   const assigned = Array.isArray(profile?.departments) ? profile.departments : [];
   return assigned.includes(normalized);
 }
 
 function visibleDepartments(profile) {
-  if (isAdmin(profile) || !Array.isArray(profile?.departments) || !profile.departments.length) return isAdmin(profile) ? DEPARTMENTS : ["Geral"];
+  if (canManageAnnouncements(profile) || !Array.isArray(profile?.departments) || !profile.departments.length) return canManageAnnouncements(profile) ? DEPARTMENTS : ["Geral"];
   return DEPARTMENTS.filter((department) => department === "Geral" || profile.departments.includes(department));
 }
 
@@ -271,11 +275,11 @@ module.exports = async function announcements(req, res) {
       if (url.searchParams.get("summary") === "1") {
         return json(res, 200, { ok: true, ...await announcementNotificationSummary(db, profile) });
       }
-      const includeHistory = url.searchParams.get("admin") === "1" && isAdmin(profile);
-      return json(res, 200, { ok: true, isAdmin: isAdmin(profile), departments: visibleDepartments(profile), announcements: await listAnnouncements(db, profile, includeHistory) });
+      const includeHistory = url.searchParams.get("admin") === "1" && canManageAnnouncements(profile);
+      return json(res, 200, { ok: true, isAdmin: isAdmin(profile), canManage: canManageAnnouncements(profile), departments: visibleDepartments(profile), announcements: await listAnnouncements(db, profile, includeHistory) });
     }
     if (req.method === "POST") {
-      if (!isAdmin(profile)) return json(res, 403, { ok: false, error: "admin_required", message: "Somente administradores podem publicar comunicados." });
+      if (!canManageAnnouncements(profile)) return json(res, 403, { ok: false, error: "permission_required", message: "Sem permissão para incluir comunicados." });
       const record = await createAnnouncement(db, profile, await readBody(req));
       return json(res, 201, { ok: true, id: record.id, message: "Comunicado publicado com sucesso." });
     }
@@ -296,4 +300,4 @@ module.exports = async function announcements(req, res) {
   }
 };
 
-module.exports._test = { DEPARTMENTS, canSeeDepartment, clean, normalizeDepartment, parseUpload, safeUrl, summarizeReads, visibleDepartments, listAnnouncements, announcementNotificationSummary };
+module.exports._test = { DEPARTMENTS, canManageAnnouncements, canSeeDepartment, clean, normalizeDepartment, parseUpload, safeUrl, summarizeReads, visibleDepartments, listAnnouncements, announcementNotificationSummary };

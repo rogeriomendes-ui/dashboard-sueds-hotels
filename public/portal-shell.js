@@ -1,7 +1,7 @@
 (function setupUnifiedPortal() {
   const routes = {
     comunicados: { url: "/comunicados", permission: "comunicados", title: "Comunicados" },
-    inclusao_comunicados: { url: "/comunicados/admin", permission: "admin_geral", title: "Inclusão de Comunicados" },
+    inclusao_comunicados: { url: "/comunicados/admin", permission: "inclusao_comunicados", title: "Inclusão de Comunicados" },
     tv_vendedores: { url: "/dashboard-tv.html", permission: "tv_vendedores", title: "TV Painel Vendedor" },
     ranking_vendedores: { url: "/dashboard-vendedores.html", permission: "ranking_vendedores", title: "Ranking de Vendedores" },
     bi_relatorios: { url: "/bi-relatorios.html?v=20260920-checkin-share", permission: "bi_relatorios", title: "BI - Relatórios" },
