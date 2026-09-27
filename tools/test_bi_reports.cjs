@@ -142,13 +142,27 @@ assert.equal(normalizedKpi[0].dateKey, "2025-01-01");
 assert.equal(normalizedKpi[0].checkin, "22/02/2025");
 assert.equal(normalizedKpi[0].channel, "Azul Viagens");
 assert.equal(normalizedKpi[0].days, "6");
-assert.ok(Math.abs(normalizedKpi[0].total - 3435.97) < 0.000001);
+assert.ok(Math.abs(normalizedKpi[0].total - 1717.99) < 0.000001);
 assert.equal(normalizedKpi[0].status, "Confirmada");
-assert.equal(normalizedKpi[0].reservationCount, 2);
+assert.equal(normalizedKpi[0].reservationCount, 1);
 const multiApartment = normalizedKpi.find((item) => item.reservationCode === "42769");
-assert.equal(multiApartment.reservationCount, 2);
+assert.equal(multiApartment.reservationCount, 1);
 assert.equal(multiApartment.days, "7");
-assert.equal(multiApartment.total, 4468.8);
+assert.equal(multiApartment.total, 2234.4);
+
+const repeatedReservation = __test.normalizeKpiReportRows([
+  kpiRows[0],
+  ["SUEDS PLAZA", "", "CVC", "49210", "Cliente", "25/09/2026", "29/09/2026", 646.78, 2, 0, 201, "LOC", "Confirmada", 4, "", "01/09/2026", "", "", "", "", "", "", "", 2587.1],
+  ["SUEDS PLAZA", "", "CVC", "49210", "Cliente", "25/09/2026", "29/09/2026", 646.78, 2, 0, 120, "LOC", "Confirmada", 4, "", "01/09/2026", "", "", "", "", "", "", "", 2587.1]
+], 2026);
+assert.equal(repeatedReservation.length, 1);
+assert.equal(repeatedReservation[0].reservationCount, 1);
+assert.equal(repeatedReservation[0].days, "4");
+assert.equal(repeatedReservation[0].total, 2587.1);
+const repeatedReservationReport = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: repeatedReservation }, { start: "2026-09-01", end: "2026-09-01" });
+assert.equal(repeatedReservationReport.summary.reservations, 1);
+assert.equal(repeatedReservationReport.summary.sales, 2587.1);
+assert.equal(repeatedReservationReport.summary.roomNights, 4);
 
 const rolloverKpi = __test.normalizeKpiReportRows([
   kpiRows[0],
@@ -213,39 +227,58 @@ assert.equal(vilaRomanaPayload.occupancy[0].hotel, "CASAS SUEDS ARRAIAL");
 assert.equal(vilaRomanaPayload.occupancy[0].days[0].occupied, 1);
 
 const kpiHeaders = Array.from({ length: 24 }, (_, index) => `Campo ${index + 1}`);
+kpiHeaders[0] = "Hotel";
 kpiHeaders[1] = "Depósito";
+kpiHeaders[2] = "Origem";
+kpiHeaders[3] = "Reserva";
+kpiHeaders[5] = "IN";
+kpiHeaders[6] = "OUT";
 kpiHeaders[7] = "Diária";
+kpiHeaders[10] = "Apto";
+kpiHeaders[12] = "Status";
+kpiHeaders[13] = "RN";
+kpiHeaders[15] = "D.Res";
 kpiHeaders[23] = "Total";
-const kpiSourceRow = (hotel, channel, date, checkin, total) => {
+const kpiSourceRow = (hotel, channel, date, checkin, total, code, apartment = 0) => {
   const row = Array(24).fill("");
   row[0] = hotel;
   row[1] = "1.234,56";
   row[2] = channel;
+  row[3] = code;
   row[5] = checkin;
+  row[6] = "05/10/2026";
   row[7] = 586.43;
+  row[10] = apartment;
+  row[12] = "Confirmada";
+  row[13] = 2;
   row[15] = date;
   row[23] = total;
   return row;
 };
 const kpiSource = [kpiHeaders,
-  kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5),
-  kpiSourceRow("SUEDS PLAZA", "CVC", "19/09/2026", "03/10/2026", 900),
-  kpiSourceRow("SUEDS PREMIUM", "CVC", "12/09/2026", "03/10/2026", 700),
-  kpiSourceRow("SUEDS PLAZA", "Airbnb", "12/09/2026", "03/10/2026", 600)
+  kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5, "TEST-1"),
+  kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5, "TEST-1", 120),
+  kpiSourceRow("SUEDS PLAZA", "CVC", "19/09/2026", "03/10/2026", 900, "TEST-2"),
+  kpiSourceRow("SUEDS PREMIUM", "CVC", "12/09/2026", "03/10/2026", 700, "TEST-3"),
+  kpiSourceRow("SUEDS PLAZA", "Airbnb", "12/09/2026", "03/10/2026", 600, "TEST-4")
 ];
 const kpiExportQuery = { start: "2026-09-01", end: "2026-09-18", hotel: "SUEDS PLAZA", channels: ["CVC"], checkinMonth: "2026-10" };
 assert.equal(__test.filterBiKpiSourceRows(kpiSource, kpiExportQuery).length, 1);
+assert.equal(__test.filterBiKpiSourceRows(kpiSource, kpiExportQuery)[0][23], 1200.5);
 __test.buildBiKpiSourceWorkbook(kpiSource, kpiExportQuery).then(async (buffer) => {
   const ExcelJS = require("exceljs");
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
   const sheet = workbook.getWorksheet("Base KPI 2026");
   assert.equal(sheet.rowCount, 2);
+  assert.equal(sheet.getCell("D2").value, "TEST-1");
+  assert.equal(sheet.getCell("K2").value, 120);
+  assert.equal(sheet.getCell("N2").value, 2);
   assert.equal(sheet.getCell("B2").value, 1234.56);
   assert.equal(sheet.getCell("H2").value, 586.43);
   assert.equal(sheet.getCell("X2").value, 1200.5);
   ["B2", "H2", "X2"].forEach((address) => assert.equal(sheet.getCell(address).numFmt, "#,##0.00"));
-  assert.equal(sheet.getCell("A1").value, "Campo 1");
+  assert.equal(sheet.getCell("A1").value, "Hotel");
   assert.ok(sheet.getCell("P2").value instanceof Date);
   console.log("BI validado com deduplicação, filtros, comparativo e exportação XLSX.");
 }).catch((error) => { console.error(error); process.exitCode = 1; });

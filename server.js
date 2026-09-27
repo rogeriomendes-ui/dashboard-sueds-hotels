@@ -3615,6 +3615,33 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
   return objects;
 }
 
+function kpiReservationNights(rows = []) {
+  if (rows.length === 1 && rows[0].roomNights > 0) return rows[0].roomNights;
+  const intervals = rows.map((row) => {
+    const start = row.checkin.key ? Date.parse(`${row.checkin.key}T00:00:00Z`) : NaN;
+    const end = row.checkout.key ? Date.parse(`${row.checkout.key}T00:00:00Z`) : NaN;
+    return { start, end };
+  }).filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  if (!intervals.length) return Math.max(0, ...rows.map((row) => row.roomNights));
+  let total = 0;
+  let { start, end } = intervals[0];
+  intervals.slice(1).forEach((interval) => {
+    if (interval.start <= end) {
+      end = Math.max(end, interval.end);
+    } else {
+      total += (end - start) / 86400000;
+      ({ start, end } = interval);
+    }
+  });
+  return total + (end - start) / 86400000;
+}
+
+const KPI_COUNTED_STATUSES = new Set([
+  "check out", "early check out", "confirmada", "alterada", "bloqueio",
+  "manutencao", "no hotel", "transferencia - out"
+]);
+
 function normalizeKpiReportObjects(objects = [], targetYear) {
   const yearCounts = new Map();
   objects.forEach((item) => {
@@ -3652,45 +3679,17 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
     groups.set(key, group);
   });
 
-  const countedStatuses = new Set([
-    "check out",
-    "early check out",
-    "confirmada",
-    "alterada",
-    "bloqueio",
-    "manutencao",
-    "no hotel",
-    "transferencia - out"
-  ]);
   return [...groups.values()].map((group) => {
     const representative = group.find((row) => row.sale.key) || group[0];
-    const sellable = group.filter((row) => countedStatuses.has(comparableKey(row.status)));
+    const sellable = group.filter((row) => KPI_COUNTED_STATUSES.has(comparableKey(row.status)));
     const validRows = sellable.length ? sellable : group;
-    const uniqueStayRowsByKey = new Map();
-    validRows.forEach((row) => {
-      const stayKey = [row.hotel, row.reservationCode, row.checkin.key, row.checkout.key, row.roomNights, row.apartment].join("|");
-      const existing = uniqueStayRowsByKey.get(stayKey);
-      if (!existing || row.total > existing.total) uniqueStayRowsByKey.set(stayKey, row);
-    });
-    const uniqueStayRows = [...uniqueStayRowsByKey.values()];
-    const saleDates = uniqueStayRows.map((row) => row.sale).filter((value) => value.key).sort((a, b) => a.key.localeCompare(b.key));
-    const checkins = uniqueStayRows.map((row) => row.checkin).filter((value) => value.key).sort((a, b) => a.key.localeCompare(b.key));
-    const checkouts = uniqueStayRows.map((row) => row.checkout).filter((value) => value.key).sort((a, b) => b.key.localeCompare(a.key));
+    const saleDates = validRows.map((row) => row.sale).filter((value) => value.key).sort((a, b) => a.key.localeCompare(b.key));
+    const checkins = validRows.map((row) => row.checkin).filter((value) => value.key).sort((a, b) => a.key.localeCompare(b.key));
+    const checkouts = validRows.map((row) => row.checkout).filter((value) => value.key).sort((a, b) => b.key.localeCompare(a.key));
     const sale = saleDates[0] || representative.sale;
     const checkin = checkins[0] || representative.checkin;
     const checkout = checkouts[0] || representative.checkout;
-    const roomNights = uniqueStayRows.reduce((total, row) => total + row.roomNights, 0);
-    const occupiedApartments = new Set(uniqueStayRows
-      .filter((row) => row.apartment)
-      .map((row) => comparableKey(row.apartment)));
-    const valueByApartment = new Map();
-    uniqueStayRows
-      .filter((row) => row.apartment)
-      .forEach((row) => {
-        const apartmentKey = comparableKey(row.apartment);
-        valueByApartment.set(apartmentKey, Math.max(valueByApartment.get(apartmentKey) || 0, row.total));
-      });
-    const apartmentTotal = [...valueByApartment.values()].reduce((total, value) => total + value, 0);
+    const roomNights = kpiReservationNights(validRows);
     return {
       date: sale.date,
       dateKey: sale.key,
@@ -3705,8 +3704,8 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       days: String(roomNights || ""),
       uh: "1",
       status: sellable.length ? "Confirmada" : representative.status,
-      reservationCount: Math.max(1, occupiedApartments.size),
-      total: apartmentTotal || Math.max(0, ...validRows.map((row) => row.total)),
+      reservationCount: 1,
+      total: Math.max(0, ...validRows.map((row) => row.total)),
       source: "KPI FULL"
     };
   }).filter((record) => record.dateKey && record.total > 0);
@@ -4342,14 +4341,38 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
   const channels = Array.isArray(query.channels) ? query.channels : [];
   const channelKeys = new Set(channels.map((value) => comparableKey(value)).filter(Boolean));
   const checkinMonth = /^20\d{2}-\d{2}$/.test(query.checkinMonth || "") ? query.checkinMonth : "";
-  return sourceRows.slice(1).filter((row) => {
-    const sale = kpiDateWithDelta(row[15], 0);
-    if (!sale.key || sale.key < period.start || sale.key > period.end) return false;
-    if (hotel && comparableKey(biReportsHotelLabel(normalizeHotelName(row[0]))) !== comparableKey(biReportsHotelLabel(hotel))) return false;
-    const channel = biReportsChannelLabel({ channel: normalizeKpiChannel(row[2]) });
-    if (channelKeys.size && !channelKeys.has(comparableKey(channel))) return false;
-    const checkin = kpiDateWithReference(row[5], 0, sale);
-    return !checkinMonth || checkin.key.slice(0, 7) === checkinMonth;
+  const sourceByReservation = new Map();
+  sourceRows.slice(1).forEach((row) => {
+    const reservationCode = String(row[3] || row[11] || "").trim();
+    if (!reservationCode) return;
+    const key = `${comparableKey(normalizeHotelName(row[0]))}|${comparableKey(reservationCode)}`;
+    if (!sourceByReservation.has(key)) sourceByReservation.set(key, []);
+    sourceByReservation.get(key).push(row);
+  });
+  return normalizeKpiReportRows(sourceRows, 2026).filter((record) => (
+    record.dateKey >= period.start && record.dateKey <= period.end
+    && isCountedSaleStatus(record)
+    && (!hotel || comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(biReportsHotelLabel(hotel)))
+    && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
+    && (!checkinMonth || kpiDateKey(record.checkin).slice(0, 7) === checkinMonth)
+  )).map((record) => {
+    const key = `${comparableKey(record.hotel)}|${comparableKey(record.reservationCode)}`;
+    const candidates = sourceByReservation.get(key) || [];
+    const preferred = candidates.reduce((best, row) => {
+      if (!best) return row;
+      const score = (value) => (KPI_COUNTED_STATUSES.has(comparableKey(value[12])) ? 10000 : 0)
+        + (String(value[10] || "").trim() && String(value[10]) !== "0" ? 1000 : 0)
+        + Math.min(365, Math.max(0, parseNumber(value[13])));
+      return score(row) > score(best) ? row : best;
+    }, null);
+    const result = (preferred || []).slice();
+    result[3] = record.reservationCode;
+    result[5] = record.checkin;
+    result[6] = record.checkout;
+    result[13] = Number(record.days) || 0;
+    result[15] = record.dateKey;
+    result[23] = record.total;
+    return result;
   });
 }
 
