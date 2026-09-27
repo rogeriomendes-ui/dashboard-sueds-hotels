@@ -212,4 +212,32 @@ const vilaRomanaPayload = __test.buildBiReportsPayload({ audience: "bi-relatorio
 assert.equal(vilaRomanaPayload.occupancy[0].hotel, "CASAS SUEDS ARRAIAL");
 assert.equal(vilaRomanaPayload.occupancy[0].days[0].occupied, 1);
 
-console.log("BI validado com deduplicação, filtros e curvas comparativas de 2025 e 2026.");
+const kpiHeaders = Array.from({ length: 24 }, (_, index) => `Campo ${index + 1}`);
+const kpiSourceRow = (hotel, channel, date, checkin, total) => {
+  const row = Array(24).fill("");
+  row[0] = hotel;
+  row[2] = channel;
+  row[5] = checkin;
+  row[15] = date;
+  row[23] = total;
+  return row;
+};
+const kpiSource = [kpiHeaders,
+  kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5),
+  kpiSourceRow("SUEDS PLAZA", "CVC", "19/09/2026", "03/10/2026", 900),
+  kpiSourceRow("SUEDS PREMIUM", "CVC", "12/09/2026", "03/10/2026", 700),
+  kpiSourceRow("SUEDS PLAZA", "Airbnb", "12/09/2026", "03/10/2026", 600)
+];
+const kpiExportQuery = { start: "2026-09-01", end: "2026-09-18", hotel: "SUEDS PLAZA", channels: ["CVC"], checkinMonth: "2026-10" };
+assert.equal(__test.filterBiKpiSourceRows(kpiSource, kpiExportQuery).length, 1);
+__test.buildBiKpiSourceWorkbook(kpiSource, kpiExportQuery).then(async (buffer) => {
+  const ExcelJS = require("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const sheet = workbook.getWorksheet("Base KPI 2026");
+  assert.equal(sheet.rowCount, 2);
+  assert.equal(sheet.getCell("X2").value, 1200.5);
+  assert.equal(sheet.getCell("A1").value, "Campo 1");
+  assert.ok(sheet.getCell("P2").value instanceof Date);
+  console.log("BI validado com deduplicação, filtros, comparativo e exportação XLSX.");
+}).catch((error) => { console.error(error); process.exitCode = 1; });

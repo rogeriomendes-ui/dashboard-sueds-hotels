@@ -4336,6 +4336,51 @@ function buildCachedBiKpiReportsPayload(dataset = {}, query = {}) {
   return payload;
 }
 
+function filterBiKpiSourceRows(sourceRows = [], query = {}) {
+  const period = biReportsDateRange(query);
+  const hotel = String(query.hotel || "").trim();
+  const channels = Array.isArray(query.channels) ? query.channels : [];
+  const channelKeys = new Set(channels.map((value) => comparableKey(value)).filter(Boolean));
+  const checkinMonth = /^20\d{2}-\d{2}$/.test(query.checkinMonth || "") ? query.checkinMonth : "";
+  return sourceRows.slice(1).filter((row) => {
+    const sale = kpiDateWithDelta(row[15], 0);
+    if (!sale.key || sale.key < period.start || sale.key > period.end) return false;
+    if (hotel && comparableKey(biReportsHotelLabel(normalizeHotelName(row[0]))) !== comparableKey(biReportsHotelLabel(hotel))) return false;
+    const channel = biReportsChannelLabel({ channel: normalizeKpiChannel(row[2]) });
+    if (channelKeys.size && !channelKeys.has(comparableKey(channel))) return false;
+    const checkin = kpiDateWithReference(row[5], 0, sale);
+    return !checkinMonth || checkin.key.slice(0, 7) === checkinMonth;
+  });
+}
+
+async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "SUEDS Hotels";
+  const sheet = workbook.addWorksheet("Base KPI 2026", { views: [{ state: "frozen", ySplit: 1 }] });
+  const headers = Array.from({ length: 24 }, (_, index) => String(sourceRows[0]?.[index] || `Coluna ${index + 1}`));
+  sheet.addRow(headers);
+  styleExcelHeader(sheet.getRow(1));
+  const rows = filterBiKpiSourceRows(sourceRows, query);
+  rows.forEach((source) => {
+    const values = headers.map((_, index) => {
+      const value = source[index] ?? "";
+      if (![5, 6, 15].includes(index) || value === "") return value;
+      const sale = kpiDateWithDelta(source[15], 0);
+      const checkin = kpiDateWithReference(source[5], 0, sale);
+      const key = index === 15 ? sale.key : index === 5 ? checkin.key : kpiDateWithReference(value, 0, checkin).key;
+      return key ? new Date(`${key}T12:00:00Z`) : value;
+    });
+    sheet.addRow(values);
+  });
+  sheet.columns.forEach((column, index) => {
+    column.width = Math.min(34, Math.max(14, headers[index].length + 3));
+  });
+  [6, 7, 16].forEach((index) => { sheet.getColumn(index).numFmt = "dd/mm/yyyy"; });
+  sheet.getColumn(24).numFmt = '"R$" #,##0.00';
+  sheet.autoFilter = `A1:X${Math.max(1, rows.length + 1)}`;
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
 function buildSellersPayload(metrics, access = {}) {
   const teamSeller = (metrics.sellers || []).find((seller) => seller.name === TEAM_CARD_DISPLAY_NAME);
   const teamGoalMet = Number(teamSeller?.monthlyGoalPct) >= 100;
@@ -9116,14 +9161,26 @@ async function handleRequest(req, res) {
     if (url.pathname === "/api/dashboard/bi-relatorios-kpi") {
       if (!biReportsAccess(req, url, "bi_relatorios_kpi")) return forbidden(res);
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
-      const dataset = await loadBiKpiReportsDataset();
-      return json(res, 200, buildCachedBiKpiReportsPayload(dataset, {
+      const query = {
         start: url.searchParams.get("start") || "",
         end: url.searchParams.get("end") || "",
         hotel: url.searchParams.get("hotel") || "",
         channels: url.searchParams.getAll("channel"),
         checkinMonth: url.searchParams.get("checkinMonth") || ""
-      }));
+      };
+      if (url.searchParams.get("format") === "xlsx") {
+        const sourceRows = await getSheetValues(BI_KPI_2026_RANGE);
+        const workbook = await buildBiKpiSourceWorkbook(sourceRows, query);
+        const period = biReportsDateRange(query);
+        res.writeHead(200, {
+          "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-disposition": `attachment; filename="base-kpi-${period.start}-a-${period.end}.xlsx"`,
+          "cache-control": "no-store"
+        });
+        return res.end(workbook);
+      }
+      const dataset = await loadBiKpiReportsDataset();
+      return json(res, 200, buildCachedBiKpiReportsPayload(dataset, query));
     }
 
     if (url.pathname === "/api/dashboard/vendedores") {
@@ -9384,6 +9441,8 @@ module.exports = {
     kpiObjectsFromColumnRanges,
     normalizeKpiReportObjects,
     normalizeKpiReportRows,
+    filterBiKpiSourceRows,
+    buildBiKpiSourceWorkbook,
     buildSalesCommissionWorkbook,
     buildTicketWorkbook,
     isEventTicket,

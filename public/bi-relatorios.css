@@ -44,6 +44,8 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .channel-option { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; color: var(--navy-deep); font-size: 12px; cursor: pointer; }
 .filters .channel-option input { flex: 0 0 auto; width: 15px; height: 15px; min-width: 15px; margin: 0; padding: 0; accent-color: #187f77; }
 .filter-actions { display: flex; gap: 8px; }
+.filter-actions .button { padding: 0 12px; white-space: nowrap; }
+.filter-actions .button:disabled { cursor: wait; opacity: .55; }
 .button { height: 40px; padding: 0 15px; border: 1px solid transparent; border-radius: 9px; cursor: pointer; font-size: 12px; font-weight: 800; }
 .button-primary { color: #fff; background: var(--navy-deep); }
 .button-primary:hover { background: var(--navy-soft); }

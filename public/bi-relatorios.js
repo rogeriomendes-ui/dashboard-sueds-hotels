@@ -16,7 +16,7 @@
     hotel: document.getElementById("hotelFilter"), channel: document.getElementById("channelFilter"),
     channelSummary: document.getElementById("channelSummary"), channelOptions: document.getElementById("channelOptions"),
     clearChannels: document.getElementById("clearChannels"), checkin: document.getElementById("checkinFilter"),
-    clear: document.getElementById("clearFilters"), loading: document.getElementById("loadingState"), content: document.getElementById("dashboardContent"),
+    clear: document.getElementById("clearFilters"), exportXls: document.getElementById("exportXls"), loading: document.getElementById("loadingState"), content: document.getElementById("dashboardContent"),
     error: document.getElementById("errorNotice"), stamp: document.getElementById("dataStamp"), reason: document.getElementById("comparisonReason"),
     comparisonTitle: document.getElementById("comparisonTitle"), comparisonTotal: document.getElementById("comparisonTotal"),
     sales: document.getElementById("totalSales"), previousSales: document.getElementById("previousPeriodSales"), previousLabel: document.getElementById("previousPeriodLabel"), previousSummary: document.getElementById("previousPeriodSummary"), reservations: document.getElementById("totalReservations"), ticket: document.getElementById("averageTicket"),
@@ -38,6 +38,7 @@
     channelHotelComparisonSummary: document.getElementById("channelHotelComparisonSummary"), monthlyGoalTables: document.getElementById("monthlyGoalTables")
   };
   let currentPayload = null;
+  let appliedFilterQuery = "";
   let resizeTimer = null;
 
   function safe(value) {
@@ -465,6 +466,7 @@
     els.error.hidden = true;
     els.loading.hidden = false;
     els.content.hidden = true;
+    if (els.exportXls) els.exportXls.disabled = true;
     const params = new URLSearchParams(new FormData(els.form));
     try {
       const response = await fetch(`${apiUrl}?${params.toString()}`, { credentials: "same-origin", headers: { Accept: "application/json" } });
@@ -474,12 +476,45 @@
       els.loading.hidden = true;
       els.content.hidden = false;
       render(payload);
+      appliedFilterQuery = params.toString();
+      if (els.exportXls) els.exportXls.disabled = false;
     } catch (error) {
       els.loading.hidden = true;
       els.error.textContent = error.message || "Não foi possível carregar o relatório.";
       els.error.hidden = false;
     }
   }
+
+  if (els.exportXls) els.exportXls.addEventListener("click", async () => {
+    if (!appliedFilterQuery) return;
+    const button = els.exportXls;
+    button.disabled = true;
+    button.textContent = "Gerando…";
+    els.error.hidden = true;
+    try {
+      const params = new URLSearchParams(appliedFilterQuery);
+      params.set("format", "xlsx");
+      const response = await fetch(`${apiUrl}?${params.toString()}`, { credentials: "same-origin", headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" } });
+      if (response.status === 401) { window.top.location.href = "/portal-login.html"; return; }
+      if (!response.ok) throw new Error("Não foi possível gerar o arquivo Excel.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const period = new URLSearchParams(appliedFilterQuery);
+      link.download = `base-kpi-${period.get("start") || "inicio"}-a-${period.get("end") || "fim"}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      els.error.textContent = error.message || "Não foi possível gerar o arquivo Excel.";
+      els.error.hidden = false;
+    } finally {
+      button.disabled = false;
+      button.textContent = "XLS";
+    }
+  });
 
   els.form.addEventListener("submit", (event) => { event.preventDefault(); load(); });
   els.clear.addEventListener("click", () => {
