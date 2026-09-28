@@ -61,6 +61,18 @@ assert.equal(payload.byChannel.find((item) => item.label === "Azul Viagens").ave
 assert.deepEqual(payload.futureCheckinMonths, [{ key: "2026-10", label: "Out/2026", roomNights: 6, value: 3000 }]);
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.SUEDS, 1500);
 assert.equal(payload.channelShare.byHotel.find((item) => item.label === "SUEDS PLAZA").values.AZUL, 1500);
+const detailedShare = __test.buildBiReportsPayload({
+  records: [record({ reservationCode: "DIRECT-1", total: 100 })],
+  otherChannelRecords: [
+    record({ reservationCode: "PARTNER-1", channel: "Airbnb", rawChannel: "Airbnb", seller: "", total: 300 }),
+    record({ reservationCode: "PARTNER-2", channel: "MaxTour", rawChannel: "MaxTour", seller: "", total: 70 }),
+    record({ reservationCode: "PARTNER-3", channel: "maxtour", rawChannel: "maxtour", seller: "", total: 50 })
+  ]
+}, { start: "2026-09-01", end: "2026-09-18" }).channelShare;
+assert.deepEqual(detailedShare.groups, ["SUEDS", "AZUL", "CVC", "DECOLAR", "BOOKING", "ORINTER", "Airbnb", "MaxTour"]);
+assert.equal(detailedShare.totals.values.Airbnb, 300);
+assert.equal(detailedShare.totals.values.MaxTour, 120);
+assert.equal(Object.values(detailedShare.totals.values).reduce((total, value) => total + value, 0), detailedShare.totals.total);
 assert.equal(payload.channelHotelComparison.AZUL.current["SUEDS PLAZA"], 1500);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].actual, 3000);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].target, 4000);

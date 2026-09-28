@@ -365,8 +365,9 @@
   function renderChannelShareSummary(payload) {
     if (!els.channelShareSummary) return;
     const share = payload.channelShare || { groups: [], byHotel: [], totals: { total: 0, values: {} } };
-    const cell = (value, total, group) => `<td class="share-${group.toLowerCase()}" data-label="${safe(group)}">${total ? percent.format(value / total * 100) : "0,0"}%</td>`;
-    const headers = (share.groups || []).map((group) => `<th class="share-${group.toLowerCase()}">${safe(group)}</th>`).join("");
+    const groupClass = (group) => ["SUEDS", "AZUL", "CVC"].includes(group) ? ` class="share-${group.toLowerCase()}"` : "";
+    const cell = (value, total, group) => `<td${groupClass(group)} data-label="${safe(group)}">${total ? percent.format(value / total * 100) : "0,0"}%</td>`;
+    const headers = (share.groups || []).map((group) => `<th${groupClass(group)}>${safe(group)}</th>`).join("");
     const rows = (share.byHotel || []).map((hotel) => `<tr><td data-label="Hotel">${safe(hotel.label)}</td>${share.groups.map((group) => cell(hotel.values?.[group] || 0, hotel.total || 0, group)).join("")}<td data-label="Total">100,0%</td></tr>`).join("");
     const totals = share.totals || { total: 0, values: {} };
     els.channelShareSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Share de vendas por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)} · 2026</div><div class="comparison-table-scroll"><table class="comparison-table share-table"><thead><tr><th>Hotel</th>${headers}<th>Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td data-label="Hotel">Total</td>${share.groups.map((group) => cell(totals.values?.[group] || 0, totals.total || 0, group)).join("")}<td data-label="Total">100%</td></tr></tfoot></table></div></article>`;

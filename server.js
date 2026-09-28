@@ -3929,17 +3929,33 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     if (key.includes("orinter")) return "ORINTER";
     return "OUTROS";
   };
-  const shareGroups = ["SUEDS", "AZUL", "CVC", "DECOLAR", "BOOKING", "ORINTER", "OUTROS"];
+  const otherSharePartners = new Map();
+  rows.forEach((record) => {
+    if (shareChannelGroup(record) !== "OUTROS") return;
+    const label = biReportsChannelLabel(record);
+    const key = comparableKey(label);
+    const partner = otherSharePartners.get(key) || { label, total: 0 };
+    partner.total += Number(record.total || 0);
+    otherSharePartners.set(key, partner);
+  });
+  const partnerLabels = new Map([...otherSharePartners].map(([key, partner]) => [key, partner.label]));
+  const shareGroup = (record) => {
+    const group = shareChannelGroup(record);
+    return group === "OUTROS" ? partnerLabels.get(comparableKey(biReportsChannelLabel(record))) : group;
+  };
+  const shareGroups = ["SUEDS", "AZUL", "CVC", "DECOLAR", "BOOKING", "ORINTER", ...[...otherSharePartners.values()]
+    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, "pt-BR"))
+    .map((partner) => partner.label)];
   const channelShareByHotel = [...groupBy(rows, (record) => biReportsHotelLabel(record.hotel) || "Não informado").entries()]
     .map(([label, hotelRows]) => {
       const total = sum(hotelRows, (record) => Number(record.total || 0));
-      const values = Object.fromEntries(shareGroups.map((group) => [group, sum(hotelRows.filter((record) => shareChannelGroup(record) === group), (record) => Number(record.total || 0))]));
+      const values = Object.fromEntries(shareGroups.map((group) => [group, sum(hotelRows.filter((record) => shareGroup(record) === group), (record) => Number(record.total || 0))]));
       return { label, total, values };
     })
     .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   const channelShareTotals = {
     total: sum(rows, (record) => Number(record.total || 0)),
-    values: Object.fromEntries(shareGroups.map((group) => [group, sum(rows.filter((record) => shareChannelGroup(record) === group), (record) => Number(record.total || 0))]))
+    values: Object.fromEntries(shareGroups.map((group) => [group, sum(rows.filter((record) => shareGroup(record) === group), (record) => Number(record.total || 0))]))
   };
   const channelHotelComparison = Object.fromEntries(["AZUL", "CVC"].map((group) => {
     const hotelValues = (sourceRows) => Object.fromEntries([...groupBy(sourceRows.filter((record) => shareChannelGroup(record) === group), (record) => biReportsHotelLabel(record.hotel) || "Não informado").entries()]

@@ -159,6 +159,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .occupancy-table .occupancy-rate { color: #fff; background: #187f77; }
 .comparison-tables { margin-top: 34px; }
 .comparison-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+#channelShareSummary { min-width: 0; }
 #channelHotelComparisonSummary, #monthlyGoalTables { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
 .comparison-table-card { overflow: hidden; border: 1px solid #b8c6cc; border-radius: 12px; background: #fff; box-shadow: 0 5px 18px rgba(23,45,61,.05); }
 .comparison-table-card + .comparison-table-card { margin-top: 18px; }
@@ -173,6 +174,8 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .comparison-table-period { padding: 6px 11px; border-bottom: 1px solid #b8c6cc; color: var(--navy-deep); font-size: 13px; font-weight: 850; text-align: center; }
 .comparison-table-scroll { overflow-x: auto; }
 .comparison-table { width: 100%; min-width: 500px; border-collapse: collapse; font-size: 12px; }
+.share-table { width: max-content; min-width: 100%; table-layout: auto; }
+.share-table th, .share-table td { overflow-wrap: normal; white-space: nowrap; }
 .comparison-table th, .comparison-table td { padding: 6px 8px; border: 1px solid #c7d0d4; text-align: right; }
 .comparison-table th { color: var(--navy-deep); background: #f3f6f7; font-weight: 900; }
 .comparison-table th:first-child, .comparison-table td:first-child { text-align: left; }
@@ -245,10 +248,9 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .comparison-table th, .comparison-table td { padding: 5px 3px; overflow-wrap: anywhere; }
   .comparison-table th:first-child { width: 28%; }
   .comparison-table tfoot td { font-size: 10px; }
-  #channelShareSummary { min-width: 0; }
   #channelShareSummary .comparison-table-scroll { overflow-x: auto; }
-  .share-table { width: max-content; min-width: 100%; table-layout: auto; font-size: 11px; }
-  .share-table th, .share-table td { min-width: 62px; padding: 6px 7px; overflow-wrap: normal; white-space: nowrap; }
+  .share-table { font-size: 11px; }
+  .share-table th, .share-table td { min-width: 62px; padding: 6px 7px; }
   .share-table th:first-child, .share-table td:first-child { position: sticky; left: 0; z-index: 1; width: auto; min-width: 120px; }
   .share-table th:first-child { background: #f3f6f7; }
   .share-table tbody td:first-child { background: #fff; }
