@@ -356,12 +356,14 @@ const kpiSourceRow = (hotel, channel, date, checkin, total, code, apartment = 0)
 };
 const directKpiSource = [kpiHeaders,
   kpiSourceRow("SUEDS PLAZA", "Reserva Direta", "12/09/2026", "03/10/2026", 200, "DIRECT-1"),
-  kpiSourceRow("SUEDS PLAZA", "CENTRAL DE VENDAS", "12/09/2026", "03/10/2026", 400, "DIRECT-2")
+  kpiSourceRow("SUEDS PLAZA", "CENTRAL DE VENDAS", "12/09/2026", "03/10/2026", 400, "DIRECT-2"),
+  kpiSourceRow("SUEDS PLAZA", "CENTRAL DE RESERVAS", "12/09/2026", "03/10/2026", 300, "DIRECT-3")
 ];
 directKpiSource[1][7] = 100;
 directKpiSource[2][7] = 200;
+directKpiSource[3][7] = 150;
 const directKpiRecords = __test.normalizeKpiReportRows(directKpiSource, 2026);
-assert.deepEqual(directKpiRecords.map((item) => item.channel), ["Reserva Direta", "Reserva Direta"]);
+assert.deepEqual(directKpiRecords.map((item) => item.channel), ["Reserva Direta", "Reserva Direta", "Reserva Direta"]);
 const priorDirectKpiSource = directKpiSource.map((row, index) => index === 0 ? row : [
   ...row.slice(0, 5), "03/10/2025", "05/10/2025", ...row.slice(7, 15), "12/09/2025", ...row.slice(16)
 ]);
@@ -371,13 +373,13 @@ const directKpiPayload = __test.buildBiReportsPayload({
   historicalRecords: __test.normalizeKpiReportRows(priorDirectKpiSource, 2025)
 }, { start: "2026-09-01", end: "2026-09-18" });
 assert.deepEqual(directKpiPayload.filters.channels, ["Reserva Direta"]);
-assert.equal(directKpiPayload.byChannel.find((item) => item.label === "Reserva Direta").value, 600);
-assert.equal(directKpiPayload.comparison.byChannel.find((item) => item.label === "Reserva Direta").value, 600);
-assert.equal(directKpiPayload.channelShare.totals.values.SUEDS, 600);
+assert.equal(directKpiPayload.byChannel.find((item) => item.label === "Reserva Direta").value, 900);
+assert.equal(directKpiPayload.comparison.byChannel.find((item) => item.label === "Reserva Direta").value, 900);
+assert.equal(directKpiPayload.channelShare.totals.values.SUEDS, 900);
 assert.equal(__test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: directKpiRecords },
-  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).summary.sales, 600);
+  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).summary.sales, 900);
 assert.equal(__test.filterBiKpiSourceRows(directKpiSource,
-  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 2);
+  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 3);
 const kpiSource = [kpiHeaders,
   kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5, "TEST-1"),
   kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5, "TEST-1", 120),

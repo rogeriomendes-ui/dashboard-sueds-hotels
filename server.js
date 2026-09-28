@@ -3522,7 +3522,7 @@ function normalizeKpiChannel(value) {
   const raw = String(value || "").trim();
   const key = comparableKey(raw);
   const mappings = [
-    [/^central de vendas$/, "Reserva Direta"],
+    [/^central de (?:vendas|reservas)$/, "Reserva Direta"],
     [/azul viagens/, "Azul Viagens"],
     [/^cvc\b/, "CVC"],
     [/^orinter\b/, "Orinter Tour e Travel"],
