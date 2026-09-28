@@ -2866,7 +2866,8 @@ function displaySellerName(value) {
 
 function isBookingEngineChannel(value) {
   const key = comparableKey(value);
-  return key.includes("booking engine") || key.includes("book engine") || key.includes("be mobile") || key.includes("be mobille");
+  return key.includes("booking engine") || key.includes("bookingengine")
+    || key.includes("book engine") || key.includes("be mobile") || key.includes("be mobille");
 }
 
 function normalizeOfficialSalesChannel(value, record = {}, month = "") {
@@ -4021,10 +4022,10 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   };
   const withGoals = (tableKey, series) => series.map((row) => ({ ...row, target: goalValue(row.key, tableKey) }));
   const monthlyGoalTables = [
-    { key: "sales", title: "Venda 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: withGoals("sales", monthlySeries(rows)) },
-    { key: "rds", title: "RDS Diárias 2026 vs Meta 2026", actualLabel: "RDS 2026", rows: withGoals("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7))) },
-    { key: "direct", title: "Venda Direta Total 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: withGoals("direct", monthlySeries(directRows)) },
-    { key: "site", title: "Venda Site 2026 vs Meta 2026", actualLabel: "Venda 2026", rows: withGoals("site", monthlySeries(siteRows)) }
+    { key: "sales", title: "Meta de Vendas", actualLabel: "Venda 2026", rows: withGoals("sales", monthlySeries(rows)) },
+    { key: "rds", title: "Meta de RDS", actualLabel: "RDS 2026", rows: withGoals("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7))) },
+    { key: "direct", title: "Meta Venda Direta", actualLabel: "Venda 2026", rows: withGoals("direct", monthlySeries(directRows)) },
+    { key: "site", title: "Meta do Site", actualLabel: "Venda 2026", rows: withGoals("site", monthlySeries(siteRows)) }
   ];
   const checkinLabel = (value) => {
     if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
