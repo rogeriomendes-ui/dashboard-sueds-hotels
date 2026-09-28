@@ -3655,7 +3655,7 @@ const KPI_COUNTED_STATUSES = new Set([
   "manutencao", "no hotel", "transferencia - out"
 ]);
 
-function normalizeKpiReportObjects(objects = [], targetYear) {
+function kpiSourceYearDelta(objects = [], targetYear) {
   const yearCounts = new Map();
   objects.forEach((item) => {
     const saleDateKey = kpiDateKey(item["D.Res"]);
@@ -3664,10 +3664,32 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
     yearCounts.set(year, (yearCounts.get(year) || 0) + 1);
   });
   const sourceYear = [...yearCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || targetYear;
-  const deltaYears = Number(targetYear) - sourceYear;
+  return Number(targetYear) - sourceYear;
+}
+
+function normalizeKpiMaintenanceObjects(objects = [], targetYear) {
+  const deltaYears = kpiSourceYearDelta(objects, targetYear);
+  return objects.filter((item) => comparableKey(item.Origem) === "governanca"
+    && KPI_COUNTED_STATUSES.has(comparableKey(item.Status))).map((item) => {
+    const sale = kpiDateWithDelta(item["D.Res"], deltaYears);
+    const checkin = kpiDateWithReference(item.IN, deltaYears, sale);
+    const checkout = kpiDateWithReference(item.OUT, deltaYears, checkin);
+    return {
+      hotel: normalizeHotelName(item.Hotel),
+      apartment: String(item.Apto || "").trim(),
+      checkin: checkin.key,
+      checkout: checkout.key
+    };
+  }).filter((item) => item.hotel && item.apartment && item.apartment !== "0"
+    && item.checkin && item.checkout && item.checkout > item.checkin);
+}
+
+function normalizeKpiReportObjects(objects = [], targetYear) {
+  const deltaYears = kpiSourceYearDelta(objects, targetYear);
   const groups = new Map();
 
   objects.forEach((item) => {
+    if (comparableKey(item.Origem) === "governanca") return;
     const hotel = normalizeHotelName(item.Hotel);
     const reservationCode = String(item.Reserva || item.Localizador || "").trim();
     if (!hotel || !reservationCode) return;
@@ -4119,6 +4141,25 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   const selectedInventory = hotel
     ? [biReportsInventory(hotel)].filter(Boolean)
     : [...new Set(BI_REPORTS_HOTEL_INVENTORY.values())];
+  const maintenanceCounts = (keys, inventories, blocks) => {
+    const inventoryByKey = new Map(inventories.map((item) => [comparableKey(item.label), item]));
+    const apartmentsByDate = new Map();
+    (blocks || []).forEach((block) => {
+      const inventory = biReportsInventory(block.hotel);
+      const hotelKey = comparableKey(inventory?.label);
+      if (!inventoryByKey.has(hotelKey)) return;
+      keys.forEach((date) => {
+        if (date < block.checkin || date >= block.checkout) return;
+        const key = `${hotelKey}|${date}`;
+        if (!apartmentsByDate.has(key)) apartmentsByDate.set(key, new Set());
+        apartmentsByDate.get(key).add(comparableKey(block.apartment));
+      });
+    });
+    return new Map([...apartmentsByDate].map(([key, apartments]) => [
+      key, Math.min(apartments.size, inventoryByKey.get(key.split("|")[0]).apartments)
+    ]));
+  };
+  const currentMaintenance = maintenanceCounts(dateKeys, selectedInventory, dataset.maintenanceBlocks);
   const currentRevparSummary = biReportsRevparMetrics(rows, alignedRevparMonthKeys, selectedInventory, recordCheckinMonth);
   const previousRevparSummary = biReportsRevparMetrics(historicalRows, previousRevparMonthKeys, selectedInventory, recordCheckinMonth);
   const buildRevparDaily = (aggregates, saleDates, stayMonthKeys, availability, mapDate) => {
@@ -4138,8 +4179,6 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       };
     });
   };
-  const currentRevparDaily = buildRevparDaily(currentAggregates, dateKeys, alignedRevparMonthKeys, currentRevparSummary.availableRoomNights, (date) => date);
-  const previousRevparDaily = buildRevparDaily(previousAggregates, previousDateKeys, previousRevparMonthKeys, previousRevparSummary.availableRoomNights, (date, index) => dateKeys[index] || shiftDateYear(date, 1));
   const currentRevparByHotel = selectedInventory.map((inventory) => ({
     label: inventory.label,
     apartments: inventory.apartments,
@@ -4186,11 +4225,13 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       apartments: inventory.apartments,
       days: dateKeys.map((date) => {
         const occupied = occupiedByDate.get(date) || 0;
-        return { date, occupied, available: inventory.apartments - occupied, rate: inventory.apartments ? occupied / inventory.apartments * 100 : 0 };
+        const maintenance = currentMaintenance.get(`${comparableKey(inventory.label)}|${date}`) || 0;
+        const commercializable = inventory.apartments - maintenance;
+        return { date, maintenance, occupied, available: commercializable - occupied, rate: commercializable ? occupied / commercializable * 100 : 0 };
       })
     };
   }) : [];
-  const occupancyTotals = (sourceRows, keys, inventories) => {
+  const occupancyTotals = (sourceRows, keys, inventories, maintenanceBlocks) => {
     const occupiedByDate = new Map(keys.map((date) => [date, 0]));
     const inventoryKeys = new Set(inventories.map((item) => comparableKey(item.label)));
     sourceRows.forEach((record) => {
@@ -4207,12 +4248,14 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       });
     });
     const occupiedRoomNights = sum([...occupiedByDate.values()], (value) => value);
-    const availableRoomNights = keys.length * sum(inventories, (item) => item.apartments);
+    const maintenance = maintenanceCounts(keys, inventories, maintenanceBlocks);
+    const availableRoomNights = keys.length * sum(inventories, (item) => item.apartments)
+      - sum([...maintenance.values()], (value) => value);
     return { occupiedRoomNights, availableRoomNights, occupancyRate: availableRoomNights ? occupiedRoomNights / availableRoomNights * 100 : 0 };
   };
-  const currentOccupancyMetrics = occupancyTotals(occupancyRows, dateKeys, selectedInventory);
+  const currentOccupancyMetrics = occupancyTotals(occupancyRows, dateKeys, selectedInventory, dataset.maintenanceBlocks);
   const historicalStayRows = filterRows(historicalRecords.filter(isCountedSaleStatus), previousCheckinMonth);
-  const previousOccupancyMetrics = occupancyTotals(historicalStayRows, previousDateKeys, selectedInventory);
+  const previousOccupancyMetrics = occupancyTotals(historicalStayRows, previousDateKeys, selectedInventory, dataset.historicalMaintenanceBlocks);
   const alignRevparWithOccupancy = (target, rateRows, occupancyMetrics) => {
     const averageDailyRate = biReportsRateMetrics(rateRows).averageDailyRate;
     Object.assign(target, occupancyMetrics, {
@@ -4225,22 +4268,24 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   currentRevparByHotel.forEach((target) => {
     const inventory = biReportsInventory(target.label);
     const rateRows = rows.filter((record) => comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(target.label));
-    alignRevparWithOccupancy(target, rateRows, occupancyTotals(occupancyRows, dateKeys, [inventory]));
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(occupancyRows, dateKeys, [inventory], dataset.maintenanceBlocks));
   });
   previousRevparByHotel.forEach((target) => {
     const inventory = biReportsInventory(target.label);
     const rateRows = historicalRows.filter((record) => comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(target.label));
-    alignRevparWithOccupancy(target, rateRows, occupancyTotals(historicalStayRows, previousDateKeys, [inventory]));
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(historicalStayRows, previousDateKeys, [inventory], dataset.historicalMaintenanceBlocks));
   });
   const monthDateKeys = (key) => biReportsDateKeys(`${key}-01`, `${key}-${String(biReportsDaysInMonth(key)).padStart(2, "0")}`);
   currentRevparByCheckinMonth.forEach((target) => {
     const rateRows = rows.filter((record) => recordCheckinMonth(record) === target.key);
-    alignRevparWithOccupancy(target, rateRows, occupancyTotals(rateRows, monthDateKeys(target.key), selectedInventory));
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(rateRows, monthDateKeys(target.key), selectedInventory, dataset.maintenanceBlocks));
   });
   previousRevparByCheckinMonth.forEach((target) => {
     const rateRows = historicalRows.filter((record) => recordCheckinMonth(record) === target.sourceKey);
-    alignRevparWithOccupancy(target, rateRows, occupancyTotals(rateRows, monthDateKeys(target.sourceKey), selectedInventory));
+    alignRevparWithOccupancy(target, rateRows, occupancyTotals(rateRows, monthDateKeys(target.sourceKey), selectedInventory, dataset.historicalMaintenanceBlocks));
   });
+  const currentRevparDaily = buildRevparDaily(currentAggregates, dateKeys, alignedRevparMonthKeys, currentRevparSummary.availableRoomNights, (date) => date);
+  const previousRevparDaily = buildRevparDaily(previousAggregates, previousDateKeys, previousRevparMonthKeys, previousRevparSummary.availableRoomNights, (date, index) => dateKeys[index] || shiftDateYear(date, 1));
   const currentCheckinByKey = new Map(checkinMonths.map((item) => [item.key, item]));
   const historicalCheckinByKey = new Map(historicalCheckinMonths.map((item) => [item.key, item]));
   const pickupKeys = [...new Set([...currentCheckinByKey.keys(), ...historicalCheckinByKey.keys()])].sort().slice(0, 8);
@@ -9006,8 +9051,10 @@ async function loadBiKpiReportsDataset() {
     if (!SHEET_ID || !getServiceAccount()) {
       const payload = {
         records: [],
+        maintenanceBlocks: [],
         otherChannelRecords: [],
         historicalRecords: [],
+        historicalMaintenanceBlocks: [],
         goals: [],
         loadedAt: new Date().toISOString(),
         audience: "bi-relatorios-kpi",
@@ -9038,13 +9085,16 @@ async function loadBiKpiReportsDataset() {
       })
     ]);
     const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length));
+    const historicalKpiObjects = kpiObjectsFromColumnRanges(values.slice(compactColumns.length));
     const kpiRecords = normalizeKpiReportObjects(currentKpiObjects, 2026);
-    const historicalRecords = normalizeKpiReportObjects(kpiObjectsFromColumnRanges(values.slice(compactColumns.length)), 2025);
+    const historicalRecords = normalizeKpiReportObjects(historicalKpiObjects, 2025);
     const payload = {
       records: kpiRecords,
+      maintenanceBlocks: normalizeKpiMaintenanceObjects(currentKpiObjects, 2026),
       kpiLatestSaleDate: kpiLatestSaleDate(currentKpiObjects),
       otherChannelRecords: [],
       historicalRecords,
+      historicalMaintenanceBlocks: normalizeKpiMaintenanceObjects(historicalKpiObjects, 2025),
       goals: rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal),
       loadedAt: new Date().toISOString(),
       audience: "bi-relatorios-kpi",
@@ -9496,6 +9546,7 @@ module.exports = {
     kpiObjectsFromColumnRanges,
     kpiLatestSaleDate,
     normalizeKpiReportObjects,
+    normalizeKpiMaintenanceObjects,
     normalizeKpiReportRows,
     filterBiKpiSourceRows,
     buildBiKpiSourceWorkbook,

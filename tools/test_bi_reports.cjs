@@ -273,6 +273,28 @@ assert.equal(occupancyPayload.occupancy[0].apartments, 117);
 assert.equal(occupancyPayload.occupancy[0].days[1].occupied, 2);
 assert.equal(occupancyPayload.occupancy[0].days[1].available, 115);
 assert.equal(occupancyPayload.occupancy[0].days[3].occupied, 0);
+const maintenanceObjects = Array.from({ length: 10 }, (_, index) => ({
+  Hotel: "SUEDS PLAZA", Origem: "Governança", Reserva: `BLOCK-${index}`,
+  IN: "02/09", OUT: "03/09", Apto: String(200 + index),
+  Status: "Bloqueio", RN: 1, "D.Res": "01/09/2026", "Diária": "0,00", Total: "0,00"
+}));
+maintenanceObjects.push({ ...maintenanceObjects[0], Reserva: "BLOCK-DUPLICATE" });
+maintenanceObjects.push({ ...maintenanceObjects[1], Reserva: "BLOCK-CANCELLED", Apto: "999", Status: "Cancelada" });
+assert.equal(__test.normalizeKpiReportObjects(maintenanceObjects, 2026).length, 0);
+const maintenanceBlocks = __test.normalizeKpiMaintenanceObjects(maintenanceObjects, 2026);
+assert.equal(maintenanceBlocks.length, 11);
+const maintenancePayload = __test.buildBiReportsPayload({
+  audience: "bi-relatorios-kpi",
+  records: [record({ reservationCode: "MAINT-OCC", checkin: "02/09/2026", checkout: "03/09/2026", reservationCount: 50 })],
+  maintenanceBlocks
+}, { start: "2026-09-02", end: "2026-09-03", hotel: "SUEDS PLAZA", channel: "CENTRAL DE RESERVAS" });
+assert.equal(maintenancePayload.occupancy[0].days[0].maintenance, 10);
+assert.equal(maintenancePayload.occupancy[0].days[0].occupied, 50);
+assert.equal(maintenancePayload.occupancy[0].days[0].available, 57);
+assert.ok(Math.abs(maintenancePayload.occupancy[0].days[0].rate - 50 / 107 * 100) < 0.000001);
+assert.equal(maintenancePayload.occupancy[0].days[1].maintenance, 0);
+assert.equal(maintenancePayload.revpar.summary.availableRoomNights, 224);
+assert.ok(Math.abs(maintenancePayload.revpar.summary.occupancyRate - 50 / 224 * 100) < 0.000001);
 assert.equal(occupancyPayload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].actual, 1000);
 const sitePayload = __test.buildBiReportsPayload({ records: [], otherChannelRecords: [record({ channel: "SITE", rawChannel: "SITE", reservationCode: "SITE-1", total: 700 })], historicalRecords: [] }, { start: "2026-09-01", end: "2026-09-18" });
 assert.equal(sitePayload.monthlyGoalTables.find((table) => table.key === "site").rows[0].actual, 700);
