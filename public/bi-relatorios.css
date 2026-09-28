@@ -245,6 +245,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .comparison-table th, .comparison-table td { padding: 5px 3px; overflow-wrap: anywhere; }
   .comparison-table th:first-child { width: 28%; }
   .comparison-table tfoot td { font-size: 10px; }
+  #channelShareSummary { min-width: 0; }
   #channelShareSummary .comparison-table-scroll { overflow-x: auto; }
   .share-table { width: max-content; min-width: 100%; table-layout: auto; font-size: 11px; }
   .share-table th, .share-table td { min-width: 62px; padding: 6px 7px; overflow-wrap: normal; white-space: nowrap; }
