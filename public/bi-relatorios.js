@@ -20,7 +20,7 @@
     clear: document.getElementById("clearFilters"), exportXls: document.getElementById("exportXls"), loading: document.getElementById("loadingState"), content: document.getElementById("dashboardContent"),
     error: document.getElementById("errorNotice"), coverageNotice: document.getElementById("dataCoverageNotice"), stamp: document.getElementById("dataStamp"), reason: document.getElementById("comparisonReason"),
     comparisonTitle: document.getElementById("comparisonTitle"), comparisonTotal: document.getElementById("comparisonTotal"),
-    sales: document.getElementById("totalSales"), previousSales: document.getElementById("previousPeriodSales"), previousLabel: document.getElementById("previousPeriodLabel"), previousSummary: document.getElementById("previousPeriodSummary"), reservations: document.getElementById("totalReservations"), ticket: document.getElementById("averageTicket"),
+    sales: document.getElementById("totalSales"), previousSales: document.getElementById("previousPeriodSales"), salesGrowth: document.getElementById("salesGrowth"), previousLabel: document.getElementById("previousPeriodLabel"), previousSummary: document.getElementById("previousPeriodSummary"), reservations: document.getElementById("totalReservations"), ticket: document.getElementById("averageTicket"),
     reservationsComparison: document.getElementById("reservationsComparison"), reservationsPrevious: document.getElementById("reservationsPrevious"), reservationsGrowth: document.getElementById("reservationsGrowth"),
     ticketComparison: document.getElementById("ticketComparison"), ticketPrevious: document.getElementById("ticketPrevious"), ticketGrowth: document.getElementById("ticketGrowth"),
     hotels: document.getElementById("activeHotels"), period: document.getElementById("periodCaption"), daily: document.getElementById("dailyChart"),
@@ -84,14 +84,18 @@
     });
   }
 
-  function setPerformanceCard(valueEl, previousEl, growthEl, current, previous, formatter) {
-    if (!valueEl) return;
-    valueEl.textContent = formatter(current || 0);
-    previousEl.textContent = `2025: ${formatter(previous || 0)}`;
+  function setGrowthBadge(growthEl, current, previous) {
     const growth = previous > 0 ? (current - previous) / previous * 100 : null;
     const direction = growth === null ? "flat" : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
     growthEl.className = direction;
     growthEl.textContent = growth === null ? "—" : `${direction === "up" ? "↑" : direction === "down" ? "↓" : "→"} ${wholePercent.format(Math.abs(growth))}%`;
+  }
+
+  function setPerformanceCard(valueEl, previousEl, growthEl, current, previous, formatter) {
+    if (!valueEl) return;
+    valueEl.textContent = formatter(current || 0);
+    previousEl.textContent = `2025: ${formatter(previous || 0)}`;
+    setGrowthBadge(growthEl, current, previous);
   }
 
   function setOptions(select, values, selected, placeholder, valueGetter = (item) => item, labelGetter = (item) => item) {
@@ -420,6 +424,7 @@
     els.previousSummary.hidden = !hasPreviousSales;
     els.previousLabel.textContent = `Mesmo período em ${payload.comparison?.year || 2025}`;
     els.previousSales.textContent = money.format(payload.comparison?.summary?.sales || 0);
+    if (els.salesGrowth) setGrowthBadge(els.salesGrowth, payload.summary.sales || 0, payload.comparison?.summary?.sales || 0);
     if (els.reservationsComparison) {
       els.reservationsComparison.hidden = !hasPreviousSales;
       setPerformanceCard(els.reservations, els.reservationsPrevious, els.reservationsGrowth, payload.summary.reservations, payload.comparison?.summary?.reservations, integer.format.bind(integer));

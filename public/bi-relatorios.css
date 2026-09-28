@@ -74,6 +74,10 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .summary-prior { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.14); }
 .summary-prior span { overflow: hidden; color: #bdd0d9; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .summary-prior b { color: #f0cd86; font-size: 14px; line-height: 1; white-space: nowrap; }
+.summary-prior em { flex: 0 0 auto; padding: 4px 6px; border-radius: 6px; font-size: 11px; font-style: normal; font-weight: 850; white-space: nowrap; }
+.summary-prior em.up { color: #b9f1d5; background: rgba(24,127,119,.35); }
+.summary-prior em.down { color: #ffd1cd; background: rgba(198,75,71,.3); }
+.summary-prior em.flat { color: #d5e1e6; background: rgba(255,255,255,.14); }
 .summary-compare { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 9px; }
 .summary-compare small { margin: 0; color: var(--muted); font-size: 11px; }
 .summary-compare b { padding: 4px 7px; border-radius: 6px; font-size: 12px; white-space: nowrap; }
@@ -260,6 +264,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .summary-primary .summary-prior { align-items: center; margin-top: 12px; padding-top: 10px; }
   .summary-primary .summary-prior span { font-size: 11px; }
   .summary-primary .summary-prior b { font-size: 15px; }
+  .summary-primary .summary-prior em { font-size: 10px; }
   .performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .performance-card { min-width: 0; padding: 12px; }
   .performance-card > span { min-height: 28px; margin-bottom: 5px; font-size: 10px; }
