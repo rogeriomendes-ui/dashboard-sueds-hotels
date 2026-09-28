@@ -8,7 +8,7 @@
   const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
   const percent = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const wholePercent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
-  const shortMoney = new Intl.NumberFormat("pt-BR", { notation: "compact", style: "currency", currency: "BRL", maximumFractionDigits: 1 });
+  const shortMoney = new Intl.NumberFormat("pt-BR", { notation: "compact", style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
   const dayLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
   const dateLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
   const numericDateLabel = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
