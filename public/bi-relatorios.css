@@ -296,4 +296,13 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .occupancy-table th, .occupancy-table td { min-width: 43px; padding: 4px 2px; }
   .occupancy-table .occupancy-row-label { min-width: 61px; }
   .occupancy-table .occupancy-month { font-size: 10px; }
+  .top-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .top-metrics > .summary-grid, .top-metrics > .performance-grid { display: contents; }
+  .top-metrics > .summary-grid > .summary-card:nth-child(1) { order: 0; }
+  .top-metrics > .summary-grid > .summary-card:nth-child(2) { order: 1; }
+  .top-metrics > .summary-grid > .summary-card:nth-child(3) { order: 2; }
+  .top-metrics > .performance-grid > .performance-card:nth-child(1) { order: 3; }
+  .top-metrics > .performance-grid > .performance-card:nth-child(2) { order: 4; }
+  .top-metrics > .summary-grid > .summary-card:nth-child(4) { order: 5; }
+  .top-metrics > .performance-grid > .performance-card:nth-child(3) { order: 6; }
 }
