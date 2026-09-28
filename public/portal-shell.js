@@ -29,6 +29,12 @@
   const logoutButton = document.getElementById("portalLogoutButton");
   const announcementBell = document.getElementById("portalAnnouncementBell");
   const announcementBadge = document.getElementById("portalAnnouncementBadge");
+  const overdueButton = document.getElementById("portalOverduePayments");
+  const overdueBadge = document.getElementById("portalOverdueBadge");
+  const overdueDialog = document.getElementById("portalOverdueDialog");
+  const overdueList = document.getElementById("portalOverdueList");
+  const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  const day = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
   let activeModule = "";
   let notificationRequest = 0;
 
@@ -95,6 +101,46 @@
       if (request === notificationRequest) updateAnnouncementBell(payload.unreadCount);
     } catch (error) {
       console.error("[portal-announcement-notifications]", error.message || error);
+    }
+  }
+
+  async function refreshOverduePayments() {
+    if (!window.suedsPortalProfile?.roles?.includes("vendedor")) return;
+    try {
+      const response = await fetch("/api/portal/overdue-payments", { credentials: "same-origin", cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "Não foi possível consultar os pagamentos.");
+      const payments = Array.isArray(payload.payments) ? payload.payments : [];
+      overdueButton.hidden = payments.length === 0;
+      overdueBadge.textContent = payments.length > 99 ? "99+" : String(payments.length);
+      const label = `${payments.length} pagamento${payments.length === 1 ? "" : "s"} atrasado${payments.length === 1 ? "" : "s"}. Abrir lista.`;
+      overdueButton.setAttribute("aria-label", label);
+      overdueButton.title = label;
+      overdueList.replaceChildren();
+      payments.forEach((payment) => {
+        const item = document.createElement("div");
+        item.className = "portal-overdue-item";
+        const details = document.createElement("div");
+        const code = document.createElement("strong");
+        code.textContent = payment.reservationCode;
+        const hotel = document.createElement("span");
+        hotel.textContent = payment.hotel;
+        const date = document.createElement("span");
+        date.textContent = `Venda em ${day.format(new Date(`${payment.saleDate}T00:00:00Z`))} · ${payment.daysSinceSale} dias`;
+        details.append(code, hotel, date);
+        const amount = document.createElement("div");
+        amount.className = "portal-overdue-amount";
+        const value = document.createElement("strong");
+        value.textContent = money.format(payment.amount);
+        const status = document.createElement("span");
+        status.textContent = "Atrasado";
+        amount.append(value, status);
+        item.append(details, amount);
+        overdueList.append(item);
+      });
+    } catch (error) {
+      overdueButton.hidden = true;
+      console.error("[portal-overdue-payments]", error.message || error);
     }
   }
 
@@ -185,13 +231,19 @@
   });
 
   announcementBell?.addEventListener("click", () => showModule("comunicados"));
+  overdueButton?.addEventListener("click", () => overdueDialog?.showModal());
+  document.getElementById("portalOverdueClose")?.addEventListener("click", () => overdueDialog?.close());
   window.addEventListener("message", (event) => {
     if (event.origin !== window.location.origin || event.source !== frame.contentWindow || event.data?.type !== "sueds:announcement-status") return;
     updateAnnouncementBell(event.data.unreadCount);
   });
   window.addEventListener("focus", refreshAnnouncementNotifications);
+  window.addEventListener("focus", refreshOverduePayments);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") refreshAnnouncementNotifications();
+    if (document.visibilityState === "visible") {
+      refreshAnnouncementNotifications();
+      refreshOverduePayments();
+    }
   });
 
   document.addEventListener("click", (event) => {
@@ -236,5 +288,6 @@
     else showHome({ replace: true, instant: true });
     updateHeaderHeight();
     refreshAnnouncementNotifications();
+    refreshOverduePayments();
   });
 })();

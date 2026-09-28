@@ -9227,6 +9227,17 @@ async function handleRequest(req, res) {
       return json(res, 200, { range: METAS_RANGE, rowCount: rows.length, rows: rows.slice(0, 20) });
     }
 
+    if (url.pathname === "/api/portal/overdue-payments") {
+      const profile = req.portalProfile;
+      if (!profile?.roles?.includes("vendedor")) return forbidden(res);
+      const seller = portalSellerAccessProfile(profile);
+      if (!SELLER_ACCESS_USERS[seller.username]) return forbidden(res);
+      const { overduePaymentsForSeller } = require("./lib/seller-overdue-payments");
+      const dataset = await loadDataset();
+      const payments = overduePaymentsForSeller(dataset.records, seller.displayName, todayKey());
+      return json(res, 200, { ok: true, count: payments.length, payments });
+    }
+
     if (url.pathname === "/api/debug/range") {
       const remote = req.socket.remoteAddress || "";
       if (!remote.includes("127.0.0.1") && !remote.includes("::1")) return notFound(res);

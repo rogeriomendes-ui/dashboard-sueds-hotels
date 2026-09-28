@@ -32,6 +32,12 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/site-preview") return sitePreview(req, res);
   if (pathname === "/api/portal/users") return adminUsersHandler(req, res);
   if (pathname === "/api/portal/announcements") return announcementsHandler(req, res);
+  if (pathname === "/api/portal/overdue-payments") {
+    if (req.method !== "GET") { res.statusCode = 405; return res.end(); }
+    const profile = await getPortalProfile(req, res);
+    if (profile?.roles?.includes("vendedor")) req.portalProfile = profile;
+    return handleRequest(req, res);
+  }
   if (pathname === "/api/portal/mesas-vip-reveillon") return reveillonVipTablesHandler(req, res);
   if (pathname === "/api/knowledge") return knowledge(req, res);
   if (pathname === "/api/dashboard/vendedores" && req.method === "GET") {
