@@ -236,6 +236,7 @@
     const valueW = options.showGrowth
       ? (w < 420 ? 122 : 150)
       : options.showShare ? (w < 420 ? 108 : 126) : (w < 420 ? 68 : 92);
+    const valueFormatter = options.fullValueLabels ? integer : shortMoney;
     const usable = Math.max(40, w - barX - valueW - 6);
     const body = rows.map((row, index) => {
       const y = 10 + index * rowH;
@@ -246,8 +247,8 @@
       const previousShare = options.previousTotal ? row.previous / options.previousTotal * 100 : 0;
       const currentShare = options.currentTotal ? row.current / options.currentTotal * 100 : 0;
       const shareFormatter = options.showGrowth ? wholePercent : percent;
-      const previousText = `${shortMoney.format(row.previous)}${options.showShare ? ` · ${shareFormatter.format(previousShare)}%` : ""}`;
-      const currentText = `${shortMoney.format(row.current)}${options.showShare ? ` · ${shareFormatter.format(currentShare)}%` : ""}`;
+      const previousText = `${valueFormatter.format(row.previous)}${options.showShare ? ` · ${shareFormatter.format(previousShare)}%` : ""}`;
+      const currentText = `${valueFormatter.format(row.current)}${options.showShare ? ` · ${shareFormatter.format(currentShare)}%` : ""}`;
       const growth = row.previous > 0 ? (row.current - row.previous) / row.previous * 100 : null;
       const growthDirection = growth === null ? (row.current > 0 ? "up" : "flat") : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
       const growthArrow = growthDirection === "up" ? "↑" : growthDirection === "down" ? "↓" : "→";
@@ -455,10 +456,11 @@
     renderBars(els.channels, payload.byChannel || [], payload.comparison?.byChannel || [], {
       showShare: true,
       showGrowth: isKpiReport,
+      fullValueLabels: true,
       currentTotal: payload.summary.sales || 0,
       previousTotal: payload.comparison?.summary?.sales || 0
     });
-    renderBars(els.hotelChart, payload.byHotel || [], payload.comparison?.byHotel || [], { showGrowth: isKpiReport });
+    renderBars(els.hotelChart, payload.byHotel || [], payload.comparison?.byHotel || [], { showGrowth: isKpiReport, fullValueLabels: true });
     renderColumns(els.checkinChart, payload.byCheckinMonth || [], payload.comparison?.byCheckinMonth || [], {
       showShare: true,
       currentTotal: payload.summary.sales || 0,
