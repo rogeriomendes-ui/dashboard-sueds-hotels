@@ -3518,9 +3518,15 @@ function biReportsAccess(req, url, environment = "bi_relatorios") {
   return !GESTORES_ACCESS_TOKEN || hasManagerAccess(req, url);
 }
 
+function isKpiSiteOrigin(value) {
+  const key = comparableKey(value);
+  return isBookingEngineChannel(value) || /^site(?:$|[\s_-])/.test(key);
+}
+
 function normalizeKpiChannel(value) {
   const raw = String(value || "").trim();
   const key = comparableKey(raw);
+  if (isKpiSiteOrigin(raw)) return "Reserva Direta";
   const mappings = [
     [/^central de (?:vendas|reservas)$/, "Reserva Direta"],
     [/azul viagens/, "Azul Viagens"],
@@ -3706,6 +3712,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       checkin,
       checkout,
       channel: normalizeKpiChannel(item.Origem),
+      siteSale: isKpiSiteOrigin(item.Origem),
       status: String(item.Status || "").trim(),
       apartment: String(item.Apto || "").trim(),
       roomNights: Math.max(0, parseNumber(item.RN)),
@@ -3736,6 +3743,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       hotel: representative.hotel,
       channel: representative.channel,
       rawChannel: representative.channel,
+      kpiSiteSale: representative.siteSale,
       seller: "",
       checkin: checkin.display,
       checkout: checkout.display,
@@ -3998,7 +4006,9 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     const monthRows = sourceRows.filter((record) => keyGetter(record) === key);
     return { key, actual: monthRows.length ? sum(monthRows, (record) => Number(record.total || 0)) : null, target: null };
   });
-  const siteRows = rows.filter((record) => comparableKey(biReportsChannelLabel(record)).includes("site"));
+  const siteRows = rows.filter((record) => dataset.audience === "bi-relatorios-kpi"
+    ? (record.kpiSiteSale === true || (record.kpiSiteSale === undefined && isKpiSiteOrigin(record.rawChannel || record.channel)))
+    : comparableKey(biReportsChannelLabel(record)).includes("site"));
   const directRows = rows.filter((record) => shareChannelGroup(record) === "SUEDS");
   const rdsRows = filterRows(combined.filter((record) => {
     if (!isCountedSaleStatus(record)) return false;

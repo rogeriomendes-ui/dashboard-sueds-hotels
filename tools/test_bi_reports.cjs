@@ -380,6 +380,29 @@ assert.equal(__test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", recor
   { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).summary.sales, 900);
 assert.equal(__test.filterBiKpiSourceRows(directKpiSource,
   { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 3);
+const siteKpiSource = [kpiHeaders, ...directKpiSource.slice(1),
+  kpiSourceRow("SUEDS PLAZA", "BookingEngine", "12/09/2026", "03/10/2026", 200, "SITE-1"),
+  kpiSourceRow("SUEDS PLAZA", "BE mobile", "12/09/2026", "03/10/2026", 300, "SITE-2"),
+  kpiSourceRow("SUEDS PLAZA", "SITE", "12/09/2026", "03/10/2026", 100, "SITE-3"),
+  kpiSourceRow("SUEDS PLAZA", "Booking", "12/09/2026", "03/10/2026", 400, "OTA-1")
+];
+[100, 150, 50, 200].forEach((rate, index) => { siteKpiSource[index + 4][7] = rate; });
+const siteKpiRecords = __test.normalizeKpiReportRows(siteKpiSource, 2026);
+const siteKpiPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: siteKpiRecords },
+  { start: "2026-09-01", end: "2026-09-18" });
+assert.equal(siteKpiPayload.byChannel.find((item) => item.label === "Reserva Direta").value, 1500);
+assert.equal(siteKpiPayload.byChannel.find((item) => item.label === "Booking").value, 400);
+assert.equal(siteKpiPayload.channelShare.totals.values.SUEDS, 1500);
+assert.equal(siteKpiPayload.monthlyGoalTables.find((table) => table.key === "direct").rows[0].actual, 1500);
+assert.equal(siteKpiPayload.monthlyGoalTables.find((table) => table.key === "site").rows[0].actual, 600);
+assert.equal(siteKpiRecords.filter((item) => item.kpiSiteSale).length, 3);
+assert.equal(__test.filterBiKpiSourceRows(siteKpiSource,
+  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 6);
+const historicalSiteRow = [...siteKpiSource[4]];
+historicalSiteRow[5] = "03/10/2025";
+historicalSiteRow[6] = "05/10/2025";
+historicalSiteRow[15] = "12/09/2025";
+assert.equal(__test.normalizeKpiReportRows([kpiHeaders, historicalSiteRow], 2025)[0].channel, "Reserva Direta");
 const kpiSource = [kpiHeaders,
   kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5, "TEST-1"),
   kpiSourceRow("SUEDS PLAZA", "CVC", "12/09/2026", "03/10/2026", 1200.5, "TEST-1", 120),
