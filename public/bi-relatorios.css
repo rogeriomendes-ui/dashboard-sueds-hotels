@@ -150,7 +150,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .occupancy-table { min-width: max-content; border-collapse: separate; border-spacing: 2px; font-size: 11px; }
 .occupancy-table th, .occupancy-table td { min-width: 48px; height: 31px; padding: 5px; border-radius: 4px; text-align: center; }
 .occupancy-table .occupancy-month { color: #fff; background: var(--navy-deep); font-size: 12px; text-transform: uppercase; }
-.occupancy-table .occupancy-row-label { position: sticky; left: 0; z-index: 2; min-width: 74px; color: var(--navy-deep); background: #eef3f5; font-weight: 850; text-align: left; }
+.occupancy-table .occupancy-row-label { position: sticky; left: 0; z-index: 2; min-width: 90px; color: var(--navy-deep); background: #eef3f5; font-weight: 850; text-align: left; }
 .occupancy-table .occupancy-day { color: var(--navy-deep); background: #f4eee3; }
 .occupancy-table .occupancy-day b, .occupancy-table .occupancy-day small { display: block; }
 .occupancy-table .occupancy-day small { margin-top: 2px; color: var(--muted); font-size: 9px; text-transform: uppercase; }
@@ -304,7 +304,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .future-rooming-table th, .future-rooming-table td { padding: 7px 3px; }
   .occupancy-hotel { padding: 10px; }
   .occupancy-table th, .occupancy-table td { min-width: 43px; padding: 4px 2px; }
-  .occupancy-table .occupancy-row-label { min-width: 61px; }
+  .occupancy-table .occupancy-row-label { min-width: 90px; }
   .occupancy-table .occupancy-month { font-size: 10px; }
   .top-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
   .top-metrics > .summary-grid, .top-metrics > .performance-grid { display: contents; }
