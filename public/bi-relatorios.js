@@ -53,7 +53,7 @@
   function empty(target, message) { target.innerHTML = `<div class="empty-chart">${safe(message)}</div>`; }
   function widthOf(target, fallback = 600) { return Math.max(280, Math.round(target.getBoundingClientRect().width || fallback)); }
 
-  function setupMobilePanels() {
+  function setupCollapsiblePanels() {
     if (!isKpiReport) return;
     const selector = ".chart-card, .future-rooming-card, .pickup-section, .rate-section, .occupancy-section, .comparison-tables";
     els.content.querySelectorAll(selector).forEach((panel, index) => {
@@ -422,6 +422,9 @@
     els.sales.textContent = money.format(payload.summary.sales || 0);
     const hasPreviousSales = Boolean(payload.comparison?.available);
     els.previousSummary.hidden = !hasPreviousSales;
+    if (els.salesGrowth) els.salesGrowth.hidden = !hasPreviousSales;
+    if (els.reservationsGrowth) els.reservationsGrowth.hidden = !hasPreviousSales;
+    if (els.ticketGrowth) els.ticketGrowth.hidden = !hasPreviousSales;
     els.previousLabel.textContent = `Mesmo período em ${payload.comparison?.year || 2025}`;
     els.previousSales.textContent = money.format(payload.comparison?.summary?.sales || 0);
     if (els.salesGrowth) setGrowthBadge(els.salesGrowth, payload.summary.sales || 0, payload.comparison?.summary?.sales || 0);
@@ -590,6 +593,6 @@
       }
     }, 180);
   });
-  setupMobilePanels();
+  setupCollapsiblePanels();
   load();
 })();

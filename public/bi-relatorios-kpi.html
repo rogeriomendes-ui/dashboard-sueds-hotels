@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#172d3d">
     <title>BI - Relatórios by KPI | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20260919-bi-kpi"></script>
-    <link rel="stylesheet" href="/bi-relatorios.css?v=20260927-kpi-mobile-4">
+    <link rel="stylesheet" href="/bi-relatorios.css?v=20260928-kpi-panels">
   </head>
   <body>
     <main class="bi-page">
@@ -45,16 +45,16 @@
       <section id="dashboardContent" hidden>
         <div class="top-metrics">
           <div class="summary-grid" aria-label="Resumo do período">
-            <article class="summary-card summary-primary"><span>Vendido no período</span><small class="summary-period" id="periodCaption">—</small><strong id="totalSales">R$ 0</strong><div class="summary-prior" id="previousPeriodSummary"><span id="previousPeriodLabel">Mesmo período em 2025</span><b id="previousPeriodSales">R$ 0</b><em id="salesGrowth" class="flat">—</em></div></article>
-            <article class="summary-card"><span>Reservas</span><strong id="totalReservations">0</strong><div class="summary-compare" id="reservationsComparison"><small id="reservationsPrevious">2025: 0</small><b id="reservationsGrowth">—</b></div><small>reservas consideradas</small></article>
-            <article class="summary-card"><span>Ticket médio</span><strong id="averageTicket">R$ 0</strong><div class="summary-compare" id="ticketComparison"><small id="ticketPrevious">2025: R$ 0</small><b id="ticketGrowth">—</b></div><small>valor médio por reserva</small></article>
+            <article class="summary-card summary-primary"><span>Vendido no período</span><small class="summary-period" id="periodCaption">—</small><div class="summary-current"><strong id="totalSales">R$ 0</strong><em id="salesGrowth" class="flat">—</em></div><div class="summary-prior" id="previousPeriodSummary"><span id="previousPeriodLabel">Mesmo período em 2025</span><b id="previousPeriodSales">R$ 0</b></div></article>
+            <article class="summary-card"><span>Reservas</span><div class="summary-current"><strong id="totalReservations">0</strong><b id="reservationsGrowth">—</b></div><div class="summary-compare" id="reservationsComparison"><small id="reservationsPrevious">2025: 0</small></div><small>reservas consideradas</small></article>
+            <article class="summary-card"><span>Ticket médio</span><div class="summary-current"><strong id="averageTicket">R$ 0</strong><b id="ticketGrowth">—</b></div><div class="summary-compare" id="ticketComparison"><small id="ticketPrevious">2025: R$ 0</small></div><small>valor médio por reserva</small></article>
             <article class="summary-card"><span>Hotéis com vendas</span><strong id="activeHotels">0</strong><small>no recorte selecionado</small></article>
           </div>
 
           <div class="performance-grid" aria-label="Indicadores de hospedagem">
-            <article class="performance-card"><span>ADR · Diária média</span><strong id="topAdr">R$ 0</strong><div class="performance-compare"><small id="topAdrPrevious">2025: R$ 0</small><b id="topAdrGrowth">—</b></div></article>
-            <article class="performance-card"><span>Taxa de ocupação</span><strong id="topOccupancy">0%</strong><div class="performance-compare"><small id="topOccupancyPrevious">2025: 0%</small><b id="topOccupancyGrowth">—</b></div></article>
-            <article class="performance-card"><span>RevPAR</span><strong id="topRevpar">R$ 0</strong><div class="performance-compare"><small id="topRevparPrevious">2025: R$ 0</small><b id="topRevparGrowth">—</b></div></article>
+            <article class="performance-card"><span>ADR · Diária média</span><div class="performance-current"><strong id="topAdr">R$ 0</strong><b id="topAdrGrowth">—</b></div><div class="performance-compare"><small id="topAdrPrevious">2025: R$ 0</small></div></article>
+            <article class="performance-card"><span>Taxa de ocupação</span><div class="performance-current"><strong id="topOccupancy">0%</strong><b id="topOccupancyGrowth">—</b></div><div class="performance-compare"><small id="topOccupancyPrevious">2025: 0%</small></div></article>
+            <article class="performance-card"><span>RevPAR</span><div class="performance-current"><strong id="topRevpar">R$ 0</strong><b id="topRevparGrowth">—</b></div><div class="performance-compare"><small id="topRevparPrevious">2025: R$ 0</small></div></article>
           </div>
         </div>
 
@@ -142,6 +142,6 @@
         </section>
       </section>
     </main>
-    <script src="/bi-relatorios.js?v=20260927-kpi-mobile-4"></script>
+    <script src="/bi-relatorios.js?v=20260928-kpi-panels"></script>
   </body>
 </html>
