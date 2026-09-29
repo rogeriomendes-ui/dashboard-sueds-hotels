@@ -617,7 +617,9 @@ function render(data) {
     : "Equipe + Site";
   const salesPeriodLabel = `${hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês"} ( ${salesScopeLabel} ) (Venda Direta)`;
   byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Equipe SUEDS)`;
-  byId("salesMonthLabel").textContent = salesPeriodLabel;
+  byId("salesMonthLabel").textContent = hasGlobalFilter
+    ? `Vendas Direta no recorte (${salesScopeLabel})`
+    : "Vendas Direta (Equipe + Site + Robô)";
   byId("hotelSalesLabel").textContent = salesPeriodLabel;
   const hotelChannelPeriodLabel = hasHotelOrDayFilter ? "Vendas no recorte" : "Vendas no mês";
   byId("otherHotelSalesLabel").textContent = `${hotelChannelPeriodLabel} (Operadoras + OTAs) (Outros Canais)`;

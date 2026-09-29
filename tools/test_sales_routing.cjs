@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const routing = require('../lib/sales-routing');
-const { normalizeRecord, buildMetrics, buildOtherChannelsMetrics } = require('../server').__test;
+const { normalizeRecord, buildMetrics, buildManagerPayload, buildOtherChannelsMetrics } = require('../server').__test;
 const row = (code, channel, seller, total, date='08/09/2026') => normalizeRecord({'Data Venda':date,'Codigo Reserva':code,Hotel:'SUEDS PLAZA',Canal:channel,Vendedor:seller,'Valor Total':total,Recebido:total,Status:'Confirmada'});
 for (const channel of ['BE MOBILE','BE MOBILLE','BOOKING ENGINE','Robo','Airbnb','Booking','Decolar','Expedia']) {
   assert.equal(routing.destination({dataVenda:'01/09/2026',canal:channel}),routing.CHANNELS_SHEET);
@@ -69,6 +69,8 @@ assert.equal(humanSellerDuplicate.records.length,1);
 assert.equal(humanSellerDuplicate.records[0].seller,'Aline Nunes');
 assert.equal(buildMetrics(humanSellerDuplicate.records,[],period).sellers.find(s=>s.name==='Aline Nunes').salesMonth,750);
 const metrics=buildMetrics(after.records,[],period);
+assert.equal(buildManagerPayload(buildMetrics(after.records.filter(r=>r.reservationCode!=='3'),[],period)).summary.salesMonth,300);
+assert.equal(buildManagerPayload(metrics).summary.salesMonth,600);
 assert.equal(metrics.channels.find(c=>c.label==='SITE').value,200);
 assert.equal(metrics.channels.find(c=>c.label==='Robo').value,300);
 assert.equal(metrics.sellers.find(s=>s.name==='Robo').salesMonth,300);
