@@ -3529,6 +3529,9 @@ function normalizeKpiChannel(value) {
   if (isKpiSiteOrigin(raw)) return "Reserva Direta";
   const mappings = [
     [/^central de (?:vendas|reservas)$/, "Reserva Direta"],
+    [/^cr solucoes$/, "Reserva Direta"],
+    [/^grupos reservas?$/, "Reserva Direta"],
+    [/^walk[ -]?in$/, "Reserva Direta"],
     [/azul viagens/, "Azul Viagens"],
     [/^cvc\b/, "CVC"],
     [/^orinter\b/, "Orinter Tour e Travel"],
@@ -3537,9 +3540,7 @@ function normalizeKpiChannel(value) {
     [/^frt operadora/, "FRT Operadora de Turismo"],
     [/^incomum turismo/, "Incomum Viagens"],
     [/^trend viagens/, "Trend Dynamics"],
-    [/^airbnb/, "Airbnb"],
-    [/^grupos reservas/, "GRUPOS"],
-    [/^walk in$/, "BALCÃO"]
+    [/^airbnb/, "Airbnb"]
   ];
   return mappings.find(([pattern]) => pattern.test(key))?.[1] || raw || "Não informado";
 }

@@ -357,13 +357,19 @@ const kpiSourceRow = (hotel, channel, date, checkin, total, code, apartment = 0)
 const directKpiSource = [kpiHeaders,
   kpiSourceRow("SUEDS PLAZA", "Reserva Direta", "12/09/2026", "03/10/2026", 200, "DIRECT-1"),
   kpiSourceRow("SUEDS PLAZA", "CENTRAL DE VENDAS", "12/09/2026", "03/10/2026", 400, "DIRECT-2"),
-  kpiSourceRow("SUEDS PLAZA", "CENTRAL DE RESERVAS", "12/09/2026", "03/10/2026", 300, "DIRECT-3")
+  kpiSourceRow("SUEDS PLAZA", "CENTRAL DE RESERVAS", "12/09/2026", "03/10/2026", 300, "DIRECT-3"),
+  kpiSourceRow("SUEDS PLAZA", "CR Soluções", "12/09/2026", "03/10/2026", 100, "DIRECT-4"),
+  kpiSourceRow("SUEDS PLAZA", "Grupos Reserva", "12/09/2026", "03/10/2026", 150, "DIRECT-5"),
+  kpiSourceRow("SUEDS PLAZA", "Walk in", "12/09/2026", "03/10/2026", 250, "DIRECT-6")
 ];
 directKpiSource[1][7] = 100;
 directKpiSource[2][7] = 200;
 directKpiSource[3][7] = 150;
+directKpiSource[4][7] = 50;
+directKpiSource[5][7] = 75;
+directKpiSource[6][7] = 125;
 const directKpiRecords = __test.normalizeKpiReportRows(directKpiSource, 2026);
-assert.deepEqual(directKpiRecords.map((item) => item.channel), ["Reserva Direta", "Reserva Direta", "Reserva Direta"]);
+assert.deepEqual(directKpiRecords.map((item) => item.channel), Array(6).fill("Reserva Direta"));
 const priorDirectKpiSource = directKpiSource.map((row, index) => index === 0 ? row : [
   ...row.slice(0, 5), "03/10/2025", "05/10/2025", ...row.slice(7, 15), "12/09/2025", ...row.slice(16)
 ]);
@@ -373,32 +379,32 @@ const directKpiPayload = __test.buildBiReportsPayload({
   historicalRecords: __test.normalizeKpiReportRows(priorDirectKpiSource, 2025)
 }, { start: "2026-09-01", end: "2026-09-18" });
 assert.deepEqual(directKpiPayload.filters.channels, ["Reserva Direta"]);
-assert.equal(directKpiPayload.byChannel.find((item) => item.label === "Reserva Direta").value, 900);
-assert.equal(directKpiPayload.comparison.byChannel.find((item) => item.label === "Reserva Direta").value, 900);
-assert.equal(directKpiPayload.channelShare.totals.values.SUEDS, 900);
+assert.equal(directKpiPayload.byChannel.find((item) => item.label === "Reserva Direta").value, 1400);
+assert.equal(directKpiPayload.comparison.byChannel.find((item) => item.label === "Reserva Direta").value, 1400);
+assert.equal(directKpiPayload.channelShare.totals.values.SUEDS, 1400);
 assert.equal(__test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: directKpiRecords },
-  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).summary.sales, 900);
+  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).summary.sales, 1400);
 assert.equal(__test.filterBiKpiSourceRows(directKpiSource,
-  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 3);
+  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 6);
 const siteKpiSource = [kpiHeaders, ...directKpiSource.slice(1),
   kpiSourceRow("SUEDS PLAZA", "BookingEngine", "12/09/2026", "03/10/2026", 200, "SITE-1"),
   kpiSourceRow("SUEDS PLAZA", "BE mobile", "12/09/2026", "03/10/2026", 300, "SITE-2"),
   kpiSourceRow("SUEDS PLAZA", "SITE", "12/09/2026", "03/10/2026", 100, "SITE-3"),
   kpiSourceRow("SUEDS PLAZA", "Booking", "12/09/2026", "03/10/2026", 400, "OTA-1")
 ];
-[100, 150, 50, 200].forEach((rate, index) => { siteKpiSource[index + 4][7] = rate; });
+[100, 150, 50, 200].forEach((rate, index) => { siteKpiSource[index + 7][7] = rate; });
 const siteKpiRecords = __test.normalizeKpiReportRows(siteKpiSource, 2026);
 const siteKpiPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: siteKpiRecords },
   { start: "2026-09-01", end: "2026-09-18" });
-assert.equal(siteKpiPayload.byChannel.find((item) => item.label === "Reserva Direta").value, 1500);
+assert.equal(siteKpiPayload.byChannel.find((item) => item.label === "Reserva Direta").value, 2000);
 assert.equal(siteKpiPayload.byChannel.find((item) => item.label === "Booking").value, 400);
-assert.equal(siteKpiPayload.channelShare.totals.values.SUEDS, 1500);
-assert.equal(siteKpiPayload.monthlyGoalTables.find((table) => table.key === "direct").rows[0].actual, 1500);
+assert.equal(siteKpiPayload.channelShare.totals.values.SUEDS, 2000);
+assert.equal(siteKpiPayload.monthlyGoalTables.find((table) => table.key === "direct").rows[0].actual, 2000);
 assert.equal(siteKpiPayload.monthlyGoalTables.find((table) => table.key === "site").rows[0].actual, 600);
 assert.equal(siteKpiRecords.filter((item) => item.kpiSiteSale).length, 3);
 assert.equal(__test.filterBiKpiSourceRows(siteKpiSource,
-  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 6);
-const historicalSiteRow = [...siteKpiSource[4]];
+  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).length, 9);
+const historicalSiteRow = [...siteKpiSource[7]];
 historicalSiteRow[5] = "03/10/2025";
 historicalSiteRow[6] = "05/10/2025";
 historicalSiteRow[15] = "12/09/2025";
