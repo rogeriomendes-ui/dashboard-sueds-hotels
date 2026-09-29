@@ -36,7 +36,7 @@ const payload = __test.buildBiReportsPayload({
     { month: "2026-09", type: "Hotel - Total Geral", channel: "", revenueGoal: 4000 },
     { month: "2026-09", type: "Venda Direta", channel: "", revenueGoal: 2000 },
     { month: "2026-09", type: "", channel: "SITE", revenueGoal: 500 },
-    { month: "2026-09", type: "RDS", channel: "", revenueGoal: 1000 }
+    { month: "2026-09", type: "RDS - Hospedagem", hotel: "SUEDS PLAZA", channel: "", revenueGoal: 1000 }
   ]
 }, { start: "2026-09-01", end: "2026-09-18" });
 
@@ -78,6 +78,16 @@ assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").ro
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].target, 4000);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].actual, null);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].target, 1000);
+const rdsGoals = [
+  { month: "2026-09", type: "RDS - Hospedagem", hotel: "SUEDS PLAZA", revenueGoal: 1209379 },
+  { month: "2026-09", type: "RDS - Hospedagem", hotel: "SUEDS PREMIUM", revenueGoal: 282121 },
+  { month: "2026-09", type: "RDS - Eventos", hotel: "SUEDS PLAZA", revenueGoal: 500000 }
+];
+const rdsDataset = { records: [record()], goals: rdsGoals };
+assert.equal(__test.buildBiReportsPayload(rdsDataset, { start: "2026-09-01", end: "2026-09-30" })
+  .monthlyGoalTables.find((table) => table.key === "rds").rows[0].target, 1491500);
+assert.equal(__test.buildBiReportsPayload(rdsDataset, { start: "2026-09-01", end: "2026-09-30", hotel: "SUEDS PLAZA" })
+  .monthlyGoalTables.find((table) => table.key === "rds").rows[0].target, 1209379);
 assert.equal(payload.daily.at(-1).averageDailyRate, 500);
 assert.equal(payload.pickup[0].daily.at(-1).cumulative, 3000);
 assert.equal(payload.pickup[0].comparisonDaily.at(-1).cumulative, 1000);
@@ -315,7 +325,7 @@ assert.equal(bookingEnginePayload.channelShare.totals.values.SUEDS, 600);
 assert.equal(bookingEnginePayload.channelShare.totals.values.BOOKING, 400);
 assert.equal(bookingEnginePayload.byChannel.find((channel) => channel.label === "SITE SUEDS").value, 600);
 assert.deepEqual(bookingEnginePayload.monthlyGoalTables.map((table) => table.title), [
-  "Meta de Vendas", "Meta de RDS", "Meta Venda Direta", "Meta do Site"
+  "Meta de Vendas", "META RDS Hospedagem", "Meta Venda Direta", "Meta do Site"
 ]);
 assert.ok(Math.abs(occupancyPayload.revpar.summary.revpar - (occupancyPayload.revpar.summary.averageDailyRate * occupancyPayload.revpar.summary.occupancyRate / 100)) < 0.000001);
 assert.ok(Math.abs(occupancyPayload.revpar.byHotel[0].revpar - (occupancyPayload.revpar.byHotel[0].averageDailyRate * occupancyPayload.revpar.byHotel[0].occupancyRate / 100)) < 0.000001);

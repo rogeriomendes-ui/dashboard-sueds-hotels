@@ -4026,7 +4026,8 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       if (tableKey === "sales") return type === comparableKey(HOTEL_TOTAL_GOAL_TYPE);
       if (tableKey === "direct") return type === comparableKey(HOTEL_DIRECT_GOAL_TYPE);
       if (tableKey === "site") return type.includes("site") || channel.includes("site");
-      if (tableKey === "rds") return type.includes("rds") || channel.includes("rds");
+      if (tableKey === "rds") return type === comparableKey("RDS - Hospedagem")
+        && (!hotel || comparableKey(biReportsHotelLabel(goal.hotel)) === comparableKey(biReportsHotelLabel(hotel)));
       return false;
     });
     const value = sum(matches, (goal) => Number(goal.revenueGoal || 0));
@@ -4035,7 +4036,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   const withGoals = (tableKey, series) => series.map((row) => ({ ...row, target: goalValue(row.key, tableKey) }));
   const monthlyGoalTables = [
     { key: "sales", title: "Meta de Vendas", actualLabel: "Venda 2026", rows: withGoals("sales", monthlySeries(rows)) },
-    { key: "rds", title: "Meta de RDS", actualLabel: "RDS 2026", rows: withGoals("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7))) },
+    { key: "rds", title: "META RDS Hospedagem", actualLabel: "RDS 2026", rows: withGoals("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7))) },
     { key: "direct", title: "Meta Venda Direta", actualLabel: "Venda 2026", rows: withGoals("direct", monthlySeries(directRows)) },
     { key: "site", title: "Meta do Site", actualLabel: "Venda 2026", rows: withGoals("site", monthlySeries(siteRows)) }
   ];
@@ -9043,12 +9044,19 @@ async function loadBiReportsDataset() {
   channelRows = null;
   const routed = require("./lib/sales-routing").dashboardSources(sellerRecords, channelRecords);
 
-  const historicalRows = await getSheetValues(BI_HISTORICAL_CHANNELS_RANGE).catch((error) => {
-    if (isMissingSheetError(error)) return [];
-    throw error;
-  });
+  const [historicalRows, goalRows] = await Promise.all([
+    getSheetValues(BI_HISTORICAL_CHANNELS_RANGE).catch((error) => {
+      if (isMissingSheetError(error)) return [];
+      throw error;
+    }),
+    getSheetValues(METAS_RANGE).catch((error) => {
+      if (isMissingSheetError(error)) return [];
+      throw error;
+    })
+  ]);
   const historicalRecords = rowsToObjects(historicalRows).map(normalizeRecord);
-  const payload = { ...routed, historicalRecords };
+  const goals = rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal);
+  const payload = { ...routed, historicalRecords, goals };
   biReportsDataCache = { payload, expiresAt: Date.now() + CACHE_TTL_MS };
   return payload;
 }
