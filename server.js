@@ -9178,7 +9178,15 @@ async function loadMetrics(period) {
     dataset.otherChannelRecords || [],
     period
   );
-    metrics.otherChannels = buildOtherChannelsMetrics(dataset.otherChannelRecords || [], period, dataset.juniperRows || [], dataset.cvcRows || []);
+  const kpiChannelRecords = (kpiDataset.records || []).map((record) => ({
+    ...record,
+    rawChannel: record.kpiSiteSale === true
+      ? "SITE SUEDS"
+      : comparableKey(record.channel) === comparableKey("Reserva Direta")
+        ? "CENTRAL DE RESERVAS"
+        : record.channel
+  }));
+  metrics.otherChannels = buildOtherChannelsMetrics(kpiChannelRecords, period);
   metrics.sellers = mergeRobotSeller(metrics.sellers, buildRobotSellerFromAsksuiteMarketRows(asksuiteMarketRows, period), period);
   metrics.cartRecovery = buildCartRecoveryMetrics(dataset.carts || [], period);
   const selectedMonth = period.month || (period.date || todayKey()).slice(0, 7);
