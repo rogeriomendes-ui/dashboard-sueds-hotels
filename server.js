@@ -9133,12 +9133,46 @@ async function loadBiKpiReportsDataset() {
 }
 
 async function loadMetrics(period) {
-  const [dataset, analytics, asksuiteMarketRows] = await Promise.all([
+  const [dataset, analytics, asksuiteMarketRows, kpiDataset] = await Promise.all([
     loadDataset(),
     loadAnalyticsMetrics(period),
-    loadAsksuiteMarketRawRows()
+    loadAsksuiteMarketRawRows(),
+    loadBiKpiReportsDataset()
   ]);
   const metrics = buildMetrics(dataset.records, dataset.goals, period);
+  const today = period.date || todayKey();
+  const requestedMonth = period.month || today.slice(0, 7);
+  const isYearToDate = requestedMonth === "ytd";
+  const month = isYearToDate ? today.slice(0, 7) : requestedMonth;
+  const ytdStart = `${today.slice(0, 4)}-01-01`;
+  const selectedDay = period.day || "";
+  const selectedHotel = period.hotel || "";
+  const selectedChannel = comparableKey(period.channel);
+  const siteChannelSelected = !selectedChannel
+    || selectedChannel === comparableKey("SITE")
+    || selectedChannel === comparableKey("SITE SUEDS");
+  const kpiSiteRows = (kpiDataset.records || []).filter((record) => (
+    record.kpiSiteSale === true
+    && isCountedSaleStatus(record)
+    && (isYearToDate
+      ? record.dateKey >= ytdStart && record.dateKey <= today
+      : record.monthKey === month)
+    && (!selectedDay || record.dateKey === selectedDay)
+    && (!selectedHotel || comparableKey(record.hotel) === comparableKey(normalizeHotelName(selectedHotel)))
+  ));
+  const siteValue = siteChannelSelected
+    ? sum(kpiSiteRows, (record) => record.total)
+    : 0;
+  metrics.channels = metrics.channels.map((channel) => (
+    comparableKey(channel.label) === comparableKey("SITE")
+      ? {
+        ...channel,
+        value: siteValue,
+        reservations: siteChannelSelected ? kpiSiteRows.length : 0,
+        monthlyGoalPct: pct(siteValue, channel.monthlyGoal)
+      }
+      : channel
+  ));
   metrics.advancePurchase = buildAdvancePurchaseByChannel(
     dataset.records || [],
     dataset.otherChannelRecords || [],
