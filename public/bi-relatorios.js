@@ -88,7 +88,14 @@
     const growth = previous > 0 ? (current - previous) / previous * 100 : null;
     const direction = growth === null ? "flat" : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
     growthEl.className = direction;
-    growthEl.textContent = growth === null ? "—" : `${direction === "up" ? "↑" : direction === "down" ? "↓" : "→"} ${wholePercent.format(Math.abs(growth))}%`;
+    if (growth === null) {
+      growthEl.textContent = "—";
+      return;
+    }
+    const arrow = direction === "flat"
+      ? `<span class="growth-arrow-flat" aria-hidden="true">→</span>`
+      : `<svg class="growth-arrow ${direction === "down" ? "is-down" : ""}" viewBox="0 0 64 64" aria-hidden="true"><path d="M2 59C23 56 39 42 45 21H34L49 4 63 21H54C49 46 29 60 2 59Z"/></svg>`;
+    growthEl.innerHTML = `${arrow}<span>${wholePercent.format(Math.abs(growth))}%</span>`;
   }
 
   function setPerformanceCard(valueEl, previousEl, growthEl, current, previous, formatter) {
