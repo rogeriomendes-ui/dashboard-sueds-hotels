@@ -319,14 +319,14 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 }
 
 /* Destaque das variações nos cards iniciais do BI Relatórios by KPI. */
-.top-metrics > .summary-grid .summary-primary .summary-current em { display: inline-flex; align-items: center; gap: .1em; font-size: 42.24px; font-weight: 900; text-shadow: 0 0 .6px currentColor; }
+.top-metrics > .summary-grid .summary-primary .summary-current em { display: inline-flex; align-items: center; gap: .1em; font-size: 21.12px; font-weight: 900; text-shadow: 0 0 .6px currentColor; }
 .top-metrics > .summary-grid .summary-current b,
-.top-metrics > .performance-grid .performance-current b { display: inline-flex; align-items: center; gap: .1em; font-size: 46.08px; font-weight: 900; text-shadow: 0 0 .6px currentColor; }
+.top-metrics > .performance-grid .performance-current b { display: inline-flex; align-items: center; gap: .1em; font-size: 23.04px; font-weight: 900; text-shadow: 0 0 .6px currentColor; }
 .top-metrics .growth-arrow { flex: 0 0 auto; width: .95em; height: .95em; fill: currentColor; filter: drop-shadow(0 0 .025em currentColor); }
 .top-metrics .growth-arrow.is-down { transform: rotate(180deg); }
 .top-metrics .growth-arrow-flat { font-size: .8em; }
 @media (max-width: 480px) {
-  .top-metrics > .summary-grid .summary-primary .summary-current em { font-size: 38.4px; }
+  .top-metrics > .summary-grid .summary-primary .summary-current em { font-size: 19.2px; }
   .top-metrics > .summary-grid .summary-current b,
-  .top-metrics > .performance-grid .performance-current b { font-size: 38.4px; }
+  .top-metrics > .performance-grid .performance-current b { font-size: 19.2px; }
 }
