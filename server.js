@@ -3771,8 +3771,9 @@ function biReportsChannelLabel(record = {}) {
   return raw || String(record.source || "Não informado").trim() || "Não informado";
 }
 
-function biReportsDateRange(query = {}) {
-  const fallback = { start: "2026-09-01", end: "2026-09-18" };
+function biReportsDateRange(query = {}, defaultEnd = "") {
+  const validDefaultEnd = /^2026-\d{2}-\d{2}$/.test(defaultEnd) ? defaultEnd : "2026-09-18";
+  const fallback = { start: "2026-09-01", end: validDefaultEnd };
   const start = /^2026-\d{2}-\d{2}$/.test(query.start || "") ? query.start : fallback.start;
   const end = /^2026-\d{2}-\d{2}$/.test(query.end || "") ? query.end : fallback.end;
   return start <= end ? { start, end } : fallback;
@@ -3883,7 +3884,10 @@ function biReportsReservationCount(sourceRows = []) {
 }
 
 function buildBiReportsPayload(dataset = {}, query = {}) {
-  const period = biReportsDateRange(query);
+  const baseUpdatedDate = dataset.audience === "bi-relatorios-kpi" && /^2026-\d{2}-\d{2}T/.test(dataset.loadedAt || "")
+    ? dataset.loadedAt.slice(0, 10)
+    : "";
+  const period = biReportsDateRange(query, baseUpdatedDate);
   const identity = (record, index, origin) => record.reservationCode
     ? `${comparableKey(record.reservationCode)}|${comparableKey(record.hotel)}`
     : `${origin}|${index}`;
@@ -4349,6 +4353,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     audience: dataset.audience || "bi-relatorios",
     generatedAt: new Date().toISOString(),
     dataCoverage: dataset.audience === "bi-relatorios-kpi" ? {
+      baseUpdatedAt: dataset.loadedAt || "",
       latestSaleDate: dataset.kpiLatestSaleDate || "",
       queryEndBeyondAvailable: Boolean(dataset.kpiLatestSaleDate && period.end > dataset.kpiLatestSaleDate)
     } : null,

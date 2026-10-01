@@ -580,7 +580,7 @@
   els.form.addEventListener("submit", (event) => { event.preventDefault(); load(); });
   els.clear.addEventListener("click", () => {
     els.start.value = "2026-09-01";
-    els.end.value = "2026-09-18";
+    els.end.value = "";
     els.hotel.value = "";
     els.channelOptions.querySelectorAll('input[name="channel"]:checked').forEach((input) => { input.checked = false; });
     updateChannelSummary();
