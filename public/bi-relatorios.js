@@ -550,6 +550,10 @@
       els.loading.hidden = true;
       els.content.hidden = false;
       render(payload);
+      if (isKpiReport) {
+        params.set("start", payload.period.start);
+        params.set("end", payload.period.end);
+      }
       appliedFilterQuery = params.toString();
       if (els.exportXls) els.exportXls.disabled = false;
     } catch (error) {
@@ -592,7 +596,7 @@
 
   els.form.addEventListener("submit", (event) => { event.preventDefault(); load(); });
   els.clear.addEventListener("click", () => {
-    els.start.value = "2026-09-01";
+    els.start.value = isKpiReport ? "" : "2026-09-01";
     els.end.value = "";
     els.hotel.value = "";
     els.channelOptions.querySelectorAll('input[name="channel"]:checked').forEach((input) => { input.checked = false; });

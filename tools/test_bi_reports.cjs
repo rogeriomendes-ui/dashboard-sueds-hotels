@@ -1,6 +1,15 @@
 const assert = require("node:assert/strict");
 const { __test } = require("../server");
 
+assert.deepEqual(__test.biReportsDefaultKpiPeriod(new Date("2026-10-03T12:00:00Z")),
+  { start: "2026-10-01", end: "2026-10-02" });
+assert.deepEqual(__test.biReportsDefaultKpiPeriod(new Date("2026-10-03T01:00:00Z")),
+  { start: "2026-10-01", end: "2026-10-01" });
+assert.deepEqual(__test.biReportsDefaultKpiPeriod(new Date("2026-11-01T12:00:00Z")),
+  { start: "2026-10-01", end: "2026-10-31" });
+assert.deepEqual(__test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [] }).period,
+  __test.biReportsDefaultKpiPeriod());
+
 const record = (overrides = {}) => ({
   dateKey: "2026-09-01",
   monthKey: "2026-09",

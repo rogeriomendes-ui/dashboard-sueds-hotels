@@ -3771,9 +3771,20 @@ function biReportsChannelLabel(record = {}) {
   return raw || String(record.source || "Não informado").trim() || "Não informado";
 }
 
-function biReportsDateRange(query = {}, defaultEnd = "") {
-  const validDefaultEnd = /^2026-\d{2}-\d{2}$/.test(defaultEnd) ? defaultEnd : "2026-09-18";
-  const fallback = { start: "2026-09-01", end: validDefaultEnd };
+function biReportsDefaultKpiPeriod(now = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(now).map(({ type, value }) => [type, value]));
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
+  const previousDay = new Date(`${today}T12:00:00Z`);
+  previousDay.setUTCDate(previousDay.getUTCDate() - 1);
+  const end = previousDay.toISOString().slice(0, 10);
+  const month = end < `${today.slice(0, 7)}-01` ? end.slice(0, 7) : today.slice(0, 7);
+  return { start: `${month}-01`, end };
+}
+
+function biReportsDateRange(query = {}, defaultPeriod = null) {
+  const fallback = defaultPeriod || { start: "2026-09-01", end: "2026-09-18" };
   const start = /^2026-\d{2}-\d{2}$/.test(query.start || "") ? query.start : fallback.start;
   const end = /^2026-\d{2}-\d{2}$/.test(query.end || "") ? query.end : fallback.end;
   return start <= end ? { start, end } : fallback;
@@ -3884,10 +3895,7 @@ function biReportsReservationCount(sourceRows = []) {
 }
 
 function buildBiReportsPayload(dataset = {}, query = {}) {
-  const baseUpdatedDate = dataset.audience === "bi-relatorios-kpi" && /^2026-\d{2}-\d{2}T/.test(dataset.loadedAt || "")
-    ? dataset.loadedAt.slice(0, 10)
-    : "";
-  const period = biReportsDateRange(query, baseUpdatedDate);
+  const period = biReportsDateRange(query, dataset.audience === "bi-relatorios-kpi" ? biReportsDefaultKpiPeriod() : null);
   const identity = (record, index, origin) => record.reservationCode
     ? `${comparableKey(record.reservationCode)}|${comparableKey(record.hotel)}`
     : `${origin}|${index}`;
@@ -4438,6 +4446,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
 
 function buildCachedBiKpiReportsPayload(dataset = {}, query = {}) {
   const key = JSON.stringify([
+    biReportsDefaultKpiPeriod().end,
     dataset.loadedAt || "",
     query.start || "",
     query.end || "",
@@ -4457,7 +4466,7 @@ function buildCachedBiKpiReportsPayload(dataset = {}, query = {}) {
 }
 
 function filterBiKpiSourceRows(sourceRows = [], query = {}) {
-  const period = biReportsDateRange(query);
+  const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
   const hotel = String(query.hotel || "").trim();
   const channels = Array.isArray(query.channels) ? query.channels : [];
   const channelKeys = new Set(channels.map((value) => comparableKey(value)).filter(Boolean));
@@ -9378,7 +9387,7 @@ async function handleRequest(req, res) {
       if (url.searchParams.get("format") === "xlsx") {
         const sourceRows = await getSheetValues(BI_KPI_2026_RANGE);
         const workbook = await buildBiKpiSourceWorkbook(sourceRows, query);
-        const period = biReportsDateRange(query);
+        const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
         res.writeHead(200, {
           "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "content-disposition": `attachment; filename="base-kpi-${period.start}-a-${period.end}.xlsx"`,
@@ -9644,6 +9653,7 @@ module.exports = {
     buildSellersPayload,
     buildManagerPayload,
     buildBiReportsPayload,
+    biReportsDefaultKpiPeriod,
     buildCachedBiKpiReportsPayload,
     kpiObjectsFromColumnRanges,
     kpiLatestSaleDate,
