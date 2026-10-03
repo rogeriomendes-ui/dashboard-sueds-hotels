@@ -1,5 +1,6 @@
 const { createClient } = require("@supabase/supabase-js");
 const { json, getPortalProfile, hasEnvironment } = require("../lib/portal-auth");
+const knowledgeSettings = require("./knowledge-settings");
 
 const DEFAULT_URL = "https://pjcmjytiovuukbkewxjj.supabase.co";
 function adminClient() {
@@ -26,10 +27,10 @@ async function organization(db) {
   if (result.error) throw result.error; return result.data.id;
 }
 async function list(db, organizationId, includeDrafts) {
-  let query = db.from("knowledge_documents").select("id,slug,title,module,document_type,scope_type,visibility,status,owner_key,review_at,updated_at,created_at,metadata,knowledge_document_versions(id,version,title,summary,content_markdown,change_note,author_email,reviewed_by,reviewed_at,published_at,created_at)").eq("organization_id", organizationId).order("updated_at", { ascending: false });
+  let query = db.from("knowledge_documents").select("id,slug,title,module,document_type,scope_type,visibility,status,owner_key,review_at,published_version,updated_at,created_at,metadata,knowledge_document_versions(id,version,title,summary,content_markdown,change_note,author_email,reviewed_by,reviewed_at,published_at,created_at)").eq("organization_id", organizationId).order("updated_at", { ascending: false });
   if (!includeDrafts) query = query.eq("status", "published");
   const result = await query; if (result.error) throw result.error;
-  return (result.data || []).map((item) => ({ ...item, versions: (item.knowledge_document_versions || []).sort((a,b) => b.version-a.version) }));
+  return (result.data || []).map((item) => ({ ...item, metadata: includeDrafts ? item.metadata : { media: item.metadata?.media || [] }, versions: (item.knowledge_document_versions || []).filter((version) => includeDrafts || version.version === item.published_version).sort((a,b) => b.version-a.version) }));
 }
 async function create(db, organizationId, profile, payload) {
   const title = clean(payload.title, 180); const content = clean(payload.contentMarkdown, 200000);
@@ -50,9 +51,15 @@ async function update(db, organizationId, profile, id, payload) {
   const latest = (current.data.knowledge_document_versions || []).sort((a,b) => b.version-a.version)[0];
   const nextStatus = ["draft", "review", "published", "archived"].includes(payload.status) ? payload.status : current.data.status;
   const title = clean(payload.title || current.data.title, 180); const content = clean(payload.contentMarkdown ?? latest?.content_markdown, 200000);
-  const media = Array.isArray(payload.media) ? payload.media.slice(0,20).map((m) => ({ type: clean(m.type,20), url: clean(m.url,1000), caption: clean(m.caption,200) })).filter((m) => m.url) : current.data.metadata?.media || [];
-  const changed = title !== latest?.title || content !== latest?.content_markdown || JSON.stringify(media) !== JSON.stringify(current.data.metadata?.media || []);
-  const patch = { title, status: nextStatus, metadata: { ...(current.data.metadata || {}), media }, updated_at: new Date().toISOString() };
+  const media = Array.isArray(payload.media) ? payload.media.slice(0,20).map((m) => ({ type: clean(m.type,20), url: clean(m.url,1000), caption: clean(m.caption,200) })).filter((m) => m.url) : current.data.metadata?.pending?.media || current.data.metadata?.media || [];
+  const moduleName = clean(payload.module, 80) || current.data.module;
+  const documentType = clean(payload.documentType, 80) || current.data.document_type;
+  const changed = title !== latest?.title || content !== latest?.content_markdown || clean(payload.summary, 500) !== (latest?.summary || "") || JSON.stringify(media) !== JSON.stringify(current.data.metadata?.pending?.media || current.data.metadata?.media || []);
+  const pendingPublishedEdit = current.data.status === "published" && nextStatus !== "published" && nextStatus !== "archived";
+  const metadata = { ...(current.data.metadata || {}) };
+  if (pendingPublishedEdit) metadata.pending = { media, module: moduleName, documentType };
+  else { metadata.media = media; delete metadata.pending; }
+  const patch = { title: pendingPublishedEdit ? current.data.title : title, module: pendingPublishedEdit ? current.data.module : moduleName, document_type: pendingPublishedEdit ? current.data.document_type : documentType, status: pendingPublishedEdit ? "published" : nextStatus, metadata, updated_at: new Date().toISOString() };
   if (nextStatus === "published") patch.published_version = changed ? (latest?.version || 0) + 1 : latest?.version;
   const saved = await db.from("knowledge_documents").update(patch).eq("id", id).eq("organization_id", organizationId); if (saved.error) throw saved.error;
   if (changed) { const result = await db.from("knowledge_document_versions").insert({ document_id: id, version: (latest?.version || 0) + 1, title, summary: clean(payload.summary, 500), content_markdown: content, change_note: clean(payload.changeNote, 500) || "Atualização editorial", author_email: profile.email || profile.id, published_at: nextStatus === "published" ? new Date().toISOString() : null }); if (result.error) throw result.error; }
@@ -65,6 +72,11 @@ module.exports = async function knowledge(req, res) {
     if (!hasEnvironment(profile, "treinamentos")) return json(res, 403, { error: "forbidden" });
     const db = adminClient(); const org = await organization(db); const level = await accessLevel(db, profile); if (!level) return json(res, 403, { error: "forbidden" });
     const canEdit = ["editorial", "reviewer", "admin"].includes(level); const canPublish = ["reviewer", "admin"].includes(level);
+    const action = new URL(req.url, `https://${req.headers.host || "portal.suedshotels.com.br"}`).searchParams.get("action");
+    if (action === "modules") return knowledgeSettings.modules(req, res, db, org, profile, level);
+    if (action === "pop") return knowledgeSettings.pop(req, res, db, org, profile, level);
+    if (action === "kpi-upload") return knowledgeSettings.prepareKpiVideo(req, res, db, org, level);
+    if (action === "kpi") return knowledgeSettings.kpi(req, res, db, org, profile, level);
     if (req.method === "GET") return json(res, 200, { ok: true, accessLevel: level, canEdit, canPublish, documents: await list(db, org, canEdit) });
     if (!canEdit) return json(res, 403, { error: "editor_access_required" });
     const payload = await body(req);
