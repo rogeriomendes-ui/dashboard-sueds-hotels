@@ -24,7 +24,7 @@
     reservationsComparison: document.getElementById("reservationsComparison"), reservationsPrevious: document.getElementById("reservationsPrevious"), reservationsGrowth: document.getElementById("reservationsGrowth"),
     ticketComparison: document.getElementById("ticketComparison"), ticketPrevious: document.getElementById("ticketPrevious"), ticketGrowth: document.getElementById("ticketGrowth"),
     hotels: document.getElementById("activeHotels"), period: document.getElementById("periodCaption"), daily: document.getElementById("dailyChart"),
-    channels: document.getElementById("channelChart"), hotelChart: document.getElementById("hotelChart"), checkinChart: document.getElementById("checkinChart"),
+    channels: document.getElementById("channelChart"), cancellations: document.getElementById("cancellationChannelChart"), hotelChart: document.getElementById("hotelChart"), checkinChart: document.getElementById("checkinChart"),
     pickup: document.getElementById("pickupGrid"), futureRooming: document.getElementById("futureRoomingTable"), averageRate2025: document.getElementById("averageRate2025"),
     averageRate2026: document.getElementById("averageRate2026"), roomNights2025: document.getElementById("roomNights2025"),
     roomNights2026: document.getElementById("roomNights2026"), averageRateDaily: document.getElementById("averageRateDailyChart"),
@@ -179,12 +179,13 @@
     const merged = new Map();
     (currentRows || []).forEach((item) => {
       const key = keyGetter(item);
-      merged.set(key, { key, label: item.label, current: Number(item.value || 0), previous: 0 });
+      merged.set(key, { key, label: item.label, current: Number(item.value || 0), previous: 0, currentSales: Number(item.sales || 0), previousSales: 0 });
     });
     (previousRows || []).forEach((item) => {
       const key = keyGetter(item);
-      const row = merged.get(key) || { key, label: item.label, current: 0, previous: 0 };
+      const row = merged.get(key) || { key, label: item.label, current: 0, previous: 0, currentSales: 0, previousSales: 0 };
       row.previous += Number(item.value || 0);
+      row.previousSales += Number(item.sales || 0);
       merged.set(key, row);
     });
     return [...merged.values()];
@@ -198,7 +199,9 @@
     return head.concat([{
       key: "demais", label: "Demais",
       current: tail.reduce((sum, item) => sum + item.current, 0),
-      previous: tail.reduce((sum, item) => sum + item.previous, 0)
+      previous: tail.reduce((sum, item) => sum + item.previous, 0),
+      currentSales: tail.reduce((sum, item) => sum + (item.currentSales || 0), 0),
+      previousSales: tail.reduce((sum, item) => sum + (item.previousSales || 0), 0)
     }]);
   }
 
@@ -233,14 +236,14 @@
 
   function renderBars(target, source, comparisonSource, options = {}) {
     const rows = combineComparisonTail(mergeComparisonRows(source, comparisonSource), 8);
-    if (!rows.length || !rows.some((row) => row.current > 0 || row.previous > 0)) return empty(target, "Sem vendas para exibir neste recorte.");
+    if (!rows.length || !rows.some((row) => row.current > 0 || row.previous > 0)) return empty(target, options.empty || "Sem vendas para exibir neste recorte.");
     const w = widthOf(target);
     const rowH = 52;
     const h = Math.max(245, rows.length * rowH + 16);
     const labelW = Math.min(w * (options.showShare ? .34 : .39), options.showShare ? 155 : 170);
     const max = Math.max(...rows.flatMap((row) => [row.current, row.previous]), 1);
     const barX = labelW + 10;
-    const valueW = options.showGrowth
+    const valueW = options.showCancelRate ? (w < 420 ? 142 : 176) : options.showGrowth
       ? (w < 420 ? 122 : 150)
       : options.showShare ? (w < 420 ? 108 : 126) : (w < 420 ? 68 : 92);
     const valueFormatter = options.fullValueLabels ? integer : shortMoney;
@@ -254,18 +257,23 @@
       const previousShare = options.previousTotal ? row.previous / options.previousTotal * 100 : 0;
       const currentShare = options.currentTotal ? row.current / options.currentTotal * 100 : 0;
       const shareFormatter = options.showGrowth ? wholePercent : percent;
-      const previousText = `${valueFormatter.format(row.previous)}${options.showShare ? ` · ${shareFormatter.format(previousShare)}%` : ""}`;
-      const currentText = `${valueFormatter.format(row.current)}${options.showShare ? ` · ${shareFormatter.format(currentShare)}%` : ""}`;
+      const cancellationRate = (value, sales) => sales > 0 ? `${percent.format(value / sales * 100)}%` : "—";
+      const previousText = options.showCancelRate
+        ? `${money.format(row.previous)} · ${cancellationRate(row.previous, row.previousSales)}`
+        : `${valueFormatter.format(row.previous)}${options.showShare ? ` · ${shareFormatter.format(previousShare)}%` : ""}`;
+      const currentText = options.showCancelRate
+        ? `${money.format(row.current)} · ${cancellationRate(row.current, row.currentSales)}`
+        : `${valueFormatter.format(row.current)}${options.showShare ? ` · ${shareFormatter.format(currentShare)}%` : ""}`;
       const growth = row.previous > 0 ? (row.current - row.previous) / row.previous * 100 : null;
       const growthDirection = growth === null ? (row.current > 0 ? "up" : "flat") : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
       const growthArrow = growthDirection === "up" ? "↑" : growthDirection === "down" ? "↓" : "→";
       const growthText = growth === null ? `${growthArrow} novo em 2026` : `${growthArrow} ${wholePercent.format(Math.abs(growth))}%`;
       const growthColor = growthDirection === "up" ? "#137a5a" : growthDirection === "down" ? "#c64b47" : "#607885";
-      const valueFontSize = options.showGrowth ? (options.showShare ? 10.5 : 11.5) : (options.showShare ? 8.5 : 9);
+      const valueFontSize = options.showCancelRate ? (w < 420 ? 8 : 9) : options.showGrowth ? (options.showShare ? 10.5 : 11.5) : (options.showShare ? 8.5 : 9);
       const growthMarkup = options.showGrowth
         ? `<text x="0" y="${y + 33}" fill="${growthColor}" font-size="11.5" font-weight="850">${safe(growthText)}</text>`
         : "";
-      return `<g><title>${safe(label)} — 2025: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(shareFormatter.format(previousShare))}%)` : ""}; 2026: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(shareFormatter.format(currentShare))}%)` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
+      return `<g><title>${safe(label)} — 2025: ${safe(previousText)}; 2026: ${safe(currentText)}${options.showCancelRate ? `; vendas 2025: ${safe(money.format(row.previousSales))}; vendas 2026: ${safe(money.format(row.currentSales))}` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
         <text x="0" y="${y + (options.showGrowth ? 15 : 25)}" fill="#435d6d" font-size="10.5">${safe(clipped)}</text>
         <rect x="${barX}" y="${y + 5}" width="${usable}" height="12" rx="4" fill="#f4eee3"/>
         <rect x="${barX}" y="${y + 5}" width="${previousLength}" height="12" rx="4" fill="#d7b16b"/>
@@ -277,7 +285,7 @@
       </g>`;
     }).join("");
     target.style.height = `${h}px`;
-    target.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Comparação de vendas de 2025 e 2026">${body}</svg>`;
+    target.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${safe(options.label || "Comparação de vendas de 2025 e 2026")}">${body}</svg>`;
   }
 
   function renderColumns(target, rows, comparisonRows, options = {}) {
@@ -467,6 +475,11 @@
       fullValueLabels: true,
       currentTotal: payload.summary.sales || 0,
       previousTotal: payload.comparison?.summary?.sales || 0
+    });
+    if (els.cancellations) renderBars(els.cancellations, payload.cancellations?.byChannel || [], payload.comparison?.cancellations?.byChannel || [], {
+      showCancelRate: true,
+      empty: "Sem cancelamentos neste recorte.",
+      label: "Cancelamentos em reais e taxa sobre as vendas do mesmo canal em 2025 e 2026"
     });
     renderBars(els.hotelChart, payload.byHotel || [], payload.comparison?.byHotel || [], { showGrowth: isKpiReport, fullValueLabels: true });
     renderColumns(els.checkinChart, payload.byCheckinMonth || [], payload.comparison?.byCheckinMonth || [], {

@@ -194,6 +194,30 @@ const kpiOnlyReport = __test.buildBiReportsPayload({
 assert.equal(kpiOnlyReport.summary.sales, 3824.76);
 assert.equal(kpiOnlyReport.summary.reservations, 1);
 
+const cancellationDataset = {
+  audience: "bi-relatorios-kpi",
+  records: [
+    record({ reservationCode: "DIRECT-SOLD", channel: "Reserva Direta", rawChannel: "Reserva Direta", source: "KPI FULL", total: 1000 }),
+    record({ reservationCode: "DIRECT-CANCELLED", channel: "Reserva Direta", rawChannel: "Reserva Direta", source: "KPI FULL", status: "Cancelada", total: 250 }),
+    record({ reservationCode: "DIRECT-CANCELLED", channel: "Reserva Direta", rawChannel: "Reserva Direta", source: "KPI FULL", status: "Cancelada", total: 250 }),
+    record({ reservationCode: "BOOKING-CANCELLED", channel: "Booking", rawChannel: "Booking", source: "KPI FULL", status: "Cancelada", total: 200 })
+  ],
+  historicalRecords: [
+    record({ reservationCode: "PRIOR-SOLD", dateKey: "2025-09-01", channel: "Reserva Direta", rawChannel: "Reserva Direta", source: "KPI FULL", total: 400 }),
+    record({ reservationCode: "PRIOR-CANCELLED", dateKey: "2025-09-01", channel: "Reserva Direta", rawChannel: "Reserva Direta", source: "KPI FULL", status: "Cancelada", total: 100 })
+  ]
+};
+const cancellationReport = __test.buildBiReportsPayload(cancellationDataset,
+  { start: "2026-09-01", end: "2026-09-18", hotel: "SUEDS PLAZA" });
+assert.equal(cancellationReport.summary.sales, 1000);
+assert.deepEqual(cancellationReport.cancellations.byChannel.find((item) => item.label === "Reserva Direta"),
+  { label: "Reserva Direta", value: 250, sales: 1000, reservations: 1, rate: 25 });
+assert.equal(cancellationReport.comparison.cancellations.byChannel.find((item) => item.label === "Reserva Direta").rate, 25);
+assert.equal(cancellationReport.cancellations.byChannel.find((item) => item.label === "Booking").rate, null);
+assert.ok(cancellationReport.filters.channels.includes("Booking"));
+assert.deepEqual(__test.buildBiReportsPayload(cancellationDataset,
+  { start: "2026-09-01", end: "2026-09-18", channels: ["Reserva Direta"] }).cancellations.byChannel.map((item) => item.label), ["Reserva Direta"]);
+
 assert.equal(__test.kpiLatestSaleDate([
   { "D.Res": "25/09/2026" },
   { "D.Res": "26/09/2026" },
@@ -205,7 +229,7 @@ const kpiCoverageDataset = {
   records: [record({ reservationCode: "COVERAGE-1", dateKey: "2026-09-25", source: "KPI FULL" })]
 };
 const pastCoverage = __test.buildBiReportsPayload(kpiCoverageDataset, { start: "2026-09-01", end: "2026-09-27" });
-assert.deepEqual(pastCoverage.dataCoverage, { latestSaleDate: "2026-09-26", queryEndBeyondAvailable: true });
+assert.deepEqual(pastCoverage.dataCoverage, { baseUpdatedAt: "", latestSaleDate: "2026-09-26", queryEndBeyondAvailable: true });
 assert.equal(pastCoverage.summary.sales, 1000);
 const withinCoverage = __test.buildBiReportsPayload(kpiCoverageDataset, { start: "2026-09-01", end: "2026-09-26" });
 assert.equal(withinCoverage.dataCoverage.queryEndBeyondAvailable, false);

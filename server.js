@@ -3906,7 +3906,11 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   const counted2026 = combined.filter((record) => (
     record.dateKey?.startsWith("2026-") && isCountedSaleStatus(record)
   ));
+  const cancelled2026 = combined.filter((record) => (
+    record.dateKey?.startsWith("2026-") && comparableKey(record.status) === "cancelada"
+  ));
   const periodRows = counted2026.filter((record) => record.dateKey >= period.start && record.dateKey <= period.end);
+  const periodCancelledRows = cancelled2026.filter((record) => record.dateKey >= period.start && record.dateKey <= period.end);
   const previousPeriod = {
     start: shiftDateYear(period.start, -1),
     end: shiftDateYear(period.end, -1)
@@ -3923,6 +3927,11 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     record.dateKey >= previousPeriod.start
     && record.dateKey <= previousPeriod.end
     && isCountedSaleStatus(record)
+  ));
+  const historicalPeriodCancelledRows = historicalRecords.filter((record) => (
+    record.dateKey >= previousPeriod.start
+    && record.dateKey <= previousPeriod.end
+    && comparableKey(record.status) === "cancelada"
   ));
   const hotel = String(query.hotel || "").trim();
   const channels = [...new Set((Array.isArray(query.channels) ? query.channels : Array.isArray(query.channel) ? query.channel : [query.channel])
@@ -3947,6 +3956,8 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   });
   const rows = filterRows(periodRows, checkinMonth);
   const historicalRows = filterRows(historicalPeriodRows, previousCheckinMonth);
+  const cancelledRows = filterRows(periodCancelledRows, checkinMonth);
+  const historicalCancelledRows = filterRows(historicalPeriodCancelledRows, previousCheckinMonth);
 
   const summarize = (sourceRows, keyGetter) => [...groupBy(sourceRows, keyGetter).entries()]
     .map(([label, groupedRows]) => ({
@@ -3956,6 +3967,16 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       ...biReportsRateMetrics(groupedRows)
     }))
     .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+  const cancellationByChannel = (sales, cancellations) => {
+    const sold = new Map(summarize(sales, biReportsChannelLabel).map((item) => [item.label, item]));
+    const cancelled = new Map(summarize(cancellations, biReportsChannelLabel).map((item) => [item.label, item]));
+    return [...new Set([...sold.keys(), ...cancelled.keys()])].map((label) => {
+      const salesValue = sold.get(label)?.value || 0;
+      const value = cancelled.get(label)?.value || 0;
+      return { label, value, sales: salesValue, reservations: cancelled.get(label)?.reservations || 0,
+        rate: salesValue > 0 ? value / salesValue * 100 : null };
+    }).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
+  };
   const shareChannelGroup = (record) => {
     const key = comparableKey(biReportsChannelLabel(record));
     if (key.includes("reserva direta") || key.includes("central de reservas") || key.includes("site")) return "SUEDS";
@@ -4329,7 +4350,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       })
     };
   });
-  const allCheckinOptions = [...new Set(periodRows.map(recordCheckinMonth).filter(Boolean))].sort();
+  const allCheckinOptions = [...new Set([...periodRows, ...periodCancelledRows].map(recordCheckinMonth).filter(Boolean))].sort();
   const historicalSourceLabels = {
     CVC: "CVC",
     JUNIPER: "Juniper",
@@ -4371,6 +4392,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       },
       daily: previousDaily,
       byChannel: summarize(historicalRows, biReportsChannelLabel),
+      cancellations: { byChannel: cancellationByChannel(historicalRows, historicalCancelledRows) },
       byHotel: summarize(historicalRows, (record) => biReportsHotelLabel(record.hotel) || "Não informado"),
       byCheckinMonth: historicalCheckinMonths,
       revpar: {
@@ -4383,8 +4405,8 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     period,
     selected: { hotel, channel: channels.length === 1 ? channels[0] : "", channels, checkinMonth },
     filters: {
-      hotels: sortLabels(new Set(periodRows.map((record) => biReportsHotelLabel(record.hotel)).filter(Boolean))),
-      channels: sortLabels(new Set(periodRows.map(biReportsChannelLabel).filter(Boolean))),
+      hotels: sortLabels(new Set([...periodRows, ...periodCancelledRows].map((record) => biReportsHotelLabel(record.hotel)).filter(Boolean))),
+      channels: sortLabels(new Set([...periodRows, ...periodCancelledRows].map(biReportsChannelLabel).filter(Boolean))),
       checkinMonths: allCheckinOptions.map((key) => ({ key, label: checkinLabel(key) }))
     },
     summary: {
@@ -4395,6 +4417,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       ...biReportsRateMetrics(rows)
     },
     byChannel: summarize(rows, biReportsChannelLabel),
+    cancellations: { byChannel: cancellationByChannel(rows, cancelledRows) },
     byHotel: summarize(rows, (record) => biReportsHotelLabel(record.hotel) || "Não informado"),
     channelShare: { groups: shareGroups, byHotel: channelShareByHotel, totals: channelShareTotals },
     channelHotelComparison,
