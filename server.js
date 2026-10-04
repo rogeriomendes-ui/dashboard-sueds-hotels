@@ -2807,7 +2807,7 @@ function isOnOrBeforeDateKey(record, key) {
 
 const TEAM_CARD_NAME = "Equipe Sueds";
 const TEAM_CARD_DISPLAY_NAME = "EQUIPE SUEDS";
-const TEAM_SELLERS = ["Aline Nunes", "Amanda Melgaco", "Tatiana Vieira", "Julia Reche", "Emanoel Cesar"];
+const TEAM_SELLERS = ["Aline Nunes", "Lara Reis", "Amanda Melgaco", "Tatiana Vieira", "Julia Reche", "Emanoel Cesar"];
 const STRATEGIC_CHANNEL_SELLERS = ["Site", "Operadoras", "OTAs", "Robo"];
 const ROBOT_SALES_CUTOVER_MONTH = "2026-09";
 const OFFICIAL_SALES_CHANNELS = [
@@ -4883,6 +4883,7 @@ function statusFromPct(value) {
 const TV_SELLER_ORDER = [
   TEAM_CARD_NAME,
   "Aline Nunes",
+  "Lara Reis",
   "Tatiana Vieira",
   "Emanoel Cesar",
   "Julia Reche",
