@@ -10,6 +10,7 @@ const announcements = require("./portal/announcements");
 const reveillonVipTables = require("./portal/reveillon-vip-tables");
 const { getPortalProfile, hasEnvironment, withPortalEnvironment, withPortalRoles } = require("../lib/portal-auth");
 const knowledge = require("./knowledge");
+const cronSalesEditorSync = require("./cron-sales-editor-sync");
 
 const adminUsersHandler = withPortalRoles(users, ["admin_geral"]);
 const announcementsHandler = withPortalEnvironment(announcements, "comunicados");
@@ -24,6 +25,7 @@ const tvMessagesHandler = withPortalEnvironment(handleRequest, "mensagens_tv");
 module.exports = async function api(req, res) {
   const url = new URL(req.url, `https://${req.headers.host || "portal.suedshotels.com.br"}`);
   const pathname = url.pathname;
+  if (pathname === "/api/cron/sales-editor-sync") return cronSalesEditorSync(req, res);
   if (pathname === "/api/auth/login") return login(req, res);
   if (pathname === "/api/auth/logout") return logout(req, res);
   if (pathname === "/api/auth/session") return session(req, res);

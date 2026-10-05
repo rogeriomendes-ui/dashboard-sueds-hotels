@@ -1,0 +1,44 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
+const {plan,baseline}=require('../lib/sales-editor-sync.cjs');
+const value=x=>x===null?{}:{userEnteredValue:typeof x==='number'?{numberValue:x}:{stringValue:String(x)},formattedValue:String(x)};
+function row(code='R1',hotel='SUEDS PLAZA',received=20,status='Confirmada',notes='ok') {
+  const values=Array.from({length:25},()=>({}));
+  for(const [col,data] of [[0,'01/10/2026'],[1,code],[2,hotel],[3,'CENTRAL DE RESERVAS'],[4,'Aline Nunes'],[13,received],[15,'PIX'],[17,status],[19,notes]])values[col]=value(data);
+  return {values};
+}
+const header={values:Array.from({length:25},()=>({}))};
+const sourceRow=row();
+const mirrorRow=row();
+for(const col of [13,17,19])mirrorRow.values[col].note=baseline(mirrorRow.values[col].userEnteredValue);
+mirrorRow.values[13]=value(30);mirrorRow.values[13].note=baseline(value(20).userEnteredValue);
+mirrorRow.values[17]=value('Pendente');mirrorRow.values[17].note=baseline(value('Confirmada').userEnteredValue);
+mirrorRow.values[19]=value('novo');mirrorRow.values[19].note=baseline(value('ok').userEnteredValue);
+const result=plan([header,sourceRow],[header,mirrorRow],[header],20,20);
+assert.equal(result.sourceRequests.length,3);
+assert.deepEqual(result.records.map(x=>x.operation),['mirror-field-update','status-update','mirror-field-update']);
+assert.equal(result.conflict.length,0);
+assert.equal(result.mirrorRequests.length,3);
+const verify=input=>{
+  const file=path.join(os.tmpdir(),`sales-editor-validator-${process.pid}.json`);
+  fs.writeFileSync(file,JSON.stringify({records:input.records,existingSellers:input.existingSellers,existingChannels:input.existingChannels,requests:input.sourceRequests}));
+  const checked=spawnSync(process.execPath,[path.join(__dirname,'validate_sales_write.cjs'),file],{encoding:'utf8'});
+  fs.unlinkSync(file);
+  assert.equal(checked.status,0,checked.stderr);
+};
+verify(result);
+
+const changedSource=row();changedSource.values[13]=value(40);
+const conflict=plan([header,changedSource],[header,mirrorRow],[header],20,20);
+assert.equal(conflict.conflict[0].reason,'concurrent_edit');
+
+const newRow=row('R2');
+const added=plan([header,sourceRow],[header,row(),newRow],[header],20,20);
+assert.equal(added.records[0].operation,'mirror-insert');
+assert.equal(added.records[0].rowNumber,3);
+assert.equal(added.sourceRequests.length,1);
+verify(added);
+console.log('sales editor sync planner: ok');
