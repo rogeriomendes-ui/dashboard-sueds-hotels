@@ -2,6 +2,7 @@
 // Pure validation: never writes to Google Sheets. A nonzero exit blocks writing.
 const fs = require('node:fs');
 const routing = require('../lib/sales-routing');
+if (require.main === module) {
 try {
   const input = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
   if (!Array.isArray(input.records) || !Array.isArray(input.existingChannels) || !Array.isArray(input.existingSellers)) throw new Error('Forneca records, existingSellers e existingChannels lidos das duas abas atuais.');
@@ -118,3 +119,4 @@ try {
   if (coveredDeletes.size !== deleteRows.size) throw new Error('Plano e requests de exclusao incompletos.');
   console.log(JSON.stringify({validated:true,records:input.records.length,statusCells:covered.size,manualCells:coveredManual.size,insertRows:coveredInserts.size,deleteRows:coveredDeletes.size}));
 } catch (error) { console.error(error.message); process.exitCode=1; }
+}
