@@ -11,37 +11,44 @@
   const popNotice = (message, error = false) => { const target=$('pop-notice'); target.textContent=message; target.hidden=false; target.classList.toggle('error',error); };
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let docs = [], modules = [], canPublish = false;
+  const moduleIcons = [['🏨','Hotel'],['🛎️','Recepção'],['📅','Reservas'],['🛏️','Hospedagem'],['🍽️','Alimentos e bebidas'],['🎉','Eventos'],['🔧','Manutenção'],['📈','Vendas'],['💳','Financeiro'],['👥','Recursos humanos'],['🚌','Transporte'],['✈️','Viagens']];
+  const iconOptions = (selected = '🏨') => moduleIcons.map(([icon, label]) => `<option value="${icon}" ${icon === selected ? 'selected' : ''}>${icon} ${label}</option>`).join('');
   async function request(url, options) { const response = await fetch(url, { credentials:'same-origin', cache:'no-store', ...options }); const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Não foi possível concluir a operação.'); return data; }
   function mediaRows(items = []) {
     const image = items.find((item) => item.type === 'imagem') || {}, video = items.find((item) => item.type === 'video') || {};
-    $('image-url').value = image.url || ''; $('image-url').dataset.path = image.path || ''; $('image-caption').value = image.caption || '';
+    $('image-file').value = ''; $('image-file').dataset.path = image.path || ''; $('image-file').dataset.url = image.path ? '' : (image.url || ''); $('image-caption').value = image.caption || '';
     $('video-url').value = video.url || ''; $('video-url').dataset.path = video.path || ''; $('video-caption').value = video.caption || ''; $('video-file').value = '';
   }
   function values() {
     const attention = $('attention').value.trim(), content = $('content').value.split('\n').map((step)=>step.trim().replace(/^-\s+/, '')).filter(Boolean).map((step)=>`- ${step}`).join('\n');
     return { id:$('document-id').value, title:$('title').value, module:$('module').value, documentType:$('document-type').value, summary:$('summary').value, contentMarkdown: attention ? `${content}\n\n> **Atenção:** ${attention}` : content, changeNote:$('change-note').value, media:[
-      {type:'imagem',url:$('image-url').value.trim(),path:$('image-url').dataset.path||'',caption:$('image-caption').value.trim()},
+      {type:'imagem',url:$('image-file').dataset.url||'',path:$('image-file').dataset.path||'',caption:$('image-caption').value.trim()},
       {type:'video',url:$('video-url').value.trim(),path:$('video-url').dataset.path||'',caption:$('video-caption').value.trim()}
     ].filter((media)=>media.url||media.path) };
   }
   async function uploadMedia(documentId) {
-    const file=$('video-file').files[0];
-    if(file) {
-      const type='video', allowed=['video/mp4','video/webm','video/ogg'], max=500*1024*1024;
-      if(!allowed.includes(file.type)||!file.size||file.size>max) throw new Error('Escolha um vídeo MP4, WebM ou OGG de até 500 MB.');
-      $('media-notice').textContent='Enviando vídeo…';
+    const uploads=[
+      { type:'imagem', file:$('image-file').files[0], target:$('image-file'), allowed:['image/jpeg','image/png','image/webp','image/gif'], max:20*1024*1024, label:'imagem JPG, PNG, WebP ou GIF de até 20 MB' },
+      { type:'video', file:$('video-file').files[0], target:$('video-url'), allowed:['video/mp4','video/webm','video/ogg'], max:500*1024*1024, label:'vídeo MP4, WebM ou OGG de até 500 MB' }
+    ].filter((upload)=>upload.file);
+    for (const upload of uploads) {
+      const { type, file, target, allowed, max, label } = upload;
+      if(!allowed.includes(file.type)||!file.size||file.size>max) throw new Error(`Escolha uma ${label}.`);
+      $('media-notice').textContent=`Enviando ${type==='video'?'vídeo':'imagem'}…`;
       const ticket=await request('/api/knowledge?action=document-media-upload',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({documentId,type,mimeType:file.type,size:file.size})});
       const form=new FormData(); form.append('cacheControl','3600'); form.append('',file);
       const uploaded=await fetch(ticket.signedUrl,{method:'PUT',body:form});
       if(!uploaded.ok) throw new Error('Não foi possível enviar o arquivo. Tente novamente.');
-      $('video-url').dataset.path=ticket.path; $('video-url').value=''; $('video-file').value='';
+      target.dataset.path=ticket.path; target.dataset.url=''; target.value='';
+      if(type==='video') $('video-url').value='';
     }
   }
   function fill(d) { const v=d.versions?.[0]||{}, attention=(v.content_markdown||'').match(/\n\n> \*\*Atenção:\*\* ([\s\S]*)$/), steps=(attention?(v.content_markdown||'').slice(0,attention.index):(v.content_markdown||'')).split('\n').map((step)=>step.replace(/^-\s+/, '')); $('document-id').value=d.id; $('title').value=d.title; if (![...$('module').options].some((option)=>option.value===d.module)) $('module').add(new Option(d.module, d.module)); $('module').value=d.module; $('document-type').value=d.document_type; $('summary').value=v.summary||''; $('content').value=steps.join('\n'); $('attention').value=attention?.[1]||''; $('change-note').value=''; mediaRows(d.metadata?.pending?.media||d.metadata?.media||[]); $('save-draft').textContent='Salvar alterações'; window.scrollTo({top:0,behavior:'smooth'}); }
   function renderModules() {
     $('module').innerHTML=modules.filter((m)=>m.active).map((m)=>`<option value="${escapeHtml(m.slug)}">${escapeHtml(m.name)}</option>`).join('');
-    $('module-list').innerHTML=modules.map((m)=>`<form class="module-row" data-id="${escapeHtml(m.id)}"><div><strong>${escapeHtml(m.slug)}</strong><small>Identificador permanente</small></div><label>Nome<input name="name" maxlength="80" required value="${escapeHtml(m.name)}"></label><label>Descrição<input name="description" maxlength="500" value="${escapeHtml(m.description)}"></label><label>Ordem<input name="sortOrder" type="number" value="${m.sort_order}"></label><label class="module-active"><input name="active" type="checkbox" ${m.active?'checked':''}>Ativo</label><button class="secondary small" type="submit">Salvar</button></form>`).join('');
-    document.querySelectorAll('.module-row').forEach((form)=>form.onsubmit=async(e)=>{ e.preventDefault(); try { await request('/api/knowledge?action=modules',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({id:form.dataset.id,name:form.elements.name.value,description:form.elements.description.value,sortOrder:Number(form.elements.sortOrder.value),active:form.elements.active.checked})}); notice('Módulo atualizado.'); await loadModules(); } catch(error) { notice(error.message,true); } });
+    $('module-icon').innerHTML=iconOptions();
+    $('module-list').innerHTML=modules.map((m)=>`<form class="module-row" data-id="${escapeHtml(m.id)}"><div><strong>${escapeHtml(m.slug)}</strong><small>Identificador permanente</small></div><label>Nome<input name="name" maxlength="80" required value="${escapeHtml(m.name)}"></label><label>Descrição<input name="description" maxlength="500" value="${escapeHtml(m.description)}"></label><label>Ícone<select name="icon">${iconOptions(m.icon)}</select></label><label>Ordem<input name="sortOrder" type="number" value="${m.sort_order}"></label><label class="module-active"><input name="active" type="checkbox" ${m.active?'checked':''}>Ativo</label><button class="secondary small" type="submit">Salvar</button></form>`).join('');
+    document.querySelectorAll('.module-row').forEach((form)=>form.onsubmit=async(e)=>{ e.preventDefault(); try { await request('/api/knowledge?action=modules',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({id:form.dataset.id,name:form.elements.name.value,description:form.elements.description.value,icon:form.elements.icon.value,sortOrder:Number(form.elements.sortOrder.value),active:form.elements.active.checked})}); notice('Módulo atualizado.'); await loadModules(); } catch(error) { notice(error.message,true); } });
   }
   async function loadModules() { const result=await request('/api/knowledge?action=modules'); modules=result.modules||[]; renderModules(); const selected=new URLSearchParams(location.search).get('module'); if(selected && [...$('module').options].some((option)=>option.value===selected)) $('module').value=selected; const previous=$('pop-module').value; $('pop-module').innerHTML=modules.filter((m)=>m.active).map((m)=>`<option value="${escapeHtml(m.slug)}">${escapeHtml(m.name)}</option>`).join(''); $('pop-module').value=selected||previous||modules[0]?.slug||''; await loadPop(); }
   async function loadPop() { const slug=$('pop-module').value; if(!slug) return; const result=await request(`/api/knowledge?action=pop&module=${encodeURIComponent(slug)}&summary=1`); const pop=result.pop; $('pop-current').innerHTML=pop?`Publicado: ${escapeHtml(pop.name)} · versão ${pop.version} · ${new Date(pop.publishedAt).toLocaleString('pt-BR')} · <a href="/treinamentos-pop.html?module=${encodeURIComponent(slug)}">Visualizar página do POP</a>`:'Nenhum POP publicado neste módulo.'; const readers=result.readers||[]; $('pop-readers').innerHTML=pop?`<details><summary>${readers.length} colaborador${readers.length===1?'':'es'} confirmou${readers.length===1?'':'aram'} a leitura</summary><ul>${readers.length?readers.map((r)=>`<li>${escapeHtml(r.name)} · ${escapeHtml(r.email)} · ${new Date(r.readAt).toLocaleString('pt-BR')}</li>`).join(''):'<li>Nenhuma confirmação ainda.</li>'}</ul></details>`:''; }
@@ -96,7 +103,7 @@
     } catch(error) { actionNotice(error.message || 'Não foi possível salvar o conteúdo.',true); }
     finally { buttons.forEach((button)=>button.disabled=false); }
   }
-  $('module-form').onsubmit=async(e)=>{ e.preventDefault(); try { await request('/api/knowledge?action=modules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:$('module-name').value,description:$('module-description').value})}); $('module-form').reset(); notice('Módulo criado.'); await loadModules(); } catch(error) { notice(error.message,true); } };
+  $('module-form').onsubmit=async(e)=>{ e.preventDefault(); try { await request('/api/knowledge?action=modules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:$('module-name').value,description:$('module-description').value,icon:$('module-icon').value})}); $('module-form').reset(); notice('Módulo criado.'); await loadModules(); } catch(error) { notice(error.message,true); } };
   $('video-file').onchange=()=>{ if($('video-file').files.length) $('video-url').value=''; };
   $('video-url').oninput=()=>{ if($('video-url').value.trim()) { $('video-file').value=''; $('video-url').dataset.path=''; } };
   $('new-content').onclick=()=>{ $('content-form').reset(); $('document-id').value=''; history.replaceState(null,'',location.pathname); mediaRows(); $('save-draft').textContent='Salvar rascunho'; $('action-notice').hidden=true; $('media-notice').textContent=''; };

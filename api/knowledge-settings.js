@@ -11,6 +11,8 @@ const POP_BUCKET = "portal-knowledge-pops";
 const POP_TYPES = { "application/pdf": "pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx" };
 const MAX_POP_BYTES = 25 * 1024 * 1024;
 const MAX_POP_WORD_BYTES = 3 * 1024 * 1024;
+const MODULE_ICONS = new Set(["🏨", "🛎️", "📅", "🛏️", "🍽️", "🎉", "🔧", "📈", "💳", "👥", "🚌", "✈️"]);
+const moduleIcon = (value) => MODULE_ICONS.has(clean(value, 10)) ? clean(value, 10) : "🏨";
 const videoPathFor = (org, activityId, path) => new RegExp(`^${org}/kpi/${activityId}/[0-9a-f-]{36}\\.(mp4|webm|ogg)$`, "i").test(path);
 async function ensureVideoBucket(db) {
   const existing = await db.storage.getBucket(VIDEO_BUCKET);
@@ -61,7 +63,7 @@ async function audit(db, org, profile, action, before, after) {
 }
 async function modules(req, res, db, org, profile, level) {
   const state = await settings(db, org);
-  if (req.method === "GET") return json(res, 200, { ok: true, modules: [...state.modules].filter((item) => editable(level) || item.active).sort((a,b) => a.sort_order-b.sort_order || a.name.localeCompare(b.name)).map(({ pop, ...item }) => ({ ...item, pop: pop ? { name: pop.name, type: pop.type, version: pop.version, publishedAt: pop.publishedAt } : null })) });
+  if (req.method === "GET") return json(res, 200, { ok: true, modules: [...state.modules].filter((item) => editable(level) || item.active).sort((a,b) => a.sort_order-b.sort_order || a.name.localeCompare(b.name)).map(({ pop, ...item }) => ({ ...item, icon: moduleIcon(item.icon), pop: pop ? { name: pop.name, type: pop.type, version: pop.version, publishedAt: pop.publishedAt } : null })) });
   if (!editable(level)) return json(res, 403, { error: "editor_access_required" });
   const data = await body(req);
   if (req.method === "POST") {
@@ -69,7 +71,7 @@ async function modules(req, res, db, org, profile, level) {
     const slug = clean(data.slug || name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), 80);
     if (!name || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return json(res, 400, { error: "invalid_module", message: "Informe um nome e identificador válidos." });
     if (state.modules.some((item) => item.slug === slug)) return json(res, 409, { error: "duplicate_module", message: "Já existe um módulo com esse nome." });
-    state.modules.push({ id: slug, slug, name, description: clean(data.description, 500), sort_order: Number.isInteger(data.sortOrder) ? data.sortOrder : state.modules.length + 1, active: true });
+    state.modules.push({ id: slug, slug, name, description: clean(data.description, 500), icon: moduleIcon(data.icon), sort_order: Number.isInteger(data.sortOrder) ? data.sortOrder : state.modules.length + 1, active: true });
     await save(db, org, { ...state.metadata, knowledgeModules: state.modules });
     await audit(db, org, profile, "module_create", null, { slug, name });
     return json(res, 201, { ok: true, id: slug });
@@ -86,7 +88,7 @@ async function modules(req, res, db, org, profile, level) {
       if (used.count) return json(res, 409, { error: "module_in_use", message: "Mova ou arquive os conteúdos deste módulo antes de desativá-lo." });
     }
     const before = { ...item };
-    Object.assign(item, { name, description: clean(data.description, 500), sort_order: Number.isInteger(data.sortOrder) ? data.sortOrder : 0, active: data.active !== false });
+    Object.assign(item, { name, description: clean(data.description, 500), icon: moduleIcon(data.icon || item.icon), sort_order: Number.isInteger(data.sortOrder) ? data.sortOrder : 0, active: data.active !== false });
     await save(db, org, { ...state.metadata, knowledgeModules: state.modules });
     await audit(db, org, profile, "module_update", before, item);
     return json(res, 200, { ok: true });
