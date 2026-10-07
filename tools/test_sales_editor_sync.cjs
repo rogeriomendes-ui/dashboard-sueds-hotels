@@ -59,4 +59,5 @@ assert.equal(mirrorInsert.updateCells.fields,'userEnteredValue,userEnteredFormat
 for(const columnIndex of [0,6,7]) {
   assert.deepEqual(mirrorInsert.updateCells.rows[0].values[columnIndex].userEnteredFormat.numberFormat,{type:'DATE',pattern:'dd/mm/yyyy'});
 }
+assert.ok(copiedToMirror.mirrorRequests.some(request=>request.copyPaste?.pasteType==='PASTE_DATA_VALIDATION'));
 console.log('sales editor sync planner: ok');
