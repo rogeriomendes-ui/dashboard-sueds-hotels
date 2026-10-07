@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#172d3d">
     <title>Mapa de ocupação | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20261007-mapa-ocupacao"></script>
-    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261007-disponibilidade">
+    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261007-baixa-disponibilidade">
   </head>
   <body>
     <main class="occupancy-page">
@@ -19,6 +19,7 @@
         <label><span>Data inicial</span><input id="startDate" name="start" type="date"></label>
         <label><span>Data final</span><input id="endDate" name="end" type="date"></label>
         <label><span>Hotel</span><select id="hotelFilter" name="hotel"><option value="">Todos os hotéis</option></select></label>
+        <label class="availability-filter"><input id="lowAvailabilityOnly" type="checkbox"><span>Baixa disponibilidade ou em over</span></label>
         <div class="filter-actions"><button class="button primary" type="submit">Aplicar</button><button id="clearFilters" class="button quiet" type="button">Limpar</button></div>
       </form>
 
@@ -28,6 +29,6 @@
         <div id="occupancyMap"></div>
       </section>
     </main>
-    <script src="/mapa-ocupacao.js?v=20261007-disponibilidade"></script>
+    <script src="/mapa-ocupacao.js?v=20261007-baixa-disponibilidade"></script>
   </body>
 </html>
