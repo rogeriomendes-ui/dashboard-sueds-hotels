@@ -30,7 +30,8 @@
       hotel.value = payload.selected?.hotel || "";
       if (!start.value) start.value = payload.period?.start || "";
       if (!end.value) end.value = payload.period?.end || "";
-      byId("dataStamp").textContent = `Atualizado ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.generatedAt))}`;
+      const updatedAt = payload.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.updatedAt)) : "não informada";
+      byId("dataStamp").textContent = `Última atualização do KPI: ${updatedAt}`;
       render(payload.occupancy || []); content.hidden = false;
     } catch (caught) { error.textContent = caught.message || "Não foi possível carregar o mapa."; error.hidden = false; }
     finally { loading.hidden = true; }

@@ -170,7 +170,8 @@
     const label = count ? `${count} alerta${count === 1 ? "" : "s"} de disponibilidade. Abrir resumo.` : "Sem alertas de disponibilidade. Abrir resumo.";
     availabilityButton.setAttribute("aria-label", label);
     availabilityButton.title = label;
-    availabilityPeriod.textContent = `De ${day.format(new Date(`${payload.period.start}T12:00:00Z`))} até ${day.format(new Date(`${payload.period.end}T12:00:00Z`))}. Dias com até 3 apartamentos disponíveis.`;
+    const updatedAt = payload.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.updatedAt)) : "não informada";
+    availabilityPeriod.textContent = `Última atualização do KPI: ${updatedAt}. De ${day.format(new Date(`${payload.period.start}T12:00:00Z`))} até ${day.format(new Date(`${payload.period.end}T12:00:00Z`))}. Dias com até 3 apartamentos disponíveis.`;
     availabilityList.replaceChildren();
     if (!alerts.length) {
       const empty = document.createElement("p");
