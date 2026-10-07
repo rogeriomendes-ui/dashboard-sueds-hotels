@@ -157,7 +157,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .occupancy-table td { color: #294858; background: #f5f8f9; font-weight: 700; }
 .occupancy-table .occupancy-over { color: #fff; background: #d8232a; font-weight: 900; }
 .occupancy-table .occupancy-rate { color: #fff; background: #187f77; }
-.comparison-tables { margin-top: 34px; }
+.comparison-tables, .advance-purchase-section { margin-top: 34px; }
 .comparison-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 #channelShareSummary { min-width: 0; }
 #channelHotelComparisonSummary, #monthlyGoalTables { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
@@ -199,7 +199,8 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
 .rate-summary-card.rate-2025 { border-top: 4px solid var(--gold); }
 .rate-summary-card.rate-2026 { border-top: 4px solid var(--navy-soft); }
 .mobile-panel { min-width: 0; }
-.mobile-panel.pickup-section, .mobile-panel.rate-section, .mobile-panel.occupancy-section, .mobile-panel.comparison-tables { margin: 0 0 14px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: 0 5px 18px rgba(23,45,61,.05); }
+.mobile-panel.pickup-section, .mobile-panel.rate-section, .mobile-panel.occupancy-section, .mobile-panel.comparison-tables, .mobile-panel.advance-purchase-section { margin: 0 0 14px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: 0 5px 18px rgba(23,45,61,.05); }
+.advance-purchase-card td:first-child small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 600; }
 .mobile-panel > .mobile-panel-body { display: none; }
 .mobile-panel.is-expanded > .mobile-panel-body { display: block; }
 .mobile-panel > .card-heading, .mobile-panel > .future-rooming-title, .mobile-panel > .section-heading { position: relative; min-width: 0; padding-right: 42px; }
@@ -258,7 +259,7 @@ h2 { margin-bottom: 0; color: var(--navy-deep); font-size: clamp(17px, 1.6vw, 22
   .share-table { font-size: 11px; }
   .share-table th, .share-table td { min-width: 62px; padding: 6px 7px; }
   .share-table th:first-child, .share-table td:first-child { width: auto; min-width: 120px; }
-  .pickup-section, .rate-section, .occupancy-section, .comparison-tables { min-width: 0; }
+  .pickup-section, .rate-section, .occupancy-section, .comparison-tables, .advance-purchase-section { min-width: 0; }
   .future-rooming-card { margin: 0 0 14px; }
 }
 @media (max-width: 480px) {

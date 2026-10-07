@@ -4430,6 +4430,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     channelShare: { groups: shareGroups, byHotel: channelShareByHotel, totals: channelShareTotals },
     channelHotelComparison,
     monthlyGoalTables,
+    advancePurchase: buildAdvancePurchase(rows),
     byCheckinMonth: checkinMonths,
     futureCheckinMonths,
     daily,

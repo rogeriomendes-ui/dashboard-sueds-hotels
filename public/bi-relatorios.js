@@ -38,7 +38,8 @@
     topOccupancy: document.getElementById("topOccupancy"), topOccupancyPrevious: document.getElementById("topOccupancyPrevious"), topOccupancyGrowth: document.getElementById("topOccupancyGrowth"),
     topRevpar: document.getElementById("topRevpar"), topRevparPrevious: document.getElementById("topRevparPrevious"), topRevparGrowth: document.getElementById("topRevparGrowth"),
     hotelSalesSummary: document.getElementById("hotelSalesSummary"), channelShareSummary: document.getElementById("channelShareSummary"),
-    channelHotelComparisonSummary: document.getElementById("channelHotelComparisonSummary"), monthlyGoalTables: document.getElementById("monthlyGoalTables")
+    channelHotelComparisonSummary: document.getElementById("channelHotelComparisonSummary"), monthlyGoalTables: document.getElementById("monthlyGoalTables"),
+    advancePurchase: document.getElementById("advancePurchaseTable")
   };
   let currentPayload = null;
   let appliedFilterQuery = "";
@@ -55,7 +56,7 @@
 
   function setupCollapsiblePanels() {
     if (!isKpiReport) return;
-    const selector = ".chart-card, .future-rooming-card, .pickup-section, .rate-section, .occupancy-section, .comparison-tables";
+    const selector = ".chart-card, .future-rooming-card, .pickup-section, .rate-section, .occupancy-section, .comparison-tables, .advance-purchase-section";
     els.content.querySelectorAll(selector).forEach((panel, index) => {
       const heading = Array.from(panel.children).find((child) => child.matches(".card-heading, .future-rooming-title, .section-heading"));
       if (!heading) return;
@@ -422,6 +423,15 @@
     }).join("");
   }
 
+  function renderAdvancePurchase(payload) {
+    if (!els.advancePurchase) return;
+    const advancePurchase = payload.advancePurchase || { bands: [], totalReservations: 0, totalRevenue: 0 };
+    const rows = (advancePurchase.bands || []).map((band) => `
+      <tr><td><strong>${safe(band.label)}</strong><small>${safe(band.range)}</small></td><td>${safe(percent.format(band.sharePct || 0))}%</td><td>${safe(integer.format(band.reservations || 0))}</td><td>${safe(money.format(band.revenue || 0))}</td></tr>
+    `).join("");
+    els.advancePurchase.innerHTML = `<article class="comparison-table-card advance-purchase-card"><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Antecipação</th><th>Participação</th><th>Reservas</th><th>Venda</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td>${advancePurchase.totalRevenue ? "100,0%" : "0,0%"}</td><td>${safe(integer.format(advancePurchase.totalReservations || 0))}</td><td>${safe(money.format(advancePurchase.totalRevenue || 0))}</td></tr></tfoot></table></div></article>`;
+  }
+
   function render(payload) {
     currentPayload = payload;
     if (els.coverageNotice) {
@@ -494,6 +504,7 @@
     renderChannelShareSummary(payload);
     renderChannelHotelComparisons(payload);
     renderMonthlyGoalTables(payload);
+    renderAdvancePurchase(payload);
     els.averageRate2025.textContent = money.format(payload.comparison?.summary?.averageDailyRate || 0);
     els.averageRate2026.textContent = money.format(payload.summary.averageDailyRate || 0);
     els.roomNights2025.textContent = `${integer.format(payload.comparison?.summary?.roomNights || 0)} UHs-noite`;
