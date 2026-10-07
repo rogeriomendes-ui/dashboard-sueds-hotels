@@ -41,4 +41,15 @@ assert.equal(added.records[0].operation,'mirror-insert');
 assert.equal(added.records[0].rowNumber,3);
 assert.equal(added.sourceRequests.length,1);
 verify(added);
+
+// Empty prepared rows already have sync markers. They are still new sales when
+// they are appended after the last populated source row.
+const markedNew=row('R3');
+for(const col of [13,17,19])markedNew.values[col].note=baseline(markedNew.values[col].userEnteredValue);
+for(const col of [13,17,19])markedNew.values[col].note=baseline(null);
+const laterSource=row('R4');
+const addedWithMarkers=plan([header,sourceRow,{},laterSource],[header,sourceRow,markedNew],[header],20,20);
+assert.equal(addedWithMarkers.conflict.length,0);
+assert.equal(addedWithMarkers.records[0].operation,'mirror-insert');
+verify(addedWithMarkers);
 console.log('sales editor sync planner: ok');
