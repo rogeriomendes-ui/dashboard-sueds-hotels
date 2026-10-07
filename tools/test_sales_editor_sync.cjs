@@ -53,6 +53,15 @@ assert.equal(addedWithMarkers.conflict.length,0);
 assert.equal(addedWithMarkers.records[0].operation,'mirror-insert');
 verify(addedWithMarkers);
 
+const sourceNearOldLimit=Array.from({length:747},()=>({}));
+sourceNearOldLimit[0]=header;sourceNearOldLimit[746]=sourceRow;
+const addedAfterOldLimit=plan(sourceNearOldLimit,[header,sourceRow,newRow],[header],1125,1125);
+assert.equal(addedAfterOldLimit.sourceRequests[0].updateCells.range.startRowIndex,747);
+
+const sourceWithPartialRow=[header,sourceRow,{values:[value('rascunho')]}];
+const addedAfterPartialRow=plan(sourceWithPartialRow,[header,sourceRow,newRow],[header],20,20);
+assert.equal(addedAfterPartialRow.sourceRequests[0].updateCells.range.startRowIndex,3);
+
 const copiedToMirror=plan([header,sourceRow,newRow],[header,mirrorRow],[header],20,20);
 const mirrorInsert=copiedToMirror.mirrorRequests.find(request=>request.updateCells?.range?.startColumnIndex===0&&request.updateCells?.range?.endColumnIndex===25);
 assert.equal(mirrorInsert.updateCells.fields,'userEnteredValue,userEnteredFormat.numberFormat');
