@@ -4476,7 +4476,7 @@ function availabilityAlertsPayload(dataset = {}) {
     .at(-1) || start;
   const payload = buildCachedBiKpiReportsPayload(dataset, { start, end });
   return {
-    generatedAt: payload.generatedAt,
+    updatedAt: dataset.loadedAt || payload.generatedAt,
     period: { start, end },
     alerts: (payload.occupancy || []).map((hotel) => ({
       hotel: hotel.hotel,
@@ -9430,7 +9430,7 @@ async function handleRequest(req, res) {
         hotel: url.searchParams.get("hotel") || ""
       });
       return json(res, 200, {
-        generatedAt: payload.generatedAt,
+        updatedAt: dataset.loadedAt || payload.generatedAt,
         period: payload.period,
         selected: { hotel: payload.selected.hotel },
         filters: { hotels: payload.filters.hotels },
