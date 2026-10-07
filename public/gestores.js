@@ -549,7 +549,7 @@ function render(data) {
   const hasHotelOrDayFilter = hasDayFilter || Boolean(data.filters?.selectedHotel);
   const salesScopeLabel = data.filters?.selectedChannel
     ? displayLabel(data.filters.selectedChannel)
-    : "Equipe + Site";
+    : "Equipe + Site + Robô";
   const salesPeriodLabel = `${hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês"} ( ${salesScopeLabel} ) (Venda Direta)`;
   byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Equipe SUEDS)`;
   byId("salesMonthLabel").textContent = hasGlobalFilter

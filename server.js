@@ -3223,6 +3223,8 @@ function buildMetrics(records, goals, period = {}) {
         : typedDimensionGoal(goals, "hotel", label, month, HOTEL_TOTAL_GOAL_TYPE);
       const value = sum(rows, (record) => record.total);
       const mtdRevenue = sum(rows.filter((record) => isOnOrBeforeDateKey(record, goalDate)), (record) => record.total);
+      const siteRows = rows.filter((record) => comparableKey(channelLabelForRecord(record)) === comparableKey("SITE"));
+      const siteMtdRevenue = sum(siteRows.filter((record) => isOnOrBeforeDateKey(record, goalDate)), (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
       const mtdGoal = monthlyGoal ? monthlyGoal / workdaysInMonth * workdaysElapsed : 0;
       return {
@@ -3232,6 +3234,10 @@ function buildMetrics(records, goals, period = {}) {
         monthlyGoal,
         monthlyGoalPct: pct(value, monthlyGoal),
         projectionPct: pct(mtdRevenue, mtdGoal),
+        mtdValue: mtdRevenue,
+        siteValue: sum(siteRows, (record) => record.total),
+        siteReservations: siteRows.length,
+        siteMtdValue: siteMtdRevenue,
         otherChannelsMonthlyGoal: otherChannelsGoal?.revenueGoal || 0,
         combinedMonthlyGoal: totalGoal?.revenueGoal || 0
       };
@@ -9241,6 +9247,7 @@ async function loadMetrics(period) {
   const directSiteMetrics = metrics.channels.find((channel) => (
     comparableKey(channel.label) === comparableKey("SITE")
   )) || { value: 0, reservations: 0 };
+  const kpiSiteByHotel = groupBy(kpiSiteRows, (record) => normalizeHotelName(record.hotel));
   metrics.channels = metrics.channels.map((channel) => (
     comparableKey(channel.label) === comparableKey("SITE")
       ? {
@@ -9255,6 +9262,28 @@ async function loadMetrics(period) {
       }
       : channel
   ));
+  // The hotel table keeps Team and Robo rows from the operational dataset,
+  // while its Site share uses the same consolidated KPI Full source as the
+  // top direct-sales card and the SITE channel row.
+  metrics.hotels = (metrics.hotels || []).map((hotel) => {
+    const siteRows = kpiSiteByHotel.get(normalizeHotelName(hotel.label)) || [];
+    const kpiSiteValue = siteChannelSelected ? sum(siteRows, (record) => record.total) : 0;
+    const kpiSiteMtdValue = siteChannelSelected
+      ? sum(siteRows.filter((record) => record.dateKey <= (selectedDay || today)), (record) => record.total)
+      : 0;
+    const value = Number(hotel.value || 0) - Number(hotel.siteValue || 0) + kpiSiteValue;
+    const reservations = Math.max(0, Number(hotel.reservations || 0) - Number(hotel.siteReservations || 0) + (siteChannelSelected ? siteRows.length : 0));
+    const mtdValue = Number(hotel.mtdValue || 0) - Number(hotel.siteMtdValue || 0) + kpiSiteMtdValue;
+    const monthlyGoal = Number(hotel.monthlyGoal || 0);
+    return {
+      ...hotel,
+      value,
+      reservations,
+      mtdValue,
+      monthlyGoalPct: pct(value, monthlyGoal),
+      projectionPct: pct(mtdValue, monthlyGoal * Number(metrics.period?.goalProgressPct || 0) / 100)
+    };
+  });
   // Keep the manager total aligned with the Site card: operational Site rows
   // are replaced by the consolidated KPI Full Site revenue for the same scope.
   // Team and Robo sales continue to come from their operational sources.
