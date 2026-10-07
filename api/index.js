@@ -6,6 +6,7 @@ const password = require("./auth/password");
 const firstAccess = require("./auth/first-access");
 const sitePreview = require("./auth/site-preview");
 const users = require("./portal/users");
+const dreFolhaImport = require("./dre-folha-import");
 const announcements = require("./portal/announcements");
 const reveillonVipTables = require("./portal/reveillon-vip-tables");
 const { getPortalProfile, hasEnvironment, withPortalEnvironment, withPortalRoles } = require("../lib/portal-auth");
@@ -13,6 +14,7 @@ const knowledge = require("./knowledge");
 const cronSalesEditorSync = require("./cron-sales-editor-sync");
 
 const adminUsersHandler = withPortalRoles(users, ["admin_geral"]);
+const dreFolhaImportHandler = withPortalRoles(dreFolhaImport, ["admin_geral"]);
 const announcementsHandler = withPortalEnvironment(announcements, "comunicados");
 const reveillonVipTablesHandler = withPortalEnvironment(reveillonVipTables, "mesas_vip_reveillon");
 const gestoresHandler = withPortalEnvironment(handleRequest, "painel_gestores");
@@ -33,6 +35,7 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/first-access") return firstAccess(req, res);
   if (pathname === "/api/auth/site-preview") return sitePreview(req, res);
   if (pathname === "/api/portal/users") return adminUsersHandler(req, res);
+  if (pathname === "/api/dre/folha-import") return dreFolhaImportHandler(req, res);
   if (pathname === "/api/portal/announcements") return announcementsHandler(req, res);
   if (pathname === "/api/portal/overdue-payments") {
     if (req.method !== "GET") { res.statusCode = 405; return res.end(); }
