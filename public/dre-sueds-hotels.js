@@ -181,7 +181,7 @@
       let sheet = sheetCache.get(cacheKey);
       if (!sheet) {
         const response = await fetch(sheetId === 'folha'
-          ? `/api/dre/folha-import?year=${encodeURIComponent(yearSelect.value)}&details=1`
+          ? `/api/dre/folha-import?year=${encodeURIComponent(yearSelect.value)}&company=${encodeURIComponent(hotelSelect.value)}`
           : `/api/dre?hotel=${encodeURIComponent(hotelSelect.value)}&year=${encodeURIComponent(yearSelect.value)}&sheet=${encodeURIComponent(sheetId)}`, { credentials: "same-origin", cache: "no-store" });
         if (!response.ok) throw new Error("Não foi possível abrir esta aba.");
         const payload = await response.json();
@@ -194,7 +194,7 @@
       byId("sourceTitle").textContent = sheet.title;
       byId("sourceDescription").textContent = `${sheet.description} Valores monetários em R$.`;
       byId("sourceEyebrow").textContent = sheetId === 'folha' ? 'KPI Full · Consulta folha' : 'Modelo do DRE';
-      byId("sourceProvenance").textContent = sheetId === 'folha' ? 'Fonte: captura mensal da Folha no KPI Full. Empresas disponíveis no filtro Grupo.' : 'Somente estrutura e nomes de contas. Valores anteriores foram retirados; as outras seções do KPI serão integradas posteriormente.';
+      byId("sourceProvenance").textContent = sheetId === 'folha' ? 'Fonte: captura mensal da Folha no KPI Full para a empresa selecionada.' : 'Somente estrutura e nomes de contas. Valores anteriores foram retirados; as outras seções do KPI serão integradas posteriormente.';
       setSourceOptions(sheet);
       renderSourceTable();
     } catch (error) {
@@ -416,6 +416,7 @@
 
   async function loadReport() {
     const request = ++currentRequest;
+    const selectedSheet = activeSheet;
     const hotel = hotelSelect.value;
     const year = yearSelect.value;
     const hotelName = hotelSelect.selectedOptions[0]?.textContent || "Hotel";
@@ -442,6 +443,7 @@
       if (data.completeness === 'template') renderBlankReport(data);
       else if (data.completeness === "partial") renderPartialReport(data);
       else renderReport(data);
+      if (selectedSheet !== 'dre') await showSheet(selectedSheet);
     } catch (error) {
       if (request !== currentRequest) return;
       showEmpty("Não foi possível carregar o DRE", error.message || "Tente novamente mais tarde.");

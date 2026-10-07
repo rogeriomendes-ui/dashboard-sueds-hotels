@@ -3,13 +3,21 @@ const template = require('../data/dre/template.json');
 const sheets = require('../data/dre/template-sheets.json').sheets;
 
 const hotels = {
-  plaza: 'Sueds Plaza',
-  cabralia: 'Sueds Cabrália',
-  premium: 'Sueds Premium',
-  'segundo-sol': 'Sueds Segundo Sol',
-  trancoso: 'Sueds Trancoso',
-  'casas-arraial': 'Casas Sueds Arraial',
-  grupo: 'Consolidado do grupo'
+  BTF: 'SUEDS TRANCOSO 2 - BTF',
+  CSC: 'BEACH CLUB SEGUNDO S - CSC',
+  FHF: 'SUEDS PLAZA - FHF',
+  FHM: 'SUEDS PREMIUM - FHM',
+  HKF: 'CABANA SUEDS - HKF',
+  HKM: 'AEB PLAZA - HKM',
+  HSS: 'SUEDS SEGUNDO SOL - HSS',
+  PCF: 'SUEDS TRANCOSO - PCF',
+  PCL: 'SUEDS CABRALIA - PCL',
+  SCS: 'SUEDS MATRIZ - SCS',
+  SSF: 'SUEDS FILIAL - SSF',
+  SVR: 'SUEDS VILLA ROMANA - SVR',
+  TMK: 'TMK SERVICO DE APOIO - TMK',
+  WAF: 'WAT FILIAL - WAF',
+  WAT: 'WAT MATRIZ - WAT'
 };
 
 module.exports = function dreHandler(req, res) {
