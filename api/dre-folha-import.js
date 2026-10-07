@@ -28,7 +28,7 @@ function validCapture(payload) {
 function adminClient() {
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) return null;
-  return createClient(process.env.PORTAL_SUPABASE_URL || DEFAULT_URL, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  return createClient(process.env.PORTAL_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_URL, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 module.exports = async function importFolha(req, res) {
