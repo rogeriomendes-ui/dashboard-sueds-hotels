@@ -311,7 +311,7 @@ function performanceTable(items, firstColumn, options = {}) {
       <span>Venda</span>
       <span>Meta</span>
       <span>ICM %</span>
-      <span>Projeção %</span>
+      <span>Prev. %</span>
     </div>
     ${bars(items, options)}
     ${totalRow}
@@ -603,7 +603,7 @@ function render(data) {
       <span>Venda</span>
       <span>Meta</span>
       <span>ICM %</span>
-      <span>Projeção %</span>
+      <span>Prev. %</span>
       <span>Ingressos</span>
     </div>
     ${rankingSellers
