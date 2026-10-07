@@ -18,11 +18,13 @@
       const kpi = module.slug === 'kpi';
       const count = published.filter((doc) => doc.module === module.slug).length;
       const href = kpi ? '/Treinamentos/KPIFull' : `/Treinamentos?module=${encodeURIComponent(module.slug)}#module-content`;
-      const status = kpi || count ? 'DISPONÍVEL' : 'EM PREPARAÇÃO';
-      const action = kpi ? 'Abrir manual' : count ? 'Ver treinamentos' : 'Abrir módulo';
-      const edit = canEdit ? `<a class="catalog-edit" href="${kpi ? '/Treinamentos/KPIFull' : `/Treinamentos/Publicar?module=${encodeURIComponent(module.slug)}`}">${kpi ? 'Editar treinamento' : 'Adicionar treinamento'}</a>` : '';
-      const popLink = module.pop ? `<a class="pop-link" href="/treinamentos-pop.html?module=${encodeURIComponent(module.slug)}">Visualizar POP e confirmar leitura →</a>` : '';
-      return `<article class="knowledge-card available"><span class="card-number">${String(index + 1).padStart(2,'0')}</span><div class="card-icon" aria-hidden="true">${escapeHtml(module.icon || module.name?.[0] || 'M')}</div><div class="card-copy"><span class="card-status">${status}</span><h3>${escapeHtml(module.name)}</h3><p>${escapeHtml(module.description || (count ? `${count} treinamento${count === 1 ? '' : 's'} publicado${count === 1 ? '' : 's'}` : 'Os treinamentos serão publicados em breve.'))}</p></div><a class="card-action" href="${href}">${action} <b aria-hidden="true">→</b></a>${popLink}${edit}</article>`;
+      const available = kpi || count;
+      const status = available ? 'DISPONÍVEL' : 'EM PREPARAÇÃO';
+      const description = module.description || (count ? `${count} treinamento${count === 1 ? '' : 's'} publicado${count === 1 ? '' : 's'}` : 'Os treinamentos serão publicados em breve.');
+      const popAction = module.pop
+        ? `<div class="module-pop"><a href="/treinamentos-pop.html?module=${encodeURIComponent(module.slug)}"><span aria-hidden="true">▤</span>POP</a><small>Procedimento Operacional Padrão</small></div>`
+        : `<div class="module-pop unavailable"><span><span aria-hidden="true">▤</span>POP</span><small>Procedimento em preparação</small></div>`;
+      return `<article class="knowledge-card ${available ? 'available' : 'coming-soon'}"><span class="card-number">${String(index + 1).padStart(2,'0')}</span><div class="card-module-heading"><div class="card-icon" aria-hidden="true">${escapeHtml(module.icon || '🏨')}</div><div><span class="card-status">${status}</span><h3>${escapeHtml(module.name)}</h3></div></div><p class="card-description">${escapeHtml(description)}</p><div class="card-actions">${popAction}<a class="card-action" href="${href}">${available ? 'Acessar treinamento' : 'Abrir módulo'} <b aria-hidden="true">→</b></a></div></article>`;
     }).join('');
     const selected = activeModules.find((module) => module.slug === initialModule);
     if (!selected) return;
