@@ -6,6 +6,7 @@
     ranking_vendedores: { url: "/dashboard-vendedores.html", permission: "ranking_vendedores", title: "Ranking de Vendedores" },
     bi_relatorios: { url: "/bi-relatorios.html?v=20260928-full-channel-hotel-values", permission: "bi_relatorios", title: "BI - Relatórios" },
     bi_relatorios_kpi: { url: "/bi-relatorios-kpi.html?v=20261006-kpi-desktop-panels", permission: "bi_relatorios_kpi", title: "BI - Relatórios by KPI" },
+    mapa_ocupacao: { url: "/mapa-ocupacao.html?v=20261007", permission: "mapa_ocupacao", title: "Mapa de ocupação" },
     mesas_vip_reveillon: { url: "/mesas-vip-reveillon", permission: "mesas_vip_reveillon", title: "Mesas VIP Réveillon" },
     opinarios_rede: { url: "/dashboard-operacional-tv.html", permission: "opinarios_rede", title: "Opinários de todos os hotéis" },
     opinarios_plaza: { url: "/operacional/plaza", permission: "opinarios_hotel", title: "Opinários — SUEDS Plaza" },
