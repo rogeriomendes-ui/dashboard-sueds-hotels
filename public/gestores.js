@@ -689,7 +689,10 @@ function render(data) {
       .join("")}
   `;
 
-  byId("channelBars").innerHTML = performanceTable(data.channels, "Canal", { formatLabel: displayLabel });
+  const visibleDirectChannels = (data.channels || []).filter((channel) => (
+    comparableLabel(channel.label) !== comparableLabel("RECEPÇÃO")
+  ));
+  byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", { formatLabel: displayLabel });
   byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel, showTotal: true });
   const hotelBreakdowns = hotelSalesBreakdowns(data);
   byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel, showTotal: true });
