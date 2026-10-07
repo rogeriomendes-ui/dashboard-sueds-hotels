@@ -3785,8 +3785,8 @@ function biReportsDefaultKpiPeriod(now = new Date()) {
 
 function biReportsDateRange(query = {}, defaultPeriod = null) {
   const fallback = defaultPeriod || { start: "2026-09-01", end: "2026-09-18" };
-  const start = /^2026-\d{2}-\d{2}$/.test(query.start || "") ? query.start : fallback.start;
-  const end = /^2026-\d{2}-\d{2}$/.test(query.end || "") ? query.end : fallback.end;
+  const start = /^202[67]-\d{2}-\d{2}$/.test(query.start || "") ? query.start : fallback.start;
+  const end = /^202[67]-\d{2}-\d{2}$/.test(query.end || "") ? query.end : fallback.end;
   return start <= end ? { start, end } : fallback;
 }
 
@@ -3794,7 +3794,7 @@ function biReportsDateKeys(start, end) {
   const keys = [];
   const current = new Date(`${start}T12:00:00Z`);
   const finish = new Date(`${end}T12:00:00Z`);
-  while (current <= finish && keys.length < 366) {
+  while (current <= finish && keys.length < 731) {
     keys.push(current.toISOString().slice(0, 10));
     current.setUTCDate(current.getUTCDate() + 1);
   }

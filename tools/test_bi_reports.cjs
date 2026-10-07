@@ -9,6 +9,14 @@ assert.deepEqual(__test.biReportsDefaultKpiPeriod(new Date("2026-11-01T12:00:00Z
   { start: "2026-10-01", end: "2026-10-31" });
 assert.deepEqual(__test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [] }).period,
   __test.biReportsDefaultKpiPeriod());
+const futureOccupancy = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [] },
+  { start: "2026-10-01", end: "2027-02-06", hotel: "SUEDS PLAZA" });
+assert.deepEqual(futureOccupancy.period, { start: "2026-10-01", end: "2027-02-06" });
+assert.equal(futureOccupancy.occupancy[0].days.at(-1).date, "2027-02-06");
+const fullTwoYearOccupancy = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [] },
+  { start: "2026-01-01", end: "2027-12-31", hotel: "SUEDS PLAZA" });
+assert.equal(fullTwoYearOccupancy.occupancy[0].days.length, 730);
+assert.equal(fullTwoYearOccupancy.occupancy[0].days.at(-1).date, "2027-12-31");
 
 const record = (overrides = {}) => ({
   dateKey: "2026-09-01",
@@ -364,6 +372,8 @@ assert.ok(Math.abs(occupancyPayload.revpar.summary.revpar - (occupancyPayload.re
 assert.ok(Math.abs(occupancyPayload.revpar.byHotel[0].revpar - (occupancyPayload.revpar.byHotel[0].averageDailyRate * occupancyPayload.revpar.byHotel[0].occupancyRate / 100)) < 0.000001);
 const overbookingPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ reservationCode: "OVER-1", checkin: "02/09/2026", checkout: "03/09/2026", reservationCount: 119 })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS PLAZA" });
 assert.equal(overbookingPayload.occupancy[0].days[0].available, -2);
+const newYearOccupancy = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ reservationCode: "NEW-YEAR", checkin: "31/12/2026", checkout: "03/01/2027" })] }, { start: "2026-12-31", end: "2027-01-03", hotel: "SUEDS PLAZA" });
+assert.deepEqual(newYearOccupancy.occupancy[0].days.map((day) => day.occupied), [1, 1, 1, 0]);
 const vilaRomanaPayload = __test.buildBiReportsPayload({ audience: "bi-relatorios-kpi", records: [record({ hotel: "CASAS SUEDS ARRAIAL", reservationCode: "VILA-1", checkin: "02/09/2026", checkout: "03/09/2026" })] }, { start: "2026-09-02", end: "2026-09-02", hotel: "SUEDS VILA ROMANA" });
 assert.equal(vilaRomanaPayload.occupancy[0].hotel, "CASAS SUEDS ARRAIAL");
 assert.equal(vilaRomanaPayload.occupancy[0].days[0].occupied, 1);
