@@ -3174,13 +3174,16 @@ function buildMetrics(records, goals, period = {}) {
         ? ytdGoal(goals, (item) => comparableKey(normalizeOfficialSalesChannel(item.channel, {}, item.month || activeMonth)) === comparableKey(label), ytdMonths)
         : goals.find((item) => item.month === month && comparableKey(normalizeOfficialSalesChannel(item.channel, {}, month)) === comparableKey(label));
       const value = sum(rows, (record) => record.total);
+      const mtdRevenue = sum(rows.filter((record) => isOnOrBeforeDateKey(record, goalDate)), (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
+      const mtdGoal = monthlyGoal ? monthlyGoal / workdaysInMonth * workdaysElapsed : 0;
       return {
         label,
         value,
         reservations: rows.length,
         monthlyGoal,
-        monthlyGoalPct: pct(value, monthlyGoal)
+        monthlyGoalPct: pct(value, monthlyGoal),
+        projectionPct: pct(mtdRevenue, mtdGoal)
       };
     })
     .sort((a, b) => OFFICIAL_SALES_CHANNELS.indexOf(a.label) - OFFICIAL_SALES_CHANNELS.indexOf(b.label));
@@ -3219,13 +3222,16 @@ function buildMetrics(records, goals, period = {}) {
         ), ytdMonths)
         : typedDimensionGoal(goals, "hotel", label, month, HOTEL_TOTAL_GOAL_TYPE);
       const value = sum(rows, (record) => record.total);
+      const mtdRevenue = sum(rows.filter((record) => isOnOrBeforeDateKey(record, goalDate)), (record) => record.total);
       const monthlyGoal = goal?.revenueGoal || 0;
+      const mtdGoal = monthlyGoal ? monthlyGoal / workdaysInMonth * workdaysElapsed : 0;
       return {
         label,
         value,
         reservations: rows.length,
         monthlyGoal,
         monthlyGoalPct: pct(value, monthlyGoal),
+        projectionPct: pct(mtdRevenue, mtdGoal),
         otherChannelsMonthlyGoal: otherChannelsGoal?.revenueGoal || 0,
         combinedMonthlyGoal: totalGoal?.revenueGoal || 0
       };
@@ -3256,7 +3262,14 @@ function buildMetrics(records, goals, period = {}) {
 
   return {
     generatedAt: new Date().toISOString(),
-    period: { today, month, day: selectedDay, hotel: selectedHotel, channel: selectedChannel },
+    period: {
+      today,
+      month,
+      day: selectedDay,
+      hotel: selectedHotel,
+      channel: selectedChannel,
+      goalProgressPct: workdaysInMonth ? workdaysElapsed / workdaysInMonth * 100 : null
+    },
     filters: {
       selectedDay,
       selectedHotel,
@@ -9222,6 +9235,9 @@ async function loadMetrics(period) {
   const siteValue = siteChannelSelected
     ? sum(kpiSiteRows, (record) => record.total)
     : 0;
+  const siteMtdRevenue = siteChannelSelected
+    ? sum(kpiSiteRows.filter((record) => record.dateKey <= (selectedDay || today)), (record) => record.total)
+    : 0;
   const directSiteMetrics = metrics.channels.find((channel) => (
     comparableKey(channel.label) === comparableKey("SITE")
   )) || { value: 0, reservations: 0 };
@@ -9231,7 +9247,11 @@ async function loadMetrics(period) {
         ...channel,
         value: siteValue,
         reservations: siteChannelSelected ? kpiSiteRows.length : 0,
-        monthlyGoalPct: pct(siteValue, channel.monthlyGoal)
+        monthlyGoalPct: pct(siteValue, channel.monthlyGoal),
+        projectionPct: pct(
+          siteMtdRevenue,
+          Number(channel.monthlyGoal || 0) * Number(metrics.period?.goalProgressPct || 0) / 100
+        )
       }
       : channel
   ));

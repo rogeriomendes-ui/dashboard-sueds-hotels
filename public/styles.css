@@ -1461,7 +1461,7 @@ h2 {
 
 .performance-row {
   display: grid;
-  grid-template-columns: minmax(112px, 1fr) minmax(64px, 0.55fr) minmax(86px, 0.8fr) minmax(86px, 0.8fr) minmax(64px, 0.55fr);
+  grid-template-columns: minmax(112px, 1fr) minmax(64px, 0.55fr) minmax(86px, 0.8fr) minmax(86px, 0.8fr) minmax(64px, 0.55fr) minmax(76px, 0.65fr);
   gap: 10px;
   align-items: center;
   min-height: 44px;
@@ -1498,7 +1498,7 @@ h2 {
 /* Share intrinsic numeric widths across hotel rows, including bold totals. */
 @media (min-width: 721px) {
   .manager-hotel-grid .hotel-table {
-    grid-template-columns: minmax(0, 1fr) repeat(4, max-content);
+    grid-template-columns: minmax(0, 1fr) repeat(5, max-content);
     column-gap: 12px;
   }
   .manager-hotel-grid .performance-row {
@@ -1543,7 +1543,7 @@ h2 {
 
 .seller-table-row {
   display: grid;
-  grid-template-columns: 28px minmax(120px, 1fr) 58px minmax(80px, .7fr) minmax(80px, .7fr) 56px minmax(100px, .8fr);
+  grid-template-columns: 28px minmax(120px, 1fr) 58px minmax(80px, .7fr) minmax(80px, .7fr) 56px 76px minmax(100px, .8fr);
   gap: 6px;
   align-items: center;
   min-height: 42px;
@@ -1617,7 +1617,7 @@ h2 {
 #sellerRanking { container-type: inline-size; }
 @container (max-width: 680px) {
   .seller-table-row {
-    grid-template-columns: 26px minmax(80px, 1.3fr) 48px repeat(2, minmax(67px, .9fr)) 40px minmax(84px, 1fr);
+    grid-template-columns: 26px minmax(80px, 1.3fr) 48px repeat(2, minmax(67px, .9fr)) 40px 58px minmax(84px, 1fr);
     gap: 4px;
     font-size: 12px;
   }

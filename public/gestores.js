@@ -273,12 +273,18 @@ function bars(items, options = {}) {
         <strong data-label="Venda">${money.format(item.value)}</strong>
         <strong data-label="Meta">${money.format(item.monthlyGoal || 0)}</strong>
         <strong data-label="ICM" class="icm-value ${icmClass(item.monthlyGoalPct)}">${pct(item.monthlyGoalPct)}</strong>
+        <strong data-label="Projeção" class="icm-value ${icmClass(item.projectionPct)}">${pct(item.projectionPct)}</strong>
       </div>
     `)
     .join("");
 }
 
-function performanceTotal(items) {
+function projectionPct(value, monthlyGoal, goalProgressPct) {
+  if (!monthlyGoal || !goalProgressPct) return null;
+  return (value / (monthlyGoal * goalProgressPct / 100)) * 100;
+}
+
+function performanceTotal(items, goalProgressPct) {
   const totals = (items || []).reduce((result, item) => {
     result.reservations += Number(item.reservations || 0);
     result.value += Number(item.value || 0);
@@ -289,13 +295,14 @@ function performanceTotal(items) {
   return {
     ...totals,
     label: "TOTAL",
-    monthlyGoalPct: totals.monthlyGoal ? (totals.value / totals.monthlyGoal) * 100 : null
+    monthlyGoalPct: totals.monthlyGoal ? (totals.value / totals.monthlyGoal) * 100 : null,
+    projectionPct: projectionPct(totals.value, totals.monthlyGoal, goalProgressPct)
   };
 }
 
 function performanceTable(items, firstColumn, options = {}) {
   const totalRow = options.showTotal
-    ? bars([performanceTotal(items)], { ...options, rowClass: "performance-total" })
+    ? bars([performanceTotal(items, options.goalProgressPct)], { ...options, rowClass: "performance-total" })
     : "";
   return `
     <div class="performance-row performance-head">
@@ -304,6 +311,7 @@ function performanceTable(items, firstColumn, options = {}) {
       <span>Venda</span>
       <span>Meta</span>
       <span>ICM %</span>
+      <span>Projeção %</span>
     </div>
     ${bars(items, options)}
     ${totalRow}
@@ -487,6 +495,7 @@ function hotelSalesBreakdowns(data) {
     hotelLabels.push(label);
   });
   const directByHotel = new Map(directHotels.map((hotel) => [comparableLabel(hotel.label), hotel]));
+  const goalProgressPct = data.period?.goalProgressPct;
 
   const rows = hotelLabels.map((label) => {
     const key = comparableLabel(label);
@@ -509,14 +518,16 @@ function hotelSalesBreakdowns(data) {
         reservations: other.reservations,
         value: other.value,
         monthlyGoal: otherMonthlyGoal,
-        monthlyGoalPct: goalPct(other.value, otherMonthlyGoal)
+        monthlyGoalPct: goalPct(other.value, otherMonthlyGoal),
+        projectionPct: projectionPct(other.value, otherMonthlyGoal, goalProgressPct)
       },
       combined: {
         label,
         reservations: directReservations + other.reservations,
         value: directValue + other.value,
         monthlyGoal: combinedMonthlyGoal,
-        monthlyGoalPct: goalPct(directValue + other.value, combinedMonthlyGoal)
+        monthlyGoalPct: goalPct(directValue + other.value, combinedMonthlyGoal),
+        projectionPct: projectionPct(directValue + other.value, combinedMonthlyGoal, goalProgressPct)
       }
     };
   });
@@ -592,6 +603,7 @@ function render(data) {
       <span>Venda</span>
       <span>Meta</span>
       <span>ICM %</span>
+      <span>Projeção %</span>
       <span>Ingressos</span>
     </div>
     ${rankingSellers
@@ -605,6 +617,7 @@ function render(data) {
           <strong data-label="Venda">${money.format(seller.salesMonth)}</strong>
           <strong data-label="Meta">${money.format(seller.monthlyGoal || 0)}</strong>
           <strong data-label="ICM" class="icm-value ${icmClass(seller.monthlyGoalPct)}">${pct(seller.monthlyGoalPct)}</strong>
+          <strong data-label="Projeção" class="icm-value ${icmClass(seller.mtdGoalPct)}">${pct(seller.mtdGoalPct)}</strong>
           <strong data-label="Ingressos" class="ticket-cell">${number.format(seller.ticketQuantity || 0)} ingressos<br>${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(seller.ticketSales || 0)}</strong>
         </div>
       `)
@@ -614,11 +627,12 @@ function render(data) {
   const visibleDirectChannels = (data.channels || []).filter((channel) => (
     comparableLabel(channel.label) !== comparableLabel("RECEPÇÃO")
   ));
-  byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", { formatLabel: displayLabel });
-  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel, showTotal: true });
+  const goalProgressPct = data.period?.goalProgressPct;
+  byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", { formatLabel: displayLabel, goalProgressPct });
+  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
   const hotelBreakdowns = hotelSalesBreakdowns(data);
-  byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel, showTotal: true });
-  byId("combinedHotelTable").innerHTML = performanceTable(hotelBreakdowns.combined, "Hotel", { formatLabel: displayLabel, showTotal: true });
+  byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
+  byId("combinedHotelTable").innerHTML = performanceTable(hotelBreakdowns.combined, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
 
   byId("dailySales").innerHTML = data.dailySales
     .map((day) => `
