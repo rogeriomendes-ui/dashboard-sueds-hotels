@@ -627,8 +627,11 @@ function render(data) {
   const visibleDirectChannels = (data.channels || []).filter((channel) => (
     comparableLabel(channel.label) !== comparableLabel("RECEPÇÃO")
   ));
+  const directChannelLabel = (label) => (
+    comparableLabel(label) === "individual" ? "Particular (direto KPI)" : displayLabel(label)
+  );
   const goalProgressPct = data.period?.goalProgressPct;
-  byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", { formatLabel: displayLabel, goalProgressPct });
+  byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", { formatLabel: directChannelLabel, goalProgressPct });
   byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
   const hotelBreakdowns = hotelSalesBreakdowns(data);
   byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
