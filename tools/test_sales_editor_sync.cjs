@@ -52,4 +52,11 @@ const addedWithMarkers=plan([header,sourceRow,{},laterSource],[header,sourceRow,
 assert.equal(addedWithMarkers.conflict.length,0);
 assert.equal(addedWithMarkers.records[0].operation,'mirror-insert');
 verify(addedWithMarkers);
+
+const copiedToMirror=plan([header,sourceRow,newRow],[header,mirrorRow],[header],20,20);
+const mirrorInsert=copiedToMirror.mirrorRequests.find(request=>request.updateCells?.range?.startColumnIndex===0&&request.updateCells?.range?.endColumnIndex===25);
+assert.equal(mirrorInsert.updateCells.fields,'userEnteredValue,userEnteredFormat.numberFormat');
+for(const columnIndex of [0,6,7]) {
+  assert.deepEqual(mirrorInsert.updateCells.rows[0].values[columnIndex].userEnteredFormat.numberFormat,{type:'DATE',pattern:'dd/mm/yyyy'});
+}
 console.log('sales editor sync planner: ok');
