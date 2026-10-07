@@ -18,6 +18,18 @@ const fullTwoYearOccupancy = __test.buildBiReportsPayload({ audience: "bi-relato
 assert.equal(fullTwoYearOccupancy.occupancy[0].days.length, 730);
 assert.equal(fullTwoYearOccupancy.occupancy[0].days.at(-1).date, "2027-12-31");
 
+const availabilityAlerts = __test.availabilityAlertsPayload({
+  audience: "bi-relatorios-kpi",
+  loadedAt: "availability-alert-test",
+  records: [{
+    dateKey: "2026-10-01", monthKey: "2026-10", reservationCode: "ALERT-1", hotel: "SUEDS PLAZA",
+    channel: "CENTRAL DE RESERVAS", rawChannel: "CENTRAL DE RESERVAS", seller: "", checkin: "10/10/2026",
+    checkout: "12/10/2026", status: "Confirmada", reservationCount: 117, total: 1000
+  }], maintenanceBlocks: []
+});
+assert.equal(availabilityAlerts.period.end, "2026-10-12");
+assert.deepEqual(availabilityAlerts.alerts.find((item) => item.hotel === "SUEDS PLAZA")?.days.map((item) => item.date), ["2026-10-10", "2026-10-11"]);
+
 const record = (overrides = {}) => ({
   dateKey: "2026-09-01",
   monthKey: "2026-09",

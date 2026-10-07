@@ -4465,6 +4465,26 @@ function buildCachedBiKpiReportsPayload(dataset = {}, query = {}) {
   return payload;
 }
 
+function availabilityAlertsPayload(dataset = {}) {
+  const start = todayKey();
+  const end = (dataset.records || []).filter(isCountedSaleStatus)
+    .map((record) => parseDate(record.checkout))
+    .filter(Boolean)
+    .map(dateKey)
+    .filter((date) => date >= start)
+    .sort()
+    .at(-1) || start;
+  const payload = buildCachedBiKpiReportsPayload(dataset, { start, end });
+  return {
+    generatedAt: payload.generatedAt,
+    period: { start, end },
+    alerts: (payload.occupancy || []).map((hotel) => ({
+      hotel: hotel.hotel,
+      days: (hotel.days || []).filter((day) => day.available <= 3).map((day) => ({ date: day.date, available: day.available }))
+    })).filter((hotel) => hotel.days.length)
+  };
+}
+
 function filterBiKpiSourceRows(sourceRows = [], query = {}) {
   const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
   const hotel = String(query.hotel || "").trim();
@@ -9418,6 +9438,12 @@ async function handleRequest(req, res) {
       });
     }
 
+    if (url.pathname === "/api/portal/availability-alerts") {
+      if (!biReportsAccess(req, url, "alertas_disponibilidade")) return forbidden(res);
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      return json(res, 200, availabilityAlertsPayload(await loadBiKpiReportsDataset()));
+    }
+
     if (url.pathname === "/api/dashboard/vendedores") {
       if (req.method === "POST" && url.searchParams.get("action") === "login") {
         const body = await readJsonBody(req);
@@ -9674,6 +9700,7 @@ module.exports = {
     buildBiReportsPayload,
     biReportsDefaultKpiPeriod,
     buildCachedBiKpiReportsPayload,
+    availabilityAlertsPayload,
     kpiObjectsFromColumnRanges,
     kpiLatestSaleDate,
     normalizeKpiReportObjects,

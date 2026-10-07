@@ -35,10 +35,17 @@
   const overdueBadge = document.getElementById("portalOverdueBadge");
   const overdueDialog = document.getElementById("portalOverdueDialog");
   const overdueList = document.getElementById("portalOverdueList");
+  const availabilityButton = document.getElementById("portalAvailabilityAlerts");
+  const availabilityBadge = document.getElementById("portalAvailabilityBadge");
+  const availabilityDialog = document.getElementById("portalAvailabilityDialog");
+  const availabilityList = document.getElementById("portalAvailabilityList");
+  const availabilityPeriod = document.getElementById("portalAvailabilityPeriod");
+  const availabilityMapLink = document.getElementById("portalAvailabilityMapLink");
   const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
   const day = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" });
   let activeModule = "";
   let notificationRequest = 0;
+  let availabilityRequest = 0;
 
   const roleLabels = {
     admin_geral: "Administrador geral",
@@ -146,6 +153,67 @@
     }
   }
 
+  function availabilityDate(value) {
+    return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit" }).format(new Date(`${value}T12:00:00Z`));
+  }
+
+  function availabilityMonth(value) {
+    const label = new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", month: "short" }).format(new Date(`${value}T12:00:00Z`)).replace(".", "");
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  function renderAvailabilityAlerts(payload) {
+    const alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
+    const count = alerts.reduce((total, hotel) => total + (hotel.days || []).length, 0);
+    availabilityBadge.textContent = count > 99 ? "99+" : String(count);
+    availabilityButton.hidden = false;
+    const label = count ? `${count} alerta${count === 1 ? "" : "s"} de disponibilidade. Abrir resumo.` : "Sem alertas de disponibilidade. Abrir resumo.";
+    availabilityButton.setAttribute("aria-label", label);
+    availabilityButton.title = label;
+    availabilityPeriod.textContent = `De ${day.format(new Date(`${payload.period.start}T12:00:00Z`))} até ${day.format(new Date(`${payload.period.end}T12:00:00Z`))}. Dias com até 3 apartamentos disponíveis.`;
+    availabilityList.replaceChildren();
+    if (!alerts.length) {
+      const empty = document.createElement("p");
+      empty.className = "portal-overdue-empty";
+      empty.textContent = "Não há dias com baixa disponibilidade no período consultado.";
+      availabilityList.append(empty);
+      return;
+    }
+    alerts.forEach((hotel) => {
+      const item = document.createElement("article");
+      item.className = "portal-availability-item";
+      const title = document.createElement("strong");
+      title.textContent = hotel.hotel;
+      const text = document.createElement("span");
+      const grouped = new Map();
+      hotel.days.forEach((item) => {
+        const month = availabilityMonth(item.date);
+        if (!grouped.has(month)) grouped.set(month, []);
+        grouped.get(month).push(availabilityDate(item.date));
+      });
+      text.textContent = [...grouped.entries()].map(([month, dates]) => `${month}: ${dates.join(", ")}`).join(" · ");
+      item.append(title, text);
+      availabilityList.append(item);
+    });
+  }
+
+  async function refreshAvailabilityAlerts() {
+    if (!window.suedsPortalAccess?.alertas_disponibilidade) {
+      availabilityButton.hidden = true;
+      return;
+    }
+    const request = ++availabilityRequest;
+    try {
+      const response = await fetch("/api/portal/availability-alerts", { credentials: "same-origin", cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "Não foi possível consultar a disponibilidade.");
+      if (request === availabilityRequest) renderAvailabilityAlerts(payload);
+    } catch (error) {
+      availabilityButton.hidden = true;
+      console.error("[portal-availability-alerts]", error.message || error);
+    }
+  }
+
   function updateHeaderHeight() {
     const height = header?.getBoundingClientRect().height || 0;
     document.documentElement.style.setProperty("--portal-header-height", `${Math.ceil(height)}px`);
@@ -234,7 +302,14 @@
 
   announcementBell?.addEventListener("click", () => showModule("comunicados"));
   overdueButton?.addEventListener("click", () => overdueDialog?.showModal());
+  availabilityButton?.addEventListener("click", () => availabilityDialog?.showModal());
   document.getElementById("portalOverdueClose")?.addEventListener("click", () => overdueDialog?.close());
+  document.getElementById("portalAvailabilityClose")?.addEventListener("click", () => availabilityDialog?.close());
+  availabilityMapLink?.addEventListener("click", (event) => {
+    event.preventDefault();
+    availabilityDialog?.close();
+    showModule("mapa_ocupacao");
+  });
   window.addEventListener("message", (event) => {
     if (event.origin !== window.location.origin || event.source !== frame.contentWindow || event.data?.type !== "sueds:announcement-status") return;
     updateAnnouncementBell(event.data.unreadCount);
@@ -245,6 +320,7 @@
     if (document.visibilityState === "visible") {
       refreshAnnouncementNotifications();
       refreshOverduePayments();
+      refreshAvailabilityAlerts();
     }
   });
 
@@ -291,5 +367,6 @@
     updateHeaderHeight();
     refreshAnnouncementNotifications();
     refreshOverduePayments();
+    refreshAvailabilityAlerts();
   });
 })();

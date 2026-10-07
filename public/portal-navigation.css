@@ -56,6 +56,20 @@
 .portal-overdue-amount { flex: 0 0 auto; text-align: right; }
 .portal-overdue-amount strong { color: #b52924; }
 .portal-overdue-empty { padding: 20px 0; color: #526670; }
+.portal-availability-alerts { position: relative; display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid #e29a23; border-radius: 12px; color: #ffd166; background: rgba(126, 79, 6, .35); cursor: pointer; }
+.portal-availability-alerts:hover { color: #fff2c4; background: #805108; }
+.portal-availability-alerts svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.portal-availability-alerts .availability-alert-mark { fill: #ffae22; stroke: #ffae22; }
+.portal-availability-badge { position: absolute; top: -7px; right: -7px; display: grid; min-width: 22px; height: 22px; place-items: center; padding: 0 5px; border: 2px solid #22394b; border-radius: 999px; color: #172d3d; background: #ffd166; font-size: 10px; font-weight: 900; line-height: 1; }
+.portal-availability-dialog { width: min(680px, calc(100% - 24px)); max-height: min(75vh, 680px); padding: 0; border: 1px solid #d7dee3; border-radius: 16px; color: #203440; background: #fff; box-shadow: 0 24px 70px #07172566; }
+.portal-availability-dialog::backdrop { background: #07172599; }
+.portal-availability-list { max-height: 48vh; overflow-y: auto; padding: 8px 22px 16px; }
+.portal-availability-item { padding: 14px 0; border-bottom: 1px solid #e9edef; }
+.portal-availability-item strong,.portal-availability-item span { display: block; }
+.portal-availability-item strong { color: #9a5d00; font-size: 14px; }
+.portal-availability-item span { margin-top: 5px; color: #526670; font-size: 13px; line-height: 1.5; }
+.portal-availability-map-link { display: block; padding: 15px 22px 20px; color: #126b66; font-size: 13px; font-weight: 800; text-decoration: none; }
+.portal-availability-map-link:hover { text-decoration: underline; }
 .portal-shell-page .portal-user-summary { width: auto; max-width: 260px; min-height: 44px; padding: 6px 8px; flex: 0 1 auto; }
 .portal-shell-page .portal-user-copy strong { font-size: 12px; }
 .portal-shell-page .portal-user-copy small { font-size: 10px; }
