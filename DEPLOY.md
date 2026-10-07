@@ -1,4 +1,28 @@
-# Publicacao da primeira versao
+# Publicacao via GitHub
+
+O projeto `dashboard-sueds-hotels` da Vercel esta conectado ao repositorio
+`rogeriomendes-ui/dashboard-sueds-hotels`. A branch `main` e a origem da
+producao de `portalsueds.com.br`. Mudancas publicadas diretamente pela Vercel
+ou de outra branch podem substituir funcionalidades ainda nao integradas ao
+`main`; por isso, toda publicacao de codigo deve seguir este fluxo:
+
+1. Separe apenas os arquivos da tarefa em uma branch propria, preservando as
+   alteracoes locais de outras tarefas. Nao inclua exportacoes, arquivos
+   temporarios, credenciais ou dados reais no commit.
+2. Valide o trecho alterado localmente e abra um pull request para `main`.
+3. Confira o diff, os checks e o Preview da Vercel antes do merge.
+4. Mescle o PR no GitHub. A integracao GitHub/Vercel publica automaticamente
+   o novo commit de `main` em producao; nao use `vercel --prod` como atalho.
+5. Na Vercel, confirme que o ultimo Production Deployment esta `Ready`, tem
+   origem `main` e corresponde ao commit mesclado. Depois teste no dominio
+   `portalsueds.com.br` o fluxo afetado, incluindo permissoes quando houver.
+
+Se houver SQL do Supabase, execute e valide a migracao aplicavel antes de
+liberar uma funcionalidade que dependa dela. Nunca exponha chaves ou desative
+RLS para contornar uma falha. Uma publicacao so esta concluida apos a
+verificacao em producao; Preview pronto nao equivale a producao publicada.
+
+## Instrucoes historicas da primeira versao
 
 ## Arquitetura da V1
 
