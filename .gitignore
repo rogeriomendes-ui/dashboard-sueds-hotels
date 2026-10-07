@@ -10,6 +10,10 @@ node_modules/
 *.csv
 .agents/
 .codex/
+.codex-tmp/
+.codex-remote-attachments/
+.pnpm-store/
+tmp/
 
 .vercel
 .env*
