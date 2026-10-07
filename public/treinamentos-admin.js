@@ -12,34 +12,32 @@
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let docs = [], modules = [], canPublish = false;
   async function request(url, options) { const response = await fetch(url, { credentials:'same-origin', cache:'no-store', ...options }); const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Não foi possível concluir a operação.'); return data; }
-  function mediaRows(items = []) { $('media-list').replaceChildren(); (items.length ? items : [{type:'imagem',url:''}]).forEach(addMedia); }
-  function addMedia(item = {}) {
-    const row = document.createElement('div'); row.className='media-row'; row.dataset.path=item.path||'';
-    row.innerHTML=`<select aria-label="Tipo"><option value="imagem" ${item.type==='imagem'?'selected':''}>imagem</option><option value="video" ${item.type==='video'?'selected':''}>vídeo</option></select><input class="media-url" aria-label="URL" placeholder="https://…" value="${escapeHtml(item.url||'')}"><input class="media-file" aria-label="Enviar arquivo" type="file"><button type="button" aria-label="Remover">×</button>`;
-    const select=row.querySelector('select'), file=row.querySelector('.media-file'), url=row.querySelector('.media-url');
-    const setAccept=()=>{ file.accept=select.value==='video'?'video/mp4,video/webm,video/ogg,.mp4,.webm,.ogg':'image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif'; };
-    setAccept(); select.onchange=setAccept;
-    file.onchange=()=>{ if(file.files.length) url.value=''; };
-    url.oninput=()=>{ if(url.value.trim()) file.value=''; };
-    row.querySelector('button').onclick=()=>row.remove(); $('media-list').append(row);
+  function mediaRows(items = []) {
+    const image = items.find((item) => item.type === 'imagem') || {}, video = items.find((item) => item.type === 'video') || {};
+    $('image-url').value = image.url || ''; $('image-url').dataset.path = image.path || ''; $('image-caption').value = image.caption || '';
+    $('video-url').value = video.url || ''; $('video-url').dataset.path = video.path || ''; $('video-caption').value = video.caption || ''; $('video-file').value = '';
   }
-  function values() { return { id:$('document-id').value, title:$('title').value, module:$('module').value, documentType:$('document-type').value, summary:$('summary').value, contentMarkdown:$('content').value, changeNote:$('change-note').value, media:[...document.querySelectorAll('.media-row')].map((r)=>({type:r.querySelector('select').value,url:r.querySelector('.media-url').value.trim(),path:r.dataset.path||'',caption:''})).filter((m)=>m.url||m.path) }; }
+  function values() {
+    const attention = $('attention').value.trim(), content = $('content').value.split('\n').map((step)=>step.trim().replace(/^-\s+/, '')).filter(Boolean).map((step)=>`- ${step}`).join('\n');
+    return { id:$('document-id').value, title:$('title').value, module:$('module').value, documentType:$('document-type').value, summary:$('summary').value, contentMarkdown: attention ? `${content}\n\n> **Atenção:** ${attention}` : content, changeNote:$('change-note').value, media:[
+      {type:'imagem',url:$('image-url').value.trim(),path:$('image-url').dataset.path||'',caption:$('image-caption').value.trim()},
+      {type:'video',url:$('video-url').value.trim(),path:$('video-url').dataset.path||'',caption:$('video-caption').value.trim()}
+    ].filter((media)=>media.url||media.path) };
+  }
   async function uploadMedia(documentId) {
-    const rows=[...document.querySelectorAll('.media-row')].filter((row)=>row.querySelector('.media-file').files.length);
-    for(const [index,row] of rows.entries()) {
-      const file=row.querySelector('.media-file').files[0], type=row.querySelector('select').value;
-      const allowed=type==='video'?['video/mp4','video/webm','video/ogg']:['image/jpeg','image/png','image/webp','image/gif'];
-      const max=type==='video'?500*1024*1024:20*1024*1024;
-      if(!allowed.includes(file.type)||!file.size||file.size>max) throw new Error(type==='video'?'Escolha um vídeo MP4, WebM ou OGG de até 500 MB.':'Escolha uma imagem JPG, PNG, WebP ou GIF de até 20 MB.');
-      $('media-notice').textContent=`Enviando ${type==='video'?'vídeo':'imagem'} ${index+1} de ${rows.length}…`;
+    const file=$('video-file').files[0];
+    if(file) {
+      const type='video', allowed=['video/mp4','video/webm','video/ogg'], max=500*1024*1024;
+      if(!allowed.includes(file.type)||!file.size||file.size>max) throw new Error('Escolha um vídeo MP4, WebM ou OGG de até 500 MB.');
+      $('media-notice').textContent='Enviando vídeo…';
       const ticket=await request('/api/knowledge?action=document-media-upload',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({documentId,type,mimeType:file.type,size:file.size})});
       const form=new FormData(); form.append('cacheControl','3600'); form.append('',file);
       const uploaded=await fetch(ticket.signedUrl,{method:'PUT',body:form});
       if(!uploaded.ok) throw new Error('Não foi possível enviar o arquivo. Tente novamente.');
-      row.dataset.path=ticket.path; row.querySelector('.media-file').value='';
+      $('video-url').dataset.path=ticket.path; $('video-url').value=''; $('video-file').value='';
     }
   }
-  function fill(d) { const v=d.versions?.[0]||{}; $('document-id').value=d.id; $('title').value=d.title; if (![...$('module').options].some((option)=>option.value===d.module)) $('module').add(new Option(d.module, d.module)); $('module').value=d.module; $('document-type').value=d.document_type; $('summary').value=v.summary||''; $('content').value=v.content_markdown||''; $('change-note').value=''; mediaRows(d.metadata?.pending?.media||d.metadata?.media||[]); $('save-draft').textContent='Salvar alterações'; window.scrollTo({top:0,behavior:'smooth'}); }
+  function fill(d) { const v=d.versions?.[0]||{}, attention=(v.content_markdown||'').match(/\n\n> \*\*Atenção:\*\* ([\s\S]*)$/), steps=(attention?(v.content_markdown||'').slice(0,attention.index):(v.content_markdown||'')).split('\n').map((step)=>step.replace(/^-\s+/, '')); $('document-id').value=d.id; $('title').value=d.title; if (![...$('module').options].some((option)=>option.value===d.module)) $('module').add(new Option(d.module, d.module)); $('module').value=d.module; $('document-type').value=d.document_type; $('summary').value=v.summary||''; $('content').value=steps.join('\n'); $('attention').value=attention?.[1]||''; $('change-note').value=''; mediaRows(d.metadata?.pending?.media||d.metadata?.media||[]); $('save-draft').textContent='Salvar alterações'; window.scrollTo({top:0,behavior:'smooth'}); }
   function renderModules() {
     $('module').innerHTML=modules.filter((m)=>m.active).map((m)=>`<option value="${escapeHtml(m.slug)}">${escapeHtml(m.name)}</option>`).join('');
     $('module-list').innerHTML=modules.map((m)=>`<form class="module-row" data-id="${escapeHtml(m.id)}"><div><strong>${escapeHtml(m.slug)}</strong><small>Identificador permanente</small></div><label>Nome<input name="name" maxlength="80" required value="${escapeHtml(m.name)}"></label><label>Descrição<input name="description" maxlength="500" value="${escapeHtml(m.description)}"></label><label>Ordem<input name="sortOrder" type="number" value="${m.sort_order}"></label><label class="module-active"><input name="active" type="checkbox" ${m.active?'checked':''}>Ativo</label><button class="secondary small" type="submit">Salvar</button></form>`).join('');
@@ -99,7 +97,8 @@
     finally { buttons.forEach((button)=>button.disabled=false); }
   }
   $('module-form').onsubmit=async(e)=>{ e.preventDefault(); try { await request('/api/knowledge?action=modules',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:$('module-name').value,description:$('module-description').value})}); $('module-form').reset(); notice('Módulo criado.'); await loadModules(); } catch(error) { notice(error.message,true); } };
-  $('add-media').onclick=()=>{ addMedia(); $('media-notice').textContent='Mídia adicionada. Envie um arquivo ou informe um link.'; };
+  $('video-file').onchange=()=>{ if($('video-file').files.length) $('video-url').value=''; };
+  $('video-url').oninput=()=>{ if($('video-url').value.trim()) { $('video-file').value=''; $('video-url').dataset.path=''; } };
   $('new-content').onclick=()=>{ $('content-form').reset(); $('document-id').value=''; history.replaceState(null,'',location.pathname); mediaRows(); $('save-draft').textContent='Salvar rascunho'; $('action-notice').hidden=true; $('media-notice').textContent=''; };
   $('content-form').onsubmit=(e)=>{e.preventDefault();save('draft');};
   $('send-review').onclick=()=>save('review');
