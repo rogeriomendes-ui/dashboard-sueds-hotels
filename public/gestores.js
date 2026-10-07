@@ -570,29 +570,6 @@ function render(data) {
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
   renderOtherChannels(data);
 
-  const strategicCards = (data.strategicChannels || [])
-    .map((item) => `
-      <article class="strategic-card">
-        <h3>${item.name}</h3>
-        <div class="seller-pills">
-          <span class="reservations-pill">${number.format(item.reservationsToday)} reservas hoje</span>
-          <span class="reservations-pill">${number.format(item.reservationsMonth)} no mês</span>
-        </div>
-        ${monthlyGauge(item)}
-        <div class="goal-block">
-          <div class="goal-label"><span>Meta do dia</span><strong>${pct(item.dailyGoalPct)}</strong></div>
-          <div class="track"><div class="fill" style="width: ${Math.min(item.dailyGoalPct || 0, 100)}%"></div></div>
-        </div>
-        <div class="goal-block">
-          <div class="goal-label"><span>Meta do mês</span><strong>${pct(item.monthlyGoalPct)}</strong></div>
-          <div class="track"><div class="fill" style="width: ${Math.min(item.monthlyGoalPct || 0, 100)}%"></div></div>
-        </div>
-      </article>
-    `)
-    .join("");
-  byId("strategicChannelsTitle").textContent = "CANAIS ESTRATÉGICOS";
-  byId("strategicChannels").innerHTML = strategicCards;
-
   const rankingSellers = (data.sellers || []).filter((seller) => seller.name !== "Site");
 
   byId("sellerRanking").innerHTML = `
