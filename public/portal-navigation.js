@@ -20,6 +20,7 @@
     "Operação": 'M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12l2 2 5-5',
     "Marketing e Site": 'M3 10v5h4l11 5V5L7 10H3m4 5 2 6m12-12v7',
     "Conhecimento": 'M12 5v16M3 3l9 2 9-2v16l-9 2-9-2z',
+    "Universidade SUEDS": 'M12 5v16M3 3l9 2 9-2v16l-9 2-9-2z',
     "Administração": 'M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7zM8 12l3 3 5-6',
     tv_vendedores: 'M3 4h18v13H3zM8 21h8m-4-4v4',
     mensagens_tv: 'M3 3h18v14H9l-6 4zM7 8h10M7 12h7',
@@ -172,7 +173,9 @@
     const isSiteOnly = document.documentElement.classList.contains("site-preview-only");
     document.getElementById("portalPageCategory").textContent = item?.category || "Portal SUEDS";
     const hotelTitle = key === "opinarios_hotel" && moduleKey !== key ? title : "";
-    document.getElementById("portalPageTitle").textContent = hotelTitle || item?.label || title || (isSiteOnly ? "Selecione um módulo" : "Vendas");
+    const pageTitle = document.getElementById("portalPageTitle");
+    pageTitle.textContent = hotelTitle || item?.label || title || (isSiteOnly ? "Selecione um módulo" : "Vendas");
+    pageTitle.hidden = item?.category === "Universidade SUEDS";
     document.querySelectorAll(".portal-sidebar [data-nav-key], .portal-icon-rail [data-nav-key]").forEach((element) => {
       const selected = element.dataset.navKey === key;
       element.classList.toggle("active", selected);
