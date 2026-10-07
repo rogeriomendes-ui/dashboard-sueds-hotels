@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="dre_sueds_hotels" class="manager-auth-pending">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DRE Sueds Hotels | Portal SUEDS</title>
+    <script src="/manager-auth.js?v=20260807-environments"></script>
+    <link rel="stylesheet" href="/dre-sueds-hotels.css?v=20261006-folha">
+    <script src="/dre-sueds-hotels.js?v=20261006-empresas" defer></script>
+  </head>
+  <body>
+    <main class="dre-page">
+      <header class="page-heading">
+        <div>
+          <p class="eyebrow">Administração · Demonstrativo de resultado</p>
+          <h1>DRE Sueds Hotels</h1>
+          <p class="intro">Estrutura do DRE preservada. Os valores anteriores foram retirados; a Folha já usa a nova captura do KPI Full.</p>
+        </div>
+        <span id="periodBadge" class="period-badge">2025 · Ano fechado</span>
+      </header>
+
+      <section class="filters" aria-label="Seleção do DRE">
+        <label>Empresa
+          <select id="hotelSelect">
+            <option value="FHF">SUEDS PLAZA - FHF</option>
+            <option value="FHM">SUEDS PREMIUM - FHM</option>
+            <option value="HSS">SUEDS SEGUNDO SOL - HSS</option>
+            <option value="PCF">SUEDS TRANCOSO - PCF</option>
+            <option value="PCL">SUEDS CABRALIA - PCL</option>
+            <option value="BTF">SUEDS TRANCOSO 2 - BTF</option>
+            <option value="CSC">BEACH CLUB SEGUNDO S - CSC</option>
+            <option value="HKF">CABANA SUEDS - HKF</option>
+            <option value="HKM">AEB PLAZA - HKM</option>
+            <option value="SCS">SUEDS MATRIZ - SCS</option>
+            <option value="SSF">SUEDS FILIAL - SSF</option>
+            <option value="SVR">SUEDS VILLA ROMANA - SVR</option>
+            <option value="TMK">TMK SERVICO DE APOIO - TMK</option>
+            <option value="WAF">WAT FILIAL - WAF</option>
+            <option value="WAT">WAT MATRIZ - WAT</option>
+          </select>
+        </label>
+        <label>Ano
+          <select id="yearSelect">
+            <option value="2024">2024 · Fechado</option>
+            <option value="2025" selected>2025 · Fechado</option>
+            <option value="2026">2026 · Parcial</option>
+          </select>
+        </label>
+        <p id="dataStatus" class="data-status" role="status">Carregando dados…</p>
+        <button id="downloadXls" class="download-xls" type="button" disabled title="Baixar o DRE tradicional em Excel">↓ XLS</button>
+      </section>
+
+      <section id="emptyState" class="empty-state" hidden>
+        <h2>Dados ainda não disponíveis</h2>
+        <p id="emptyDescription">Esta visão será preenchida quando os dados do hotel e do período forem integrados.</p>
+      </section>
+
+      <div id="report" hidden>
+        <nav class="report-tabs" aria-label="Visões do hotel e ano selecionados">
+          <button class="report-tab active" type="button" data-sheet="dre" aria-current="page">DRE</button>
+          <button class="report-tab" type="button" data-sheet="budget">Orçado x Realizado</button>
+          <button class="report-tab" type="button" data-sheet="revenue">Receitas Analíticas</button>
+          <button class="report-tab" type="button" data-sheet="expenses">Despesas Analíticas</button>
+          <button class="report-tab" type="button" data-sheet="assets">Imobilizado</button>
+          <button class="report-tab" type="button" data-sheet="folha">Folha de pagamento</button>
+        </nav>
+        <div id="dreOverview">
+        <section class="key-numbers" aria-label="Resumo do resultado">
+          <article class="metric"><span>Receita total</span><strong id="revenueValue"></strong><small id="revenueExact"></small></article>
+          <article class="metric"><span>Despesas totais</span><strong id="expenseValue"></strong><small id="expenseExact"></small></article>
+          <article class="metric result"><span>Resultado operacional</span><strong id="resultValue"></strong><small id="resultExact"></small></article>
+          <article class="metric"><span>Margem operacional</span><strong id="marginValue"></strong><small>Resultado operacional ÷ receita</small></article>
+        </section>
+
+        <div class="overview-grid">
+          <section class="panel" aria-labelledby="chartTitle">
+            <div class="section-title"><div><p class="eyebrow">Evolução mensal</p><h2 id="chartTitle">Receitas e despesas</h2></div><span class="unit">R$ milhões</span></div>
+            <div class="chart-legend"><span><i class="revenue-key"></i>Receita</span><span><i class="expense-key"></i>Despesa</span></div>
+            <div class="chart-scroll"><div id="monthChart" class="month-chart" role="img" aria-label="Comparativo mensal de receitas e despesas de 2025"></div></div>
+            <p id="chartInsight" class="chart-insight"></p>
+          </section>
+          <section class="panel occupancy-panel" aria-labelledby="hotelMetricsTitle">
+            <div class="section-title"><div><p class="eyebrow">Hospedagem</p><h2 id="hotelMetricsTitle">Indicadores do ano</h2></div></div>
+            <dl class="hotel-metrics">
+              <div><dt>Ocupação pagante</dt><dd id="occupancyValue"></dd></div>
+              <div><dt>Diária média</dt><dd id="adrValue"></dd></div>
+              <div><dt>RevPAR</dt><dd id="revparValue"></dd></div>
+              <div><dt>Room nights pagantes</dt><dd id="roomNightsValue"></dd></div>
+            </dl>
+            <p class="panel-note">A ocupação anual considera room nights pagantes divididos pelos disponíveis. Diária média e RevPAR usam a receita de diárias do modelo.</p>
+          </section>
+        </div>
+
+        <section class="panel statement-panel" aria-labelledby="statementTitle">
+          <div class="section-title"><div><p class="eyebrow">DRE anual</p><h2 id="statementTitle">Formação do resultado</h2></div><span class="unit">Realizado · R$</span></div>
+          <div id="statementRows" class="statement-rows"></div>
+          <p id="statementNote" class="panel-note"></p>
+        </section>
+
+        <div class="breakdown-grid">
+          <section class="panel" aria-labelledby="revenueTitle"><div class="section-title"><div><p class="eyebrow">Composição</p><h2 id="revenueTitle">De onde veio a receita</h2></div></div><div id="revenueBreakdown" class="breakdown-list"></div></section>
+          <section class="panel" aria-labelledby="expenseTitle"><div class="section-title"><div><p class="eyebrow">Composição</p><h2 id="expenseTitle">Onde ficaram as despesas</h2></div></div><div id="expenseBreakdown" class="breakdown-list"></div></section>
+        </div>
+
+        <section class="panel monthly-panel" aria-labelledby="monthlyTitle">
+          <div class="section-title"><div><p class="eyebrow">Detalhe</p><h2 id="monthlyTitle">Resultado mês a mês</h2></div><span class="unit">Valores realizados</span></div>
+          <div class="table-scroll"><table><thead><tr><th scope="col">Mês</th><th scope="col">Receita</th><th scope="col">Despesa</th><th scope="col">Resultado</th><th scope="col">Margem</th></tr></thead><tbody id="monthlyRows"></tbody><tfoot id="monthlyTotal"></tfoot></table></div>
+        </section>
+
+        <footer id="sourceNote" class="source-note"></footer>
+        </div>
+        <div id="partialOverview" hidden>
+          <div class="partial-notice"><strong>DRE em construção</strong><span>As demais bases do KPI Full serão integradas em etapas; os campos sem captura permanecem em branco.</span></div>
+          <section class="key-numbers" aria-label="Indicadores capturados">
+            <article class="metric"><span>Receita capturada</span><strong id="partialRevenue"></strong><small id="partialRevenueExact"></small></article>
+            <article class="metric"><span>Ocupação das UHs</span><strong id="partialOccupancy"></strong><small id="partialRoomNights"></small></article>
+            <article class="metric"><span>Diária média</span><strong id="partialAdr"></strong><small>Indicador do R.D.S.</small></article>
+            <article class="metric"><span>RevPAR</span><strong id="partialRevpar"></strong><small>Indicador do R.D.S.</small></article>
+          </section>
+          <div class="overview-grid">
+            <section class="panel" aria-labelledby="partialChartTitle"><div class="section-title"><div><p class="eyebrow">Evolução mensal</p><h2 id="partialChartTitle">Receita capturada</h2></div><span class="unit">R$</span></div><div class="chart-scroll"><div id="partialMonthChart" class="month-chart" role="img"></div></div><p id="partialChartInsight" class="chart-insight"></p></section>
+            <section class="panel" aria-labelledby="partialRevenueTitle"><div class="section-title"><div><p class="eyebrow">Composição</p><h2 id="partialRevenueTitle">De onde veio a receita</h2></div></div><div id="partialRevenueBreakdown" class="breakdown-list"></div></section>
+          </div>
+          <section class="panel statement-panel" aria-labelledby="partialStatementTitle"><div class="section-title"><div><p class="eyebrow">DRE anual</p><h2 id="partialStatementTitle">Formação do resultado</h2></div><span class="unit">2025 · R$</span></div><div id="partialStatementRows" class="statement-rows"></div><p class="panel-note">Resultado e margem serão calculados quando as despesas estiverem disponíveis. Nenhum valor ausente foi tratado como zero.</p></section>
+          <section class="panel monthly-panel" aria-labelledby="partialMonthlyTitle"><div class="section-title"><div><p class="eyebrow">Detalhe</p><h2 id="partialMonthlyTitle">Receita mês a mês</h2></div><span class="unit">Realizado</span></div><div class="table-scroll"><table><thead><tr><th scope="col">Mês</th><th scope="col">Receita</th><th scope="col">UHs ocupadas</th><th scope="col">Ocupação</th></tr></thead><tbody id="partialMonthlyRows"></tbody><tfoot id="partialMonthlyTotal"></tfoot></table></div></section>
+          <footer class="source-note">As bases ainda não capturadas no KPI Full permanecem sem valores.</footer>
+        </div>
+        <section id="sourceView" class="panel source-panel" hidden aria-live="polite">
+          <div class="section-title"><div><p id="sourceEyebrow" class="eyebrow">Fonte</p><h2 id="sourceTitle"></h2></div><span id="sourceCount" class="unit"></span></div>
+          <p id="sourceDescription" class="source-description"></p>
+          <div class="source-controls">
+            <label>Período<select id="sourceMonth"></select></label>
+            <label>Grupo<select id="sourceGroup"></select></label>
+            <label>Buscar conta<input id="sourceSearch" type="search" placeholder="Nome da conta"></label>
+          </div>
+          <p id="sourceWarning" class="source-warning" hidden></p>
+          <div class="table-scroll source-table-scroll"><table id="sourceTable"><thead></thead><tbody></tbody></table></div>
+          <p id="sourceProvenance" class="panel-note source-provenance"></p>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

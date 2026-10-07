@@ -30,6 +30,7 @@
     mesas_vip_reveillon: 'm12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z',
     redes_sociais: 'M8 12l8-6M8 12l8 6M8 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0M22 5a3 3 0 1 0-6 0 3 3 0 0 0 6 0M22 19a3 3 0 1 0-6 0 3 3 0 0 0 6 0',
     usuarios: 'M16 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0M4 21v-3a8 8 0 0 1 16 0v3',
+    dre_sueds_hotels: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h5',
     simulador_tributario: 'M5 2h14v20H5zM8 5h8v4H8zM8 13h2m4 0h2m-8 4h2m4 0h2',
     gerenciar_site: 'M3 3h18v18H3zM3 8h18M7 5h1m3 0h1M7 12h10M7 16h6',
     gerenciar_portal_agente: 'M4 5h16v14H4zM8 9h8M8 13h5',

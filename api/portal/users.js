@@ -47,6 +47,13 @@ async function catalog(supabase) {
       status: "active"
     },
     {
+      slug: "dre_sueds_hotels",
+      name: "DRE Sueds Hotels",
+      description: "Acesso ao módulo DRE Sueds Hotels.",
+      sort_order: 80,
+      status: "active"
+    },
+    {
       slug: "inclusao_comunicados",
       name: "Inclusão de Comunicados",
       description: "Permite publicar comunicados e acompanhar as confirmações de leitura.",
