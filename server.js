@@ -9299,6 +9299,41 @@ async function loadMetrics(period) {
       ticketAverageMonth: reservationsMonth ? salesMonth / reservationsMonth : 0
     };
   }
+  const siteSellerIndex = metrics.sellers.findIndex((seller) => comparableKey(seller.name) === comparableKey("Site"));
+  const existingSiteSeller = siteSellerIndex >= 0 ? metrics.sellers[siteSellerIndex] : null;
+  const siteMonthlyGoal = Number(existingSiteSeller?.monthlyGoal || metrics.channels.find((channel) => (
+    comparableKey(channel.label) === comparableKey("SITE")
+  ))?.monthlyGoal || 0);
+  if (existingSiteSeller || siteValue || siteMonthlyGoal) {
+    const goalDate = selectedDay || today;
+    const workdaysInMonth = isYearToDate ? businessDaysElapsed(month, goalDate) : businessDaysInMonth(month);
+    const workdaysElapsed = isYearToDate ? workdaysInMonth : businessDaysElapsed(month, goalDate);
+    const siteSalesToday = sum(kpiSiteRows.filter((record) => record.dateKey === (selectedDay || today)), (record) => record.total);
+    const siteReservationsToday = kpiSiteRows.filter((record) => record.dateKey === (selectedDay || today)).length;
+    const salesBeforeGoalDate = sum(kpiSiteRows.filter((record) => record.dateKey && record.dateKey < goalDate), (record) => record.total);
+    const baseDailyGoal = siteMonthlyGoal ? siteMonthlyGoal / workdaysInMonth : 0;
+    const mtdGoal = baseDailyGoal * workdaysElapsed;
+    const siteSeller = {
+      ...(existingSiteSeller || {}),
+      name: "Site",
+      salesToday: siteSalesToday,
+      salesMtd: siteMtdRevenue,
+      salesMonth: siteValue,
+      reservationsToday: siteReservationsToday,
+      reservationsMtd: kpiSiteRows.filter((record) => record.dateKey <= goalDate).length,
+      reservationsMonth: kpiSiteRows.length,
+      ticketQuantity: 0,
+      ticketSales: 0,
+      dailyGoal: isYearToDate ? baseDailyGoal : Math.max(0, siteMonthlyGoal - salesBeforeGoalDate) / businessDaysRemaining(month, goalDate),
+      mtdGoal,
+      monthlyGoal: siteMonthlyGoal,
+      dailyGoalPct: pct(siteSalesToday, isYearToDate ? baseDailyGoal : Math.max(0, siteMonthlyGoal - salesBeforeGoalDate) / businessDaysRemaining(month, goalDate)),
+      mtdGoalPct: pct(siteMtdRevenue, mtdGoal),
+      monthlyGoalPct: pct(siteValue, siteMonthlyGoal)
+    };
+    if (siteSellerIndex >= 0) metrics.sellers[siteSellerIndex] = siteSeller;
+    else metrics.sellers.push(siteSeller);
+  }
   metrics.advancePurchase = buildAdvancePurchaseByChannel(
     dataset.records || [],
     dataset.otherChannelRecords || [],
