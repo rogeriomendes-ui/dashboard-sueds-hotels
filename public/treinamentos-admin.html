@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Editor | Centro de Conhecimentos SUEDS</title>
+  <script>document.documentElement.dataset.trainingAdminView=location.pathname.toLowerCase().endsWith('/modulos')?'modules':'publish';</script>
   <script src="/manager-auth.js?v=20260827-editor"></script>
   <link rel="stylesheet" href="/treinamentos.css?v=20260827">
   <link rel="stylesheet" href="/treinamentos-admin.css?v=20261002-editor-actions">
 </head>
 <body>
-  <header class="knowledge-header"><a class="knowledge-brand" href="/Treinamentos"><img src="/sueds-hotels-gold.png" alt="SUEDS Hotels"><span><strong>PORTAL SUEDS</strong><small>Editor do Centro de Conhecimentos</small></span></a><a class="back-link" href="/Treinamentos">← Catálogo</a></header>
   <main class="editor-main">
-    <section class="editor-heading"><p class="eyebrow">ÁREA ADMINISTRATIVA</p><h1>Publicar conhecimento</h1><p>Crie um rascunho, envie para revisão e publique para os colaboradores.</p></section>
+    <section class="editor-heading"><p class="eyebrow">ÁREA ADMINISTRATIVA</p><h1 id="editor-page-title">Publicar conteúdo</h1><p id="editor-page-description">Crie um rascunho, envie para revisão e publique para os colaboradores.</p></section>
     <div id="notice" class="notice" role="status" hidden></div>
     <section class="module-manager" aria-labelledby="modules-heading">
       <div class="panel-title"><h2 id="modules-heading">Gerenciar módulos</h2></div>

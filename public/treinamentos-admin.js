@@ -1,5 +1,11 @@
 (() => {
   const $ = (id) => document.getElementById(id);
+  const modulesView = document.documentElement.dataset.trainingAdminView === 'modules';
+  if (modulesView) {
+    document.title = 'Gerenciar módulos | Centro de Conhecimentos SUEDS';
+    $('editor-page-title').textContent = 'Gerenciar módulos';
+    $('editor-page-description').textContent = 'Organize os módulos e publique os POPs do Centro de Conhecimentos.';
+  }
   const notice = (message, error = false) => { $('notice').textContent = message; $('notice').hidden = false; $('notice').classList.toggle('error', error); };
   const actionNotice = (message, error = false) => { const target=$('action-notice'); target.textContent=message; target.hidden=false; target.classList.toggle('error',error); };
   const popNotice = (message, error = false) => { const target=$('pop-notice'); target.textContent=message; target.hidden=false; target.classList.toggle('error',error); };

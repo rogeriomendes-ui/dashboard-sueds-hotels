@@ -48,6 +48,14 @@
       "dest": "/public/treinamentos-admin.html"
     },
     {
+      "src": "/Treinamentos/Publicar",
+      "dest": "/public/treinamentos-admin.html"
+    },
+    {
+      "src": "/Treinamentos/Modulos",
+      "dest": "/public/treinamentos-admin.html"
+    },
+    {
       "src": "/treinamentos/admin",
       "dest": "/public/treinamentos-admin.html"
     },
