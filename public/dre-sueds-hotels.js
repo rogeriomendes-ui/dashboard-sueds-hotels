@@ -461,5 +461,8 @@
     const year = encodeURIComponent(yearSelect.value);
     window.location.href = `/api/dre?hotel=${hotel}&year=${year}&format=xlsx`;
   });
-  Promise.resolve(window.suedsManagerAuthReady).then(loadReport).catch(() => {});
+  Promise.resolve(window.suedsManagerAuthReady).then(() => {
+    if (!window.suedsPortalProfile?.roles?.includes('admin_geral')) document.querySelector('[data-sheet="folha"]').hidden = true;
+    return loadReport();
+  }).catch(() => {});
 })();

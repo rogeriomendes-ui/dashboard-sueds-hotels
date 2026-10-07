@@ -33,7 +33,7 @@ function adminClient() {
 
 module.exports = async function importFolha(req, res) {
   if (!['GET', 'POST'].includes(req.method)) return json(res, 405, { error: 'method_not_allowed' });
-  if (req.method === 'POST' && !req.portalProfile?.roles?.includes('admin_geral')) return json(res, 403, { error: 'forbidden' });
+  if (!req.portalProfile?.roles?.includes('admin_geral')) return json(res, 403, { error: 'forbidden' });
   if (req.method === 'GET') {
     const url = new URL(req.url, `https://${req.headers.host || 'portalsueds.com.br'}`);
     const year = url.searchParams.get('year');

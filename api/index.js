@@ -15,7 +15,7 @@ const knowledge = require("./knowledge");
 const cronSalesEditorSync = require("./cron-sales-editor-sync");
 
 const adminUsersHandler = withPortalRoles(users, ["admin_geral"]);
-const dreFolhaImportHandler = withPortalEnvironment(dreFolhaImport, "dre_sueds_hotels");
+const dreFolhaImportHandler = withPortalRoles(dreFolhaImport, ["admin_geral"]);
 const dreHandler = withPortalEnvironment(dre, "dre_sueds_hotels");
 const announcementsHandler = withPortalEnvironment(announcements, "comunicados");
 const reveillonVipTablesHandler = withPortalEnvironment(reveillonVipTables, "mesas_vip_reveillon");
