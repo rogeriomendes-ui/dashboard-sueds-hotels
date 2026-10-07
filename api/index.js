@@ -24,6 +24,7 @@ const marketingHandler = withPortalEnvironment(handleRequest, "marketing_competi
 const biReportsHandler = withPortalEnvironment(handleRequest, "bi_relatorios");
 const biKpiReportsHandler = withPortalEnvironment(handleRequest, "bi_relatorios_kpi");
 const occupancyMapHandler = withPortalEnvironment(handleRequest, "mapa_ocupacao");
+const availabilityAlertsHandler = withPortalEnvironment(handleRequest, "alertas_disponibilidade");
 const socialHandler = withPortalEnvironment(handleRequest, "redes_sociais");
 const tvMessagesHandler = withPortalEnvironment(handleRequest, "mensagens_tv");
 
@@ -64,6 +65,7 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/dashboard/bi-relatorios") return biReportsHandler(req, res);
   if (pathname === "/api/dashboard/bi-relatorios-kpi") return biKpiReportsHandler(req, res);
   if (pathname === "/api/dashboard/mapa-ocupacao") return occupancyMapHandler(req, res);
+  if (pathname === "/api/portal/availability-alerts") return availabilityAlertsHandler(req, res);
   if (pathname === "/api/inteligencia/mercado") return marketingHandler(req, res);
   if (pathname === "/api/redes-sociais" || pathname.startsWith("/api/redes-sociais/")) return socialHandler(req, res);
   if (pathname === "/api/tv-messages") return tvMessagesHandler(req, res);
