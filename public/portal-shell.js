@@ -202,6 +202,7 @@
       availabilityButton.hidden = true;
       return;
     }
+    availabilityButton.hidden = false;
     const request = ++availabilityRequest;
     try {
       const response = await fetch("/api/portal/availability-alerts", { credentials: "same-origin", cache: "no-store" });
@@ -209,7 +210,17 @@
       if (!response.ok) throw new Error(payload.message || "Não foi possível consultar a disponibilidade.");
       if (request === availabilityRequest) renderAvailabilityAlerts(payload);
     } catch (error) {
-      availabilityButton.hidden = true;
+      if (request === availabilityRequest) {
+        availabilityBadge.textContent = "!";
+        availabilityButton.setAttribute("aria-label", "Alertas de disponibilidade indisponíveis. Abrir resumo.");
+        availabilityButton.title = "Alertas de disponibilidade indisponíveis. Abrir resumo.";
+        availabilityPeriod.textContent = "Não foi possível atualizar a disponibilidade agora.";
+        availabilityList.replaceChildren();
+        const unavailable = document.createElement("p");
+        unavailable.className = "portal-overdue-empty";
+        unavailable.textContent = "Tente novamente em alguns instantes ou consulte o Mapa de ocupação.";
+        availabilityList.append(unavailable);
+      }
       console.error("[portal-availability-alerts]", error.message || error);
     }
   }
