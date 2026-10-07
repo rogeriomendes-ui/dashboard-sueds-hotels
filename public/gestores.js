@@ -630,12 +630,13 @@ function render(data) {
   const directChannelLabel = (label) => (
     comparableLabel(label) === "individual" ? "Particular (direto KPI)" : displayLabel(label)
   );
+  const hotelCardLabel = (label) => displayLabel(label).replace(/^Sueds\s+/i, "");
   const goalProgressPct = data.period?.goalProgressPct;
   byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", { formatLabel: directChannelLabel, goalProgressPct });
-  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
+  byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: hotelCardLabel, showTotal: true, goalProgressPct });
   const hotelBreakdowns = hotelSalesBreakdowns(data);
-  byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
-  byId("combinedHotelTable").innerHTML = performanceTable(hotelBreakdowns.combined, "Hotel", { formatLabel: displayLabel, showTotal: true, goalProgressPct });
+  byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: hotelCardLabel, showTotal: true, goalProgressPct });
+  byId("combinedHotelTable").innerHTML = performanceTable(hotelBreakdowns.combined, "Hotel", { formatLabel: hotelCardLabel, showTotal: true, goalProgressPct });
 
   byId("dailySales").innerHTML = data.dailySales
     .map((day) => `
