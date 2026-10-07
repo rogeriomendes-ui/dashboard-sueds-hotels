@@ -28,7 +28,7 @@ function validCapture(payload) {
 function adminClient() {
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) return null;
-  return createClient(process.env.PORTAL_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_URL, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  return createClient(process.env.PORTAL_SUPABASE_URL || DEFAULT_URL, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 module.exports = async function importFolha(req, res) {
@@ -43,12 +43,12 @@ module.exports = async function importFolha(req, res) {
   const source = `kpi_folha_${payload.companyCode}`;
   const periodDate = `${payload.month}-01`;
   const current = await db.from('dashboard_snapshots').select('id').eq('source', source).eq('period_date', periodDate).maybeSingle();
-  if (current.error) return json(res, 503, { error: 'database_read_failed' });
+  if (current.error) return json(res, 503, { error: 'database_read_failed', code: current.error.code });
   const record = { source, period_month: payload.month, period_date: periodDate, payload };
   const result = current.data
     ? await db.from('dashboard_snapshots').update(record).eq('id', current.data.id)
     : await db.from('dashboard_snapshots').insert(record);
-  if (result.error) return json(res, 503, { error: 'database_write_failed' });
+  if (result.error) return json(res, 503, { error: 'database_write_failed', code: result.error.code });
   return json(res, 200, { ok: true, companyCode: payload.companyCode, month: payload.month, action: current.data ? 'updated' : 'inserted' });
 };
 
