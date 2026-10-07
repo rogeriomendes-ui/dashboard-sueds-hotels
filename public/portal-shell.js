@@ -2,6 +2,7 @@
   const routes = {
     comunicados: { url: "/comunicados", permission: "comunicados", title: "Comunicados" },
     inclusao_comunicados: { url: "/comunicados/admin", permission: "inclusao_comunicados", title: "Inclusão de Comunicados" },
+    treinamentos: { url: "/Treinamentos", permission: "treinamentos", title: "Centro de Conhecimentos" },
     tv_vendedores: { url: "/dashboard-tv.html", permission: "tv_vendedores", title: "TV Painel Vendedor" },
     ranking_vendedores: { url: "/dashboard-vendedores.html", permission: "ranking_vendedores", title: "Ranking de Vendedores" },
     bi_relatorios: { url: "/bi-relatorios.html?v=20260928-full-channel-hotel-values", permission: "bi_relatorios", title: "BI - Relatórios" },

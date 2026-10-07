@@ -1,5 +1,6 @@
 .env
 reports/status-repair-*.json
+data/sales-editor-sync-*.json
 *.local
 *.key
 *service-account*.json
