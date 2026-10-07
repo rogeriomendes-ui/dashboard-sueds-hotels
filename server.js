@@ -9221,6 +9221,9 @@ async function loadMetrics(period) {
   const siteValue = siteChannelSelected
     ? sum(kpiSiteRows, (record) => record.total)
     : 0;
+  const directSiteMetrics = metrics.channels.find((channel) => (
+    comparableKey(channel.label) === comparableKey("SITE")
+  )) || { value: 0, reservations: 0 };
   metrics.channels = metrics.channels.map((channel) => (
     comparableKey(channel.label) === comparableKey("SITE")
       ? {
@@ -9231,6 +9234,21 @@ async function loadMetrics(period) {
       }
       : channel
   ));
+  // Keep the manager total aligned with the Site card: operational Site rows
+  // are replaced by the consolidated KPI Full Site revenue for the same scope.
+  // Team and Robo sales continue to come from their operational sources.
+  if (metrics.managerSummary) {
+    const reservationsMonth = Math.max(0,
+      Number(metrics.managerSummary.reservationsMonth || 0) - Number(directSiteMetrics.reservations || 0) + kpiSiteRows.length
+    );
+    const salesMonth = Number(metrics.managerSummary.salesMonth || 0) - Number(directSiteMetrics.value || 0) + siteValue;
+    metrics.managerSummary = {
+      ...metrics.managerSummary,
+      salesMonth,
+      reservationsMonth,
+      ticketAverageMonth: reservationsMonth ? salesMonth / reservationsMonth : 0
+    };
+  }
   metrics.advancePurchase = buildAdvancePurchaseByChannel(
     dataset.records || [],
     dataset.otherChannelRecords || [],
