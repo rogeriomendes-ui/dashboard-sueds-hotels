@@ -7,21 +7,22 @@ const {plan,baseline}=require('../lib/sales-editor-sync.cjs');
 const value=x=>x===null?{}:{userEnteredValue:typeof x==='number'?{numberValue:x}:{stringValue:String(x)},formattedValue:String(x)};
 function row(code='R1',hotel='SUEDS PLAZA',received=20,status='Confirmada',notes='ok') {
   const values=Array.from({length:25},()=>({}));
-  for(const [col,data] of [[0,'01/10/2026'],[1,code],[2,hotel],[3,'CENTRAL DE RESERVAS'],[4,'Aline Nunes'],[13,received],[15,'PIX'],[17,status],[19,notes]])values[col]=value(data);
+  for(const [col,data] of [[0,'01/10/2026'],[1,code],[2,hotel],[3,'CENTRAL DE RESERVAS'],[4,'Aline Nunes'],[12,100],[13,received],[15,'PIX'],[17,status],[19,notes]])values[col]=value(data);
   return {values};
 }
 const header={values:Array.from({length:25},()=>({}))};
 const sourceRow=row();
 const mirrorRow=row();
-for(const col of [13,17,19])mirrorRow.values[col].note=baseline(mirrorRow.values[col].userEnteredValue);
+for(const col of [12,13,17,19])mirrorRow.values[col].note=baseline(mirrorRow.values[col].userEnteredValue);
+mirrorRow.values[12]=value(120);mirrorRow.values[12].note=baseline(value(100).userEnteredValue);
 mirrorRow.values[13]=value(30);mirrorRow.values[13].note=baseline(value(20).userEnteredValue);
 mirrorRow.values[17]=value('Pendente');mirrorRow.values[17].note=baseline(value('Confirmada').userEnteredValue);
 mirrorRow.values[19]=value('novo');mirrorRow.values[19].note=baseline(value('ok').userEnteredValue);
 const result=plan([header,sourceRow],[header,mirrorRow],[header],20,20);
-assert.equal(result.sourceRequests.length,3);
-assert.deepEqual(result.records.map(x=>x.operation),['mirror-field-update','status-update','mirror-field-update']);
+assert.equal(result.sourceRequests.length,4);
+assert.deepEqual(result.records.map(x=>x.operation),['mirror-field-update','mirror-field-update','status-update','mirror-field-update']);
 assert.equal(result.conflict.length,0);
-assert.equal(result.mirrorRequests.length,3);
+assert.equal(result.mirrorRequests.length,4);
 const verify=input=>{
   const file=path.join(os.tmpdir(),`sales-editor-validator-${process.pid}.json`);
   fs.writeFileSync(file,JSON.stringify({records:input.records,existingSellers:input.existingSellers,existingChannels:input.existingChannels,requests:input.sourceRequests}));
