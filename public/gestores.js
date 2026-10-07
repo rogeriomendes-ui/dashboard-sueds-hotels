@@ -189,7 +189,7 @@ function setupHotelOpinionModal() {
 }
 
 function pct(value) {
-  return value === null || value === undefined ? "Sem meta" : `${number.format(Math.round(value))}%`;
+  return value === null || value === undefined ? "-" : `${number.format(Math.round(value))}%`;
 }
 
 function icmClass(value) {
