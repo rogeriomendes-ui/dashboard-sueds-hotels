@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="mapa_ocupacao" class="manager-auth-pending">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#172d3d">
+    <title>Mapa de ocupação | Portal SUEDS</title>
+    <script src="/manager-auth.js?v=20261007-mapa-ocupacao"></script>
+    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261007">
+  </head>
+  <body>
+    <main class="occupancy-page">
+      <header class="occupancy-header">
+        <div><p class="eyebrow">Hospedagem diária</p><h1>Mapa de ocupação por hotel</h1><p>UHs totais, manutenção, ocupados, disponíveis e taxa diária.</p></div>
+        <div id="dataStamp" class="data-stamp" aria-live="polite">Atualizando dados…</div>
+      </header>
+
+      <form id="filterForm" class="filters" aria-label="Filtros do mapa de ocupação">
+        <label><span>Data inicial</span><input id="startDate" name="start" type="date"></label>
+        <label><span>Data final</span><input id="endDate" name="end" type="date"></label>
+        <label><span>Hotel</span><select id="hotelFilter" name="hotel"><option value="">Todos os hotéis</option></select></label>
+        <div class="filter-actions"><button class="button primary" type="submit">Aplicar</button><button id="clearFilters" class="button quiet" type="button">Limpar</button></div>
+      </form>
+
+      <div id="errorNotice" class="notice error" role="alert" hidden></div>
+      <div id="loadingState" class="loading" role="status"><span></span> Carregando mapa…</div>
+      <section id="dashboardContent" class="occupancy-section" aria-label="Mapa de ocupação por hotel" hidden>
+        <div id="occupancyMap"></div>
+      </section>
+    </main>
+    <script src="/mapa-ocupacao.js?v=20261007"></script>
+  </body>
+</html>

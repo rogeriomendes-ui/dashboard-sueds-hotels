@@ -40,6 +40,13 @@ async function catalog(supabase) {
       status: "active"
     },
     {
+      slug: "mapa_ocupacao",
+      name: "Mapa de ocupação",
+      description: "Acesso ao mapa diário de ocupação por hotel, com UHs, manutenção e disponibilidade.",
+      sort_order: 48,
+      status: "active"
+    },
+    {
       slug: "inclusao_comunicados",
       name: "Inclusão de Comunicados",
       description: "Permite publicar comunicados e acompanhar as confirmações de leitura.",

@@ -9400,6 +9400,24 @@ async function handleRequest(req, res) {
       return json(res, 200, buildCachedBiKpiReportsPayload(dataset, query));
     }
 
+    if (url.pathname === "/api/dashboard/mapa-ocupacao") {
+      if (!biReportsAccess(req, url, "mapa_ocupacao")) return forbidden(res);
+      if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+      const dataset = await loadBiKpiReportsDataset();
+      const payload = buildCachedBiKpiReportsPayload(dataset, {
+        start: url.searchParams.get("start") || "",
+        end: url.searchParams.get("end") || "",
+        hotel: url.searchParams.get("hotel") || ""
+      });
+      return json(res, 200, {
+        generatedAt: payload.generatedAt,
+        period: payload.period,
+        selected: { hotel: payload.selected.hotel },
+        filters: { hotels: payload.filters.hotels },
+        occupancy: payload.occupancy
+      });
+    }
+
     if (url.pathname === "/api/dashboard/vendedores") {
       if (req.method === "POST" && url.searchParams.get("action") === "login") {
         const body = await readJsonBody(req);
