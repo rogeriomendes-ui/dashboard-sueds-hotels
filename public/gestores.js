@@ -628,7 +628,7 @@ function render(data) {
     comparableLabel(channel.label) !== comparableLabel("RECEPÇÃO")
   ));
   const directChannelLabel = (label) => (
-    comparableLabel(label) === "individual" ? "Particular (direto KPI)" : displayLabel(label)
+    comparableLabel(label) === "individual" ? "Particular (KPI)" : displayLabel(label)
   );
   const hotelCardLabel = (label) => displayLabel(label).replace(/^Sueds\s+/i, "");
   const goalProgressPct = data.period?.goalProgressPct;
