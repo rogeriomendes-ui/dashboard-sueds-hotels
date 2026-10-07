@@ -171,7 +171,7 @@
     availabilityButton.setAttribute("aria-label", label);
     availabilityButton.title = label;
     const updatedAt = payload.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.updatedAt)) : "não informada";
-    availabilityPeriod.textContent = `Última atualização do KPI: ${updatedAt}. De ${day.format(new Date(`${payload.period.start}T12:00:00Z`))} até ${day.format(new Date(`${payload.period.end}T12:00:00Z`))}. Dias com até 3 apartamentos disponíveis.`;
+    availabilityPeriod.textContent = `Última atualização do KPI: ${updatedAt}. De ${day.format(new Date(`${payload.period.start}T12:00:00Z`))} até ${day.format(new Date(`${payload.period.end}T12:00:00Z`))}. Dias com 3 ou menos aptos. disponíveis.`;
     availabilityList.replaceChildren();
     if (!alerts.length) {
       const empty = document.createElement("p");
