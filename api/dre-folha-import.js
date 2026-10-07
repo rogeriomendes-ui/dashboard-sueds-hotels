@@ -32,8 +32,31 @@ function adminClient() {
 }
 
 module.exports = async function importFolha(req, res) {
-  if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
-  if (!req.portalProfile?.roles?.includes('admin_geral')) return json(res, 403, { error: 'forbidden' });
+  if (!['GET', 'POST'].includes(req.method)) return json(res, 405, { error: 'method_not_allowed' });
+  if (req.method === 'POST' && !req.portalProfile?.roles?.includes('admin_geral')) return json(res, 403, { error: 'forbidden' });
+  if (req.method === 'GET') {
+    const url = new URL(req.url, `https://${req.headers.host || 'portalsueds.com.br'}`);
+    const year = url.searchParams.get('year');
+    const company = url.searchParams.get('company');
+    const details = url.searchParams.get('details') === '1';
+    if (!/^20\d{2}$/.test(year) || year < '2025' || (company && !/^[A-Z]{2,4}$/.test(company))) return json(res, 400, { error: 'invalid_query' });
+    const db = adminClient();
+    if (!db) return json(res, 503, { error: 'database_not_configured' });
+    let query = db.from('dashboard_snapshots').select('source,period_month,payload').gte('period_month', `${year}-01`).lte('period_month', `${year}-12`).limit(1000);
+    query = company ? query.eq('source', `kpi_folha_${company}`) : query.like('source', 'kpi_folha_%');
+    const result = await query;
+    if (result.error) return json(res, 503, { error: 'database_read_failed', code: result.error.code });
+    const items = (result.data || []).filter(row => /^kpi_folha_[A-Z]{2,4}$/.test(row.source)).map(row => ({
+      companyCode: row.payload.companyCode,
+      companyName: row.payload.companyName,
+      month: row.period_month,
+      totals: row.payload.totals,
+      admissions: { count: row.payload.admissions.count, total: row.payload.admissions.total },
+      dismissals: { count: row.payload.dismissals.count, total: row.payload.dismissals.total },
+      ...(company || details ? { charges: row.payload.sections[1].rows, earnings: row.payload.sections[2].rows, deductions: row.payload.sections[3].rows } : {})
+    })).sort((a, b) => a.companyCode.localeCompare(b.companyCode) || a.month.localeCompare(b.month));
+    return json(res, 200, { year, items });
+  }
   let payload;
   try { payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; }
   catch { return json(res, 400, { error: 'invalid_json' }); }
