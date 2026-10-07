@@ -80,6 +80,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M16 14h2"/></svg>
             <span id="portalOverdueBadge" class="portal-overdue-badge" aria-hidden="true">0</span>
           </button>
+          <button id="portalAvailabilityAlerts" class="portal-availability-alerts" type="button" hidden aria-label="Alertas de disponibilidade" title="Alertas de disponibilidade">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19V9h18v10M5 9V5h14v4M7 9V7h4v2m2 0V7h4v2M3 15h18M6 19v2m12-2v2"/><path class="availability-alert-mark" d="m19 2 3 5h-6zM19 4v1.4M19 7v.1"/></svg>
+            <span id="portalAvailabilityBadge" class="portal-availability-badge" aria-hidden="true">0</span>
+          </button>
           <div class="portal-user-summary" aria-label="Usuário conectado">
             <span id="portalUserInitials" class="portal-user-avatar" aria-hidden="true">US</span>
             <span class="portal-user-copy">
@@ -95,6 +99,11 @@
       <dialog id="portalOverdueDialog" class="portal-overdue-dialog" aria-labelledby="portalOverdueTitle">
         <div class="portal-overdue-heading"><div><h2 id="portalOverdueTitle">Pagamentos atrasados</h2><p>Reservas com saldo a receber há mais de 30 dias da data da venda.</p></div><button id="portalOverdueClose" type="button" aria-label="Fechar">×</button></div>
         <div id="portalOverdueList" class="portal-overdue-list"></div>
+      </dialog>
+      <dialog id="portalAvailabilityDialog" class="portal-availability-dialog" aria-labelledby="portalAvailabilityTitle">
+        <div class="portal-overdue-heading"><div><h2 id="portalAvailabilityTitle">Alertas de Disponibilidade</h2><p id="portalAvailabilityPeriod">Carregando disponibilidade…</p></div><button id="portalAvailabilityClose" type="button" aria-label="Fechar">×</button></div>
+        <div id="portalAvailabilityList" class="portal-availability-list"></div>
+        <a id="portalAvailabilityMapLink" class="portal-availability-map-link" href="/gestores?modulo=mapa_ocupacao">Detalhes: consulte em Operação — Mapa de ocupação</a>
       </dialog>
 
       <div id="portalHome" class="portal-home">
@@ -340,7 +349,7 @@
     </div>
 
     <script src="gestores.js?v=20260911-equipe-hoje"></script>
-    <script src="portal-navigation.js?v=20261007-dre-github"></script>
-    <script src="portal-shell.js?v=20261007-baixa-disponibilidade"></script>
+    <script src="portal-navigation.js?v=20261007-alertas-disponibilidade"></script>
+    <script src="portal-shell.js?v=20261007-alertas-disponibilidade"></script>
   </body>
 </html>
