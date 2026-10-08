@@ -96,6 +96,24 @@ async function update(db, organizationId, profile, id, payload) {
   if (changed) { const result = await db.from("knowledge_document_versions").insert({ document_id: id, version: (latest?.version || 0) + 1, title, summary: clean(payload.summary, 500), content_markdown: content, change_note: clean(payload.changeNote, 500) || "Atualização editorial", author_email: profile.email || profile.id, published_at: nextStatus === "published" ? new Date().toISOString() : null }); if (result.error) throw result.error; }
   await audit(db, organizationId, id, profile, "update", { status: current.data.status }, { status: nextStatus, changed });
 }
+async function removeDocument(db, organizationId, profile, level, payload) {
+  if (!['reviewer', 'admin'].includes(level)) throw new Error("Apenas gestores podem excluir treinamentos.");
+  const id = clean(payload.id, 60);
+  if (payload.confirm !== true || !/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Confirme a exclusão do treinamento.");
+  const document = await db.from("knowledge_documents").select("id,title,module,metadata").eq("id", id).eq("organization_id", organizationId).maybeSingle();
+  if (document.error) throw document.error;
+  if (!document.data) throw new Error("Treinamento não encontrado.");
+  const paths = [...(document.data.metadata?.media || []), ...(document.data.metadata?.pending?.media || [])].map((media) => media.path).filter(Boolean);
+  if (paths.length) {
+    const removed = await db.storage.from(DOCUMENT_MEDIA_BUCKET).remove(paths);
+    if (removed.error && removed.error.code !== "NoSuchBucket") throw removed.error;
+  }
+  const deleted = await db.from("knowledge_documents").delete().eq("id", id).eq("organization_id", organizationId);
+  if (deleted.error) throw deleted.error;
+  const reads = await db.from("dashboard_snapshots").delete().eq("source", "portal_knowledge_training_read").contains("payload", { organizationId, documentId: id });
+  if (reads.error) throw reads.error;
+  await audit(db, organizationId, id, profile, "delete", { title: document.data.title, module: document.data.module }, null);
+}
 async function audit(db, organizationId, documentId, profile, action, beforeState, afterState) { await db.from("knowledge_audit_log").insert({ organization_id: organizationId, document_id: documentId, actor_email: profile.email || profile.id, action, before_state: beforeState, after_state: afterState }); }
 async function ensureDocumentMediaBucket(db) {
   const options = { public: false, fileSizeLimit: DOCUMENT_MEDIA_MAX_BYTES, allowedMimeTypes: Object.keys(DOCUMENT_MEDIA_TYPES) };
@@ -163,6 +181,7 @@ module.exports = async function knowledge(req, res) {
     const payload = await body(req);
     if (req.method === "POST") return json(res, 201, { ok: true, id: await create(db, org, profile, payload) });
     if (req.method === "PATCH") { if (!payload.id) throw new Error("Documento inválido."); if (payload.status === "published" && !canPublish) return json(res, 403, { error: "reviewer_access_required" }); await update(db, org, profile, clean(payload.id, 60), payload); return json(res, 200, { ok: true }); }
+    if (req.method === "DELETE") { await removeDocument(db, org, profile, level, payload); return json(res, 200, { ok: true }); }
     return json(res, 405, { error: "method_not_allowed" });
   } catch (error) { console.error("[knowledge]", error); return json(res, 500, { ok: false, error: "knowledge_failed", message: error.message }); }
 };

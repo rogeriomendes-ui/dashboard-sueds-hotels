@@ -98,6 +98,33 @@ async function modules(req, res, db, org, profile, level) {
     await audit(db, org, profile, "module_update", before, item);
     return json(res, 200, { ok: true });
   }
+  if (req.method === "DELETE") {
+    if (!['reviewer', 'admin'].includes(level)) return json(res, 403, { error: "reviewer_access_required" });
+    const item = state.modules.find((module) => module.id === clean(data.id, 80));
+    if (!item || data.confirm !== true) return json(res, 400, { error: "invalid_module", message: "Confirme a exclusão do módulo." });
+    const documents = await db.from("knowledge_documents").select("id,metadata").eq("organization_id", org).eq("module", item.slug);
+    if (documents.error) throw documents.error;
+    const mediaPaths = (documents.data || []).flatMap((document) => [...(document.metadata?.media || []), ...(document.metadata?.pending?.media || [])].map((media) => media.path).filter(Boolean));
+    if (mediaPaths.length) {
+      const removed = await db.storage.from("portal-knowledge-media").remove(mediaPaths);
+      if (removed.error && removed.error.code !== "NoSuchBucket") throw removed.error;
+    }
+    const deleted = await db.from("knowledge_documents").delete().eq("organization_id", org).eq("module", item.slug);
+    if (deleted.error) throw deleted.error;
+    const trainingReads = await db.from("dashboard_snapshots").delete().eq("source", "portal_knowledge_training_read").contains("payload", { organizationId: org, module: item.slug });
+    if (trainingReads.error) throw trainingReads.error;
+    const popReads = await db.from("dashboard_snapshots").delete().eq("source", "portal_knowledge_pop_read").contains("payload", { organizationId: org, module: item.slug });
+    if (popReads.error) throw popReads.error;
+    if (item.pop?.path) {
+      const removed = await db.storage.from(POP_BUCKET).remove([item.pop.path]);
+      if (removed.error && removed.error.code !== "NoSuchBucket") throw removed.error;
+    }
+    const before = { ...item };
+    state.modules = state.modules.filter((module) => module.id !== item.id);
+    await save(db, org, { ...state.metadata, knowledgeModules: state.modules, knowledgeKpiEdits: item.slug === "kpi" ? {} : state.edits });
+    await audit(db, org, profile, "module_delete", before, { slug: item.slug, deletedDocuments: documents.data?.length || 0 });
+    return json(res, 200, { ok: true, deletedDocuments: documents.data?.length || 0 });
+  }
   return json(res, 405, { error: "method_not_allowed" });
 }
 async function pop(req, res, db, org, profile, level) {
