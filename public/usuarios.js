@@ -51,6 +51,9 @@
     byId("dialogEyebrow").textContent = user ? "Controle de acesso" : "Novo acesso";
     byId("dialogTitle").textContent = user ? "Editar usuário" : "Convidar usuário";
     byId("userId").value = user?.id || "";
+    byId("userCpf").value = user?.cpf || "";
+    byId("userPhone").value = user?.phone || "";
+    byId("userJobTitle").value = user?.jobTitle || "";
     byId("userName").value = user?.name || "";
     byId("userEmail").value = user?.email || "";
     byId("userEmail").disabled = Boolean(user);
@@ -103,6 +106,9 @@
     formMessage.textContent = "";
     const payload = {
       id: byId("userId").value,
+      cpf: byId("userCpf").value.trim(),
+      phone: byId("userPhone").value.trim(),
+      jobTitle: byId("userJobTitle").value.trim(),
       name: byId("userName").value.trim(),
       email: byId("userEmail").value.trim(),
       departments: selected("departments"),

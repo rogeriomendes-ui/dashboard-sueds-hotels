@@ -43,6 +43,9 @@
 
         <input id="userId" type="hidden">
         <div class="form-grid two-columns">
+          <label>CPF<input id="userCpf" type="text" maxlength="14" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00"></label>
+          <label>Celular<input id="userPhone" type="tel" maxlength="16" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000"></label>
+          <label>Cargo<input id="userJobTitle" type="text" maxlength="120" autocomplete="organization-title" placeholder="Ex.: Recepcionista"></label>
           <label>Nome completo<input id="userName" required minlength="2" maxlength="120" autocomplete="name"></label>
           <label>E-mail<input id="userEmail" type="email" required maxlength="254" autocomplete="email"></label>
         </div>
@@ -86,6 +89,6 @@
       </form>
     </dialog>
 
-    <script src="/usuarios.js?v=20260916-departamentos"></script>
+    <script src="/usuarios.js?v=20261008-user-details"></script>
   </body>
 </html>

@@ -93,6 +93,9 @@ async function listUsers(supabase) {
       id: profile.id,
       name: profile.full_name,
       email: authById.get(profile.id)?.email || "",
+      cpf: authById.get(profile.id)?.user_metadata?.cpf || "",
+      phone: authById.get(profile.id)?.user_metadata?.phone || "",
+      jobTitle: authById.get(profile.id)?.user_metadata?.job_title || "",
       status: profile.status,
       departments: validPortalDepartments(authById.get(profile.id)?.app_metadata?.departments, { includeGeneral: true }),
       roleIds: (roleGrants.data || []).filter((grant) => grant.user_id === profile.id).map((grant) => Number(grant.role_id)),
@@ -108,6 +111,9 @@ async function listUsers(supabase) {
 
 async function replaceAccess(supabase, actorId, userId, payload, options = {}) {
   const name = String(payload.name || "").trim();
+  const cpf = String(payload.cpf || "").trim();
+  const phone = String(payload.phone || "").trim();
+  const jobTitle = String(payload.jobTitle || "").trim();
   const departments = validPortalDepartments(payload.departments, { includeGeneral: true });
   const roleIds = parseIds(payload.roleIds, "number");
   const hotelIds = parseIds(payload.hotelIds, "uuid");
@@ -115,6 +121,9 @@ async function replaceAccess(supabase, actorId, userId, payload, options = {}) {
   const knowledgeRole = ["viewer", "editorial", "reviewer", "admin"].includes(payload.knowledgeRole) ? payload.knowledgeRole : "viewer";
   const status = payload.status === "inactive" ? "inactive" : "active";
   if (name.length < 2 || name.length > 120) throw new Error("Informe o nome completo.");
+  if (cpf.length > 14) throw new Error("Informe um CPF válido.");
+  if (phone.length > 16) throw new Error("Informe um celular válido.");
+  if (jobTitle.length > 120) throw new Error("Informe um cargo válido.");
   if (options.requireDepartment && !departments.length) throw new Error("Selecione pelo menos um departamento.");
   if (!roleIds.length) throw new Error("Selecione pelo menos um perfil.");
 
@@ -132,7 +141,8 @@ async function replaceAccess(supabase, actorId, userId, payload, options = {}) {
   const authUserResult = await supabase.auth.admin.getUserById(userId);
   if (authUserResult.error || !authUserResult.data.user) throw authUserResult.error || new Error("Usuário não encontrado.");
   const authUpdate = await supabase.auth.admin.updateUserById(userId, {
-    app_metadata: { ...(authUserResult.data.user.app_metadata || {}), departments }
+    app_metadata: { ...(authUserResult.data.user.app_metadata || {}), departments },
+    user_metadata: { ...(authUserResult.data.user.user_metadata || {}), cpf, phone, job_title: jobTitle }
   });
   if (authUpdate.error) throw authUpdate.error;
 
@@ -192,7 +202,12 @@ module.exports = async function users(req, res) {
       if (!EMAIL_PATTERN.test(email) || email.length > 254) throw new Error("Informe um e-mail válido.");
       if (!validPortalDepartments(payload.departments, { includeGeneral: true }).length) throw new Error("Selecione pelo menos um departamento.");
       const invitation = await supabase.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: String(payload.name || "").trim() },
+        data: {
+          full_name: String(payload.name || "").trim(),
+          cpf: String(payload.cpf || "").trim(),
+          phone: String(payload.phone || "").trim(),
+          job_title: String(payload.jobTitle || "").trim()
+        },
         redirectTo: "https://portalsueds.com.br/login"
       });
       if (invitation.error || !invitation.data.user) {

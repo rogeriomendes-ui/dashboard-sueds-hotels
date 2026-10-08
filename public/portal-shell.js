@@ -176,7 +176,7 @@
     availabilityButton.setAttribute("aria-label", label);
     availabilityButton.title = label;
     const updatedAt = payload.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.updatedAt)) : "não informada";
-    availabilityPeriod.textContent = `Última atualização do KPI: ${updatedAt}. De ${day.format(new Date(`${payload.period.start}T12:00:00Z`))} até ${day.format(new Date(`${payload.period.end}T12:00:00Z`))}. Dias com 3 ou menos aptos. disponíveis.`;
+    availabilityPeriod.textContent = `Última atualização do KPI: ${updatedAt}. De ${day.format(new Date(`${payload.period.start}T12:00:00Z`))} até ${day.format(new Date(`${payload.period.end}T12:00:00Z`))}. Dias com 3 ou menos aptos. disponíveis ou em OVER nas datas em vermelho.`;
     availabilityList.replaceChildren();
     if (!alerts.length) {
       const empty = document.createElement("p");
@@ -195,9 +195,20 @@
       hotel.days.forEach((item) => {
         const month = availabilityMonth(item.date);
         if (!grouped.has(month)) grouped.set(month, []);
-        grouped.get(month).push(availabilityDate(item.date));
+        grouped.get(month).push(item);
       });
-      text.textContent = [...grouped.entries()].map(([month, dates]) => `${month}: ${dates.join(", ")}`).join(" · ");
+      [...grouped.entries()].forEach(([month, days], monthIndex) => {
+        if (monthIndex) text.append(" · ");
+        text.append(`${month}: `);
+        days.forEach((item, dayIndex) => {
+          if (dayIndex) text.append(", ");
+          const date = document.createElement("span");
+          date.className = "portal-availability-date";
+          if (item.available < 0) date.classList.add("is-over");
+          date.textContent = availabilityDate(item.date);
+          text.append(date);
+        });
+      });
       item.append(title, text);
       availabilityList.append(item);
     });
