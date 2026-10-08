@@ -280,6 +280,26 @@ select { font: inherit; }
   font-size: 22px;
 }
 
+.quality-occupancy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.quality-occupancy span + span::before,
+.quality-occupancy strong::before {
+  content: "•";
+  margin-right: 9px;
+  color: var(--line);
+}
+
+.quality-occupancy b { color: var(--ink); }
+.quality-occupancy strong { color: var(--green); }
+
 .quality-blocks {
   margin-top: 16px;
   display: grid;

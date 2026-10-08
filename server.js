@@ -7491,7 +7491,10 @@ function operationalOpinionResponse(opinion, index) {
 
 async function buildOperationalHotelPayload(period = {}) {
   const selectedHotel = operationalHotelFromSlug(period.hotel);
-  const opinions = await loadOperationalOpinions();
+  const [opinions, kpiDataset] = await Promise.all([
+    loadOperationalOpinions(),
+    loadBiKpiReportsDataset()
+  ]);
   const date = period.date || "";
   const weekday = ["tuesday", "friday"].includes(period.weekday) ? period.weekday : "";
   const month = date ? date.slice(0, 7) : period.month || todayKey().slice(0, 7);
@@ -7512,6 +7515,17 @@ async function buildOperationalHotelPayload(period = {}) {
     approvedOpinions: evaluatedOpinions.length,
     reviewOpinions: reviewOpinions.length
   };
+  const occupancy = operationalOccupancyByHotel(
+    kpiDataset.records,
+    date,
+    kpiDataset.occupancyGuestFields
+  ).get(comparableKey(selectedHotel.name));
+  if (occupancy) {
+    evaluation.occupancy = {
+      ...occupancy,
+      responseRate: occupancy.adults ? Math.round(evaluation.totalOpinions / occupancy.adults * 1000) / 10 : null
+    };
+  }
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)
     .filter(Boolean)

@@ -344,6 +344,22 @@ function renderQuality(evaluation) {
   byId("hotelScore").textContent = formatScore(evaluation.finalScore);
   byId("scoreRing").style.setProperty("--score", score);
   byId("scoreRing").style.setProperty("--score-color", color);
+  const occupancy = evaluation.occupancy;
+  const occupancyElement = byId("qualityOccupancy");
+  if (occupancy) {
+    const guests = [
+      occupancy.adults === null ? "" : `${integer.format(occupancy.adults)} adultos`,
+      occupancy.children === null ? "" : `${integer.format(occupancy.children)} crianças`
+    ].filter(Boolean).join(" · ");
+    const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
+      ? ""
+      : `<strong>${String(occupancy.responseRate).replace(".", ",")}% de respostas / adultos</strong>`;
+    occupancyElement.innerHTML = `<span><b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>${guests ? `<span>${guests}</span>` : ""}${responseRate}`;
+    occupancyElement.hidden = false;
+  } else {
+    occupancyElement.textContent = "";
+    occupancyElement.hidden = true;
+  }
   byId("qualityBlocks").innerHTML = (evaluation.blocks || []).map((block) => {
     const blockScore = safeScore(block.score);
     const blockColor = scoreColor(block.score);
