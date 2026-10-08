@@ -299,6 +299,7 @@ select { font: inherit; }
 
 .quality-occupancy b { color: var(--ink); }
 .quality-occupancy strong { color: var(--green); }
+.quality-occupancy strong.response-rate-low { color: #c62828; }
 
 .quality-blocks {
   margin-top: 16px;

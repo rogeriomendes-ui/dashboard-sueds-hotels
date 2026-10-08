@@ -3614,7 +3614,7 @@ function kpiDateWithReference(value, deltaYears, reference) {
   };
 }
 
-function kpiObjectsFromColumnRanges(columnRanges = [], guestColumns = {}) {
+function kpiObjectsFromColumnRanges(columnRanges = []) {
   const [identityRows = [], stayRows = [], roomRows = [], saleDateRows = [], totalRows = []] = columnRanges;
   const rowCount = Math.max(identityRows.length, stayRows.length, roomRows.length, saleDateRows.length, totalRows.length);
   const objects = [];
@@ -3636,25 +3636,12 @@ function kpiObjectsFromColumnRanges(columnRanges = [], guestColumns = {}) {
       Status: room[2] ?? "",
       RN: room[3] ?? "",
       "D.Res": saleDate[0] ?? "",
-      Total: total[0] ?? "",
-      Adultos: guestColumns.adults ? guestColumns.adults[index]?.[0] ?? "" : undefined,
-      Crianças: guestColumns.children ? guestColumns.children[index]?.[0] ?? "" : undefined
+      Total: total[0] ?? ""
     };
     if (Object.values(item).some((value) => value !== "" && value !== null && value !== undefined)) objects.push(item);
   }
 
   return objects;
-}
-
-function kpiGuestColumnRanges(headers = []) {
-  const columnFor = (names) => {
-    const index = headers.findIndex((header) => names.includes(comparableKey(header)));
-    return index >= 0 ? String.fromCharCode(65 + index) : "";
-  };
-  return {
-    adults: columnFor(["adulto", "adultos", "adult"]),
-    children: columnFor(["crianca", "criancas", "child", "children"])
-  };
 }
 
 function kpiLatestSaleDate(objects = []) {
@@ -3750,8 +3737,6 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       apartment: String(item.Apto || "").trim(),
       roomNights: Math.max(0, parseNumber(item.RN)),
       dailyRate: Math.max(0, parseNumber(item["Diária"])),
-      adults: item.Adultos === undefined ? null : parseNumber(item.Adultos),
-      children: item["Crianças"] === undefined ? null : parseNumber(item["Crianças"]),
       total: parseNumber(item.Total)
     };
     const group = groups.get(key) || [];
@@ -3770,7 +3755,6 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
     const checkin = checkins[0] || representative.checkin;
     const checkout = checkouts[0] || representative.checkout;
     const roomNights = kpiReservationNights(validRows);
-    const guestSource = validRows.find((row) => row.adults !== null || row.children !== null) || representative;
     return {
       date: sale.date,
       dateKey: sale.key,
@@ -3785,8 +3769,6 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       checkout: checkout.display,
       days: String(roomNights || ""),
       uh: "1",
-      adults: guestSource.adults,
-      children: guestSource.children,
       status: sellable.length ? "Confirmada" : representative.status,
       reservationCount: 1,
       total: kpiReservationRevenue(validRows),
@@ -5336,7 +5318,7 @@ function emptyOperationalHotel(hotel) {
   };
 }
 
-function operationalOccupancyByHotel(records = [], date = "", guestFields = {}) {
+function operationalOccupancyByHotel(records = [], date = "") {
   if (!date) return new Map();
   const totals = new Map();
   records.forEach((record) => {
@@ -5345,17 +5327,21 @@ function operationalOccupancyByHotel(records = [], date = "", guestFields = {}) 
     const checkout = kpiDateKey(record.checkout);
     if (!inventory || !isCountedSaleStatus(record) || !checkin || !checkout || date < checkin || date >= checkout) return;
     const key = comparableKey(inventory.label);
-    const total = totals.get(key) || {
-      occupied: 0,
-      adults: guestFields.adults ? 0 : null,
-      children: guestFields.children ? 0 : null
-    };
+    const total = totals.get(key) || { occupied: 0 };
     total.occupied += Math.max(biReportsRoomCount(record), parseNumber(record.reservationCount), 1);
-    if (guestFields.adults) total.adults += Math.max(0, Number(record.adults) || 0);
-    if (guestFields.children) total.children += Math.max(0, Number(record.children) || 0);
     totals.set(key, total);
   });
   return totals;
+}
+
+function operationalResponseMetric(occupancy, responses) {
+  if (!occupancy) return null;
+  const estimatedGuests = occupancy.occupied * 2;
+  return {
+    ...occupancy,
+    estimatedGuests,
+    responseRate: estimatedGuests ? Math.floor(responses / estimatedGuests * 100) : null
+  };
 }
 
 const PLAZA_OMR_RATING_OPTIONS = ["Excelente", "Muito bom", "Bom", "Regular"];
@@ -7367,8 +7353,7 @@ async function buildOperationalTvPayload(period = {}) {
   ));
   const occupancyByHotel = operationalOccupancyByHotel(
     kpiDataset.records,
-    date,
-    kpiDataset.occupancyGuestFields
+    date
   );
   const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
     .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
@@ -7393,10 +7378,7 @@ async function buildOperationalTvPayload(period = {}) {
     if (!occupancy) return hotel;
     return {
       ...hotel,
-      occupancy: {
-        ...occupancy,
-        responseRate: occupancy.adults ? Math.round(hotel.opinions / occupancy.adults * 1000) / 10 : null
-      }
+      occupancy: operationalResponseMetric(occupancy, hotel.opinions)
     };
   });
 
@@ -7517,14 +7499,10 @@ async function buildOperationalHotelPayload(period = {}) {
   };
   const occupancy = operationalOccupancyByHotel(
     kpiDataset.records,
-    date,
-    kpiDataset.occupancyGuestFields
+    date
   ).get(comparableKey(selectedHotel.name));
   if (occupancy) {
-    evaluation.occupancy = {
-      ...occupancy,
-      responseRate: occupancy.adults ? Math.round(evaluation.totalOpinions / occupancy.adults * 1000) / 10 : null
-    };
+    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.approvedOpinions);
   }
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)
@@ -9249,8 +9227,7 @@ async function loadBiKpiReportsDataset() {
     };
     const currentSheet = sheetPrefix(BI_KPI_2026_RANGE);
     const historicalSheet = sheetPrefix(BI_KPI_2025_RANGE);
-    const [currentHeaderRows, values, goalRows] = await Promise.all([
-      getSheetValues(`${currentSheet}!A1:X1`),
+    const [values, goalRows] = await Promise.all([
       getSheetValueRanges([
         ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
         ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
@@ -9260,23 +9237,13 @@ async function loadBiKpiReportsDataset() {
         throw error;
       })
     ]);
-    const guestColumns = kpiGuestColumnRanges(currentHeaderRows[0] || []);
-    const guestRanges = Object.entries(guestColumns)
-      .filter(([, column]) => column)
-      .map(([name, column]) => ({ name, range: `${currentSheet}!${column}:${column}` }));
-    const guestValues = guestRanges.length ? await getSheetValueRanges(guestRanges.map(({ range }) => range)) : [];
-    const currentGuestColumns = Object.fromEntries(guestRanges.map(({ name }, index) => [name, guestValues[index]]));
-    const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length), currentGuestColumns);
+    const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length));
     const historicalKpiObjects = kpiObjectsFromColumnRanges(values.slice(compactColumns.length));
     const kpiRecords = normalizeKpiReportObjects(currentKpiObjects, 2026);
     const historicalRecords = normalizeKpiReportObjects(historicalKpiObjects, 2025);
     const payload = {
       records: kpiRecords,
       maintenanceBlocks: normalizeKpiMaintenanceObjects(currentKpiObjects, 2026),
-      occupancyGuestFields: {
-        adults: Boolean(guestColumns.adults),
-        children: Boolean(guestColumns.children)
-      },
       kpiLatestSaleDate: kpiLatestSaleDate(currentKpiObjects),
       otherChannelRecords: [],
       historicalRecords,

@@ -275,6 +275,10 @@ body {
   color: #168a4a;
 }
 
+.hotel-occupancy strong.response-rate-low {
+  color: #c62828;
+}
+
 .block-list {
   display: grid;
   gap: 9px;

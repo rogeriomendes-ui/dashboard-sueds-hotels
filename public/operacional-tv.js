@@ -126,17 +126,13 @@ function blockRow(block) {
 function occupancyMetric(hotel) {
   const occupancy = hotel.occupancy;
   if (!occupancy) return "";
-  const guests = [
-    occupancy.adults === null ? "" : `${integer.format(occupancy.adults)} adultos`,
-    occupancy.children === null ? "" : `${integer.format(occupancy.children)} crianças`
-  ].filter(Boolean).join(" · ");
   const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
     ? ""
-    : `<strong>${String(occupancy.responseRate).replace(".", ",")}% de respostas / adultos</strong>`;
+    : `<strong class="response-rate${occupancy.responseRate < 50 ? " response-rate-low" : ""}">Taxa de respostas: ${String(occupancy.responseRate).replace(".", ",")}%</strong>`;
   return `
     <div class="hotel-occupancy" aria-label="Ocupação e hóspedes do dia">
       <span><b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>
-      ${guests ? `<span>${guests}</span>` : ""}
+      <span>(média de ${integer.format(occupancy.estimatedGuests || 0)} pax)</span>
       ${responseRate}
     </div>
   `;

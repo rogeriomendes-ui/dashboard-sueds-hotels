@@ -347,14 +347,10 @@ function renderQuality(evaluation) {
   const occupancy = evaluation.occupancy;
   const occupancyElement = byId("qualityOccupancy");
   if (occupancy) {
-    const guests = [
-      occupancy.adults === null ? "" : `${integer.format(occupancy.adults)} adultos`,
-      occupancy.children === null ? "" : `${integer.format(occupancy.children)} crianças`
-    ].filter(Boolean).join(" · ");
     const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
       ? ""
-      : `<strong>${String(occupancy.responseRate).replace(".", ",")}% de respostas / adultos</strong>`;
-    occupancyElement.innerHTML = `<span><b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>${guests ? `<span>${guests}</span>` : ""}${responseRate}`;
+      : `<strong class="response-rate${occupancy.responseRate < 50 ? " response-rate-low" : ""}">Taxa de respostas: ${String(occupancy.responseRate).replace(".", ",")}%</strong>`;
+    occupancyElement.innerHTML = `<span><b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span><span>(média de ${integer.format(occupancy.estimatedGuests || 0)} pax)</span>${responseRate}`;
     occupancyElement.hidden = false;
   } else {
     occupancyElement.textContent = "";
