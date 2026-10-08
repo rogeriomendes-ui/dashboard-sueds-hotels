@@ -7,7 +7,7 @@
     <title>SUEDS Plaza | TV Operacional</title>
     <link rel="stylesheet" href="/operational-auth.css">
     <script src="/operational-auth.js?v=20260807-portal-auth"></script>
-    <link rel="stylesheet" href="/operacional-plaza.css?v=20261008-pax-estimate">
+    <link rel="stylesheet" href="/operacional-plaza.css?v=20261008-pax-position">
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
   </head>
   <body>
@@ -122,13 +122,13 @@
               <span id="qualityPeriodLabel">Avaliação mensal</span>
               <h2 id="qualityTitle">SUEDS Plaza</h2>
               <p id="qualitySubtitle">Sem opiniários no período</p>
+              <div id="qualityOccupancy" class="quality-occupancy" hidden></div>
             </div>
             <div id="scoreRing" class="score-ring" style="--score:0; --score-color:#8a98a5">
               <strong id="hotelScore">--</strong>
             </div>
           </header>
 
-          <div id="qualityOccupancy" class="quality-occupancy" hidden></div>
           <div id="qualityBlocks" class="quality-blocks"></div>
 
           <div class="quality-notes">
@@ -289,6 +289,6 @@
       </article>
     </dialog>
 
-    <script src="/operacional-plaza.js?v=20261008-pax-estimate"></script>
+    <script src="/operacional-plaza.js?v=20261008-pax-position"></script>
   </body>
 </html>

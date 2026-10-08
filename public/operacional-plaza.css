@@ -203,7 +203,7 @@ select { font: inherit; }
 .update-status strong { font-size: 11px; white-space: nowrap; }
 
 .content-grid {
-  margin-top: 12px;
+  margin-top: 7px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(340px, 26vw, 480px);
   gap: 12px;

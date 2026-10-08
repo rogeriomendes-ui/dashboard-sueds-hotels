@@ -148,12 +148,12 @@ function hotelCard(hotel) {
         <div>
           <h2>${escapeHtml(hotel.hotel)}</h2>
           <small>${hasData ? `${integer.format(hotel.opinions || 0)} ${hotel.opinions === 1 ? "opinário" : "opinários"} | ${integer.format(hotel.answeredItems || 0)} itens avaliados` : `Sem opinários no ${state.periodMode === "day" ? "dia" : "período"}`}</small>
+          ${occupancyMetric(hotel)}
         </div>
         <div class="score-badge" style="--score:${score}; --score-color:${color}">
           <strong>${formatScore(hotel.finalScore)}</strong>
         </div>
       </div>
-      ${occupancyMetric(hotel)}
       <div class="block-list">
         ${(hotel.blocks || []).map(blockRow).join("")}
       </div>
