@@ -3,7 +3,7 @@
   const id = params.get('id');
   const moduleSlug = params.get('module');
   const editStyle = document.createElement('style');
-  editStyle.textContent = '#reader-edit{position:fixed;z-index:10;right:24px;bottom:24px;margin:0;padding:8px 12px;border:1px solid #9aa5a1;border-radius:6px;background:#fff;color:var(--deep);font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 2px 8px #001d1420}';
+  editStyle.textContent = '#reader-edit{position:fixed;z-index:10;right:24px;bottom:24px;margin:0;padding:8px 12px;border:1px solid #9aa5a1;border-radius:6px;background:#fff;color:var(--deep);font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 2px 8px #001d1420}.module-training-search{margin:24px 0 16px}.module-training-search label{display:grid;gap:6px;color:var(--deep);font-size:12px;font-weight:800}.module-training-search input{min-height:42px;padding:9px 12px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit}';
   document.head.append(editStyle);
   const text = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   function markdown(source) { return String(source || '').split(/\n\s*\n/).map((block) => { const lines=block.split('\n'); if(/^#{1,3} /.test(lines[0])) { const level=lines[0].match(/^#+/)[0].length; return `<h${level}>${text(lines[0].slice(level+1))}</h${level}>`; } if(lines.every((line)=>/^[-*] /.test(line))) return `<ul>${lines.map((line)=>`<li>${text(line.slice(2))}</li>`).join('')}</ul>`; return `<p>${lines.map(text).join('<br>')}</p>`; }).join(''); }
@@ -27,10 +27,19 @@
         readerContent.innerHTML = `<section class="training-pop-required"><h2>Leia o POP antes de iniciar</h2><p>Este módulo exige a leitura e confirmação do Procedimento Operacional Padrão antes de liberar os treinamentos.</p><a href="/treinamentos-pop.html?module=${encodeURIComponent(module.slug)}">Abrir POP e confirmar leitura</a></section>`;
         return;
       }
-      readerContent.innerHTML = documents.length ? documents.map((doc) => {
-        const version = doc.versions?.find((item) => item.version === doc.published_version) || doc.versions?.[0] || {};
-        return `<article class="reader-document"><div><h2>${text(doc.title)}</h2><p>${text(version.summary || '')}</p></div><a href="/treinamentos-conteudo.html?id=${encodeURIComponent(doc.id)}">Abrir treinamento</a></article>`;
-      }).join('') : '<p>Nenhum treinamento publicado nesta área.</p>';
+      if (!documents.length) { readerContent.innerHTML = '<p>Nenhum treinamento publicado nesta área.</p>'; return; }
+      readerContent.innerHTML = '<div class="module-training-search"><label>Buscar neste módulo<input id="module-training-search" type="search" placeholder="Ex.: atendimento, reservas, hóspedes…"></label></div><div id="module-training-list" class="reader-documents"></div>';
+      const list = document.getElementById('module-training-list');
+      const renderDocuments = (query = '') => {
+        const normalized = query.trim().toLocaleLowerCase('pt-BR');
+        const visible = documents.filter((doc) => `${doc.title} ${doc.versions?.[0]?.summary || ''}`.toLocaleLowerCase('pt-BR').includes(normalized));
+        list.innerHTML = visible.length ? visible.map((doc) => {
+          const version = doc.versions?.find((item) => item.version === doc.published_version) || doc.versions?.[0] || {};
+          return `<article class="reader-document"><div><h2>${text(doc.title)}</h2><p>${text(version.summary || '')}</p></div><a href="/treinamentos-conteudo.html?id=${encodeURIComponent(doc.id)}">Abrir treinamento</a></article>`;
+        }).join('') : '<p>Nenhum treinamento encontrado neste módulo.</p>';
+      };
+      renderDocuments();
+      document.getElementById('module-training-search').addEventListener('input', (event) => renderDocuments(event.target.value));
       return;
     }
     const doc = (result.documents || []).find((item) => item.id === id && item.status === 'published');
