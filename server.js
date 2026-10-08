@@ -5318,29 +5318,46 @@ function emptyOperationalHotel(hotel) {
   };
 }
 
-function operationalOccupancyByHotel(records = [], date = "") {
-  if (!date) return new Map();
+function operationalPeriodDateKeys({ date = "", month = "", weekday = "" } = {}) {
+  if (date) return [date];
+  if (!/^\d{4}-\d{2}$/.test(month)) return [];
+  const today = todayKey();
+  const lastDay = month === today.slice(0, 7)
+    ? Number(today.slice(8, 10))
+    : month < today.slice(0, 7) ? daysInMonth(month) : 0;
+  const weekdayNumber = { tuesday: 2, friday: 5 }[weekday] ?? null;
+  return Array.from({ length: lastDay }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`)
+    .filter((key) => weekdayNumber === null || operationalWeekdayNumber(key) === weekdayNumber);
+}
+
+function operationalOccupancyByHotel(records = [], dates = []) {
+  if (!dates.length) return new Map();
   const totals = new Map();
   records.forEach((record) => {
     const inventory = biReportsInventory(record.hotel);
     const checkin = kpiDateKey(record.checkin);
     const checkout = kpiDateKey(record.checkout);
-    if (!inventory || !isCountedSaleStatus(record) || !checkin || !checkout || date < checkin || date >= checkout) return;
+    if (!inventory || !isCountedSaleStatus(record) || !checkin || !checkout) return;
     const key = comparableKey(inventory.label);
-    const total = totals.get(key) || { occupied: 0 };
-    total.occupied += Math.max(biReportsRoomCount(record), parseNumber(record.reservationCount), 1);
+    const total = totals.get(key) || { occupiedRoomNights: 0, days: dates.length };
+    const rooms = Math.max(biReportsRoomCount(record), parseNumber(record.reservationCount), 1);
+    dates.forEach((date) => {
+      if (date >= checkin && date < checkout) total.occupiedRoomNights += rooms;
+    });
     totals.set(key, total);
   });
   return totals;
 }
 
-function operationalResponseMetric(occupancy, responses) {
+function operationalResponseMetric(occupancy, responses, isAverage = false) {
   if (!occupancy) return null;
-  const estimatedGuests = occupancy.occupied * 2;
+  const occupied = occupancy.days ? occupancy.occupiedRoomNights / occupancy.days : 0;
+  const estimatedGuests = occupancy.occupiedRoomNights * 2;
   return {
-    ...occupancy,
-    estimatedGuests,
-    responseRate: estimatedGuests ? Math.floor(responses / estimatedGuests * 100) : null
+    occupied,
+    estimatedGuests: isAverage ? occupied * 2 : estimatedGuests,
+    responseRate: estimatedGuests ? Math.floor(responses / estimatedGuests * 100) : null,
+    isAverage
   };
 }
 
@@ -7351,9 +7368,10 @@ async function buildOperationalTvPayload(period = {}) {
     isCurrentOperationalOpinion(opinion)
       && operationalOpinionMatchesPeriod(opinion, { date, month, weekday })
   ));
+  const occupancyDates = operationalPeriodDateKeys({ date, month, weekday });
   const occupancyByHotel = operationalOccupancyByHotel(
     kpiDataset.records,
-    date
+    occupancyDates
   );
   const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
     .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
@@ -7378,7 +7396,7 @@ async function buildOperationalTvPayload(period = {}) {
     if (!occupancy) return hotel;
     return {
       ...hotel,
-      occupancy: operationalResponseMetric(occupancy, hotel.opinions)
+      occupancy: operationalResponseMetric(occupancy, hotel.opinions, !date)
     };
   });
 
@@ -7497,12 +7515,13 @@ async function buildOperationalHotelPayload(period = {}) {
     approvedOpinions: evaluatedOpinions.length,
     reviewOpinions: reviewOpinions.length
   };
+  const occupancyDates = operationalPeriodDateKeys({ date, month, weekday });
   const occupancy = operationalOccupancyByHotel(
     kpiDataset.records,
-    date
+    occupancyDates
   ).get(comparableKey(selectedHotel.name));
   if (occupancy) {
-    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.approvedOpinions);
+    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.approvedOpinions, !date);
   }
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)
