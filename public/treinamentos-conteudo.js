@@ -93,7 +93,10 @@
         element.addEventListener('seeking', () => { if (!element.ended && Math.abs(element.currentTime - watchedUntil) > .5) element.currentTime = watchedUntil; });
         element.addEventListener('play', () => { playButton.hidden = true; });
         element.addEventListener('ended', () => { element.dataset.completed = 'true'; playButton.hidden = false; updateVideoRequirement(); });
-        playButton.addEventListener('click', () => { element.play(); });
+        playButton.addEventListener('click', () => {
+          if (element.ended || (Number.isFinite(element.duration) && element.currentTime >= element.duration)) element.currentTime = 0;
+          element.play().catch(() => { playButton.hidden = false; });
+        });
         player.append(element, playButton);
         videos.push(element);
         media.append(player);
