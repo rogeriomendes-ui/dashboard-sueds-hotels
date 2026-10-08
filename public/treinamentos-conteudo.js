@@ -47,6 +47,11 @@
     const modulesResponse = await fetch('/api/knowledge?action=modules', { credentials:'same-origin', cache:'no-store' });
     const modules = modulesResponse.ok ? (await modulesResponse.json()).modules || [] : [];
     const module = modules.find((item) => item.slug === doc.module);
+    const moduleBack = document.getElementById('reader-module-back');
+    if (moduleBack) {
+      moduleBack.href = `/treinamentos-conteudo.html?module=${encodeURIComponent(doc.module)}`;
+      moduleBack.hidden = false;
+    }
     if (module?.pop && !module.pop.read) {
       document.title = `${module.name} | Centro de Conhecimentos Sueds`;
       readerTitle.textContent = 'Leitura do POP necessária';
