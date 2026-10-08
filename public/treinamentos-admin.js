@@ -13,7 +13,7 @@
   let docs = [], modules = [], canPublish = false;
   const moduleIcons = [['🏨','Hotel'],['🛎️','Recepção'],['📅','Reservas'],['🛏️','Hospedagem'],['🍽️','Alimentos e bebidas'],['🎉','Eventos'],['🔧','Manutenção'],['📈','Vendas'],['💳','Financeiro'],['👥','Recursos humanos'],['🚌','Transporte'],['✈️','Viagens']];
   const iconOptions = (selected = '🏨') => moduleIcons.map(([icon, label]) => `<option value="${icon}" ${icon === selected ? 'selected' : ''}>${icon} ${label}</option>`).join('');
-  async function request(url, options) { const response = await fetch(url, { credentials:'same-origin', cache:'no-store', ...options }); const data = await response.json(); if (!response.ok) throw new Error(data.message || 'Não foi possível concluir a operação.'); return data; }
+  async function request(url, options) { const response = await fetch(url, { credentials:'same-origin', cache:'no-store', ...options }); const text = await response.text(); let data = {}; try { data = text ? JSON.parse(text) : {}; } catch { throw new Error('O servidor não conseguiu concluir a operação. Tente novamente em instantes.'); } if (!response.ok) throw new Error(data.message || 'Não foi possível concluir a operação.'); return data; }
   function mediaRows(items = []) {
     const image = items.find((item) => item.type === 'imagem') || {}, video = items.find((item) => item.type === 'video') || {};
     $('image-file').value = ''; $('image-file').dataset.path = image.path || ''; $('image-file').dataset.url = image.path ? '' : (image.url || ''); $('image-caption').value = image.caption || '';
@@ -29,7 +29,7 @@
   async function uploadMedia(documentId) {
     const uploads=[
       { type:'imagem', file:$('image-file').files[0], target:$('image-file'), allowed:['image/jpeg','image/png','image/webp','image/gif'], max:20*1024*1024, label:'imagem JPG, PNG, WebP ou GIF de até 20 MB' },
-      { type:'video', file:$('video-file').files[0], target:$('video-url'), allowed:['video/mp4','video/webm','video/ogg'], max:500*1024*1024, label:'vídeo MP4, WebM ou OGG de até 500 MB' }
+      { type:'video', file:$('video-file').files[0], target:$('video-url'), allowed:['video/mp4','video/webm','video/ogg'], max:50*1024*1024, label:'vídeo MP4, WebM ou OGG de até 50 MB' }
     ].filter((upload)=>upload.file);
     for (const upload of uploads) {
       const { type, file, target, allowed, max, label } = upload;

@@ -4,14 +4,15 @@ const knowledgeSettings = require("./knowledge-settings");
 
 const DEFAULT_URL = "https://pjcmjytiovuukbkewxjj.supabase.co";
 const DOCUMENT_MEDIA_BUCKET = "portal-knowledge-media";
+const DOCUMENT_MEDIA_MAX_BYTES = 50 * 1024 * 1024;
 const DOCUMENT_MEDIA_TYPES = {
   "image/jpeg": { type: "imagem", extension: "jpg", maxBytes: 20 * 1024 * 1024 },
   "image/png": { type: "imagem", extension: "png", maxBytes: 20 * 1024 * 1024 },
   "image/webp": { type: "imagem", extension: "webp", maxBytes: 20 * 1024 * 1024 },
   "image/gif": { type: "imagem", extension: "gif", maxBytes: 20 * 1024 * 1024 },
-  "video/mp4": { type: "video", extension: "mp4", maxBytes: 500 * 1024 * 1024 },
-  "video/webm": { type: "video", extension: "webm", maxBytes: 500 * 1024 * 1024 },
-  "video/ogg": { type: "video", extension: "ogg", maxBytes: 500 * 1024 * 1024 }
+  "video/mp4": { type: "video", extension: "mp4", maxBytes: DOCUMENT_MEDIA_MAX_BYTES },
+  "video/webm": { type: "video", extension: "webm", maxBytes: DOCUMENT_MEDIA_MAX_BYTES },
+  "video/ogg": { type: "video", extension: "ogg", maxBytes: DOCUMENT_MEDIA_MAX_BYTES }
 };
 function adminClient() {
   const url = process.env.PORTAL_SUPABASE_URL || DEFAULT_URL;
@@ -96,6 +97,20 @@ async function update(db, organizationId, profile, id, payload) {
   await audit(db, organizationId, id, profile, "update", { status: current.data.status }, { status: nextStatus, changed });
 }
 async function audit(db, organizationId, documentId, profile, action, beforeState, afterState) { await db.from("knowledge_audit_log").insert({ organization_id: organizationId, document_id: documentId, actor_email: profile.email || profile.id, action, before_state: beforeState, after_state: afterState }); }
+async function ensureDocumentMediaBucket(db) {
+  const options = { public: false, fileSizeLimit: DOCUMENT_MEDIA_MAX_BYTES, allowedMimeTypes: Object.keys(DOCUMENT_MEDIA_TYPES) };
+  const bucket = await db.storage.getBucket(DOCUMENT_MEDIA_BUCKET);
+  if (bucket.error) throw bucket.error;
+  if (!bucket.data) {
+    const created = await db.storage.createBucket(DOCUMENT_MEDIA_BUCKET, options);
+    if (created.error && !/already exists/i.test(created.error.message || "")) throw created.error;
+    return;
+  }
+  if (Number(bucket.data.file_size_limit || 0) < DOCUMENT_MEDIA_MAX_BYTES) {
+    const updated = await db.storage.updateBucket(DOCUMENT_MEDIA_BUCKET, options);
+    if (updated.error) throw new Error("Não foi possível atualizar o limite do armazenamento de mídia. Verifique o limite global do Supabase.");
+  }
+}
 async function documentMediaUpload(req, res, db, organizationId, level) {
   if (!['editorial', 'reviewer', 'admin'].includes(level)) return json(res, 403, { error: 'editor_access_required' });
   if (req.method !== 'POST') return json(res, 405, { error: 'method_not_allowed' });
@@ -105,8 +120,7 @@ async function documentMediaUpload(req, res, db, organizationId, level) {
   const document = await db.from('knowledge_documents').select('id').eq('id', documentId).eq('organization_id', organizationId).maybeSingle();
   if (document.error) throw document.error;
   if (!document.data) return json(res, 404, { error: 'document_not_found' });
-  const bucket = await db.storage.getBucket(DOCUMENT_MEDIA_BUCKET);
-  if (!bucket.data) { const created = await db.storage.createBucket(DOCUMENT_MEDIA_BUCKET, { public: false, fileSizeLimit: 500 * 1024 * 1024, allowedMimeTypes: Object.keys(DOCUMENT_MEDIA_TYPES) }); if (created.error && !/already exists/i.test(created.error.message || '')) throw created.error; }
+  await ensureDocumentMediaBucket(db);
   const path = `${organizationId}/documents/${documentId}/${require('node:crypto').randomUUID()}.${details.extension}`;
   const signed = await db.storage.from(DOCUMENT_MEDIA_BUCKET).createSignedUploadUrl(path);
   if (signed.error) throw signed.error;
