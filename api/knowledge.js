@@ -149,7 +149,7 @@ async function trainingRead(req, res, db, organizationId, profile) {
   const payload = req.method === "POST" ? await body(req) : {};
   const documentId = clean(req.method === "POST" ? payload.documentId : query.get("documentId"), 60);
   if (!/^[0-9a-f-]{36}$/i.test(documentId)) return json(res, 400, { error: "invalid_document", message: "Treinamento inválido." });
-  const document = await db.from("knowledge_documents").select("id,title,module,published_version,status").eq("id", documentId).eq("organization_id", organizationId).maybeSingle();
+  const document = await db.from("knowledge_documents").select("id,title,module,published_version,status,metadata").eq("id", documentId).eq("organization_id", organizationId).maybeSingle();
   if (document.error) throw document.error;
   if (!document.data || document.data.status !== "published" || !document.data.published_version) return json(res, 404, { error: "document_not_found", message: "Treinamento não encontrado." });
   const receipt = { organizationId, documentId, version: document.data.published_version, userId: profile.id };
@@ -157,6 +157,7 @@ async function trainingRead(req, res, db, organizationId, profile) {
   if (previous.error) throw previous.error;
   if (req.method === "GET") return json(res, 200, { ok: true, read: Boolean(previous.data?.length) });
   if (req.method !== "POST") return json(res, 405, { error: "method_not_allowed" });
+  if (document.data.metadata?.media?.some((media) => media.type === "video") && payload.videoCompleted !== true) return json(res, 409, { error: "video_not_completed", message: "Assista ao vídeo até o final antes de confirmar a leitura." });
   if (previous.data?.length) return json(res, 200, { ok: true, read: true });
   const readAt = new Date().toISOString();
   const inserted = await db.from("dashboard_snapshots").insert({ source: "portal_knowledge_training_read", period_month: readAt.slice(0, 7), payload: { ...receipt, title: document.data.title, module: document.data.module, readerName: profile.name || profile.email || "Colaborador", readerEmail: profile.email || "", readAt } });
