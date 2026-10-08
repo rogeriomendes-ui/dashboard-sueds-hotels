@@ -30,7 +30,7 @@
       const index = activeModules.indexOf(module);
       const kpi = module.slug === 'kpi';
       const count = published.filter((doc) => doc.module === module.slug).length;
-      const href = kpi ? '/Treinamentos/KPIFull' : `/Treinamentos?module=${encodeURIComponent(module.slug)}#module-content`;
+      const href = kpi ? '/Treinamentos/KPIFull' : `/treinamentos-conteudo.html?module=${encodeURIComponent(module.slug)}`;
       const available = kpi || count;
       const status = available ? 'DISPONÍVEL' : 'EM PREPARAÇÃO';
       const description = module.description || (count ? `${count} treinamento${count === 1 ? '' : 's'} publicado${count === 1 ? '' : 's'}` : 'Os treinamentos serão publicados em breve.');
