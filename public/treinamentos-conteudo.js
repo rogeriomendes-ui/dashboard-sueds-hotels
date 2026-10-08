@@ -3,7 +3,7 @@
   const id = params.get('id');
   const moduleSlug = params.get('module');
   const editStyle = document.createElement('style');
-  editStyle.textContent = '#reader-edit{position:fixed;z-index:10;right:24px;bottom:24px;margin:0;padding:8px 12px;border:1px solid #9aa5a1;border-radius:6px;background:#fff;color:var(--deep);font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 2px 8px #001d1420}.module-training-search{margin:24px 0 16px}.module-training-search label{display:grid;gap:6px;color:var(--deep);font-size:12px;font-weight:800}.module-training-search input{min-height:42px;padding:9px 12px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit}';
+  editStyle.textContent = '#reader-edit{position:fixed;z-index:10;right:24px;bottom:24px;margin:0;padding:8px 12px;border:1px solid #9aa5a1;border-radius:6px;background:#fff;color:var(--deep);font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 2px 8px #001d1420}.module-training-search{margin:24px 0 16px}.module-training-search label{display:grid;gap:6px;color:var(--deep);font-size:12px;font-weight:800}.module-training-search input{min-height:42px;padding:9px 12px;border:1px solid var(--line);background:#fff;color:var(--ink);font:inherit}.training-video-player{position:relative;margin:18px 0;line-height:0}.training-video-player video{display:block;width:100%;margin:0!important}.training-video-play{position:absolute;left:50%;top:50%;width:58px;height:58px;transform:translate(-50%,-50%);border:0;border-radius:50%;background:var(--deep);color:#fff;font-size:23px;line-height:1;cursor:pointer;box-shadow:0 2px 12px #001d1460}.training-video-play[hidden]{display:none}';
   document.head.append(editStyle);
   const text = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   function markdown(source) { return String(source || '').split(/\n\s*\n/).map((block) => { const lines=block.split('\n'); if(/^#{1,3} /.test(lines[0])) { const level=lines[0].match(/^#+/)[0].length; return `<h${level}>${text(lines[0].slice(level+1))}</h${level}>`; } if(lines.every((line)=>/^[-*] /.test(line))) return `<ul>${lines.map((line)=>`<li>${text(line.slice(2))}</li>`).join('')}</ul>`; return `<p>${lines.map(text).join('<br>')}</p>`; }).join(''); }
@@ -80,14 +80,24 @@
       element.src = item.url;
       if (item.type === 'video') {
         let watchedUntil = 0;
-        element.controls = true;
+        const player = document.createElement('div');
+        const playButton = document.createElement('button');
+        player.className = 'training-video-player';
+        playButton.className = 'training-video-play';
+        playButton.type = 'button';
+        playButton.textContent = '▶';
+        playButton.setAttribute('aria-label', 'Reproduzir vídeo');
+        element.controls = false;
         element.disablePictureInPicture = true;
         element.addEventListener('timeupdate', () => { watchedUntil = Math.max(watchedUntil, element.currentTime); });
-        element.addEventListener('seeking', () => { if (!element.ended && element.currentTime > watchedUntil + .5) element.currentTime = watchedUntil; });
-        element.addEventListener('ended', () => { element.dataset.completed = 'true'; updateVideoRequirement(); });
+        element.addEventListener('seeking', () => { if (!element.ended && Math.abs(element.currentTime - watchedUntil) > .5) element.currentTime = watchedUntil; });
+        element.addEventListener('play', () => { playButton.hidden = true; });
+        element.addEventListener('ended', () => { element.dataset.completed = 'true'; playButton.hidden = false; updateVideoRequirement(); });
+        playButton.addEventListener('click', () => { element.play(); });
+        player.append(element, playButton);
         videos.push(element);
-      } else element.alt = item.caption || doc.title;
-      media.append(element);
+        media.append(player);
+      } else { element.alt = item.caption || doc.title; media.append(element); }
     }
     if (videos.length) updateVideoRequirement();
     const receipt = await fetch(`/api/knowledge?action=training-read&documentId=${encodeURIComponent(doc.id)}`, { credentials:'same-origin', cache:'no-store' });
