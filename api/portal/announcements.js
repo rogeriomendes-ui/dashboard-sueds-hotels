@@ -125,9 +125,7 @@ async function announcementNotificationSummary(db, profile) {
 async function listAnnouncements(db, profile, includeHistory) {
   const snapshots = await loadAnnouncementSnapshots(db);
   const announcements = snapshots.filter((item) => item.source === "portal_announcement").map((item) => ({ ...item.payload, createdAt: item.created_at }));
-  const visibleAnnouncements = includeHistory
-    ? announcements
-    : announcements.filter((item) => item.status === "published" && canSeeDepartment(profile, item.department));
+  const visibleAnnouncements = announcements.filter((item) => item.status !== "deleted" && (includeHistory || (item.status === "published" && canSeeDepartment(profile, item.department))));
   const ids = new Set(visibleAnnouncements.map((item) => item.id));
   const reads = snapshots.filter((item) => item.source === "portal_announcement_read" && ids.has(item.payload?.announcementId))
     .map((item) => ({ ...item.payload, readAt: item.payload?.readAt || item.created_at }));
@@ -145,6 +143,7 @@ async function listAnnouncements(db, profile, includeHistory) {
       department: normalizeDepartment(record.department),
       mediaType: record.mediaType,
       mediaUrl: await signedMediaUrl(db, record),
+      mediaIsUpload: Boolean(record.mediaPath),
       mediaName: record.mediaName || "",
       author: record.createdByName || "Gestão SUEDS",
       publishedAt: record.publishedAt || record.createdAt,
@@ -246,6 +245,64 @@ async function createAnnouncement(db, profile, payload) {
   return announcement;
 }
 
+async function findAnnouncementSnapshot(db, announcementId) {
+  const id = clean(announcementId, 80);
+  const result = await db.from("dashboard_snapshots").select("id,payload").eq("source", "portal_announcement").contains("payload", { id }).limit(1).maybeSingle();
+  if (result.error) throw result.error;
+  if (!result.data) throw Object.assign(new Error("Comunicado não encontrado."), { status: 404 });
+  return result.data;
+}
+
+async function updateAnnouncement(db, profile, payload) {
+  const current = await findAnnouncementSnapshot(db, payload.announcementId);
+  const title = clean(payload.title, 160);
+  const body = clean(payload.body, 12000);
+  const normalizedDepartment = normalizeDepartment(payload.department);
+  const department = DEPARTMENTS.includes(normalizedDepartment) ? normalizedDepartment : "Geral";
+  const upload = parseUpload(payload.file);
+  const linkedUrl = safeUrl(payload.mediaUrl);
+  const requestedType = clean(payload.mediaType, 20);
+  if (title.length < 3 || !body) throw Object.assign(new Error("Informe um título e o texto do comunicado."), { status: 400 });
+  if (payload.mediaUrl && !linkedUrl) throw Object.assign(new Error("Informe um link de imagem ou vídeo válido."), { status: 400 });
+
+  let mediaPath = current.payload.mediaPath || null;
+  let mediaType = current.payload.mediaType || null;
+  let mediaUrl = current.payload.mediaUrl || null;
+  let mediaName = current.payload.mediaName || null;
+  if (upload) {
+    await ensureBucket(db);
+    mediaPath = `${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${upload.extension}`;
+    const storageResult = await db.storage.from(BUCKET).upload(mediaPath, upload.buffer, { contentType: upload.type, upsert: false });
+    if (storageResult.error) throw storageResult.error;
+    mediaType = upload.kind;
+    mediaUrl = null;
+    mediaName = upload.name;
+  } else if (linkedUrl) {
+    mediaPath = null;
+    mediaType = ["image", "video"].includes(requestedType) ? requestedType : "image";
+    mediaUrl = linkedUrl;
+    mediaName = "Mídia do comunicado";
+  } else if (payload.removeMedia) {
+    mediaPath = null;
+    mediaType = null;
+    mediaUrl = null;
+    mediaName = null;
+  }
+  const announcement = { ...current.payload, title, body, department, mediaPath, mediaType, mediaUrl, mediaName, updatedAt: new Date().toISOString(), updatedBy: profile.id };
+  const result = await db.from("dashboard_snapshots").update({ payload: announcement }).eq("id", current.id);
+  if (result.error) {
+    if (upload && mediaPath) await db.storage.from(BUCKET).remove([mediaPath]);
+    throw result.error;
+  }
+  if ((upload || linkedUrl || payload.removeMedia) && current.payload.mediaPath && current.payload.mediaPath !== mediaPath) await db.storage.from(BUCKET).remove([current.payload.mediaPath]);
+}
+
+async function deleteAnnouncement(db, announcementId) {
+  const current = await findAnnouncementSnapshot(db, announcementId);
+  const result = await db.from("dashboard_snapshots").update({ payload: { ...current.payload, status: "deleted", deletedAt: new Date().toISOString() } }).eq("id", current.id);
+  if (result.error) throw result.error;
+}
+
 async function markRead(db, profile, announcementId) {
   const id = clean(announcementId, 80);
   const exists = await db.from("dashboard_snapshots").select("id,payload").eq("source", "portal_announcement").contains("payload", { id }).limit(1).maybeSingle();
@@ -285,6 +342,12 @@ module.exports = async function announcements(req, res) {
     }
     if (req.method === "PATCH") {
       const payload = await readBody(req);
+      if (["update", "delete"].includes(payload.action)) {
+        if (!canManageAnnouncements(profile)) return json(res, 403, { ok: false, error: "permission_required", message: "Sem permissão para administrar comunicados." });
+        if (payload.action === "update") await updateAnnouncement(db, profile, payload);
+        else await deleteAnnouncement(db, payload.announcementId);
+        return json(res, 200, { ok: true, message: payload.action === "update" ? "Comunicado atualizado com sucesso." : "Comunicado excluído com sucesso." });
+      }
       if (payload.action !== "read") return json(res, 400, { ok: false, error: "invalid_action", message: "Ação inválida." });
       await markRead(db, profile, payload.announcementId);
       const records = await listAnnouncements(db, profile, false);

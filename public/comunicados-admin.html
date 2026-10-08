@@ -19,7 +19,7 @@
 
       <section class="composer-card" aria-labelledby="composerTitle">
         <div class="section-heading">
-          <div><p class="eyebrow">Novo aviso</p><h2 id="composerTitle">Publicar comunicado</h2></div>
+          <div><p id="composerEyebrow" class="eyebrow">Novo aviso</p><h2 id="composerTitle">Publicar comunicado</h2></div>
         </div>
         <form id="announcementForm">
           <div class="form-grid">
@@ -33,9 +33,10 @@
             <div class="media-divider" aria-hidden="true">ou</div>
             <label>Link da mídia<input id="announcementMediaUrl" type="url" maxlength="2000" placeholder="https://..."><small>Pode ser um link de imagem ou vídeo.</small></label>
             <label id="mediaTypeField">Tipo do link<select id="announcementMediaType"><option value="image">Imagem</option><option value="video">Vídeo</option></select></label>
+            <label id="removeMediaField" hidden><input id="removeMedia" type="checkbox"> Remover mídia atual</label>
           </fieldset>
           <p id="formMessage" class="form-message" role="status"></p>
-          <div class="form-actions"><button id="publishButton" class="primary-button" type="submit">Publicar comunicado</button></div>
+          <div class="form-actions"><button id="cancelEditButton" class="secondary-button" type="button" hidden>Cancelar edição</button><button id="publishButton" class="primary-button" type="submit">Publicar comunicado</button></div>
         </form>
       </section>
 
@@ -48,6 +49,6 @@
         <div id="adminAnnouncementsList" class="admin-announcements-list"></div>
       </section>
     </main>
-    <script src="/comunicados-admin.js?v=20260927-permissao-inclusao"></script>
+    <script src="/comunicados-admin.js?v=20261008-edicao-exclusao"></script>
   </body>
 </html>

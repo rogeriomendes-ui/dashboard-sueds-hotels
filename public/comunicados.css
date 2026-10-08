@@ -83,17 +83,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--navy-soft); box-
 .media-fields legend { padding: 0 6px; font-size: .875rem; font-weight: 800; }
 .media-fields legend span, .media-fields small { color: var(--muted); font-weight: 500; }
 .media-divider { align-self: center; color: var(--muted); font-size: .8125rem; }
-.form-actions { display: flex; justify-content: flex-end; }
+.form-actions, .history-actions { display: flex; justify-content: flex-end; gap: 9px; }
 .primary-button, .secondary-button { min-height: 43px; padding: 9px 16px; border-radius: 9px; font-weight: 800; }
 .primary-button { border: 1px solid var(--navy); color: #fff; background: var(--navy); }
 .primary-button:hover { background: var(--navy-soft); }
 .secondary-button { border: 1px solid var(--line); color: var(--navy); background: #fff; }
+.danger-button { min-height: 43px; padding: 9px 16px; border: 1px solid #c92b33; border-radius: 9px; color: #a71620; background: #fff; font-weight: 800; }
+.danger-button:hover { color: #fff; background: var(--red); }
 .primary-button:disabled, .secondary-button:disabled { cursor: wait; opacity: .6; }
 .admin-announcements-list { display: grid; gap: 12px; }
 .history-card { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .history-card summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; align-items: center; padding: 15px; cursor: pointer; list-style: none; }
 .history-card summary::-webkit-details-marker { display: none; }
 .history-card summary:hover { background: #f8fafb; }
+.history-actions { padding: 0 15px 15px; }
 .history-title { min-width: 0; }
 .history-title strong { display: block; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-title small { color: var(--muted); }
