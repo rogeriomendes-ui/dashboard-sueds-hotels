@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Centro de Conhecimentos Sueds | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20260812-treinamentos"></script>
-    <link rel="stylesheet" href="/treinamentos.css?v=20261007-cards-compactos">
+    <link rel="stylesheet" href="/treinamentos.css?v=20261007-filtro-treinamentos">
   </head>
   <body>
     <main>
@@ -28,6 +28,10 @@
           <h2 id="catalog-title">O que você quer aprender?</h2>
           <p>Novos conteúdos serão adicionados progressivamente.</p>
         </div>
+        <div class="catalog-filters" role="search">
+          <label><span>Buscar treinamentos</span><input id="knowledge-search" type="search" placeholder="Ex.: recepção, reservas, vendas…"></label>
+          <label><span>Exibir</span><select id="knowledge-status"><option value="all">Todos os módulos</option><option value="available">Com treinamentos</option><option value="preparing">Em preparação</option></select></label>
+        </div>
 
         <div class="knowledge-grid">
           <div id="published-knowledge" class="published-knowledge"></div>
@@ -37,6 +41,6 @@
     </main>
 
     <footer class="knowledge-footer"><span>SUEDS Hotels</span><p>Conhecimento compartilhado. Excelência em cada detalhe.</p></footer>
-    <script src="/treinamentos-catalog.js?v=20261007-cards-compactos"></script>
+    <script src="/treinamentos-catalog.js?v=20261007-filtro-treinamentos"></script>
   </body>
 </html>

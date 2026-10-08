@@ -14,7 +14,20 @@
     const activeModules = modules.filter((module) => module.active);
     const target = document.getElementById('published-knowledge');
     const panel = document.getElementById('module-content');
-    target.innerHTML = activeModules.map((module, index) => {
+    const search = document.getElementById('knowledge-search');
+    const statusFilter = document.getElementById('knowledge-status');
+    const renderCards = () => {
+      const query = search.value.trim().toLocaleLowerCase('pt-BR');
+      const requestedStatus = statusFilter.value;
+      const visibleModules = activeModules.filter((module) => {
+        const available = module.slug === 'kpi' || published.some((doc) => doc.module === module.slug);
+        if (requestedStatus === 'available' && !available) return false;
+        if (requestedStatus === 'preparing' && available) return false;
+        const documentText = published.filter((doc) => doc.module === module.slug).map((doc) => `${doc.title} ${doc.versions?.[0]?.summary || ''}`).join(' ');
+        return !query || `${module.name} ${module.description || ''} ${documentText}`.toLocaleLowerCase('pt-BR').includes(query);
+      });
+      target.innerHTML = visibleModules.length ? visibleModules.map((module) => {
+      const index = activeModules.indexOf(module);
       const kpi = module.slug === 'kpi';
       const count = published.filter((doc) => doc.module === module.slug).length;
       const href = kpi ? '/Treinamentos/KPIFull' : `/Treinamentos?module=${encodeURIComponent(module.slug)}#module-content`;
@@ -25,7 +38,11 @@
         ? `<div class="module-pop"><a href="/treinamentos-pop.html?module=${encodeURIComponent(module.slug)}"><span aria-hidden="true">▤</span>POP</a><small>Procedimento Operacional Padrão</small></div>`
         : `<div class="module-pop-empty" aria-hidden="true"></div>`;
       return `<article class="knowledge-card ${available ? 'available' : 'coming-soon'}"><span class="card-number">${String(index + 1).padStart(2,'0')}</span><div class="card-module-heading"><div class="card-icon" aria-hidden="true">${escapeHtml(module.icon || '🏨')}</div><div><span class="card-status">${status}</span><h3>${escapeHtml(module.name)}</h3></div></div><p class="card-description">${escapeHtml(description)}</p><div class="card-actions">${popAction}<a class="card-action" href="${href}">Acessar treinamento <b aria-hidden="true">→</b></a></div></article>`;
-    }).join('');
+      }).join('') : '<p class="catalog-empty">Nenhum módulo ou treinamento encontrado.</p>';
+    };
+    renderCards();
+    search.addEventListener('input', renderCards);
+    statusFilter.addEventListener('change', renderCards);
     const selected = activeModules.find((module) => module.slug === initialModule);
     if (!selected) return;
     const items = published.filter((doc) => doc.module === selected.slug);
