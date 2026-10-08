@@ -63,7 +63,12 @@ async function audit(db, org, profile, action, before, after) {
 }
 async function modules(req, res, db, org, profile, level) {
   const state = await settings(db, org);
-  if (req.method === "GET") return json(res, 200, { ok: true, modules: [...state.modules].filter((item) => editable(level) || item.active).sort((a,b) => a.sort_order-b.sort_order || a.name.localeCompare(b.name)).map(({ pop, ...item }) => ({ ...item, icon: moduleIcon(item.icon), pop: pop ? { name: pop.name, type: pop.type, version: pop.version, publishedAt: pop.publishedAt } : null })) });
+  if (req.method === "GET") {
+    const reads = await db.from("dashboard_snapshots").select("payload").eq("source", "portal_knowledge_pop_read").contains("payload", { organizationId: org, userId: profile.id });
+    if (reads.error) throw reads.error;
+    const completed = new Set((reads.data || []).map((row) => `${row.payload?.module}:${row.payload?.version}`));
+    return json(res, 200, { ok: true, modules: [...state.modules].filter((item) => editable(level) || item.active).sort((a,b) => a.sort_order-b.sort_order || a.name.localeCompare(b.name)).map(({ pop, ...item }) => ({ ...item, icon: moduleIcon(item.icon), pop: pop ? { name: pop.name, type: pop.type, version: pop.version, publishedAt: pop.publishedAt, read: completed.has(`${item.slug}:${pop.version}`) } : null })) });
+  }
   if (!editable(level)) return json(res, 403, { error: "editor_access_required" });
   const data = await body(req);
   if (req.method === "POST") {

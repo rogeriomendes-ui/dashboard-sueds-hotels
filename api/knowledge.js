@@ -126,6 +126,25 @@ async function documentMediaUpload(req, res, db, organizationId, level) {
   if (signed.error) throw signed.error;
   return json(res, 200, { ok: true, path, signedUrl: signed.data.signedUrl });
 }
+async function trainingRead(req, res, db, organizationId, profile) {
+  const query = new URL(req.url, `https://${req.headers.host || "portal.suedshotels.com.br"}`).searchParams;
+  const payload = req.method === "POST" ? await body(req) : {};
+  const documentId = clean(req.method === "POST" ? payload.documentId : query.get("documentId"), 60);
+  if (!/^[0-9a-f-]{36}$/i.test(documentId)) return json(res, 400, { error: "invalid_document", message: "Treinamento inválido." });
+  const document = await db.from("knowledge_documents").select("id,title,module,published_version,status").eq("id", documentId).eq("organization_id", organizationId).maybeSingle();
+  if (document.error) throw document.error;
+  if (!document.data || document.data.status !== "published" || !document.data.published_version) return json(res, 404, { error: "document_not_found", message: "Treinamento não encontrado." });
+  const receipt = { organizationId, documentId, version: document.data.published_version, userId: profile.id };
+  const previous = await db.from("dashboard_snapshots").select("id").eq("source", "portal_knowledge_training_read").contains("payload", receipt).limit(1);
+  if (previous.error) throw previous.error;
+  if (req.method === "GET") return json(res, 200, { ok: true, read: Boolean(previous.data?.length) });
+  if (req.method !== "POST") return json(res, 405, { error: "method_not_allowed" });
+  if (previous.data?.length) return json(res, 200, { ok: true, read: true });
+  const readAt = new Date().toISOString();
+  const inserted = await db.from("dashboard_snapshots").insert({ source: "portal_knowledge_training_read", period_month: readAt.slice(0, 7), payload: { ...receipt, title: document.data.title, module: document.data.module, readerName: profile.name || profile.email || "Colaborador", readerEmail: profile.email || "", readAt } });
+  if (inserted.error) throw inserted.error;
+  return json(res, 200, { ok: true, read: true });
+}
 module.exports = async function knowledge(req, res) {
   try {
     const profile = await getPortalProfile(req, res); if (!profile) return json(res, 401, { error: "unauthenticated" });
@@ -136,6 +155,7 @@ module.exports = async function knowledge(req, res) {
     if (action === "modules") return knowledgeSettings.modules(req, res, db, org, profile, level);
     if (action === "pop") return knowledgeSettings.pop(req, res, db, org, profile, level);
     if (action === "document-media-upload") return documentMediaUpload(req, res, db, org, level);
+    if (action === "training-read") return trainingRead(req, res, db, org, profile);
     if (action === "kpi-upload") return knowledgeSettings.prepareKpiVideo(req, res, db, org, level);
     if (action === "kpi") return knowledgeSettings.kpi(req, res, db, org, profile, level);
     if (req.method === "GET") return json(res, 200, { ok: true, accessLevel: level, canEdit, canPublish, documents: await list(db, org, canEdit) });
