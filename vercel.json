@@ -48,6 +48,10 @@
       "dest": "/public/treinamentos-historico.html"
     },
     {
+      "src": "/Treinamentos/Relatorios",
+      "dest": "/public/treinamentos-relatorios.html"
+    },
+    {
       "src": "/Treinamentos/Admin",
       "dest": "/public/treinamentos-admin.html"
     },

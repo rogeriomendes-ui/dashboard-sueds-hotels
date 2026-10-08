@@ -1,5 +1,6 @@
 const { createClient } = require("@supabase/supabase-js");
 const { json, getPortalProfile, hasEnvironment } = require("../lib/portal-auth");
+const { validPortalDepartments } = require("../lib/portal-departments");
 const knowledgeSettings = require("./knowledge-settings");
 
 const DEFAULT_URL = "https://pjcmjytiovuukbkewxjj.supabase.co";
@@ -176,6 +177,34 @@ async function trainingHistory(res, db, organizationId, profile) {
   const trainings = [...completed.values()];
   return json(res, 200, { ok: true, name: profile.name || profile.email || "Colaborador", points: trainings.length * 10, trainings });
 }
+async function trainingReports(res, db, organizationId, canEdit) {
+  if (!canEdit) return json(res, 403, { error: "editor_access_required", message: "Apenas editores podem acessar os relatórios." });
+  const [reads, profiles, authUsers] = await Promise.all([
+    db.from("dashboard_snapshots").select("payload,created_at").eq("source", "portal_knowledge_training_read").contains("payload", { organizationId }).order("created_at", { ascending: false }),
+    db.from("profiles").select("id,full_name,status").is("deleted_at", null),
+    db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  ]);
+  if (reads.error) throw reads.error;
+  if (profiles.error) throw profiles.error;
+  if (authUsers.error) throw authUsers.error;
+  const profilesById = new Map((profiles.data || []).map((item) => [item.id, item]));
+  const authById = new Map((authUsers.data?.users || []).map((item) => [item.id, item]));
+  const collaborators = new Map();
+  for (const row of reads.data || []) {
+    const item = row.payload || {};
+    if (!item.userId || !item.documentId) continue;
+    const profile = profilesById.get(item.userId);
+    const auth = authById.get(item.userId);
+    const current = collaborators.get(item.userId) || { id: item.userId, name: profile?.full_name || item.readerName || auth?.email || "Colaborador", department: validPortalDepartments(auth?.app_metadata?.departments, { includeGeneral: true }).join(", ") || "Não informado", trainings: new Map() };
+    if (!current.trainings.has(item.documentId)) current.trainings.set(item.documentId, { title: item.title || "Treinamento", module: item.module || "geral", completedAt: item.readAt || row.created_at });
+    collaborators.set(item.userId, current);
+  }
+  const people = [...collaborators.values()].map((item) => {
+    const trainings = [...item.trainings.values()];
+    return { id: item.id, name: item.name, department: item.department, points: trainings.length * 10, trainings };
+  }).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name, "pt-BR"));
+  return json(res, 200, { ok: true, people });
+}
 module.exports = async function knowledge(req, res) {
   try {
     const profile = await getPortalProfile(req, res); if (!profile) return json(res, 401, { error: "unauthenticated" });
@@ -188,6 +217,7 @@ module.exports = async function knowledge(req, res) {
     if (action === "document-media-upload") return documentMediaUpload(req, res, db, org, level);
     if (action === "training-read") return trainingRead(req, res, db, org, profile);
     if (action === "history" && req.method === "GET") return trainingHistory(res, db, org, profile);
+    if (action === "reports" && req.method === "GET") return trainingReports(res, db, org, canEdit);
     if (action === "kpi-upload") return knowledgeSettings.prepareKpiVideo(req, res, db, org, level);
     if (action === "kpi") return knowledgeSettings.kpi(req, res, db, org, profile, level);
     if (req.method === "GET") return json(res, 200, { ok: true, accessLevel: level, canEdit, canPublish, documents: await list(db, org, canEdit) });
