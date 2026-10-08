@@ -100,7 +100,7 @@ async function audit(db, organizationId, documentId, profile, action, beforeStat
 async function ensureDocumentMediaBucket(db) {
   const options = { public: false, fileSizeLimit: DOCUMENT_MEDIA_MAX_BYTES, allowedMimeTypes: Object.keys(DOCUMENT_MEDIA_TYPES) };
   const bucket = await db.storage.getBucket(DOCUMENT_MEDIA_BUCKET);
-  if (bucket.error) throw bucket.error;
+  if (bucket.error && bucket.error.code !== "NoSuchBucket") throw bucket.error;
   if (!bucket.data) {
     const created = await db.storage.createBucket(DOCUMENT_MEDIA_BUCKET, options);
     if (created.error && !/already exists/i.test(created.error.message || "")) throw created.error;
