@@ -8,14 +8,15 @@
   const weekday = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" });
   const date = (value) => new Date(`${value}T12:00:00Z`);
   const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+  const displayNumber = (value) => value == null ? "—" : integer.format(value);
 
   function render(hotels) {
-    if (lowAvailabilityOnly.checked) hotels = hotels.map((item) => ({ ...item, days: (item.days || []).filter((day) => day.available <= 3) })).filter((item) => item.days.length);
-    if (!hotels.length) { map.innerHTML = '<div class="empty">Sem estadias capturadas para este período.</div>'; return; }
+    if (lowAvailabilityOnly.checked) hotels = hotels.map((item) => ({ ...item, days: (item.days || []).filter((day) => day.available != null && day.available <= 3) })).filter((item) => item.days.length);
+    if (!hotels.length || !hotels.some((item) => item.days?.some((day) => day.available != null))) { map.innerHTML = '<div class="empty">Sem dados de ocupação do KPI para este período.</div>'; return; }
     map.innerHTML = hotels.map((item) => {
       const days = item.days || [];
       const cells = (get, css = "") => days.map((day) => `<td class="${typeof css === "function" ? css(day) : css}">${safe(get(day))}</td>`).join("");
-      return `<article class="occupancy-hotel"><h2>${safe(item.hotel)} · ${integer.format(item.apartments)} apartamentos</h2><div class="occupancy-scroll"><table class="occupancy-table"><thead><tr><th class="occupancy-row-label">Mês</th>${days.map((day) => `<th class="occupancy-month">${safe(month.format(date(day.date)).replace(".", "").slice(0, 3))}</th>`).join("")}</tr><tr><th class="occupancy-row-label">Dia</th>${days.map((day) => `<th class="occupancy-day"><b>${safe(day.date.slice(8))}</b><small>${safe(weekday.format(date(day.date)).replace(".", ""))}</small></th>`).join("")}</tr></thead><tbody><tr><th class="occupancy-row-label">UHs</th>${cells(() => integer.format(item.apartments))}</tr><tr><th class="occupancy-row-label">Manutenção</th>${cells((day) => integer.format(day.maintenance || 0))}</tr><tr><th class="occupancy-row-label">Ocupados</th>${cells((day) => integer.format(day.occupied))}</tr><tr><th class="occupancy-row-label">Disponíveis</th>${cells((day) => integer.format(day.available), (day) => day.available < 0 ? "occupancy-over" : day.available <= 3 ? "occupancy-low" : "")}</tr><tr><th class="occupancy-row-label">Ocupação</th>${cells((day) => `${integer.format(day.rate)}%`, "occupancy-rate")}</tr></tbody></table></div></article>`;
+      return `<article class="occupancy-hotel"><h2>${safe(item.hotel)} · ${integer.format(item.apartments)} apartamentos</h2><div class="occupancy-scroll"><table class="occupancy-table"><thead><tr><th class="occupancy-row-label">Mês</th>${days.map((day) => `<th class="occupancy-month">${safe(month.format(date(day.date)).replace(".", "").slice(0, 3))}</th>`).join("")}</tr><tr><th class="occupancy-row-label">Dia</th>${days.map((day) => `<th class="occupancy-day"><b>${safe(day.date.slice(8))}</b><small>${safe(weekday.format(date(day.date)).replace(".", ""))}</small></th>`).join("")}</tr></thead><tbody><tr><th class="occupancy-row-label">UHs</th>${cells((day) => displayNumber(day.apartments))}</tr><tr><th class="occupancy-row-label">Manutenção</th>${cells((day) => displayNumber(day.maintenance))}</tr><tr><th class="occupancy-row-label">Ocupados</th>${cells((day) => displayNumber(day.occupied))}</tr><tr><th class="occupancy-row-label">Disponíveis</th>${cells((day) => displayNumber(day.available), (day) => day.available == null ? "" : day.available < 0 ? "occupancy-over" : day.available <= 3 ? "occupancy-low" : "")}</tr><tr><th class="occupancy-row-label">Ocupação</th>${cells((day) => day.rate == null ? "—" : `${integer.format(day.rate)}%`, "occupancy-rate")}</tr></tbody></table></div></article>`;
     }).join("");
   }
 
@@ -31,7 +32,7 @@
       if (!start.value) start.value = payload.period?.start || "";
       if (!end.value) end.value = payload.period?.end || "";
       const updatedAt = payload.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.updatedAt)) : "não informada";
-      byId("dataStamp").textContent = `Última atualização do KPI: ${updatedAt}`;
+      byId("dataStamp").textContent = `Última atualização da ocupação no KPI: ${updatedAt}. “—” indica dia ainda não capturado.`;
       render(payload.occupancy || []); content.hidden = false;
     } catch (caught) { error.textContent = caught.message || "Não foi possível carregar o mapa."; error.hidden = false; }
     finally { loading.hidden = true; }

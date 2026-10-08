@@ -17,6 +17,7 @@ const BI_OTHER_CHANNELS_RANGE = process.env.GOOGLE_BI_OTHER_CHANNELS_RANGE || "'
 const BI_HISTORICAL_CHANNELS_RANGE = process.env.GOOGLE_BI_HISTORICAL_CHANNELS_RANGE || "'Historico_Canais_AA'!A:S";
 const BI_KPI_2025_RANGE = process.env.GOOGLE_BI_KPI_2025_RANGE || "'base kpi 2025'!A:X";
 const BI_KPI_2026_RANGE = process.env.GOOGLE_BI_KPI_2026_RANGE || "'base kpi 2026'!A:X";
+const KPI_OCCUPANCY_RANGE = process.env.GOOGLE_KPI_OCCUPANCY_RANGE || "'KPI Ocupacao Diaria'!A:F";
 const BI_KPI_CACHE_TTL_MS = Number(process.env.BI_KPI_CACHE_TTL_SECONDS || 300) * 1000;
 const KPI_CAPTURED_AT_METADATA_KEY = "sueds.kpi.full.last_captured_at";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
@@ -4502,22 +4503,58 @@ function buildCachedBiKpiReportsPayload(dataset = {}, query = {}) {
   return payload;
 }
 
-function availabilityAlertsPayload(dataset = {}) {
+function buildKpiOccupancyMap(sourceRows = [], query = {}) {
+  const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
+  const requestedHotel = comparableKey(biReportsHotelLabel(query.hotel || ""));
+  const hotels = [...new Map([...BI_REPORTS_HOTEL_INVENTORY.values()].map((item) => [item.label, item])).values()];
+  const readings = new Map();
+  for (const row of sourceRows.slice(1)) {
+    const inventory = biReportsInventory(row[0]);
+    const date = String(row[1] || "").trim();
+    const apartments = Number(row[2]), occupied = Number(row[3]), available = Number(row[4]);
+    const capturedAt = String(row[5] || "").trim();
+    if (!inventory || !/^202[67]-\d{2}-\d{2}$/.test(date) || date < period.start || date > period.end) continue;
+    if (![apartments, occupied, available].every(Number.isInteger)
+      || apartments <= 0 || occupied < 0 || occupied + available > apartments || !/^\d{4}-\d{2}-\d{2}T/.test(capturedAt)) continue;
+    const key = `${inventory.label}|${date}`;
+    if (!readings.has(key) || capturedAt > readings.get(key).capturedAt) {
+      readings.set(key, { apartments, occupied, available, maintenance: apartments - occupied - available, capturedAt });
+    }
+  }
+  const selected = hotels.filter((item) => !requestedHotel || comparableKey(item.label) === requestedHotel);
+  const occupancy = selected.map((item) => ({
+    hotel: item.label,
+    apartments: item.apartments,
+    days: biReportsDateKeys(period.start, period.end).map((date) => {
+      const reading = readings.get(`${item.label}|${date}`);
+      return reading ? { date, apartments: reading.apartments, occupied: reading.occupied,
+        available: reading.available, maintenance: reading.maintenance,
+        rate: reading.apartments ? reading.occupied / reading.apartments * 100 : 0 }
+        : { date, apartments: null, occupied: null, available: null, maintenance: null, rate: null };
+    })
+  }));
+  return {
+    updatedAt: [...readings.values()].map((item) => item.capturedAt).sort().at(-1) || "",
+    period,
+    selected: { hotel: selected.length === 1 && requestedHotel ? selected[0].label : "" },
+    filters: { hotels: hotels.map((item) => item.label) },
+    occupancy
+  };
+}
+
+function availabilityAlertsPayload(sourceRows = []) {
   const start = todayKey();
-  const end = (dataset.records || []).filter(isCountedSaleStatus)
-    .map((record) => parseDate(record.checkout))
-    .filter(Boolean)
-    .map(dateKey)
-    .filter((date) => date >= start)
+  const end = sourceRows.slice(1).map((row) => String(row[1] || ""))
+    .filter((date) => /^202[67]-\d{2}-\d{2}$/.test(date) && date >= start)
     .sort()
     .at(-1) || start;
-  const payload = buildCachedBiKpiReportsPayload(dataset, { start, end });
+  const payload = buildKpiOccupancyMap(sourceRows, { start, end });
   return {
-    updatedAt: dataset.kpiCapturedAt || dataset.loadedAt || payload.generatedAt,
+    updatedAt: payload.updatedAt,
     period: { start, end },
     alerts: (payload.occupancy || []).map((hotel) => ({
       hotel: hotel.hotel,
-      days: (hotel.days || []).filter((day) => day.available <= 3).map((day) => ({ date: day.date, available: day.available }))
+      days: (hotel.days || []).filter((day) => day.available != null && day.available <= 3).map((day) => ({ date: day.date, available: day.available }))
     })).filter((hotel) => hotel.days.length)
   };
 }
@@ -9621,25 +9658,30 @@ async function handleRequest(req, res) {
     if (url.pathname === "/api/dashboard/mapa-ocupacao") {
       if (!biReportsAccess(req, url, "mapa_ocupacao")) return forbidden(res);
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
-      const dataset = await loadBiKpiReportsDataset();
-      const payload = buildCachedBiKpiReportsPayload(dataset, {
+      const query = {
         start: url.searchParams.get("start") || "",
         end: url.searchParams.get("end") || "",
         hotel: url.searchParams.get("hotel") || ""
+      };
+      const rows = await getSheetValues(KPI_OCCUPANCY_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
       });
-      return json(res, 200, {
-        updatedAt: dataset.kpiCapturedAt || dataset.loadedAt || payload.generatedAt,
-        period: payload.period,
-        selected: { hotel: payload.selected.hotel },
-        filters: { hotels: payload.filters.hotels },
-        occupancy: payload.occupancy
-      });
+      return json(res, 200, buildKpiOccupancyMap(rows, query));
     }
 
     if (url.pathname === "/api/portal/availability-alerts") {
       if (!biReportsAccess(req, url, "alertas_disponibilidade")) return forbidden(res);
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
-      return json(res, 200, availabilityAlertsPayload(await loadBiKpiReportsDataset()));
+      const rows = await getSheetValues(KPI_OCCUPANCY_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      });
+      const today = todayKey();
+      if (!buildKpiOccupancyMap(rows, { start: today, end: today }).occupancy.every((hotel) => hotel.days[0]?.available != null)) {
+        return json(res, 503, { message: "Ocupação diária do KPI ainda não capturada para todos os hotéis." });
+      }
+      return json(res, 200, availabilityAlertsPayload(rows));
     }
 
     if (url.pathname === "/api/dashboard/vendedores") {
@@ -9898,6 +9940,7 @@ module.exports = {
     buildBiReportsPayload,
     biReportsDefaultKpiPeriod,
     buildCachedBiKpiReportsPayload,
+    buildKpiOccupancyMap,
     availabilityAlertsPayload,
     kpiCapturedAt,
     kpiObjectsFromColumnRanges,

@@ -18,16 +18,22 @@ const fullTwoYearOccupancy = __test.buildBiReportsPayload({ audience: "bi-relato
 assert.equal(fullTwoYearOccupancy.occupancy[0].days.length, 730);
 assert.equal(fullTwoYearOccupancy.occupancy[0].days.at(-1).date, "2027-12-31");
 
-const availabilityAlerts = __test.availabilityAlertsPayload({
-  audience: "bi-relatorios-kpi",
-  loadedAt: "availability-alert-test",
-  kpiCapturedAt: "2026-10-08T10:33:08.000Z",
-  records: [{
-    dateKey: "2026-10-01", monthKey: "2026-10", reservationCode: "ALERT-1", hotel: "SUEDS PLAZA",
-    channel: "CENTRAL DE RESERVAS", rawChannel: "CENTRAL DE RESERVAS", seller: "", checkin: "10/10/2026",
-    checkout: "12/10/2026", status: "Confirmada", reservationCount: 117, total: 1000
-  }], maintenanceBlocks: []
-});
+const kpiOccupancy = __test.buildKpiOccupancyMap([
+  ["Hotel", "Data", "APT", "OCP", "DISP", "CapturadoEm"],
+  ["SUEDS PREMIUM", "2027-02-06", 50, 50, 0, "2026-10-08T12:00:00.000Z"],
+  ["SUEDS PREMIUM", "2027-02-06", 50, 49, 1, "2026-10-08T11:00:00.000Z"],
+  ["SUEDS PREMIUM", "2027-02-07", 50, 51, -1, "2026-10-08T12:00:00.000Z"]
+], { start: "2027-02-06", end: "2027-02-08", hotel: "SUEDS PREMIUM" });
+assert.deepEqual(kpiOccupancy.occupancy[0].days.map((day) => day.available), [0, -1, null]);
+assert.equal(kpiOccupancy.occupancy[0].days[0].occupied, 50);
+assert.equal(kpiOccupancy.updatedAt, "2026-10-08T12:00:00.000Z");
+
+const availabilityAlerts = __test.availabilityAlertsPayload([
+  ["Hotel", "Data", "APT", "OCP", "DISP", "CapturadoEm"],
+  ["SUEDS PLAZA", "2026-10-10", 116, 116, 0, "2026-10-08T10:33:08.000Z"],
+  ["SUEDS PLAZA", "2026-10-11", 116, 117, -1, "2026-10-08T10:33:08.000Z"],
+  ["SUEDS PLAZA", "2026-10-12", 116, 112, 4, "2026-10-08T10:33:08.000Z"]
+]);
 assert.equal(availabilityAlerts.period.end, "2026-10-12");
 assert.equal(availabilityAlerts.updatedAt, "2026-10-08T10:33:08.000Z");
 assert.equal(__test.kpiCapturedAt([{ metadataKey: "sueds.kpi.full.last_captured_at", metadataValue: "2026-10-08T10:33:08.014Z" }]), "2026-10-08T10:33:08.014Z");
