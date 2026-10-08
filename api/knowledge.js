@@ -164,6 +164,18 @@ async function trainingRead(req, res, db, organizationId, profile) {
   if (inserted.error) throw inserted.error;
   return json(res, 200, { ok: true, read: true });
 }
+async function trainingHistory(res, db, organizationId, profile) {
+  const reads = await db.from("dashboard_snapshots").select("payload,created_at").eq("source", "portal_knowledge_training_read").contains("payload", { organizationId, userId: profile.id }).order("created_at", { ascending: false });
+  if (reads.error) throw reads.error;
+  const completed = new Map();
+  for (const row of reads.data || []) {
+    const item = row.payload || {};
+    if (!item.documentId || completed.has(item.documentId)) continue;
+    completed.set(item.documentId, { title: item.title || "Treinamento", module: item.module || "geral", completedAt: item.readAt || row.created_at });
+  }
+  const trainings = [...completed.values()];
+  return json(res, 200, { ok: true, name: profile.name || profile.email || "Colaborador", points: trainings.length * 10, trainings });
+}
 module.exports = async function knowledge(req, res) {
   try {
     const profile = await getPortalProfile(req, res); if (!profile) return json(res, 401, { error: "unauthenticated" });
@@ -175,6 +187,7 @@ module.exports = async function knowledge(req, res) {
     if (action === "pop") return knowledgeSettings.pop(req, res, db, org, profile, level);
     if (action === "document-media-upload") return documentMediaUpload(req, res, db, org, level);
     if (action === "training-read") return trainingRead(req, res, db, org, profile);
+    if (action === "history" && req.method === "GET") return trainingHistory(res, db, org, profile);
     if (action === "kpi-upload") return knowledgeSettings.prepareKpiVideo(req, res, db, org, level);
     if (action === "kpi") return knowledgeSettings.kpi(req, res, db, org, profile, level);
     if (req.method === "GET") return json(res, 200, { ok: true, accessLevel: level, canEdit, canPublish, documents: await list(db, org, canEdit) });

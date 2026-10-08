@@ -44,6 +44,10 @@
       "dest": "/public/treinamentos-kpifull.html"
     },
     {
+      "src": "/Treinamentos/Historico",
+      "dest": "/public/treinamentos-historico.html"
+    },
+    {
       "src": "/Treinamentos/Admin",
       "dest": "/public/treinamentos-admin.html"
     },
