@@ -37,7 +37,7 @@
       const popAction = module.pop
         ? `<div class="module-pop"><a href="/treinamentos-pop.html?module=${encodeURIComponent(module.slug)}"><span aria-hidden="true">▤</span>POP</a><small>Procedimento Operacional Padrão</small></div>`
         : `<div class="module-pop-empty" aria-hidden="true"></div>`;
-      return `<article class="knowledge-card ${available ? 'available' : 'coming-soon'}"><span class="card-number">${String(index + 1).padStart(2,'0')}</span><div class="card-module-heading"><div class="card-icon" aria-hidden="true">${escapeHtml(module.icon || '🏨')}</div><div><span class="card-status">${status}</span><h3>${escapeHtml(module.name)}</h3></div></div><p class="card-description">${escapeHtml(description)}</p><div class="card-actions">${popAction}<a class="card-action" href="${href}">Acessar treinamento <b aria-hidden="true">→</b></a></div></article>`;
+      return `<article class="knowledge-card ${available ? 'available' : 'coming-soon'}"><span class="card-number">${String(index + 1).padStart(2,'0')}</span><div class="card-module-heading"><div class="card-icon" aria-hidden="true">${escapeHtml(module.icon || '🏨')}</div><div><span class="card-status">${status}</span><h3>${escapeHtml(module.name)}</h3></div></div><p class="card-description">${escapeHtml(description)}</p><div class="card-actions">${popAction}<a class="card-action" href="${href}">Acessar treinamento</a></div></article>`;
       }).join('') : '<p class="catalog-empty">Nenhum módulo ou treinamento encontrado.</p>';
     };
     renderCards();
