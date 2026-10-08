@@ -18,6 +18,7 @@ const BI_HISTORICAL_CHANNELS_RANGE = process.env.GOOGLE_BI_HISTORICAL_CHANNELS_R
 const BI_KPI_2025_RANGE = process.env.GOOGLE_BI_KPI_2025_RANGE || "'base kpi 2025'!A:X";
 const BI_KPI_2026_RANGE = process.env.GOOGLE_BI_KPI_2026_RANGE || "'base kpi 2026'!A:X";
 const BI_KPI_CACHE_TTL_MS = Number(process.env.BI_KPI_CACHE_TTL_SECONDS || 300) * 1000;
+const KPI_CAPTURED_AT_METADATA_KEY = "sueds.kpi.full.last_captured_at";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
 const JUNIPER_RANGE = process.env.GOOGLE_JUNIPER_RANGE || "Metas!O29:P33";
 const CVC_RANGE = process.env.GOOGLE_CVC_RANGE || "Metas!R29:S33";
@@ -554,6 +555,22 @@ async function sheetsRequestForSpreadsheet(sheetId, pathname, options = {}, scop
 
   if (response.status === 204) return null;
   return response.json();
+}
+
+function kpiCapturedAt(metadata = []) {
+  const value = metadata.find((item) => item?.metadataKey === KPI_CAPTURED_AT_METADATA_KEY)?.metadataValue || "";
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? "" : new Date(timestamp).toISOString();
+}
+
+async function loadKpiCapturedAt() {
+  const payload = await sheetsRequestForSpreadsheet(
+    SHEET_ID,
+    "?fields=developerMetadata(metadataKey,metadataValue)",
+    {},
+    "https://www.googleapis.com/auth/spreadsheets.readonly"
+  );
+  return kpiCapturedAt(payload.developerMetadata || []);
 }
 
 function todayIsoSaoPaulo() {
@@ -4401,7 +4418,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     audience: dataset.audience || "bi-relatorios",
     generatedAt: new Date().toISOString(),
     dataCoverage: dataset.audience === "bi-relatorios-kpi" ? {
-      baseUpdatedAt: dataset.loadedAt || "",
+      baseUpdatedAt: dataset.kpiCapturedAt || dataset.loadedAt || "",
       latestSaleDate: dataset.kpiLatestSaleDate || "",
       queryEndBeyondAvailable: Boolean(dataset.kpiLatestSaleDate && period.end > dataset.kpiLatestSaleDate)
     } : null,
@@ -4496,7 +4513,7 @@ function availabilityAlertsPayload(dataset = {}) {
     .at(-1) || start;
   const payload = buildCachedBiKpiReportsPayload(dataset, { start, end });
   return {
-    updatedAt: dataset.loadedAt || payload.generatedAt,
+    updatedAt: dataset.kpiCapturedAt || dataset.loadedAt || payload.generatedAt,
     period: { start, end },
     alerts: (payload.occupancy || []).map((hotel) => ({
       hotel: hotel.hotel,
@@ -9246,7 +9263,7 @@ async function loadBiKpiReportsDataset() {
     };
     const currentSheet = sheetPrefix(BI_KPI_2026_RANGE);
     const historicalSheet = sheetPrefix(BI_KPI_2025_RANGE);
-    const [values, goalRows] = await Promise.all([
+    const [values, goalRows, capturedAt] = await Promise.all([
       getSheetValueRanges([
         ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
         ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
@@ -9254,6 +9271,10 @@ async function loadBiKpiReportsDataset() {
       getSheetValues(METAS_RANGE).catch((error) => {
         if (isMissingSheetError(error)) return [];
         throw error;
+      }),
+      loadKpiCapturedAt().catch((error) => {
+        console.error("[bi-kpi-captured-at]", error.message || error);
+        return "";
       })
     ]);
     const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length));
@@ -9268,6 +9289,7 @@ async function loadBiKpiReportsDataset() {
       historicalRecords,
       historicalMaintenanceBlocks: normalizeKpiMaintenanceObjects(historicalKpiObjects, 2025),
       goals: rowsToObjects(goalRows, { keepAnyValue: true }).map(normalizeGoal),
+      kpiCapturedAt: capturedAt,
       loadedAt: new Date().toISOString(),
       audience: "bi-relatorios-kpi",
       comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full. Venda calculada por Diária × RN; reservas com mais de uma linha foram consolidadas."
@@ -9606,7 +9628,7 @@ async function handleRequest(req, res) {
         hotel: url.searchParams.get("hotel") || ""
       });
       return json(res, 200, {
-        updatedAt: dataset.loadedAt || payload.generatedAt,
+        updatedAt: dataset.kpiCapturedAt || dataset.loadedAt || payload.generatedAt,
         period: payload.period,
         selected: { hotel: payload.selected.hotel },
         filters: { hotels: payload.filters.hotels },
@@ -9877,6 +9899,7 @@ module.exports = {
     biReportsDefaultKpiPeriod,
     buildCachedBiKpiReportsPayload,
     availabilityAlertsPayload,
+    kpiCapturedAt,
     kpiObjectsFromColumnRanges,
     kpiLatestSaleDate,
     normalizeKpiReportObjects,
