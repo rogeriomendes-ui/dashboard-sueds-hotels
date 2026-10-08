@@ -3822,7 +3822,7 @@ function biReportsDateKeys(start, end) {
 
 const BI_REPORTS_VILA_ROMANA = { label: "CASAS SUEDS ARRAIAL", apartments: 6 };
 const BI_REPORTS_HOTEL_INVENTORY = new Map([
-  [comparableKey("SUEDS PLAZA"), { label: "SUEDS PLAZA", apartments: 117 }],
+  [comparableKey("SUEDS PLAZA"), { label: "SUEDS PLAZA", apartments: 116 }],
   [comparableKey("SUEDS CABRALIA"), { label: "SUEDS CABRALIA", apartments: 29 }],
   [comparableKey("SUEDS SEGUNDO SOL"), { label: "SUEDS SEGUNDO SOL", apartments: 100 }],
   [comparableKey("SUEDS PREMIUM"), { label: "SUEDS PREMIUM", apartments: 50 }],

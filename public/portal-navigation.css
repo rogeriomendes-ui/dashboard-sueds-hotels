@@ -68,6 +68,7 @@
 .portal-availability-item strong,.portal-availability-item span { display: block; }
 .portal-availability-item strong { color: #9a5d00; font-size: 14px; }
 .portal-availability-item span { margin-top: 5px; color: #526670; font-size: 13px; line-height: 1.5; }
+.portal-availability-item span.portal-availability-month { display: inline; margin: 0; font-weight: 800; text-decoration: underline; }
 .portal-availability-item span.portal-availability-date { display: inline; margin: 0; }
 .portal-availability-item span.portal-availability-date.is-over { color: #c62828; font-weight: 800; }
 .portal-availability-map-link { display: block; padding: 15px 22px 20px; color: #126b66; font-size: 13px; font-weight: 800; text-decoration: none; }

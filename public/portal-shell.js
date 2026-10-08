@@ -199,7 +199,10 @@
       });
       [...grouped.entries()].forEach(([month, days], monthIndex) => {
         if (monthIndex) text.append(" · ");
-        text.append(`${month}: `);
+        const monthLabel = document.createElement("span");
+        monthLabel.className = "portal-availability-month";
+        monthLabel.textContent = `${month}:`;
+        text.append(monthLabel, " ");
         days.forEach((item, dayIndex) => {
           if (dayIndex) text.append(", ");
           const date = document.createElement("span");
