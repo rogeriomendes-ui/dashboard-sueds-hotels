@@ -90,7 +90,7 @@
         element.controls = false;
         element.disablePictureInPicture = true;
         element.addEventListener('timeupdate', () => { watchedUntil = Math.max(watchedUntil, element.currentTime); });
-        element.addEventListener('seeking', () => { if (!element.ended && Math.abs(element.currentTime - watchedUntil) > .5) element.currentTime = watchedUntil; });
+        element.addEventListener('seeking', () => { if (element.dataset.completed !== 'true' && !element.ended && Math.abs(element.currentTime - watchedUntil) > .5) element.currentTime = watchedUntil; });
         element.addEventListener('play', () => { playButton.hidden = true; });
         element.addEventListener('ended', () => { element.dataset.completed = 'true'; playButton.hidden = false; updateVideoRequirement(); });
         playButton.addEventListener('click', () => {
