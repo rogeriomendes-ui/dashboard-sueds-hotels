@@ -123,6 +123,25 @@ function blockRow(block) {
   `;
 }
 
+function occupancyMetric(hotel) {
+  const occupancy = hotel.occupancy;
+  if (!occupancy) return "";
+  const guests = [
+    occupancy.adults === null ? "" : `${integer.format(occupancy.adults)} adultos`,
+    occupancy.children === null ? "" : `${integer.format(occupancy.children)} crianças`
+  ].filter(Boolean).join(" · ");
+  const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
+    ? ""
+    : `<strong>${String(occupancy.responseRate).replace(".", ",")}% de respostas / adultos</strong>`;
+  return `
+    <div class="hotel-occupancy" aria-label="Ocupação e hóspedes do dia">
+      <span><b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>
+      ${guests ? `<span>${guests}</span>` : ""}
+      ${responseRate}
+    </div>
+  `;
+}
+
 function hotelCard(hotel) {
   const score = cssScore(hotel.finalScore);
   const color = scoreColor(hotel.finalScore);
@@ -138,6 +157,7 @@ function hotelCard(hotel) {
           <strong>${formatScore(hotel.finalScore)}</strong>
         </div>
       </div>
+      ${occupancyMetric(hotel)}
       <div class="block-list">
         ${(hotel.blocks || []).map(blockRow).join("")}
       </div>

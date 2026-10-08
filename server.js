@@ -3614,7 +3614,7 @@ function kpiDateWithReference(value, deltaYears, reference) {
   };
 }
 
-function kpiObjectsFromColumnRanges(columnRanges = []) {
+function kpiObjectsFromColumnRanges(columnRanges = [], guestColumns = {}) {
   const [identityRows = [], stayRows = [], roomRows = [], saleDateRows = [], totalRows = []] = columnRanges;
   const rowCount = Math.max(identityRows.length, stayRows.length, roomRows.length, saleDateRows.length, totalRows.length);
   const objects = [];
@@ -3636,12 +3636,25 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
       Status: room[2] ?? "",
       RN: room[3] ?? "",
       "D.Res": saleDate[0] ?? "",
-      Total: total[0] ?? ""
+      Total: total[0] ?? "",
+      Adultos: guestColumns.adults ? guestColumns.adults[index]?.[0] ?? "" : undefined,
+      Crianças: guestColumns.children ? guestColumns.children[index]?.[0] ?? "" : undefined
     };
     if (Object.values(item).some((value) => value !== "" && value !== null && value !== undefined)) objects.push(item);
   }
 
   return objects;
+}
+
+function kpiGuestColumnRanges(headers = []) {
+  const columnFor = (names) => {
+    const index = headers.findIndex((header) => names.includes(comparableKey(header)));
+    return index >= 0 ? String.fromCharCode(65 + index) : "";
+  };
+  return {
+    adults: columnFor(["adulto", "adultos", "adult"]),
+    children: columnFor(["crianca", "criancas", "child", "children"])
+  };
 }
 
 function kpiLatestSaleDate(objects = []) {
@@ -3737,6 +3750,8 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       apartment: String(item.Apto || "").trim(),
       roomNights: Math.max(0, parseNumber(item.RN)),
       dailyRate: Math.max(0, parseNumber(item["Diária"])),
+      adults: item.Adultos === undefined ? null : parseNumber(item.Adultos),
+      children: item["Crianças"] === undefined ? null : parseNumber(item["Crianças"]),
       total: parseNumber(item.Total)
     };
     const group = groups.get(key) || [];
@@ -3755,6 +3770,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
     const checkin = checkins[0] || representative.checkin;
     const checkout = checkouts[0] || representative.checkout;
     const roomNights = kpiReservationNights(validRows);
+    const guestSource = validRows.find((row) => row.adults !== null || row.children !== null) || representative;
     return {
       date: sale.date,
       dateKey: sale.key,
@@ -3769,6 +3785,8 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       checkout: checkout.display,
       days: String(roomNights || ""),
       uh: "1",
+      adults: guestSource.adults,
+      children: guestSource.children,
       status: sellable.length ? "Confirmada" : representative.status,
       reservationCount: 1,
       total: kpiReservationRevenue(validRows),
@@ -5316,6 +5334,28 @@ function emptyOperationalHotel(hotel) {
     highlights: [],
     issues: []
   };
+}
+
+function operationalOccupancyByHotel(records = [], date = "", guestFields = {}) {
+  if (!date) return new Map();
+  const totals = new Map();
+  records.forEach((record) => {
+    const inventory = biReportsInventory(record.hotel);
+    const checkin = kpiDateKey(record.checkin);
+    const checkout = kpiDateKey(record.checkout);
+    if (!inventory || !isCountedSaleStatus(record) || !checkin || !checkout || date < checkin || date >= checkout) return;
+    const key = comparableKey(inventory.label);
+    const total = totals.get(key) || {
+      occupied: 0,
+      adults: guestFields.adults ? 0 : null,
+      children: guestFields.children ? 0 : null
+    };
+    total.occupied += Math.max(biReportsRoomCount(record), parseNumber(record.reservationCount), 1);
+    if (guestFields.adults) total.adults += Math.max(0, Number(record.adults) || 0);
+    if (guestFields.children) total.children += Math.max(0, Number(record.children) || 0);
+    totals.set(key, total);
+  });
+  return totals;
 }
 
 const PLAZA_OMR_RATING_OPTIONS = ["Excelente", "Muito bom", "Bom", "Regular"];
@@ -7211,6 +7251,9 @@ async function updateOperationalIncidentStatus(body = {}) {
     throw new Error("Status invalido.");
   }
   if (!actor) throw new Error("Responsavel obrigatorio.");
+  if (status === "resolved" && !treatmentNotes) {
+    throw new Error("Observacoes da tratativa obrigatorias para concluir a ocorrencia.");
+  }
 
   await ensureOperationalIncidentHeaders();
   const rows = await getSheetValues("Opinarios!A:AL", OPERATIONAL_SHEET_ID);
@@ -7311,7 +7354,10 @@ async function sendOperationalOpinionImage(res, fileId, hotelSlug = "") {
 }
 
 async function buildOperationalTvPayload(period = {}) {
-  const opinions = await loadOperationalOpinions();
+  const [opinions, kpiDataset] = await Promise.all([
+    loadOperationalOpinions(),
+    loadBiKpiReportsDataset()
+  ]);
   const date = period.date || "";
   const weekday = ["tuesday", "friday"].includes(period.weekday) ? period.weekday : "";
   const month = date ? date.slice(0, 7) : period.month || todayKey().slice(0, 7);
@@ -7319,6 +7365,11 @@ async function buildOperationalTvPayload(period = {}) {
     isCurrentOperationalOpinion(opinion)
       && operationalOpinionMatchesPeriod(opinion, { date, month, weekday })
   ));
+  const occupancyByHotel = operationalOccupancyByHotel(
+    kpiDataset.records,
+    date,
+    kpiDataset.occupancyGuestFields
+  );
   const hotels = [...groupBy(monthOpinions, (opinion) => opinion.hotel).entries()]
     .map(([hotel, rows]) => summarizeOperationalHotel(hotel, rows))
     .sort((a, b) => b.opinions - a.opinions || a.hotel.localeCompare(b.hotel));
@@ -7337,18 +7388,30 @@ async function buildOperationalTvPayload(period = {}) {
     });
   });
 
+  const hotelsWithOccupancy = orderedHotels.map((hotel) => {
+    const occupancy = occupancyByHotel.get(comparableKey(hotel.hotel));
+    if (!occupancy) return hotel;
+    return {
+      ...hotel,
+      occupancy: {
+        ...occupancy,
+        responseRate: occupancy.adults ? Math.round(hotel.opinions / occupancy.adults * 1000) / 10 : null
+      }
+    };
+  });
+
   return {
     audience: "tv-operacional",
     generatedAt: new Date().toISOString(),
     period: { month, date: date || null, weekday: weekday || null },
     summary: {
       opinions: monthOpinions.length,
-      hotels: orderedHotels.length,
+      hotels: hotelsWithOccupancy.length,
       evaluatedHotels: hotels.filter((hotel) => hotel.opinions > 0).length,
       finalScore: average(allScores),
       status: operationalStatus(average(allScores))
     },
-    hotels: orderedHotels
+    hotels: hotelsWithOccupancy
   };
 }
 
@@ -9172,24 +9235,34 @@ async function loadBiKpiReportsDataset() {
     };
     const currentSheet = sheetPrefix(BI_KPI_2026_RANGE);
     const historicalSheet = sheetPrefix(BI_KPI_2025_RANGE);
-    const ranges = [
-      ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
-      ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
-    ];
-    const [values, goalRows] = await Promise.all([
-      getSheetValueRanges(ranges),
+    const [currentHeaderRows, values, goalRows] = await Promise.all([
+      getSheetValues(`${currentSheet}!A1:X1`),
+      getSheetValueRanges([
+        ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
+        ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
+      ]),
       getSheetValues(METAS_RANGE).catch((error) => {
         if (isMissingSheetError(error)) return [];
         throw error;
       })
     ]);
-    const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length));
+    const guestColumns = kpiGuestColumnRanges(currentHeaderRows[0] || []);
+    const guestRanges = Object.entries(guestColumns)
+      .filter(([, column]) => column)
+      .map(([name, column]) => ({ name, range: `${currentSheet}!${column}:${column}` }));
+    const guestValues = guestRanges.length ? await getSheetValueRanges(guestRanges.map(({ range }) => range)) : [];
+    const currentGuestColumns = Object.fromEntries(guestRanges.map(({ name }, index) => [name, guestValues[index]]));
+    const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length), currentGuestColumns);
     const historicalKpiObjects = kpiObjectsFromColumnRanges(values.slice(compactColumns.length));
     const kpiRecords = normalizeKpiReportObjects(currentKpiObjects, 2026);
     const historicalRecords = normalizeKpiReportObjects(historicalKpiObjects, 2025);
     const payload = {
       records: kpiRecords,
       maintenanceBlocks: normalizeKpiMaintenanceObjects(currentKpiObjects, 2026),
+      occupancyGuestFields: {
+        adults: Boolean(guestColumns.adults),
+        children: Boolean(guestColumns.children)
+      },
       kpiLatestSaleDate: kpiLatestSaleDate(currentKpiObjects),
       otherChannelRecords: [],
       historicalRecords,

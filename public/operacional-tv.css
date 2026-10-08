@@ -249,6 +249,32 @@ body {
   font-size: 25px;
 }
 
+.hotel-occupancy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin: -4px 0 14px;
+  color: var(--card-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hotel-occupancy span + span::before,
+.hotel-occupancy strong::before {
+  content: "•";
+  margin-right: 10px;
+  color: var(--line);
+}
+
+.hotel-occupancy b,
+.hotel-occupancy strong {
+  color: var(--text);
+}
+
+.hotel-occupancy strong {
+  color: #168a4a;
+}
+
 .block-list {
   display: grid;
   gap: 9px;

@@ -737,6 +737,14 @@ function authenticatedActorName() {
     .trim();
 }
 
+function syncIncidentTreatmentNotesRequirement() {
+  const notes = byId("incidentTreatmentNotes");
+  const isResolved = document.querySelector('input[name="incidentStatus"]:checked')?.value === "resolved";
+  notes.required = isResolved;
+  notes.setAttribute("aria-required", String(isResolved));
+  byId("incidentTreatmentNotesRequirement").textContent = isResolved ? "(obrigatório)" : "(opcional)";
+}
+
 function openIncidentStatusDialog(incidentId) {
   const incident = findIncident(incidentId);
   if (!incident) return;
@@ -747,6 +755,7 @@ function openIncidentStatusDialog(incidentId) {
   byId("incidentStatusMessage").textContent = "";
   const statusInput = document.querySelector(`input[name="incidentStatus"][value="${incident.status || "pending"}"]`);
   if (statusInput) statusInput.checked = true;
+  syncIncidentTreatmentNotesRequirement();
   byId("incidentStatusDialog").showModal();
   refreshIcons();
   window.setTimeout(() => byId("incidentTreatmentNotes").focus(), 50);
@@ -763,6 +772,11 @@ async function saveIncidentStatus(event) {
   if (!actor) {
     message.textContent = "Informe o responsável pela alteração.";
     byId("incidentLeaderName").focus();
+    return;
+  }
+  if (status === "resolved" && !treatmentNotes) {
+    message.textContent = "Informe as observações da tratativa para concluir a ocorrência.";
+    byId("incidentTreatmentNotes").focus();
     return;
   }
 
@@ -802,6 +816,9 @@ function setupIncidentStatusDialog() {
     if (button) openIncidentStatusDialog(button.dataset.incidentId);
   });
   byId("incidentStatusForm").addEventListener("submit", saveIncidentStatus);
+  document.querySelectorAll('input[name="incidentStatus"]').forEach((input) => {
+    input.addEventListener("change", syncIncidentTreatmentNotesRequirement);
+  });
   byId("incidentStatusClose").addEventListener("click", closeIncidentStatusDialog);
   byId("incidentStatusCancel").addEventListener("click", closeIncidentStatusDialog);
   byId("incidentStatusDialog").addEventListener("click", (event) => {
