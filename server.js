@@ -4695,9 +4695,9 @@ function salesReportFileName(period = {}) {
 }
 
 function excelDateFromKey(value) {
-  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
+  const date = parseDate(value);
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12));
 }
 
 function styleExcelHeader(row, fill = "2C3E50") {
@@ -9952,6 +9952,7 @@ module.exports = {
     buildBiKpiSourceWorkbook,
     buildSalesCommissionWorkbook,
     buildTicketWorkbook,
+    excelDateFromKey,
     isEventTicket,
     isSalesLeadershipAccess,
     portalSellerAccessProfile,
