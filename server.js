@@ -9660,7 +9660,7 @@ async function handleRequest(req, res) {
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       const query = {
         start: url.searchParams.get("start") || "",
-        end: url.searchParams.get("end") || "",
+        end: url.searchParams.get("end") || "2027-12-31",
         hotel: url.searchParams.get("hotel") || ""
       };
       const rows = await getSheetValues(KPI_OCCUPANCY_RANGE).catch((error) => {
