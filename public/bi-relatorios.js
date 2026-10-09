@@ -474,7 +474,8 @@
     els.comparisonTitle.textContent = payload.comparison?.available ? "Comparativo 2025 × 2026 atualizado" : "Comparativo 2025 × 2026 em preparação";
     els.reason.textContent = payload.comparison?.coverage || payload.comparison?.pendingReason || "A base histórica de 2025 ainda não está disponível.";
     els.comparisonTotal.textContent = payload.comparison?.available ? shortMoney.format(payload.comparison.summary?.sales || 0) : "sem dados";
-    els.stamp.textContent = `Atualizado ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.generatedAt))}`;
+    const updatedAt = isKpiReport ? payload.dataCoverage?.baseUpdatedAt : payload.generatedAt;
+    els.stamp.textContent = `${isKpiReport ? "KPI capturado" : "Atualizado"} ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(updatedAt || payload.generatedAt))}`;
     renderLine(els.daily, (payload.daily || []).map((point) => ({ date: point.date, value: point.cumulative })), {
       label: "Curvas acumuladas de vendas de 2025 e 2026",
       comparisonPoints: (payload.comparison?.daily || []).map((point) => ({ date: point.date, value: point.cumulative }))
