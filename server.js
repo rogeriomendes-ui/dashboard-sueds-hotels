@@ -5345,6 +5345,9 @@ function summarizeOperationalHotel(hotel, opinions) {
   return {
     hotel,
     opinions: opinions.length,
+    respondingRooms: new Set(
+      opinions.map((opinion) => comparableKey(opinion.apartment)).filter(Boolean)
+    ).size,
     answeredItems: allScores.length,
     finalScore,
     status: operationalStatus(finalScore),
@@ -5358,6 +5361,7 @@ function emptyOperationalHotel(hotel) {
   return {
     hotel,
     opinions: 0,
+    respondingRooms: 0,
     answeredItems: 0,
     finalScore: null,
     status: "sem_dados",
@@ -5403,14 +5407,13 @@ function operationalOccupancyByHotel(records = [], dates = []) {
   return totals;
 }
 
-function operationalResponseMetric(occupancy, responses, isAverage = false) {
+function operationalResponseMetric(occupancy, respondingRooms, isAverage = false) {
   if (!occupancy) return null;
   const occupied = occupancy.days ? occupancy.occupiedRoomNights / occupancy.days : 0;
-  const estimatedGuests = occupancy.occupiedRoomNights * 2;
   return {
     occupied,
-    estimatedGuests: isAverage ? occupied * 2 : estimatedGuests,
-    responseRate: estimatedGuests ? Math.floor(responses / estimatedGuests * 100) : null,
+    respondingRooms,
+    responseRate: occupied ? Math.floor(respondingRooms / occupied * 100) : null,
     isAverage
   };
 }
@@ -7450,7 +7453,7 @@ async function buildOperationalTvPayload(period = {}) {
     if (!occupancy) return hotel;
     return {
       ...hotel,
-      occupancy: operationalResponseMetric(occupancy, hotel.opinions, !date)
+      occupancy: operationalResponseMetric(occupancy, hotel.respondingRooms, !date)
     };
   });
 
@@ -7575,7 +7578,7 @@ async function buildOperationalHotelPayload(period = {}) {
     occupancyDates
   ).get(comparableKey(selectedHotel.name));
   if (occupancy) {
-    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.approvedOpinions, !date);
+    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.respondingRooms, !date);
   }
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)
