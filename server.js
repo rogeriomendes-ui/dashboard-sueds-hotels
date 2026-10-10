@@ -5442,6 +5442,17 @@ function operationalPeriodDateKeys({ date = "", month = "", weekday = "" } = {})
     .filter((key) => weekdayNumber === null || operationalWeekdayNumber(key) === weekdayNumber);
 }
 
+function operationalRespondingRoomsByDate(opinions = []) {
+  const roomsByDate = new Map();
+  opinions.forEach((opinion) => {
+    const apartment = comparableKey(opinion.apartment);
+    if (!opinion.dateKey || !apartment) return;
+    if (!roomsByDate.has(opinion.dateKey)) roomsByDate.set(opinion.dateKey, new Set());
+    roomsByDate.get(opinion.dateKey).add(apartment);
+  });
+  return new Map([...roomsByDate].map(([date, rooms]) => [date, rooms.size]));
+}
+
 function operationalOccupancyByHotel(records = [], dates = []) {
   if (!dates.length) return new Map();
   const totals = new Map();
@@ -5451,28 +5462,44 @@ function operationalOccupancyByHotel(records = [], dates = []) {
     const checkout = kpiDateKey(record.checkout);
     if (!inventory || !isCountedSaleStatus(record) || !checkin || !checkout) return;
     const key = comparableKey(inventory.label);
-    const total = totals.get(key) || { occupiedRoomNights: 0, days: dates.length };
+    const total = totals.get(key) || { occupiedRoomNights: 0, occupiedRoomNightsByDate: new Map(), days: dates.length };
     const rooms = Math.max(biReportsRoomCount(record), parseNumber(record.reservationCount), 1);
     dates.forEach((date) => {
-      if (date >= checkin && date < checkout) total.occupiedRoomNights += rooms;
+      if (date >= checkin && date < checkout) {
+        total.occupiedRoomNights += rooms;
+        total.occupiedRoomNightsByDate.set(
+          date,
+          (total.occupiedRoomNightsByDate.get(date) || 0) + rooms
+        );
+      }
     });
     totals.set(key, total);
   });
   return totals;
 }
 
-function operationalResponseMetric(occupancy, respondingRoomDays, isAverage = false) {
+function operationalResponseMetric(occupancy, respondingRoomDays, isAverage = false, respondingRoomsByDate = new Map()) {
   if (!occupancy) return null;
   const days = occupancy.days || 0;
   const occupied = days ? occupancy.occupiedRoomNights / days : 0;
   const respondingRooms = isAverage && days ? respondingRoomDays / days : respondingRoomDays;
+  const dailyResponseRates = isAverage
+    ? [...respondingRoomsByDate.entries()]
+      .map(([date, respondingRooms]) => {
+        const occupiedRooms = occupancy.occupiedRoomNightsByDate?.get(date) || 0;
+        return occupiedRooms ? Math.floor(respondingRooms / occupiedRooms * 100) : null;
+      })
+      .filter(Number.isFinite)
+    : [];
   return {
     occupied,
     respondingRooms,
     occupiedRoomDays: occupancy.occupiedRoomNights,
     respondingRoomDays,
-    responseRate: occupancy.occupiedRoomNights
-      ? Math.floor(respondingRoomDays / occupancy.occupiedRoomNights * 100)
+    responseRate: isAverage
+      ? (dailyResponseRates.length ? Math.floor(average(dailyResponseRates)) : null)
+      : occupancy.occupiedRoomNights
+        ? Math.floor(respondingRoomDays / occupancy.occupiedRoomNights * 100)
       : null,
     isAverage
   };
@@ -7531,7 +7558,14 @@ async function buildOperationalTvPayload(period = {}) {
     if (!occupancy) return hotel;
     return {
       ...hotel,
-      occupancy: operationalResponseMetric(occupancy, hotel.respondingRoomDays, !date)
+      occupancy: operationalResponseMetric(
+        occupancy,
+        hotel.respondingRoomDays,
+        !date,
+        operationalRespondingRoomsByDate(
+          monthOpinions.filter((opinion) => comparableKey(opinion.hotel) === comparableKey(hotel.hotel))
+        )
+      )
     };
   });
 
@@ -7677,7 +7711,12 @@ async function buildOperationalHotelPayload(period = {}) {
     occupancyDates
   ).get(comparableKey(selectedHotel.name));
   if (occupancy) {
-    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.respondingRoomDays, !date);
+    evaluation.occupancy = operationalResponseMetric(
+      occupancy,
+      evaluation.respondingRoomDays,
+      !date,
+      operationalRespondingRoomsByDate(evaluatedOpinions)
+    );
   }
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)

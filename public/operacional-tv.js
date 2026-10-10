@@ -129,7 +129,7 @@ function occupancyMetric(hotel) {
   const responseCount = occupancy.isAverage ? occupancy.respondingRoomDays : occupancy.respondingRooms;
   const occupiedCount = occupancy.isAverage ? occupancy.occupiedRoomDays : occupancy.occupied;
   const unitLabel = occupancy.isAverage ? "UH-dias" : "UHs";
-  const responseLabel = occupancy.isAverage ? "Taxa de respostas acumulada" : "Taxa de respostas";
+  const responseLabel = occupancy.isAverage ? "Taxa média de respostas" : "Taxa de respostas";
   const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
     ? ""
     : `<strong class="response-rate${occupancy.responseRate < 50 ? " response-rate-low" : ""}">${responseLabel}: ${String(occupancy.responseRate).replace(".", ",")}%</strong>`;

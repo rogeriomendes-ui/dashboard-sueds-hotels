@@ -88,15 +88,28 @@ const accumulatedSummary = summarizeOperationalHotel("SUEDS PREMIUM", [
   photoOpinion({ fileId: "day-d", apartment: "309", dateKey: "2026-10-10" })
 ]);
 const accumulatedRate = operationalResponseMetric(
-  { occupiedRoomNights: 40, days: 2 },
-  accumulatedSummary.respondingRoomDays,
-  true
+  {
+    occupiedRoomNights: 259,
+    days: 3,
+    occupiedRoomNightsByDate: new Map([
+      ["2026-10-02", 102],
+      ["2026-10-06", 81],
+      ["2026-10-09", 76]
+    ])
+  },
+  147,
+  true,
+  new Map([
+    ["2026-10-02", 51],
+    ["2026-10-06", 57],
+    ["2026-10-09", 39]
+  ])
 );
 assert.equal(accumulatedSummary.respondingRooms, 2, "The monthly room count remains unique by apartment");
 assert.equal(accumulatedSummary.respondingRoomDays, 3, "The response rate must count each apartment at most once per day");
-assert.equal(accumulatedRate.respondingRoomDays, 3, "The monthly display must use the summed response room-days");
-assert.equal(accumulatedRate.occupiedRoomDays, 40, "The monthly display must use the summed occupied room-days");
-assert.equal(accumulatedRate.responseRate, 7, "The accumulated rate must use response room-days over occupied room-nights");
+assert.equal(accumulatedRate.respondingRoomDays, 147, "The monthly display must use the summed response room-days");
+assert.equal(accumulatedRate.occupiedRoomDays, 259, "The monthly display must use the summed occupied room-days");
+assert.equal(accumulatedRate.responseRate, 57, "The monthly rate must average daily rates only for days with opinions");
 
 const qrOpinions = [
   photoOpinion({ fileId: "qr-1", photoUrl: "", origin: "QR Code", deviceId: "device-a", apartment: "425" }),
