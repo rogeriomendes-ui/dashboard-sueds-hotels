@@ -4,6 +4,7 @@ const {
   operationalOpinionDeviceApartmentCounts,
   operationalOpinionResponse,
   operationalResponseMetric,
+  normalizeOperationalApartment,
   summarizeOperationalHotel
 } = require("../server").__test;
 
@@ -80,6 +81,15 @@ const summary = summarizeOperationalHotel("SUEDS PREMIUM", deduped.slice(0, 3));
 assert.equal(summary.opinions, 3);
 assert.equal(summary.respondingRooms, 1);
 assert.equal(summary.respondingRoomDays, 1);
+
+assert.equal(normalizeOperationalApartment("SUEDS TRANCOSO", "103"), "03");
+assert.equal(normalizeOperationalApartment("SUEDS TRANCOSO", "104"), "04");
+assert.equal(normalizeOperationalApartment("SUEDS TRANCOSO", "108"), "08");
+assert.equal(normalizeOperationalApartment("SUEDS TRANCOSO", "10"), "10");
+assert.equal(normalizeOperationalApartment("SUEDS PLAZA", "103"), "103");
+const correctedTrancoso = summarizeOperationalHotel("SUEDS TRANCOSO", ["1", "2", "3", "4", "5", "7", "8", "10", "103", "108"]
+  .map((apartment, index) => photoOpinion({ fileId: `trancoso-${index}`, hotel: "SUEDS TRANCOSO", apartment: normalizeOperationalApartment("SUEDS TRANCOSO", apartment) })));
+assert.equal(correctedTrancoso.respondingRooms, 8, "Trancoso OCR readings 103 and 108 must merge with 03 and 08");
 
 const accumulatedSummary = summarizeOperationalHotel("SUEDS PREMIUM", [
   photoOpinion({ fileId: "day-a", apartment: "425", dateKey: "2026-10-09" }),

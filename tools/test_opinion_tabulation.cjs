@@ -1,9 +1,13 @@
 const assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
 const server=require('../server').__test;
 const sandbox=vm.createContext({});
-vm.runInContext(fs.readFileSync('google-apps-script/operacional_opinarios_drive.gs','utf8')+'\nthis.api={profiles:OPINARIOS_FORM_PROFILES,headers:OPINARIOS_HEADERS,apply:applyOmrRatings_,row:buildOpinionRow_,score:calculateOpinionScore_};',sandbox);
+vm.runInContext(fs.readFileSync('google-apps-script/operacional_opinarios_drive.gs','utf8')+'\nthis.api={profiles:OPINARIOS_FORM_PROFILES,headers:OPINARIOS_HEADERS,apply:applyOmrRatings_,row:buildOpinionRow_,score:calculateOpinionScore_,apartment:normalizeOpinionApartment_};',sandbox);
 const script=sandbox.api,options=['Excelente','Muito bom','Bom','Regular'],scores=[100,75,50,25];
 const file={getId:()=> 'test-photo',getName:()=> '20260825-test.jpg',getUrl:()=> 'https://example.invalid/photo'};
+assert.equal(script.apartment('103','SUEDS TRANCOSO'),'03');
+assert.equal(script.apartment('104','SUEDS TRANCOSO'),'04');
+assert.equal(script.apartment('108','SUEDS TRANCOSO'),'08');
+assert.equal(script.apartment('10','SUEDS TRANCOSO'),'10');
 let tested=0;
 for(const [hotel,p] of Object.entries(script.profiles)){
  const profile=server.opinionOmrProfile({hotelSlug:p.slug});

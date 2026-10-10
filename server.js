@@ -5217,6 +5217,15 @@ function operationalOpinionMatchesPeriod(opinion, period = {}) {
     && (weekdayNumber === null || opinionWeekday === weekdayNumber);
 }
 
+function normalizeOperationalApartment(hotel, value) {
+  const apartment = String(value || "").trim();
+  if (comparableKey(hotel) !== "sueds trancoso") return apartment;
+  const digits = apartment.replace(/\D/g, "");
+  if (/^10[1-9]$/.test(digits)) return `0${digits.slice(-1)}`;
+  if (/^[1-9]$/.test(digits)) return `0${digits}`;
+  return apartment;
+}
+
 function normalizeOperationalOpinion(item) {
   const processedAt = parseDate(item["Data Processamento"]);
   const capturedAt = operationalOpinionCapturedAt(item, processedAt);
@@ -5236,7 +5245,7 @@ function normalizeOperationalOpinion(item) {
     hotel: String(item.Hotel || "Nao identificado").trim() || "Nao identificado",
     photoUrl: String(item["Link Foto"] || "").trim(),
     guestName: String(item["Nome Hospede"] || "").trim(),
-    apartment: String(item.Apartamento || "").trim(),
+    apartment: normalizeOperationalApartment(item.Hotel, item.Apartamento),
     checkIn: String(item["Data Entrada"] || "").trim(),
     checkOut: String(item["Data Saida"] || "").trim(),
     language: String(item.Idioma || "").trim(),
@@ -7211,8 +7220,8 @@ async function ensureOperationalOpinionHeaders(sheetId) {
 
 async function appendDigitalOpinion(body = {}, context = {}) {
   const guestName = String(body.guestName || "").trim().slice(0, 120);
-  const apartment = String(body.apartment || "").trim().slice(0, 30);
-  if (!guestName || !apartment) {
+  const submittedApartment = String(body.apartment || "").trim().slice(0, 30);
+  if (!guestName || !submittedApartment) {
     throw new Error("Nome do hospede e numero do apartamento sao obrigatorios.");
   }
   const sheetId = opinionSheetId();
@@ -7225,6 +7234,7 @@ async function appendDigitalOpinion(body = {}, context = {}) {
     throw new Error("Formulario deste hotel ainda nao configurado.");
   }
   const hotel = OPINION_FORM_HOTELS[hotelSlug]?.hotel || normalizeHotelName(body.hotel) || "Nao identificado";
+  const apartment = normalizeOperationalApartment(hotel, submittedApartment);
   const ratings = body.ratings && typeof body.ratings === "object" ? body.ratings : {};
   const normalizedRatings = Object.fromEntries(
     Object.entries(ratings).map(([key, value]) => [key, cleanOpinionRating(value)])
@@ -10063,6 +10073,7 @@ module.exports = {
     operationalOpinionResponse,
     operationalOpinionDeviceApartmentCounts,
     operationalResponseMetric,
+    normalizeOperationalApartment,
     opinionOmrProfile,
     detectOmrGuideMarkers,
     detectOmrBubbleCandidates,

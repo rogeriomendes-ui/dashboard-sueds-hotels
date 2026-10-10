@@ -917,6 +917,9 @@ function buildOpenAiOpinionPrompt_(hotel) {
     ...fieldLines,
     "Leia tambem nome, numero do quarto, datas e comentarios/elogios/sugestoes quando estiverem preenchidos.",
     "Na versao 20260729, o numero do quarto fica a direita do nome e as datas aparecem como DATA CHECK-IN e CHECK-OUT. Grave DATA CHECK-IN em entryDate e CHECK-OUT em exitDate.",
+    profile.slug === "sueds-trancoso"
+      ? "No SUEDS Trancoso, copie o apartamento exatamente como esta escrito, com dois digitos e zero a esquerda (por exemplo: 03, 04, 08). Nunca acrescente o 1 ou o 10 impresso em outro campo; valores como 103, 104 e 108 nao sao apartamentos validos."
+      : "Copie o numero do apartamento exatamente como esta escrito, sem juntar numeros de outros campos.",
     "Padronize acentos e caixa baixa/alta naturalmente em portugues.",
     `Hotel esperado pela pasta: ${hotel}.`,
     "Responda somente JSON valido, sem markdown, neste formato:",
@@ -964,7 +967,7 @@ function normalizeOpenAiOpinionResult_(data, hotel) {
     formVersion: String(data.formVersion || "").replace(/\D/g, ""),
     lang: data.lang || "pt-BR",
     guestName: data.guestName || "",
-    apartment: data.apartment || "",
+    apartment: normalizeOpinionApartment_(data.apartment, hotel),
     entryDate: data.entryDate || "",
     exitDate: data.exitDate || "",
     generalImpression: normalizeRating_(data.generalImpression),
@@ -995,6 +998,15 @@ function normalizeOpenAiOpinionResult_(data, hotel) {
 
   if (!result.score) result.score = calculateOpinionScore_(result, hotel);
   return result;
+}
+
+function normalizeOpinionApartment_(value, hotel) {
+  const apartment = String(value || "").trim();
+  if (opinionProfile_(hotel).slug !== "sueds-trancoso") return apartment;
+  const digits = apartment.replace(/\D/g, "");
+  if (/^10[1-9]$/.test(digits)) return `0${digits.slice(-1)}`;
+  if (/^[1-9]$/.test(digits)) return `0${digits}`;
+  return apartment;
 }
 
 function normalizeRating_(value) {
