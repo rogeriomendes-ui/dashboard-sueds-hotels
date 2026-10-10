@@ -34,6 +34,8 @@ const OPINION_UPLOAD_TOKEN = process.env.OPINION_UPLOAD_TOKEN || "";
 const OPINION_APPS_SCRIPT_UPLOAD_URL = process.env.OPINION_APPS_SCRIPT_UPLOAD_URL || "";
 const OPINION_UPLOAD_MAX_BYTES = Math.min(Number(process.env.OPINION_UPLOAD_MAX_BYTES || 4000000), 4200000);
 const OPINION_UPLOAD_SESSION_TTL_SECONDS = Math.min(Math.max(Number(process.env.OPINION_UPLOAD_SESSION_TTL_SECONDS || 43200), 900), 86400);
+const OPINION_DEVICE_COOKIE = "sueds_opinion_device";
+const OPINION_DEVICE_COOKIE_TTL_SECONDS = 365 * 24 * 60 * 60;
 const OPINION_UPLOAD_FOLDERS = {
   "sueds-cabralia": process.env.GOOGLE_OPINIONS_CABRALIA_FOLDER_ID || "1gdXUPVxGVwMkBcGmBZEnWUr1htBfiqQB",
   "sueds-segundo-sol": process.env.GOOGLE_OPINIONS_SEGUNDO_SOL_FOLDER_ID || "1hyG0LVE4VDXo66OD8uFbF2GpA4t0GCX9",
@@ -5134,7 +5136,8 @@ const OPINION_SUBMISSION_HEADERS = [
   "Status",
   "Responsavel Revisao",
   "Observacao Revisao",
-  "Data Revisao"
+  "Data Revisao",
+  "Identificador Dispositivo"
 ];
 const OPINION_INCIDENT_HEADERS = [
   "Status Ocorrencia",
@@ -5249,6 +5252,7 @@ function normalizeOperationalOpinion(item) {
     confidence: parseDecimalNumber(item["Confianca %"]),
     origin: String(item.Origem || "").trim(),
     formVersion: String(item["Form Version"] || "").trim(),
+    deviceId: String(item["Identificador Dispositivo"] || "").trim(),
     fieldScores
   };
 }
@@ -5668,6 +5672,23 @@ function readCookie(req, name) {
     return part.slice(separator + 1).trim();
   }
   return "";
+}
+
+function anonymousOpinionDeviceId(req, res) {
+  let token = readCookie(req, OPINION_DEVICE_COOKIE);
+  if (!/^[a-f0-9]{64}$/.test(token)) {
+    token = crypto.randomBytes(32).toString("hex");
+    const secure = getHeader(req, "x-forwarded-proto").toLowerCase() === "https" ? "; Secure" : "";
+    res.setHeader(
+      "set-cookie",
+      `${OPINION_DEVICE_COOKIE}=${token}; Max-Age=${OPINION_DEVICE_COOKIE_TTL_SECONDS}; Path=/; HttpOnly; SameSite=Lax${secure}`
+    );
+  }
+  return crypto
+    .createHmac("sha256", OPERATIONAL_ACCESS_SECRET)
+    .update(token)
+    .digest("hex")
+    .slice(0, 32);
 }
 
 function createOpinionUploadSession() {
@@ -7146,7 +7167,7 @@ async function ensureOperationalOpinionHeaders(sheetId) {
   return headers;
 }
 
-async function appendDigitalOpinion(body = {}) {
+async function appendDigitalOpinion(body = {}, context = {}) {
   const guestName = String(body.guestName || "").trim().slice(0, 120);
   const apartment = String(body.apartment || "").trim().slice(0, 30);
   if (!guestName || !apartment) {
@@ -7216,7 +7237,8 @@ async function appendDigitalOpinion(body = {}) {
     "Status": "Digital",
     "Responsavel Revisao": "",
     "Observacao Revisao": "",
-    "Data Revisao": ""
+    "Data Revisao": "",
+    "Identificador Dispositivo": String(context.deviceId || "").trim()
   };
 
   await sheetsRequestForSpreadsheet(sheetId, `/values/${sheetRange("Opinarios!A:AZ")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
@@ -7565,11 +7587,29 @@ function opinionOperationalIncident(opinion, index) {
   };
 }
 
-function operationalOpinionResponse(opinion, index) {
+function operationalOpinionDeviceKey(opinion = {}) {
+  if (normalizeTextKey(opinion.origin) !== "qr code" || !opinion.deviceId || !opinion.dateKey) return "";
+  return [comparableKey(opinion.hotel), opinion.dateKey, opinion.deviceId].join("|");
+}
+
+function operationalOpinionDeviceApartmentCounts(opinions = []) {
+  const apartmentsByDevice = new Map();
+  opinions.forEach((opinion) => {
+    const key = operationalOpinionDeviceKey(opinion);
+    const apartment = comparableKey(opinion.apartment);
+    if (!key || !apartment) return;
+    if (!apartmentsByDevice.has(key)) apartmentsByDevice.set(key, new Set());
+    apartmentsByDevice.get(key).add(apartment);
+  });
+  return new Map([...apartmentsByDevice].map(([key, apartments]) => [key, apartments.size]));
+}
+
+function operationalOpinionResponse(opinion, index, deviceApartmentCounts = new Map()) {
   const submittedAt = opinion.capturedAt || opinion.processedAt;
   const text = opinion.comments || opinion.issues || opinion.highlights || "";
   const hasPhoto = Boolean(opinion.photoUrl);
   const isQrCode = !hasPhoto && normalizeTextKey(opinion.origin) === "qr code";
+  const deviceApartmentCount = deviceApartmentCounts.get(operationalOpinionDeviceKey(opinion)) || 0;
   return {
     id: opinion.fileId || `opinario-${index + 1}`,
     submittedAt: submittedAt ? submittedAt.toISOString() : null,
@@ -7583,6 +7623,8 @@ function operationalOpinionResponse(opinion, index) {
     hasText: Boolean(text),
     hasPhoto,
     isQrCode,
+    suspiciousDevice: deviceApartmentCount > 1,
+    deviceApartmentCount: deviceApartmentCount > 1 ? deviceApartmentCount : 0,
     fieldScores: opinion.fieldScores
   };
 }
@@ -7625,8 +7667,9 @@ async function buildOperationalHotelPayload(period = {}) {
     .map(opinionOperationalIncident)
     .filter(Boolean)
     .sort((a, b) => new Date(a.requestedAt) - new Date(b.requestedAt));
+  const deviceApartmentCounts = operationalOpinionDeviceApartmentCounts(hotelOpinions);
   const opinionResponses = hotelOpinions
-    .map(operationalOpinionResponse)
+    .map((opinion, index) => operationalOpinionResponse(opinion, index, deviceApartmentCounts))
     .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
   const pendingIncidents = opinionIncidents.filter((incident) => incident.status === "pending");
   const resolvedIncidents = opinionIncidents.filter((incident) => incident.status === "resolved");
@@ -9849,7 +9892,8 @@ async function handleRequest(req, res) {
       if (req.method !== "POST") return json(res, 405, { ok: false, error: "method_not_allowed" });
       try {
         const body = await readJsonBody(req);
-        return json(res, 200, { ok: true, opinion: await appendDigitalOpinion(body) });
+        const deviceId = anonymousOpinionDeviceId(req, res);
+        return json(res, 200, { ok: true, opinion: await appendDigitalOpinion(body, { deviceId }) });
       } catch (error) {
         const status = /obrigatorio|obrigatorios|invalido|invalida/i.test(error.message) ? 400 : 500;
         return json(res, status, {
@@ -9962,6 +10006,7 @@ module.exports = {
     normalizeDeskhotelAttendantRecord,
     buildDeskhotelAttendantMetrics,
     operationalOpinionResponse,
+    operationalOpinionDeviceApartmentCounts,
     opinionOmrProfile,
     detectOmrGuideMarkers,
     detectOmrBubbleCandidates,

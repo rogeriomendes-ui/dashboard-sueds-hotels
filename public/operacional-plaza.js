@@ -580,6 +580,7 @@ function opinionResponseCard(opinion) {
         <span class="opinion-response-identity">
           <strong>${escapeHtml(guestName)}</strong>
           <small>${escapeHtml(apartment)} • ${escapeHtml(formatDateTime(opinion.submittedAt))}</small>
+          ${opinion.suspiciousDevice ? `<small class="opinion-device-alert">⚠ Mesmo aparelho respondeu por ${escapeHtml(opinion.deviceApartmentCount)} apartamentos neste dia</small>` : ""}
         </span>
         <span class="opinion-response-summary">
           <em class="${opinion.hasText ? "has-text" : "alternatives-only"}">${opinion.hasText ? "Com texto" : "Somente alternativas"}</em>

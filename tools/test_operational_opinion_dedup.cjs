@@ -1,5 +1,10 @@
 const assert = require("node:assert/strict");
-const { dedupeOperationalOpinions, summarizeOperationalHotel } = require("../server").__test;
+const {
+  dedupeOperationalOpinions,
+  operationalOpinionDeviceApartmentCounts,
+  operationalOpinionResponse,
+  summarizeOperationalHotel
+} = require("../server").__test;
 
 function photoOpinion(overrides = {}) {
   return {
@@ -74,4 +79,20 @@ const summary = summarizeOperationalHotel("SUEDS PREMIUM", deduped.slice(0, 3));
 assert.equal(summary.opinions, 3);
 assert.equal(summary.respondingRooms, 1);
 
-console.log("Operational opinions: repeated photos are deduplicated without merging distinct guests or answers.");
+const qrOpinions = [
+  photoOpinion({ fileId: "qr-1", photoUrl: "", origin: "QR Code", deviceId: "device-a", apartment: "425" }),
+  photoOpinion({ fileId: "qr-2", photoUrl: "", origin: "QR Code", deviceId: "device-a", apartment: "425" }),
+  photoOpinion({ fileId: "qr-3", photoUrl: "", origin: "QR Code", deviceId: "device-a", apartment: "309" }),
+  photoOpinion({ fileId: "qr-4", photoUrl: "", origin: "QR Code", deviceId: "device-b", apartment: "407" }),
+  photoOpinion({ fileId: "qr-5", photoUrl: "", origin: "QR Code", deviceId: "device-a", apartment: "408", dateKey: "2026-10-10" })
+];
+const deviceCounts = operationalOpinionDeviceApartmentCounts(qrOpinions);
+const flagged = operationalOpinionResponse(qrOpinions[0], 0, deviceCounts);
+const sameDayOtherDevice = operationalOpinionResponse(qrOpinions[3], 3, deviceCounts);
+const nextDay = operationalOpinionResponse(qrOpinions[4], 4, deviceCounts);
+assert.equal(flagged.suspiciousDevice, true, "The same device across different apartments on one day must be flagged");
+assert.equal(flagged.deviceApartmentCount, 2, "Repeated responses for the same apartment must count as one apartment");
+assert.equal(sameDayOtherDevice.suspiciousDevice, false, "A device used for one apartment must not be flagged");
+assert.equal(nextDay.suspiciousDevice, false, "Device activity must be evaluated separately per day");
+
+console.log("Operational opinions: photo deduplication and anonymous multi-apartment device alerts are valid.");
