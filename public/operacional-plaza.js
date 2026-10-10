@@ -352,7 +352,7 @@ function renderQuality(evaluation) {
     const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
       ? ""
       : `<strong class="response-rate${occupancy.responseRate < 50 ? " response-rate-low" : ""}">${responseLabel}: ${String(occupancy.responseRate).replace(".", ",")}%</strong>`;
-    occupancyElement.innerHTML = `<span><b>${integer.format(occupancy.respondingRooms || 0)}</b> UHs com respostas</span><span>${averageLabel}<b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>${responseRate}`;
+    occupancyElement.innerHTML = `<span>${averageLabel}<b>${integer.format(occupancy.respondingRooms || 0)}</b> UHs com respostas</span><span>${averageLabel}<b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>${responseRate}`;
     occupancyElement.hidden = false;
   } else {
     occupancyElement.textContent = "";

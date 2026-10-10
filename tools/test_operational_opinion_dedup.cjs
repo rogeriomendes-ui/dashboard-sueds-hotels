@@ -3,6 +3,7 @@ const {
   dedupeOperationalOpinions,
   operationalOpinionDeviceApartmentCounts,
   operationalOpinionResponse,
+  operationalResponseMetric,
   summarizeOperationalHotel
 } = require("../server").__test;
 
@@ -78,6 +79,23 @@ assert.ok(deduped.includes(unidentifiedA) && deduped.includes(unidentifiedB), "U
 const summary = summarizeOperationalHotel("SUEDS PREMIUM", deduped.slice(0, 3));
 assert.equal(summary.opinions, 3);
 assert.equal(summary.respondingRooms, 1);
+assert.equal(summary.respondingRoomDays, 1);
+
+const accumulatedSummary = summarizeOperationalHotel("SUEDS PREMIUM", [
+  photoOpinion({ fileId: "day-a", apartment: "425", dateKey: "2026-10-09" }),
+  photoOpinion({ fileId: "day-b", apartment: "425", dateKey: "2026-10-09" }),
+  photoOpinion({ fileId: "day-c", apartment: "425", dateKey: "2026-10-10" }),
+  photoOpinion({ fileId: "day-d", apartment: "309", dateKey: "2026-10-10" })
+]);
+const accumulatedRate = operationalResponseMetric(
+  { occupiedRoomNights: 40, days: 2 },
+  accumulatedSummary.respondingRoomDays,
+  true
+);
+assert.equal(accumulatedSummary.respondingRooms, 2, "The monthly room count remains unique by apartment");
+assert.equal(accumulatedSummary.respondingRoomDays, 3, "The response rate must count each apartment at most once per day");
+assert.equal(accumulatedRate.respondingRooms, 1.5, "The monthly display must use the daily average of responding rooms");
+assert.equal(accumulatedRate.responseRate, 7, "The accumulated rate must use response room-days over occupied room-nights");
 
 const qrOpinions = [
   photoOpinion({ fileId: "qr-1", photoUrl: "", origin: "QR Code", deviceId: "device-a", apartment: "425" }),

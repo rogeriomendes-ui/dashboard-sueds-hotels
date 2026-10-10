@@ -5393,6 +5393,14 @@ function summarizeOperationalHotel(hotel, opinions) {
     respondingRooms: new Set(
       opinions.map((opinion) => comparableKey(opinion.apartment)).filter(Boolean)
     ).size,
+    respondingRoomDays: new Set(
+      opinions
+        .map((opinion) => {
+          const apartment = comparableKey(opinion.apartment);
+          return opinion.dateKey && apartment ? `${opinion.dateKey}|${apartment}` : "";
+        })
+        .filter(Boolean)
+    ).size,
     answeredItems: allScores.length,
     finalScore,
     status: operationalStatus(finalScore),
@@ -5407,6 +5415,7 @@ function emptyOperationalHotel(hotel) {
     hotel,
     opinions: 0,
     respondingRooms: 0,
+    respondingRoomDays: 0,
     answeredItems: 0,
     finalScore: null,
     status: "sem_dados",
@@ -5452,13 +5461,17 @@ function operationalOccupancyByHotel(records = [], dates = []) {
   return totals;
 }
 
-function operationalResponseMetric(occupancy, respondingRooms, isAverage = false) {
+function operationalResponseMetric(occupancy, respondingRoomDays, isAverage = false) {
   if (!occupancy) return null;
-  const occupied = occupancy.days ? occupancy.occupiedRoomNights / occupancy.days : 0;
+  const days = occupancy.days || 0;
+  const occupied = days ? occupancy.occupiedRoomNights / days : 0;
+  const respondingRooms = isAverage && days ? respondingRoomDays / days : respondingRoomDays;
   return {
     occupied,
     respondingRooms,
-    responseRate: occupied ? Math.floor(respondingRooms / occupied * 100) : null,
+    responseRate: occupancy.occupiedRoomNights
+      ? Math.floor(respondingRoomDays / occupancy.occupiedRoomNights * 100)
+      : null,
     isAverage
   };
 }
@@ -7516,7 +7529,7 @@ async function buildOperationalTvPayload(period = {}) {
     if (!occupancy) return hotel;
     return {
       ...hotel,
-      occupancy: operationalResponseMetric(occupancy, hotel.respondingRooms, !date)
+      occupancy: operationalResponseMetric(occupancy, hotel.respondingRoomDays, !date)
     };
   });
 
@@ -7662,7 +7675,7 @@ async function buildOperationalHotelPayload(period = {}) {
     occupancyDates
   ).get(comparableKey(selectedHotel.name));
   if (occupancy) {
-    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.respondingRooms, !date);
+    evaluation.occupancy = operationalResponseMetric(occupancy, evaluation.respondingRoomDays, !date);
   }
   const opinionIncidents = hotelOpinions
     .map(opinionOperationalIncident)
@@ -10008,6 +10021,7 @@ module.exports = {
     buildDeskhotelAttendantMetrics,
     operationalOpinionResponse,
     operationalOpinionDeviceApartmentCounts,
+    operationalResponseMetric,
     opinionOmrProfile,
     detectOmrGuideMarkers,
     detectOmrBubbleCandidates,

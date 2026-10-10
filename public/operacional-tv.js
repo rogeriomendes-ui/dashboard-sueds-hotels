@@ -133,7 +133,7 @@ function occupancyMetric(hotel) {
     : `<strong class="response-rate${occupancy.responseRate < 50 ? " response-rate-low" : ""}">${responseLabel}: ${String(occupancy.responseRate).replace(".", ",")}%</strong>`;
   return `
     <div class="hotel-occupancy" aria-label="UHs com respostas e ocupação do dia">
-      <span><b>${integer.format(occupancy.respondingRooms || 0)}</b> UHs com respostas</span>
+      <span>${averageLabel}<b>${integer.format(occupancy.respondingRooms || 0)}</b> UHs com respostas</span>
       <span>${averageLabel}<b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>
       ${responseRate}
     </div>
