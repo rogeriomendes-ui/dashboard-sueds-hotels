@@ -5290,6 +5290,47 @@ function isCurrentOperationalRecord(opinion) {
   return status === "revisao" && opinion.dateKey >= OPINION_OPERATIONAL_START_DATE;
 }
 
+function operationalOpinionPhotoSignature(opinion) {
+  const apartment = comparableKey(opinion.apartment);
+  const guest = comparableKey(opinion.guestName);
+  if (!opinion.photoUrl || (!apartment && !guest)) return "";
+  return JSON.stringify({
+    hotel: comparableKey(opinion.hotel),
+    date: opinion.dateKey,
+    apartment,
+    guest,
+    checkIn: comparableKey(opinion.checkIn),
+    checkOut: comparableKey(opinion.checkOut),
+    language: comparableKey(opinion.language),
+    scores: OPERATIONAL_RATING_FIELDS.map((field) => (
+      Number.isFinite(opinion.fieldScores?.[field.key]) ? opinion.fieldScores[field.key] : null
+    )),
+    text: comparableKey(opinion.comments || opinion.issues || opinion.highlights)
+  });
+}
+
+function dedupeOperationalOpinions(opinions = []) {
+  const unique = [];
+  const photoSignatures = new Map();
+  opinions.forEach((opinion) => {
+    const signature = operationalOpinionPhotoSignature(opinion);
+    if (!signature) {
+      unique.push(opinion);
+      return;
+    }
+    const existingIndex = photoSignatures.get(signature);
+    if (existingIndex === undefined) {
+      photoSignatures.set(signature, unique.length);
+      unique.push(opinion);
+      return;
+    }
+    if (opinion.hasIncidentStatus && !unique[existingIndex].hasIncidentStatus) {
+      unique[existingIndex] = opinion;
+    }
+  });
+  return unique;
+}
+
 function summarizeOperationalHotel(hotel, opinions) {
   const hotelKey = comparableKey(hotel);
   const usesDetailedBlocks = DETAILED_OPERATIONAL_HOTELS.has(hotelKey);
@@ -7236,9 +7277,9 @@ async function loadOperationalOpinions() {
     opinions = demoOperationalOpinions();
   } else {
     const rows = await getSheetValues(OPINIONS_RANGE, OPERATIONAL_SHEET_ID);
-    opinions = rowsToObjectsAny(rows)
+    opinions = dedupeOperationalOpinions(rowsToObjectsAny(rows)
       .map(normalizeOperationalOpinion)
-      .filter(isCurrentOperationalRecord);
+      .filter(isCurrentOperationalRecord));
   }
 
   operationalCache = { payload: opinions, expiresAt: Date.now() + CACHE_TTL_MS };
@@ -9932,6 +9973,7 @@ module.exports = {
     operationalOpinionMatchesPeriod,
     hasAllRecognizedOperationalRatings,
     isCurrentOperationalOpinion,
+    dedupeOperationalOpinions,
     summarizeOperationalHotel,
     buildMetrics,
     buildRobotSellerFromAsksuiteMarketRows,
