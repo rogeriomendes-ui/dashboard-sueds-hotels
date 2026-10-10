@@ -94,7 +94,8 @@ const accumulatedRate = operationalResponseMetric(
 );
 assert.equal(accumulatedSummary.respondingRooms, 2, "The monthly room count remains unique by apartment");
 assert.equal(accumulatedSummary.respondingRoomDays, 3, "The response rate must count each apartment at most once per day");
-assert.equal(accumulatedRate.respondingRooms, 1.5, "The monthly display must use the daily average of responding rooms");
+assert.equal(accumulatedRate.respondingRoomDays, 3, "The monthly display must use the summed response room-days");
+assert.equal(accumulatedRate.occupiedRoomDays, 40, "The monthly display must use the summed occupied room-days");
 assert.equal(accumulatedRate.responseRate, 7, "The accumulated rate must use response room-days over occupied room-nights");
 
 const qrOpinions = [

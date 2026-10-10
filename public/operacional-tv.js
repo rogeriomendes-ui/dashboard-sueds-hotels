@@ -126,15 +126,17 @@ function blockRow(block) {
 function occupancyMetric(hotel) {
   const occupancy = hotel.occupancy;
   if (!occupancy) return "";
-  const averageLabel = occupancy.isAverage ? "Média diária: " : "";
+  const responseCount = occupancy.isAverage ? occupancy.respondingRoomDays : occupancy.respondingRooms;
+  const occupiedCount = occupancy.isAverage ? occupancy.occupiedRoomDays : occupancy.occupied;
+  const unitLabel = occupancy.isAverage ? "UH-dias" : "UHs";
   const responseLabel = occupancy.isAverage ? "Taxa de respostas acumulada" : "Taxa de respostas";
   const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
     ? ""
     : `<strong class="response-rate${occupancy.responseRate < 50 ? " response-rate-low" : ""}">${responseLabel}: ${String(occupancy.responseRate).replace(".", ",")}%</strong>`;
   return `
     <div class="hotel-occupancy" aria-label="UHs com respostas e ocupação do dia">
-      <span>${averageLabel}<b>${integer.format(occupancy.respondingRooms || 0)}</b> UHs com respostas</span>
-      <span>${averageLabel}<b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>
+      <span><b>${integer.format(responseCount || 0)}</b> ${unitLabel} com respostas</span>
+      <span><b>${integer.format(occupiedCount || 0)}</b> ${unitLabel} ocupadas</span>
       ${responseRate}
     </div>
   `;

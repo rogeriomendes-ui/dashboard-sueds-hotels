@@ -347,12 +347,14 @@ function renderQuality(evaluation) {
   const occupancy = evaluation.occupancy;
   const occupancyElement = byId("qualityOccupancy");
   if (occupancy) {
-    const averageLabel = occupancy.isAverage ? "Média diária: " : "";
+    const responseCount = occupancy.isAverage ? occupancy.respondingRoomDays : occupancy.respondingRooms;
+    const occupiedCount = occupancy.isAverage ? occupancy.occupiedRoomDays : occupancy.occupied;
+    const unitLabel = occupancy.isAverage ? "UH-dias" : "UHs";
     const responseLabel = occupancy.isAverage ? "Taxa de respostas acumulada" : "Taxa de respostas";
     const responseRate = occupancy.responseRate === null || occupancy.responseRate === undefined
       ? ""
       : `<strong class="response-rate${occupancy.responseRate < 50 ? " response-rate-low" : ""}">${responseLabel}: ${String(occupancy.responseRate).replace(".", ",")}%</strong>`;
-    occupancyElement.innerHTML = `<span>${averageLabel}<b>${integer.format(occupancy.respondingRooms || 0)}</b> UHs com respostas</span><span>${averageLabel}<b>${integer.format(occupancy.occupied || 0)}</b> UHs ocupadas</span>${responseRate}`;
+    occupancyElement.innerHTML = `<span><b>${integer.format(responseCount || 0)}</b> ${unitLabel} com respostas</span><span><b>${integer.format(occupiedCount || 0)}</b> ${unitLabel} ocupadas</span>${responseRate}`;
     occupancyElement.hidden = false;
   } else {
     occupancyElement.textContent = "";

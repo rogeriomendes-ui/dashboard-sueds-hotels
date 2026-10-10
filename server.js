@@ -5469,6 +5469,8 @@ function operationalResponseMetric(occupancy, respondingRoomDays, isAverage = fa
   return {
     occupied,
     respondingRooms,
+    occupiedRoomDays: occupancy.occupiedRoomNights,
+    respondingRoomDays,
     responseRate: occupancy.occupiedRoomNights
       ? Math.floor(respondingRoomDays / occupancy.occupiedRoomNights * 100)
       : null,
