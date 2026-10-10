@@ -7653,7 +7653,8 @@ async function buildOperationalHotelPayload(period = {}) {
     ...evaluationBase,
     totalOpinions: hotelOpinions.length,
     approvedOpinions: evaluatedOpinions.length,
-    reviewOpinions: reviewOpinions.length
+    reviewOpinions: reviewOpinions.length,
+    qrCodeOpinions: hotelOpinions.filter((opinion) => normalizeTextKey(opinion.origin) === "qr code").length
   };
   const occupancyDates = operationalPeriodDateKeys({ date, month, weekday });
   const occupancy = operationalOccupancyByHotel(

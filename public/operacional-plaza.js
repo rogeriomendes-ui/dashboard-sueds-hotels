@@ -333,13 +333,13 @@ function renderWordCloud(operations) {
 
 function renderQuality(evaluation) {
   const totalOpinions = Number(evaluation.totalOpinions ?? evaluation.opinions ?? 0);
-  const approvedOpinions = Number(evaluation.approvedOpinions ?? evaluation.opinions ?? 0);
   const reviewOpinions = Number(evaluation.reviewOpinions || 0);
+  const qrCodeOpinions = Number(evaluation.qrCodeOpinions || 0);
   const hasData = totalOpinions > 0;
   const score = safeScore(evaluation.finalScore);
   const color = scoreColor(evaluation.finalScore);
   byId("qualitySubtitle").textContent = hasData
-    ? `${integer.format(totalOpinions)} formulários • ${integer.format(approvedOpinions)} avaliados${reviewOpinions ? ` • ${integer.format(reviewOpinions)} em revisão` : ""}`
+    ? `${integer.format(totalOpinions)} formulários • ${integer.format(qrCodeOpinions)} por QR Code${reviewOpinions ? ` • ${integer.format(reviewOpinions)} em revisão` : ""}`
     : "Sem opiniários no período";
   byId("hotelScore").textContent = formatScore(evaluation.finalScore);
   byId("scoreRing").style.setProperty("--score", score);
