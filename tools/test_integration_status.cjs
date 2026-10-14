@@ -24,3 +24,17 @@ test('métodos de escrita bloqueados e filtros inválidos recebem 400', async ()
   assert.equal((await call(profile, 'POST')).statusCode, 405);
   assert.equal((await call(profile, 'GET', '?from=2026-12-01&to=2026-01-01')).statusCode, 400);
 });
+test('conexão usa o banco do portal mesmo com variável legada de outro dashboard', async () => {
+  const saved = { url: process.env.PORTAL_SUPABASE_URL, legacy: process.env.SUPABASE_URL, key: process.env.SUPABASE_SECRET_KEY, fetch: global.fetch };
+  try {
+    delete process.env.PORTAL_SUPABASE_URL; process.env.SUPABASE_URL = 'https://legacy.invalid'; process.env.SUPABASE_SECRET_KEY = 'test-only';
+    let called = '';
+    global.fetch = async url => { called = url; return { ok: true, json: async () => [] }; };
+    const res = { setHeader() {}, end(v) { this.body = JSON.parse(v); } };
+    await createHandler({ profile: async () => ({ roles: ['admin_geral'] }) })({ method: 'GET', url: '/api/portal/integration-status' }, res);
+    assert.equal(res.statusCode, 200); assert.ok(called.startsWith('https://pjcmjytiovuukbkewxjj.supabase.co/rest/v1/'));
+  } finally {
+    for (const [key, value] of Object.entries({ PORTAL_SUPABASE_URL: saved.url, SUPABASE_URL: saved.legacy, SUPABASE_SECRET_KEY: saved.key })) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+    global.fetch = saved.fetch;
+  }
+});
