@@ -36,7 +36,9 @@
         card.append(el('p', c.missing ? `${num(c.missing)} não localizadas no KPI` : clean ? 'Todas localizadas no KPI' : c.confirmed ? 'Há reservas sem conclusão' : 'Sem confirmadas no período', 'integration-result' + (clean ? ' good' : '')));
         card.append(el('p', `${num(c.matched)} localizadas · ${num(c.uncovered)} sem cobertura · ${num(c.review)} revisar`));
         if (c.partial) card.append(el('p', 'Captura cobre apenas parte do período solicitado.'));
-        card.append(el('p', 'Captura: ' + time(c.capturedAt)));
+        card.append(el('p', 'Captura ' + c.name + ': ' + time(c.capturedAt)));
+        card.append(el('p', 'Captura KPI comparada: ' + time(data.kpi?.capturedAt)));
+        card.append(el('p', 'Horários de Brasília'));
         const button = el('button', c.missing ? 'Conferir não localizadas' : 'Conferir reservas', 'button button-quiet'); button.type = 'button';
         button.addEventListener('click', async () => { $('source').value = c.source; $('situation').value = c.missing ? 'missing' : 'all'; page = 1; await load(); $('detailsTitle').focus(); }); card.append(button); $('cards').append(card);
       }
