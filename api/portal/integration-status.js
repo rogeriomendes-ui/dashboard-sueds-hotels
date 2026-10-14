@@ -2,7 +2,7 @@ const { getPortalProfile, hasEnvironment, json } = require('../../lib/portal-aut
 const { report } = require('../../lib/integration-status');
 
 async function loadSnapshot() {
-  const url = process.env.PORTAL_SUPABASE_URL || process.env.SUPABASE_URL || 'https://pjcmjytiovuukbkewxjj.supabase.co';
+  const url = process.env.PORTAL_SUPABASE_URL || 'https://pjcmjytiovuukbkewxjj.supabase.co';
   const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) throw new Error('A base de conferência ainda não está configurada.');
   const response = await fetch(url + '/rest/v1/dashboard_snapshots?source=eq.integration_status_v1&select=payload&order=created_at.desc,id.desc&limit=1', {

@@ -31,7 +31,7 @@ async function upload(req, res) {
   let payload;
   try { payload = validate(await readBody(req)); } catch { return json(res, 400, { error: 'Base de conferência inválida ou muito grande.' }); }
   try {
-    const base = process.env.PORTAL_SUPABASE_URL || process.env.SUPABASE_URL || 'https://pjcmjytiovuukbkewxjj.supabase.co';
+    const base = process.env.PORTAL_SUPABASE_URL || 'https://pjcmjytiovuukbkewxjj.supabase.co';
     const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!secret) throw new Error('Banco não configurado.');
     const headers = { apikey: secret, Authorization: 'Bearer ' + secret, 'Content-Type': 'application/json', Prefer: 'return=representation' };
