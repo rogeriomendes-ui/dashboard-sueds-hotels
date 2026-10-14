@@ -9782,6 +9782,9 @@ async function handleRequest(req, res) {
       }));
     }
 
+    if (url.pathname === "/api/portal/integration-status-upload") return require("./api/portal/integration-status-upload")(req, res);
+    if (url.pathname === "/api/portal/integration-status") return require("./api/portal/integration-status")(req, res);
+
     if (url.pathname === "/api/dashboard/bi-relatorios-kpi") {
       if (!biReportsAccess(req, url, "bi_relatorios_kpi")) return forbidden(res);
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });

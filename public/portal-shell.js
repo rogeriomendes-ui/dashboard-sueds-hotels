@@ -10,6 +10,7 @@
     tv_vendedores: { url: "/dashboard-tv.html", permission: "tv_vendedores", title: "TV Painel Vendedor" },
     ranking_vendedores: { url: "/dashboard-vendedores.html", permission: "ranking_vendedores", title: "Ranking de Vendedores" },
     bi_relatorios: { url: "/bi-relatorios.html?v=20260928-full-channel-hotel-values", permission: "bi_relatorios", title: "BI - Relatórios" },
+    status_integracoes: { url: "/status-integracoes.html", permission: "status_integracoes", title: "Status integrações" },
     bi_relatorios_kpi: { url: "/bi-relatorios-kpi.html?v=20261006-kpi-desktop-panels", permission: "bi_relatorios_kpi", title: "BI - Relatórios by KPI" },
     mapa_ocupacao: { url: "/mapa-ocupacao.html?v=20261008-ocupacao-diaria", permission: "mapa_ocupacao", title: "Mapa de ocupação" },
     mesas_vip_reveillon: { url: "/mesas-vip-reveillon", permission: "mesas_vip_reveillon", title: "Mesas VIP Réveillon" },

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="status_integracoes" class="manager-auth-pending">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Status integrações | Portal SUEDS</title>
+  <script src="/manager-auth.js"></script>
+  <link rel="stylesheet" href="/bi-relatorios.css">
+  <link rel="stylesheet" href="/status-integracoes.css">
+</head>
+<body><main class="bi-page integration-page">
+  <header class="bi-header"><div><p class="eyebrow">Comercial · Conferência de reservas</p><h1>Status integrações</h1><p class="bi-subtitle">Reservas confirmadas nos canais × reservas localizadas no KPI.</p></div><div class="data-stamp" id="stamp" aria-live="polite">Consultando base…</div></header>
+  <form class="filters" id="filters">
+    <label><span>Venda inicial</span><input type="date" name="from" required value="2026-01-01"></label>
+    <label><span>Venda final</span><input type="date" name="to" required></label>
+    <label><span>Hotel</span><select name="hotel"><option value="">Todos os hotéis</option></select></label>
+    <button class="button button-primary" type="submit">Consultar</button>
+  </form>
+  <div id="message" class="notice" role="status" aria-live="polite"></div>
+  <section id="results" hidden>
+    <div id="alert" class="integration-alert" role="status"></div>
+    <div id="cards" class="integration-cards"></div>
+    <p id="coverage" class="integration-note"></p>
+    <section class="integration-details" aria-labelledby="detailsTitle">
+      <div class="integration-detail-heading"><h2 id="detailsTitle" tabindex="-1">Reservas não localizadas no KPI</h2><div class="integration-selects">
+        <label>Canal<select id="source"><option value="">Todos os canais</option><option value="omnibees">Omnibees</option><option value="cvc">CVC</option><option value="juniper">Azul / Juniper</option><option value="deskhotel">DeskHotel</option></select></label>
+        <label>Situação<select id="situation"><option value="missing">Não localizadas</option><option value="uncovered">Sem cobertura KPI</option><option value="review">Revisar status na origem</option><option value="matched">Localizadas no KPI</option><option value="all">Todas as confirmadas</option></select></label>
+      </div></div>
+      <div class="integration-table"><table><thead><tr><th>Canal / Hotel</th><th>Reserva / Status origem</th><th>Hóspede</th><th>Venda</th><th>Check-in / Check-out</th><th>Conferência KPI</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <p id="empty" hidden>Nenhuma reserva para estes filtros.</p>
+      <div class="integration-pagination"><button id="previous" class="button button-quiet" type="button">Anterior</button><span id="pageInfo"></span><button id="next" class="button button-quiet" type="button">Próxima</button></div>
+    </section>
+  </section>
+  <p class="integration-note">Conferência pela última captura completa de cada fonte, usando localizador e hotel. As reservas são contadas uma vez por canal; a mesma reserva pode aparecer em mais de um canal. Ausência nesta base indica necessidade de conferência, considerando as datas das capturas. Alteradas e canceladas não entram no total de confirmadas.</p>
+</main><script src="/status-integracoes.js"></script></body></html>

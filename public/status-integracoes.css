@@ -1,0 +1,19 @@
+.integration-page .filters {grid-template-columns:1fr 1fr 1.5fr auto}
+.integration-alert {margin:20px 0;padding:20px 24px;border:1px solid #e4c386;border-radius:14px;background:#fff8e9;color:#74541e;font-size:17px;font-weight:700}
+.integration-alert.good {background:#eef8f3;color:#236648;border-color:#b5d9c7}
+.integration-alert small {display:block;margin-top:6px;font-size:12px;font-weight:400}
+.integration-cards {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.integration-card {padding:22px;background:white;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;gap:8px}
+.integration-card h2 {font-size:19px}.integration-card p {margin:0;font-size:12px;color:var(--muted)}
+.integration-card .integration-count {font-size:34px;font-weight:800;color:var(--navy-deep)}
+.integration-card .integration-result {font-size:14px;font-weight:700;color:#795b28;min-height:38px}.integration-card .integration-result.good {color:#236648}
+.integration-card .button {margin-top:auto;height:auto;min-height:40px}
+.integration-note {font-size:12px;line-height:1.65;color:var(--muted);margin:18px 0}
+.integration-details {padding:22px;background:white;border:1px solid var(--line);border-radius:14px;margin-top:20px}
+.integration-detail-heading {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px}
+.integration-selects {display:flex;gap:12px}.integration-selects label {font-size:12px;color:var(--muted)}
+.integration-selects select {display:block;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:7px;max-width:100%;background:white;color:var(--navy)}
+.integration-table {overflow:auto}.integration-table table {border-collapse:collapse;width:100%;font-size:12px;text-align:left}.integration-table th {background:#f0f4f5;color:var(--navy);padding:12px}.integration-table td {padding:12px;border-bottom:1px solid var(--line);vertical-align:top}.integration-table small {display:block;margin-top:5px;color:var(--muted)}
+.integration-pagination {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px;font-size:12px}.integration-page button:disabled {opacity:.5;cursor:default}
+@media(max-width:1100px){.integration-cards {grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.integration-page .filters,.integration-cards{grid-template-columns:1fr}.integration-selects{flex-direction:column;width:100%}.integration-details{padding:12px}.integration-table{max-width:100%}.integration-table table{min-width:760px}.integration-page .data-stamp{white-space:normal}}

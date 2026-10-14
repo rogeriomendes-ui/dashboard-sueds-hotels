@@ -26,6 +26,7 @@
     mensagens_tv: 'M3 3h18v14H9l-6 4zM7 8h10M7 12h7',
     ranking_vendedores: 'M8 3h8v9l-4 4-4-4zM8 5H4v5l4 2m8-7h4v5l-4 2m-4 4v5m-4 0h8',
     bi_relatorios: 'M4 19V9m5 10V5m5 14v-7m5 7V3M2 21h20',
+    status_integracoes: 'M4 5h16v14H4zM7 10l2 2 4-4M14 10h3M7 16h10',
     bi_relatorios_kpi: 'M4 19V9m5 10V5m5 14v-7m5 7V3M2 21h20',
     mapa_ocupacao: 'M3 5h18v16H3zM7 3v4m10-4v4M7 11h3m4 0h3M7 15h3m4 0h3',
     mesas_vip_reveillon: 'm12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z',

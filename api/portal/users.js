@@ -25,6 +25,7 @@ function parseIds(values, type) {
 
 async function catalog(supabase) {
   const biEnvironments = await supabase.from("portal_environments").upsert([
+    { slug: "status_integracoes", name: "Status integrações", description: "Conferência das reservas confirmadas nos canais versus as capturas do KPI.", sort_order: 49, status: "active" },
     {
       slug: "bi_relatorios",
       name: "BI - Relatórios",
