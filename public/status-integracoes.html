@@ -23,12 +23,12 @@
     <section class="integration-details" aria-labelledby="detailsTitle">
       <div class="integration-detail-heading"><h2 id="detailsTitle" tabindex="-1">Reservas não localizadas no KPI</h2><div class="integration-selects">
         <label>Canal<select id="source"><option value="">Todos os canais</option><option value="omnibees">Omnibees</option><option value="cvc">CVC</option><option value="juniper">Azul / Juniper</option><option value="deskhotel">DeskHotel</option></select></label>
-        <label>Situação<select id="situation"><option value="missing">Não localizadas</option><option value="uncovered">Sem cobertura KPI</option><option value="review">Revisar status na origem</option><option value="matched">Localizadas no KPI</option><option value="all">Todas as confirmadas</option></select></label>
+        <label>Situação<select id="situation"><option value="missing">Não localizadas</option><option value="different_number">Encontradas com número diferente</option><option value="uncovered">Sem cobertura KPI</option><option value="review">Revisar status na origem</option><option value="matched">Localizadas no KPI</option><option value="all">Todas as confirmadas</option></select></label>
       </div></div>
       <div class="integration-table"><table><thead><tr><th>Canal / Hotel</th><th>Reserva / Status origem</th><th>Hóspede</th><th>Venda</th><th>Check-in / Check-out</th><th>Conferência KPI</th></tr></thead><tbody id="rows"></tbody></table></div>
       <p id="empty" hidden>Nenhuma reserva para estes filtros.</p>
       <div class="integration-pagination"><button id="previous" class="button button-quiet" type="button">Anterior</button><span id="pageInfo"></span><button id="next" class="button button-quiet" type="button">Próxima</button></div>
     </section>
   </section>
-  <p class="integration-note">Conferência pela última captura completa de cada fonte, usando localizador e hotel. As reservas são contadas uma vez por canal; a mesma reserva pode aparecer em mais de um canal. Ausência nesta base indica necessidade de conferência, considerando as datas das capturas. Alteradas e canceladas não entram no total de confirmadas.</p>
+  <p class="integration-note">Conferência pela última captura completa de cada fonte, usando código e hotel. Quando o código não corresponde, nome do titular e datas completas de check-in/check-out iguais permitem localizar a reserva com o apontamento “número diferente”. As reservas são contadas uma vez por canal; a mesma reserva pode aparecer em mais de um canal. Ausência nesta base indica necessidade de conferência, considerando as datas das capturas. Alteradas e canceladas não entram no total de confirmadas.</p>
 </main><script src="/status-integracoes.js"></script></body></html>

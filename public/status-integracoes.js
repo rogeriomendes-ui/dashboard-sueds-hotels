@@ -23,10 +23,11 @@
       $('stamp').textContent = 'Base consolidada: ' + time(data.generatedAt);
       const hotel = form.elements.hotel.value;
       form.elements.hotel.replaceChildren(new Option('Todos os hotéis', ''), ...data.hotels.map(h => new Option(h, h))); form.elements.hotel.value = hotel;
-      const { missing, uncovered, review, confirmed } = data.summary;
+      const { missing, uncovered, review, confirmed, differentNumber } = data.summary;
       $('alert').className = 'integration-alert' + (!missing && !uncovered && !review && confirmed ? ' good' : '');
       $('alert').replaceChildren(el('div', missing ? `${num(missing)} reservas confirmadas não localizadas no KPI` : confirmed && !uncovered && !review ? 'Todas as reservas confirmadas comparadas foram localizadas no KPI' : 'Consulte a cobertura e as pendências das capturas'));
       $('alert').append(el('small', `${num(confirmed)} confirmadas nas fontes · ${num(uncovered)} sem cobertura KPI · ${num(review)} para revisão. Totais somados por canal.`));
+      if (differentNumber) $('alert').append(el('div', `${num(differentNumber)} encontradas por nome e datas iguais, com número da reserva diferente.`));
       $('cards').replaceChildren();
       for (const c of data.channels) {
         const card = el('article', '', 'integration-card'); card.append(el('h2', c.name));
@@ -35,6 +36,10 @@
         const clean = c.confirmed > 0 && !c.missing && !c.uncovered && !c.review;
         card.append(el('p', c.missing ? `${num(c.missing)} não localizadas no KPI` : clean ? 'Todas localizadas no KPI' : c.confirmed ? 'Há reservas sem conclusão' : 'Sem confirmadas no período', 'integration-result' + (clean ? ' good' : '')));
         card.append(el('p', `${num(c.matched)} localizadas · ${num(c.uncovered)} sem cobertura · ${num(c.review)} revisar`));
+        if (c.differentNumber) {
+          const differences = el('button', `${num(c.differentNumber)} com número diferente — conferir`, 'button button-quiet'); differences.type = 'button';
+          differences.addEventListener('click', async () => { $('source').value = c.source; $('situation').value = 'different_number'; page = 1; await load(); $('detailsTitle').focus(); }); card.append(differences);
+        }
         if (c.partial) card.append(el('p', 'Captura cobre apenas parte do período solicitado.'));
         card.append(el('p', 'Captura ' + c.name + ': ' + time(c.capturedAt)));
         card.append(el('p', 'Captura KPI comparada: ' + time(data.kpi?.capturedAt)));
@@ -47,7 +52,7 @@
       $('rows').replaceChildren();
       for (const r of data.details) {
         const tr = document.createElement('tr');
-        const cells = [[r.sourceName, r.hotel], [r.code, [r.status, r.lineStatus].filter(Boolean).join(' / ')], [r.guest], [date(r.saleDate)], [date(r.checkin), date(r.checkout)], [labels[r.situation], r.matches.map(m => `${m.code} · ${m.status}`).join('; ')]];
+        const cells = [[r.sourceName, r.hotel], [r.code, [r.status, r.lineStatus].filter(Boolean).join(' / ')], [r.guest], [date(r.saleDate)], [date(r.checkin), date(r.checkout)], [r.numberMismatch ? 'Encontrada por nome e datas · número diferente' : labels[r.situation], r.matches.map(m => `${m.code}${m.locator ? ' · Localizador: ' + m.locator : ''} · ${m.status}`).join('; ')]];
         for (const values of cells) { const td = el('td', values[0]); if (values[1]) td.append(el('small', values[1])); tr.append(td); } $('rows').append(tr);
       }
       $('empty').hidden = data.details.length > 0;
