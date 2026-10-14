@@ -50,6 +50,8 @@ Consulte as duas abas, mesmo quando o pedido citar só Lancamento_Vendas. Se uma
 
 ## Portal
 
+O canal (D) escolhido pelo vendedor no espelho é editável e sincronizado com a linha existente em `Lancamento_Vendas`, sem reclassificar a origem nem mover a reserva. Na primeira sincronização dessa coluna, preserve a seleção atual do vendedor; depois use o histórico de sincronização para detectar alterações simultâneas. GRUPOS em vendas DeskHotel permanece nos relatórios de vendedores. Atualizações manuais de canal usam `mirror-field-update` e requests limitados à célula D.
+
 A localização física não define a categoria contábil. `dashboardSources` combina Site/Robo de teste lancamento_vendas com vendedores. Robo continua fora da Equipe; Site permanece no canal Site. OTAs como Airbnb ficam em Outros Canais. Deduplicação entre abas evita soma dupla durante migração. Asksuite permanece histórico até agosto.
 
 Nas linhas de Fonte `OMNIBEES`, os status `Confirmada` e `Alterada` compõem vendas na Data Venda original. `Alterada` continua com seu status bruto e não é convertida em `Confirmada`. `Cancelada` não compõe vendas. Essa regra não autoriza qualquer alteração na aba `Lancamento_Vendas`.
@@ -58,3 +60,5 @@ Nas linhas de Fonte `OMNIBEES`, os status `Confirmada` e `Alterada` compõem ven
 Se a origem DeskHotel identificar um vendedor humano pelo nome, considerar venda desse vendedor em `Lancamento_Vendas`, inclusive `Motor - nome` e `Site_Estabelecimento - nome`. Motor humano usa Canal `CENTRAL DE RESERVAS`; Site humano mantém `SITE`. Normalizar Amanda Sales Melgaço para Amanda Melgaco. Alice continua Robo, e Loja online/nomes de canais não são vendedores humanos. Não inferir vendedor a partir do hóspede. Histórico até agosto permanece preservado.
 
 O usuário autorizou corrigir os registros de setembro já roteados para canais. Migrar a chave existente: copiar com campos manuais, validar e confirmar o destino antes de limpar somente os valores da linha de origem; nunca deixar duplicata. Status e recebimentos permanecem os existentes. A automação permanece pausada.
+
+`Link Pagamento - nome` na coluna ORIGEM do DeskHotel identifica uma venda do vendedor humano nomeado, mesmo quando o texto quebra em duas linhas. `Link Pagamento` descreve a forma de cobrança e não deve substituir o nome do vendedor nem o canal da venda; nesse caso use `CENTRAL DE RESERVAS` e normalize Amanda Sales Melgaço para `Amanda Melgaco`. Exija o nome visível após o hífen para aplicar essa regra a outras reservas. Sem nome visível, não atribua vendedor por hóspede, código ou forma de pagamento. A reserva `CR29070364293` foi confirmada pelo usuário como venda da Amanda em 14/10/2026 e migrada para `Lancamento_Vendas`.

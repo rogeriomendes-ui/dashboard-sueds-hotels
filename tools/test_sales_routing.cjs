@@ -41,6 +41,14 @@ const motor = routing.normalizeDeskhotel({dataVenda:'10/09/2026',origin:'Motor -
 assert.equal(motor.vendedor,'Emanoel Cesar');
 assert.equal(motor.canal,'CENTRAL DE RESERVAS');
 assert.equal(motor.targetSheet,routing.SELLERS_SHEET);
+const paymentSeller = routing.normalizeDeskhotel({dataVenda:'13/10/2026',origin:'Link Pagamento - Amanda Sales\nMelgaço',hotel:'SUEDS PREMIUM',status:'Confirmada'});
+assert.equal(paymentSeller.vendedor,'Amanda Melgaco');
+assert.equal(paymentSeller.canal,'CENTRAL DE RESERVAS');
+assert.equal(paymentSeller.targetSheet,routing.SELLERS_SHEET);
+assert.equal(routing.normalizeDeskhotel({dataVenda:'13/10/2026',origin:'Link Pagamento - Aline Nunes',hotel:'SUEDS PLAZA'}).vendedor,'Aline Nunes');
+const unnamedPayment = routing.normalizeDeskhotel({dataVenda:'13/10/2026',origin:'Link Pagamento',hotel:'SUEDS PLAZA'});
+assert.equal(unnamedPayment.vendedor,'');
+assert.equal(unnamedPayment.targetSheet,routing.CHANNELS_SHEET);
 assert.equal(routing.normalizeDeskhotel({dataVenda:'10/09/2026',origin:'Motor - Alice'}).targetSheet,routing.CHANNELS_SHEET);
 assert.equal(routing.normalizeDeskhotel({dataVenda:'08/09/2026',origin:'Depto_Reservas - Tatiana Vieira'}).vendedor,'Tatiana Vieira');
 const existingExternal={dataVenda:'08/09/2026',codigo:'CR-A',hotel:'H',canal:'Airbnb',fonte:'DESKHOTEL'};
