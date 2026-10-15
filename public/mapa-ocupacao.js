@@ -9,10 +9,19 @@
   const date = (value) => new Date(`${value}T12:00:00Z`);
   const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const displayNumber = (value) => value == null ? "—" : integer.format(value);
+  const availabilityFilters = [lowAvailabilityOnly, byId('channelEmptyOnly'), byId('channelOpenOnly')];
+  function matchesAvailability(day) {
+    if (!availabilityFilters.some(input => input.checked)) return true;
+    if (day.available == null) return false;
+    const channels = [day.channels?.omnibees?.available, day.channels?.juniper?.available];
+    return lowAvailabilityOnly.checked && day.available <= 3
+      || byId('channelEmptyOnly').checked && day.available > 3 && channels.some(value => value === 0)
+      || byId('channelOpenOnly').checked && day.available < 5 && channels.some(value => Number.isFinite(value) && value > 0);
+  }
 
   function render(hotels) {
-    if (lowAvailabilityOnly.checked) hotels = hotels.map((item) => ({ ...item, days: (item.days || []).filter((day) => day.available != null && day.available <= 3) })).filter((item) => item.days.length);
-    if (!hotels.length || !hotels.some((item) => item.days?.some((day) => day.available != null || day.channels?.omnibees || day.channels?.juniper))) { map.innerHTML = '<div class="empty">Sem dados de ocupação do KPI para este período.</div>'; return; }
+    hotels = hotels.map((item) => ({ ...item, days: (item.days || []).filter(matchesAvailability) })).filter((item) => item.days.length);
+    if (!hotels.length || !hotels.some((item) => item.days?.some((day) => day.available != null || day.channels?.omnibees || day.channels?.juniper))) { map.textContent = availabilityFilters.some(input => input.checked) ? 'Nenhuma data atende aos filtros selecionados.' : 'Sem dados de ocupação do KPI para este período.'; return; }
     map.innerHTML = hotels.map((item) => {
       const days = item.days || [];
       const cells = (get, css = "") => days.map((day) => `<td class="${typeof css === "function" ? css(day) : css}">${safe(get(day))}</td>`).join("");
@@ -58,6 +67,6 @@
     finally { loading.hidden = true; }
   }
   form.addEventListener("submit", (event) => { event.preventDefault(); load(); });
-  byId("clearFilters").addEventListener("click", () => { start.value = ""; end.value = ""; hotel.value = ""; lowAvailabilityOnly.checked = false; load(); });
+  byId("clearFilters").addEventListener("click", () => { start.value = ""; end.value = ""; hotel.value = ""; availabilityFilters.forEach(input => { input.checked = false; }); load(); });
   load();
 })();
