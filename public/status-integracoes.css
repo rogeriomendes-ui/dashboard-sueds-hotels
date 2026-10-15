@@ -12,6 +12,7 @@
 .integration-details {padding:22px;background:white;border:1px solid var(--line);border-radius:14px;margin-top:20px}
 .integration-detail-heading {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px}
 .integration-selects {display:flex;gap:12px}.integration-selects label {font-size:12px;color:var(--muted)}
+.integration-selects {align-items:end}
 .integration-selects select {display:block;margin-top:5px;padding:8px;border:1px solid var(--line);border-radius:7px;max-width:100%;background:white;color:var(--navy)}
 .integration-table {overflow:auto}.integration-table table {border-collapse:collapse;width:100%;font-size:12px;text-align:left}.integration-table th {background:#f0f4f5;color:var(--navy);padding:12px}.integration-table td {padding:12px;border-bottom:1px solid var(--line);vertical-align:top}.integration-table small {display:block;margin-top:5px;color:var(--muted)}
 .integration-pagination {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px;font-size:12px}.integration-page button:disabled {opacity:.5;cursor:default}

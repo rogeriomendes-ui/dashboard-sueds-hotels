@@ -21,6 +21,16 @@ function handler({ profile = getPortalProfile, load = loadSnapshot } = {}) {
       const snapshot = await load();
       if (!snapshot) return json(res, 200, { available: false, message: 'Aguardando a publicação das capturas pelo programa local.' });
       const url = new URL(req.url, 'https://portalsueds.com.br');
+      if (url.searchParams.get('format') === 'xlsx') {
+        const data = report(snapshot, Object.fromEntries(url.searchParams), { allDetails: true });
+        const buffer = await require('../../lib/integration-status-export').buildWorkbook(data);
+        const filename = `status-integracoes_${data.filters.source || 'todos'}_${data.filters.situation}_${data.filters.from}_${data.filters.to}.xlsx`;
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.end(buffer);
+      }
       return json(res, 200, { available: true, ...report(snapshot, Object.fromEntries(url.searchParams)) });
     } catch (error) { return json(res, error.status || 503, { error: error.status === 400 ? error.message : 'Não foi possível consultar a conferência. Tente novamente.' }); }
   };

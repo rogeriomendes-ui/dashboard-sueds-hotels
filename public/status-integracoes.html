@@ -24,6 +24,7 @@
       <div class="integration-detail-heading"><h2 id="detailsTitle" tabindex="-1">Reservas não localizadas no KPI</h2><div class="integration-selects">
         <label>Canal<select id="source"><option value="">Todos os canais</option><option value="omnibees">Omnibees</option><option value="cvc">CVC</option><option value="juniper">Azul / Juniper</option><option value="deskhotel">DeskHotel</option></select></label>
         <label>Situação<select id="situation"><option value="missing">Não localizadas</option><option value="different_number">Encontradas com número diferente</option><option value="uncovered">Sem cobertura KPI</option><option value="review">Revisar status na origem</option><option value="matched">Localizadas no KPI</option><option value="all">Todas as confirmadas</option></select></label>
+        <button id="exportXls" type="button" class="button button-quiet" title="Baixar todas as reservas dos filtros selecionados em Excel" disabled>XLS</button>
       </div></div>
       <div class="integration-table"><table><thead><tr><th>Canal / Hotel</th><th>Reserva / Status origem</th><th>Hóspede</th><th>Venda</th><th>Check-in / Check-out</th><th>Conferência KPI</th></tr></thead><tbody id="rows"></tbody></table></div>
       <p id="empty" hidden>Nenhuma reserva para estes filtros.</p>

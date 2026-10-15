@@ -10,6 +10,7 @@
   const yesterday = new Date(today + 'T12:00:00Z'); yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   form.elements.to.value = yesterday.toISOString().slice(0, 10);
   async function load() {
+    $('exportXls').disabled = true;
     const current = ++request, query = new URLSearchParams(new FormData(form));
     query.set('source', $('source').value); query.set('situation', $('situation').value); query.set('page', page);
     $('message').textContent = 'Consultando capturas…'; $('message').className = 'notice'; $('results').hidden = true;
@@ -20,6 +21,7 @@
       if (!response.ok) throw new Error(data.error || 'Falha na consulta.');
       if (!data.available) { $('message').textContent = data.message; $('stamp').textContent = 'Aguardando capturas'; return; }
       last = data; $('message').textContent = ''; $('results').hidden = false;
+      $('exportXls').disabled = data.totalDetails === 0;
       $('stamp').textContent = 'Base consolidada: ' + time(data.generatedAt);
       const hotel = form.elements.hotel.value;
       form.elements.hotel.replaceChildren(new Option('Todos os hotéis', ''), ...data.hotels.map(h => new Option(h, h))); form.elements.hotel.value = hotel;
@@ -61,6 +63,19 @@
     } catch (error) { if (current !== request) return; $('message').textContent = error.message; $('message').className = 'notice notice-error'; $('stamp').textContent = 'Consulta indisponível'; }
   }
   form.addEventListener('submit', e => { e.preventDefault(); page = 1; load(); });
+  $('exportXls').addEventListener('click', async () => {
+    if (!last) return;
+    const button = $('exportXls'); button.disabled = true; button.textContent = 'Gerando…';
+    try {
+      const query = new URLSearchParams(last.filters); query.set('format', 'xlsx');
+      const response = await fetch('/api/portal/integration-status?' + query, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok || !response.headers.get('content-type')?.includes('spreadsheetml')) throw new Error('Não foi possível gerar a planilha. Tente novamente.');
+      const blob = await response.blob(), link = document.createElement('a'), url = URL.createObjectURL(blob);
+      link.href = url; link.download = response.headers.get('content-disposition')?.match(/filename="([^"]+)"/)?.[1] || 'status-integracoes.xlsx';
+      document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) { $('message').textContent = error.message; $('message').className = 'notice notice-error'; }
+    finally { button.textContent = 'XLS'; button.disabled = !last?.totalDetails; }
+  });
   for (const id of ['source', 'situation']) $(id).addEventListener('change', () => { page = 1; load(); });
   $('previous').addEventListener('click', () => { if (page > 1) { page--; load(); } });
   $('next').addEventListener('click', () => { if (last && page * last.pageSize < last.totalDetails) { page++; load(); } });
