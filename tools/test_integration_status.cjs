@@ -4,7 +4,7 @@ const { createHandler } = require('../api/portal/integration-status');
 const { buildPortalAccess } = require('../lib/portal-auth');
 async function call(profile, method = 'GET', query = '') {
   let reads = 0; const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(v) { this.body = JSON.parse(v); } };
-  await createHandler({ profile: async () => profile, load: async () => { reads++; return { version: 1, generatedAt: '2026-10-13T23:00:00Z', channels: [], kpi: null }; } })({ method, url: '/api/portal/integration-status' + query }, res);
+  await createHandler({ profile: async () => profile, loadFound: async () => [], load: async () => { reads++; return { version: 1, generatedAt: '2026-10-13T23:00:00Z', channels: [], kpi: null }; } })({ method, url: '/api/portal/integration-status' + query }, res);
   return { ...res, reads };
 }
 test('sem login ou sem permissão não consulta a base privada', async () => {
@@ -21,7 +21,7 @@ test('acesso somente ao novo módulo resolve a página inicial correta', () => {
 });
 test('métodos de escrita bloqueados e filtros inválidos recebem 400', async () => {
   const profile = { roles: ['admin_geral'] };
-  assert.equal((await call(profile, 'POST')).statusCode, 405);
+  assert.equal((await call(profile, 'DELETE')).statusCode, 405);
   assert.equal((await call(profile, 'GET', '?from=2026-12-01&to=2026-01-01')).statusCode, 400);
 });
 test('conexão usa o banco do portal mesmo com variável legada de outro dashboard', async () => {

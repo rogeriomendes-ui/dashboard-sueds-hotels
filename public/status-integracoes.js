@@ -5,7 +5,7 @@
   const time = d => d ? new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Sem captura';
   const el = (tag, text, className) => { const n = document.createElement(tag); n.textContent = text; if (className) n.className = className; return n; };
   const labels = { missing: 'Não localizada', matched: 'Localizada', uncovered: 'Sem cobertura KPI', review: 'Revisar status na origem' };
-  let page = 1, last = null, request = 0;
+  let page = 1, last = null, request = 0, foundRow = null, savingFound = false;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const yesterday = new Date(today + 'T12:00:00Z'); yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   form.elements.to.value = yesterday.toISOString().slice(0, 10);
@@ -30,6 +30,7 @@
       $('alert').replaceChildren(el('div', missing ? `${num(missing)} reservas confirmadas não localizadas no KPI` : confirmed && !uncovered && !review ? 'Todas as reservas confirmadas comparadas foram localizadas no KPI' : 'Consulte a cobertura e as pendências das capturas'));
       $('alert').append(el('small', `${num(confirmed)} confirmadas nas fontes · ${num(uncovered)} sem cobertura KPI · ${num(review)} para revisão. Totais somados por canal.`));
       if (differentNumber) $('alert').append(el('div', `${num(differentNumber)} encontradas por nome e datas iguais, com número da reserva diferente.`));
+      if (data.summary.manualFound) $('alert').append(el('div', `Marcações Achei por conferência manual: ${num(data.summary.manualFound)}.`));
       $('cards').replaceChildren();
       for (const c of data.channels) {
         const card = el('article', '', 'integration-card'); card.append(el('h2', c.name));
@@ -38,6 +39,7 @@
         const clean = c.confirmed > 0 && !c.missing && !c.uncovered && !c.review;
         card.append(el('p', c.missing ? `${num(c.missing)} não localizadas no KPI` : clean ? 'Todas localizadas no KPI' : c.confirmed ? 'Há reservas sem conclusão' : 'Sem confirmadas no período', 'integration-result' + (clean ? ' good' : '')));
         card.append(el('p', `${num(c.matched)} localizadas · ${num(c.uncovered)} sem cobertura · ${num(c.review)} revisar`));
+        if (c.manualFound) card.append(el('p', `Localizadas com marcação manual Achei: ${num(c.manualFound)}.`));
         if (c.differentNumber) {
           const differences = el('button', `${num(c.differentNumber)} com número diferente — conferir`, 'button button-quiet'); differences.type = 'button';
           differences.addEventListener('click', async () => { $('source').value = c.source; $('situation').value = 'different_number'; page = 1; await load(); $('detailsTitle').focus(); }); card.append(differences);
@@ -55,7 +57,19 @@
       for (const r of data.details) {
         const tr = document.createElement('tr');
         const cells = [[r.sourceName, r.hotel], [r.code, [r.status, r.lineStatus].filter(Boolean).join(' / ')], [r.guest], [date(r.saleDate)], [date(r.checkin), date(r.checkout)], [r.numberMismatch ? 'Encontrada por nome e datas · número diferente' : labels[r.situation], r.matches.map(m => `${m.code}${m.locator ? ' · Localizador: ' + m.locator : ''} · ${m.status}`).join('; ')]];
-        for (const values of cells) { const td = el('td', values[0]); if (values[1]) td.append(el('small', values[1])); tr.append(td); } $('rows').append(tr);
+        for (const values of cells) { const td = el('td', values[0]); if (values[1]) td.append(el('small', values[1])); tr.append(td); }
+        const action = document.createElement('td');
+        if (r.manualResolution) {
+          tr.lastChild.append(el('small', 'Achei: ' + r.manualResolution.note), el('small', `${r.manualResolution.userName} · ${time(r.manualResolution.at)}`));
+          action.textContent = 'Achei ✓';
+        } else if (r.situation === 'missing') {
+          const button = el('button', 'Achei', 'button button-quiet'); button.type = 'button';
+          button.addEventListener('click', () => {
+            foundRow = r; $('foundReservation').textContent = `${r.sourceName} · ${r.hotel} · Reserva ${r.code} · ${r.guest}`;
+            $('foundNote').value = ''; $('foundError').textContent = ''; $('foundDialog').showModal(); $('foundNote').focus();
+          }); action.append(button);
+        }
+        tr.append(action); $('rows').append(tr);
       }
       $('empty').hidden = data.details.length > 0;
       $('pageInfo').textContent = `${num(data.totalDetails)} reservas · Página ${page} de ${Math.max(1, Math.ceil(data.totalDetails / data.pageSize))}`;
@@ -63,6 +77,21 @@
     } catch (error) { if (current !== request) return; $('message').textContent = error.message; $('message').className = 'notice notice-error'; $('stamp').textContent = 'Consulta indisponível'; }
   }
   form.addEventListener('submit', e => { e.preventDefault(); page = 1; load(); });
+  $('foundCancel').addEventListener('click', () => $('foundDialog').close());
+  $('foundDialog').addEventListener('cancel', e => { if (savingFound) e.preventDefault(); });
+  $('foundForm').addEventListener('submit', async e => {
+    e.preventDefault(); if (!foundRow || savingFound) return;
+    const note = $('foundNote').value.trim();
+    if (!note) { $('foundError').textContent = 'Escreva uma explicação antes de salvar.'; return; }
+    savingFound = true; $('foundSave').disabled = true; $('foundCancel').disabled = true; $('foundSave').textContent = 'Salvando…'; $('foundError').textContent = '';
+    try {
+      const response = await fetch('/api/portal/integration-status', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: foundRow.source, hotel: foundRow.hotel, code: foundRow.code, note }) });
+      const data = await response.json();
+      if (!response.ok || !data.saved) throw new Error(data.error || 'Não foi possível salvar. Tente novamente.');
+      $('foundDialog').close(); foundRow = null; page = 1; await load();
+    } catch (error) { $('foundError').textContent = error.message; }
+    finally { savingFound = false; $('foundSave').disabled = false; $('foundCancel').disabled = false; $('foundSave').textContent = 'Salvar Achei'; }
+  });
   $('exportXls').addEventListener('click', async () => {
     if (!last) return;
     const button = $('exportXls'); button.disabled = true; button.textContent = 'Gerando…';
