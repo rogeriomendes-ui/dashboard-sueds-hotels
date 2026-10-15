@@ -9822,7 +9822,7 @@ async function handleRequest(req, res) {
         if (isMissingSheetError(error)) return [];
         throw error;
       });
-      return json(res, 200, buildKpiOccupancyMap(rows, query));
+      return json(res, 200, await require('./lib/channel-availability').withChannels(buildKpiOccupancyMap(rows, query)));
     }
 
     if (url.pathname === "/api/portal/availability-alerts") {

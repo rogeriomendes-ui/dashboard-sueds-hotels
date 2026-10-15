@@ -29,18 +29,20 @@ async function upload(req, res) {
   const actual = String(req.headers.authorization || '').replace(/^Bearer /, '');
   if (expected.length < 40 || Buffer.byteLength(actual) !== Buffer.byteLength(expected) || !timingSafeEqual(Buffer.from(actual), Buffer.from(expected))) return json(res, 401, { error: 'Credencial de publicação inválida.' });
   let payload;
-  try { payload = validate(await readBody(req)); } catch { return json(res, 400, { error: 'Base de conferência inválida ou muito grande.' }); }
+  try { const body=await readBody(req);payload=body?.kind==='channel_availability'?require('../../lib/channel-availability').validate(body):validate(body); } catch { return json(res, 400, { error: 'Base de conferência inválida ou muito grande.' }); }
   try {
     const base = process.env.PORTAL_SUPABASE_URL || 'https://pjcmjytiovuukbkewxjj.supabase.co';
     const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!secret) throw new Error('Banco não configurado.');
     const headers = { apikey: secret, Authorization: 'Bearer ' + secret, 'Content-Type': 'application/json', Prefer: 'return=representation' };
-    const result = await fetch(base + '/rest/v1/dashboard_snapshots', { method: 'POST', headers, signal: AbortSignal.timeout(25000), body: JSON.stringify({ source: 'integration_status_v1', period_month: payload.generatedAt.slice(0, 7), payload, created_at: payload.generatedAt }) });
+    const result = await fetch(base + '/rest/v1/dashboard_snapshots', { method: 'POST', headers, signal: AbortSignal.timeout(25000), body: JSON.stringify({ source: payload.kind==='channel_availability'?'channel_availability_v1':'integration_status_v1', period_month: payload.generatedAt.slice(0, 7), payload, created_at: payload.generatedAt }) });
     if (!result.ok) throw new Error('Snapshot: HTTP ' + result.status);
     const stored = await result.json();
     if (stored.length !== 1 || canonical(stored[0].payload) !== canonical(payload)) throw new Error('Verificação do snapshot falhou.');
-    const catalog = await fetch(base + '/rest/v1/portal_environments?on_conflict=slug', { method: 'POST', headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' }, signal: AbortSignal.timeout(10000), body: JSON.stringify({ slug: 'status_integracoes', name: 'Status integrações', description: 'Conferência das reservas confirmadas nos canais versus as capturas do KPI.', sort_order: 49, status: 'active' }) });
-    if (!catalog.ok) throw new Error('Catálogo: HTTP ' + catalog.status);
+    if(payload.kind!=='channel_availability'){
+      const catalog = await fetch(base + '/rest/v1/portal_environments?on_conflict=slug', { method: 'POST', headers: { ...headers, Prefer: 'resolution=merge-duplicates,return=minimal' }, signal: AbortSignal.timeout(10000), body: JSON.stringify({ slug: 'status_integracoes', name: 'Status integrações', description: 'Conferência das reservas confirmadas nos canais versus as capturas do KPI.', sort_order: 49, status: 'active' }) });
+      if (!catalog.ok) throw new Error('Catálogo: HTTP ' + catalog.status);
+    }
     return json(res, 200, { verified: true, generatedAt: payload.generatedAt, sha256: createHash('sha256').update(canonical(stored[0].payload)).digest('hex') });
   } catch (error) { console.error('integration-status upload:', error.message); return json(res, 503, { error: 'Não foi possível gravar e verificar a base privada.' }); }
 }
