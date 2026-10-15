@@ -27,7 +27,7 @@ test('download exige login e acesso individual; resposta autorizada é um Excel 
   for (const [profile, expected] of [[null, 401], [{ roles: [], environments: [] }, 403], [{ roles: [], environments: ['status_integracoes'] }, 200]]) {
     let reads = 0;
     const res = { headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, end(v) { this.body = v; } };
-    await createHandler({ profile: async () => profile, load: async () => { reads++; return snapshot; } })({ method: 'GET', url: '/api/portal/integration-status?' + new URLSearchParams({ ...query, format: 'xlsx' }) }, res);
+    await createHandler({ profile: async () => profile, loadFound: async () => [], load: async () => { reads++; return snapshot; } })({ method: 'GET', url: '/api/portal/integration-status?' + new URLSearchParams({ ...query, format: 'xlsx' }) }, res);
     assert.equal(res.statusCode, expected);
     assert.equal(reads, expected === 200 ? 1 : 0);
     if (expected === 200) {

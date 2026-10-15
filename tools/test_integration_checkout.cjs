@@ -15,7 +15,7 @@ test('check-out de ontem é excluído de todos os totais e listas; hoje e futuro
   const data = report(snapshot, { situation: 'all' }, options);
   assert.equal(data.checkoutFrom, '2026-10-14');
   assert.deepEqual(data.details.map(r => r.code).sort(), ['BR-hoje', 'futuro', 'hoje']);
-  assert.deepEqual(data.summary, { confirmed: 3, missing: 1, matched: 2, uncovered: 0, review: 0, differentNumber: 2 });
+  assert.deepEqual(data.summary, { confirmed: 3, missing: 1, matched: 2, uncovered: 0, review: 0, differentNumber: 2, manualFound: 0 });
   assert.equal(data.channels[0].confirmed, 3);
   assert.equal(report(snapshot, { situation: 'missing' }, options).totalDetails, 1);
   assert.equal(report(snapshot, { situation: 'different_number' }, { ...options, allDetails: true }).totalDetails, 2);
