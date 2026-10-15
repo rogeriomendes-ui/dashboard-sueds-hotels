@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#172d3d">
     <title>Mapa de ocupação | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20261007-mapa-ocupacao"></script>
-    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261007-baixa-disponibilidade">
+    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261015-canais">
   </head>
   <body>
     <main class="occupancy-page">
@@ -26,9 +26,11 @@
       <div id="errorNotice" class="notice error" role="alert" hidden></div>
       <div id="loadingState" class="loading" role="status"><span></span> Carregando mapa…</div>
       <section id="dashboardContent" class="occupancy-section" aria-label="Mapa de ocupação por hotel" hidden>
+        <p id="channelStamp" class="channel-note"></p>
+        <p class="channel-note"><span class="channel-key-risk">Vermelho: canal com disponibilidade e KPI zerado.</span> <span class="channel-key-empty">Amarelo: canal zerado e KPI com mais de 3 aptos disponíveis.</span></p>
         <div id="occupancyMap"></div>
       </section>
     </main>
-    <script src="/mapa-ocupacao.js?v=20261008-ocupacao-diaria"></script>
+    <script src="/mapa-ocupacao.js?v=20261015-canais"></script>
   </body>
 </html>
