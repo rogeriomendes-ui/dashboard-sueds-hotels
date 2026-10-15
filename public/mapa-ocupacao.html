@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#172d3d">
     <title>Mapa de ocupação | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20261007-mapa-ocupacao"></script>
-    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261015-filtros-canais">
+    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261015-filtros-compactos">
   </head>
   <body>
     <main class="occupancy-page">
@@ -19,13 +19,13 @@
         <label><span>Data inicial</span><input id="startDate" name="start" type="date"></label>
         <label><span>Data final</span><input id="endDate" name="end" type="date"></label>
         <label><span>Hotel</span><select id="hotelFilter" name="hotel"><option value="">Todos os hotéis</option></select></label>
-        <div class="filter-actions"><button class="button primary" type="submit">Aplicar</button><button id="clearFilters" class="button quiet" type="button">Limpar</button></div>
         <fieldset class="availability-options"><legend>Filtros</legend>
           <label class="availability-filter"><input id="lowAvailabilityOnly" type="checkbox"><span>3 ou menos aptos disponíveis no KPI</span></label>
           <label class="availability-filter"><input id="channelEmptyOnly" type="checkbox"><span>Mais de 3 no KPI e zero na Omnibees e/ou Azul</span></label>
           <label class="availability-filter"><input id="channelOpenOnly" type="checkbox"><span>Menos de 5 no KPI e mais de 0 na Omnibees e/ou Azul</span></label>
-          <small>Sem marcação: todas as datas. Com várias opções: datas que atendam a qualquer uma delas.</small>
+          <small>Sem marcação: todas as datas. Várias opções: qualquer critério.</small>
         </fieldset>
+        <div class="filter-actions"><button class="button primary" type="submit">Aplicar</button><button id="clearFilters" class="button quiet" type="button">Limpar</button></div>
       </form>
 
       <div id="errorNotice" class="notice error" role="alert" hidden></div>
