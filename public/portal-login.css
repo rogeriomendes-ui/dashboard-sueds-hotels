@@ -26,7 +26,11 @@ input:focus { border-color: #9a7042; box-shadow: 0 0 0 3px rgba(183,138,82,.14);
 button { width: 100%; height: 52px; margin-top: 12px; border: 0; border-radius: 12px; background: #17231e; color: white; font: inherit; font-weight: 800; cursor: pointer; }
 button:disabled { opacity: .65; cursor: wait; }
 .feedback { min-height: 22px; margin: 16px 0 0; color: #a33333; font-size: 14px; }
+.expiry-notice { margin: -8px 0 18px; padding: 12px 14px; border: 1px solid #c68a31; border-radius: 10px; background: #fff3d9; color: #68400c; font-size: 14px; line-height: 1.45; }
 .help-link { display: block; margin-top: 20px; text-align: center; color: #805d35; font-size: 14px; font-weight: 700; text-decoration: none; }
 .link-button { height: auto; margin: 18px 0 0; padding: 0; background: transparent; color: #805d35; font-size: 14px; }
+#openFirstAccess { min-height: 48px; margin-top: 16px; padding: 10px 14px; border: 1px solid #b78a52; background: #f8eddc; color: #5b3c1f; box-shadow: 0 2px 8px rgba(91,60,31,.12); font-weight: 800; }
+#openFirstAccess:hover { background: #f1dfc5; }
+#openFirstAccess:focus-visible { outline: 3px solid #b78a52; outline-offset: 2px; }
 .link-button + .help-link { margin-top: 12px; }
 @media (max-width: 860px) { .login-shell { grid-template-columns: 1fr; } .login-brand { min-height: 280px; padding: 30px 24px; } .login-brand h1 { font-size: 38px; } .lead { display: none; } .login-panel { padding: 24px 16px 40px; } .login-card { padding: 28px 22px; } }

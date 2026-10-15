@@ -4,6 +4,7 @@ const logout = require("./auth/logout");
 const session = require("./auth/session");
 const password = require("./auth/password");
 const firstAccess = require("./auth/first-access");
+const recover = require("./auth/recover");
 const sitePreview = require("./auth/site-preview");
 const users = require("./portal/users");
 const dreFolhaImport = require("./dre-folha-import");
@@ -37,6 +38,7 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/session") return session(req, res);
   if (pathname === "/api/auth/password") return password(req, res);
   if (pathname === "/api/auth/first-access") return firstAccess(req, res);
+  if (pathname === "/api/auth/recover") return recover(req, res);
   if (pathname === "/api/auth/site-preview") return sitePreview(req, res);
   if (pathname === "/api/portal/integration-status-upload") return require("./portal/integration-status-upload")(req, res);
   if (pathname === "/api/portal/integration-status") return require("./portal/integration-status")(req, res);
