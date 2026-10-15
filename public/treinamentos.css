@@ -10,8 +10,20 @@
 .pop-link{display:inline-block;margin-top:10px;color:var(--green);font-size:13px;font-weight:800}.pop-viewer{width:100%;height:min(75vh,900px);margin:20px 0;border:1px solid var(--line)}.pop-read-button{padding:12px 18px;border:0;border-radius:4px;background:var(--deep);color:#fff;font-weight:800;cursor:pointer}.pop-read-button:disabled{background:#778781;cursor:default}
 .knowledge-card{height:280px;min-height:280px;display:grid;grid-template-rows:14px 88px 58px minmax(0,1fr) 74px}.card-module-heading{margin:0;align-self:center}.card-description{min-height:0;margin:0;align-self:start}.card-actions{height:74px;margin:0;padding-top:14px;display:grid;grid-template-columns:78px 78px;justify-content:space-between;align-items:start}.card-action,.module-pop>a,.module-pop-empty{width:78px;height:48px;min-height:48px}.module-pop-empty{display:block!important;visibility:hidden}.module-pop{justify-items:start}@media(max-width:700px){.knowledge-card{height:280px;min-height:280px;display:grid}.card-module-heading{margin:0}.card-description{margin:0}.card-actions{height:74px;margin:0;padding-top:14px;grid-template-columns:78px 78px}.module-pop-empty{display:block!important}}
 
-/* Evita cards estreitos que cortam títulos e ações em telas intermediárias. */
-.knowledge-grid{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}.card-module-heading>div:last-child{min-width:0}.card-module-heading h3{overflow-wrap:anywhere}
-
-/* Mantém nomes longos legíveis, sem competir com o ícone na horizontal. */
-.knowledge-card{grid-template-rows:14px 132px 58px minmax(0,1fr) 74px}.card-module-heading{flex-direction:column;align-items:flex-start;gap:7px;align-self:start;padding-top:8px}.card-module-heading h3{margin:5px 0 0;font-size:clamp(18px,1.55vw,23px);line-height:1}
+/* Cards do catálogo: conteúdo e ações determinam a altura, sem recortes. */
+.knowledge-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+.knowledge-card{height:auto;min-height:340px;display:flex;flex-direction:column;overflow:visible}
+.card-module-heading{flex-direction:column;align-items:flex-start;gap:8px;margin:14px 0 10px;padding:0;align-self:stretch}
+.card-module-heading>div:last-child{min-width:0}
+.card-icon{width:48px;height:48px;flex-basis:48px;font-size:24px}
+.card-module-heading h3{margin:5px 0 0;font-size:clamp(20px,1.7vw,24px);line-height:1.08;overflow-wrap:anywhere}
+.card-description{min-height:0;line-height:1.5}
+.card-actions{height:auto;min-height:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:auto;padding-top:14px;align-items:start}
+.module-pop{min-width:0;justify-items:stretch}
+.module-pop>a,.card-action{width:100%;height:auto;min-height:48px}
+.module-pop>a{gap:5px;padding:6px;font-size:12px}
+.module-pop small{font-size:9px}
+.module-pop-empty{display:none!important}
+.module-pop-empty+.card-action{grid-column:1/-1}
+.card-action{padding:8px 10px;font-size:12px;line-height:1.2;text-align:center;overflow-wrap:normal}
+@media(max-width:700px){.knowledge-card{height:auto;min-height:320px;display:flex}.card-module-heading{margin:14px 0 10px}.card-description{margin:0}.card-actions{height:auto;grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin-top:auto;padding-top:14px}.module-pop-empty{display:none!important}}
