@@ -76,6 +76,16 @@
       "dest": "/public/treinamentos-kpifull.html"
     },
     {
+      "src": "/recuperar-senha",
+      "headers": { "Location": "/login?recuperar=1" },
+      "status": 307
+    },
+    {
+      "src": "/inspecoes/recuperar-senha",
+      "headers": { "Location": "/login?recuperar=1" },
+      "status": 307
+    },
+    {
       "src": "/inspecoes",
       "dest": "https://sueds-inspecoes.vercel.app/inspecoes"
     },
