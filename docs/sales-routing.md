@@ -1,5 +1,17 @@
 # Destino das vendas desde setembro de 2026
 
+## Exclusões persistentes — 16/10/2026
+
+Nas duas planilhas, Z contém a ação `Excluir lançamento`, AC guarda o ID permanente protegido no espelho e AD mostra `Ativo`, `Exclusão pendente` ou `Excluído`. Não apagar linhas fisicamente. AA e AB continuam reservadas às funções existentes de ordenação.
+
+A rotina arquiva primeiro a intenção e os dados completos das duas cópias em `Exclusoes_Lancamentos` na principal. Somente após confirmar esse arquivo limpa A:Z das linhas identificadas pelo ID; preserva AA/AB e as demais linhas. Uma falha parcial é retomada na execução seguinte. A exclusão não altera o status comercial para Cancelada. O histórico permanece protegido e permite recuperação administrativa; não apagar seus registros para liberar uma venda sem conferir as cópias e a origem.
+
+Toda captura/importação deve consultar o histórico antes de inserir: Código Reserva + Hotel excluído não pode ser recriado. `tools/validate_sales_write.cjs` faz a leitura atual automaticamente e falha se ela estiver indisponível. `lib/sales-exclusions-client.cjs` e `guardRecord`/`isExcluded` são usados pelos importadores. Atualizações de registros ativos distintos com a mesma chave não são exclusões; uma duplicata selecionada é removida pelo ID, preservando os outros IDs existentes.
+
+A identidade acompanha a venda ao ordenar as linhas. Nunca sobrescrever A:T de um mês inteiro mantendo IDs antigos: `sync_lancamentos_month_google.js` bloqueia esse modo quando existem IDs. Usar o importador incremental. Durante exclusões, o plano `seller-exclusion-control` contém leituras atuais das três abas relevantes, arquivo, requests reais e snapshots recuperáveis; validar pelo CLI antes de executar manualmente.
+
+Para ativar em outro ambiente, executar `tools/setup_sales_exclusions.cjs` (simulação), depois `--apply`, antes da primeira sincronização com a nova versão. O setup exige colunas livres ou os cabeçalhos esperados. Não publicar a versão antiga sobre esta: ela não consulta as exclusões.
+
 Planilha: `1Tcy3kerwSt8yrYTmQorAsHM4mUBQUKFGKcl1BLi4LW0`.
 Data de corte: Data Venda >= 01/09/2026. Agosto e meses anteriores mantêm localização e histórico.
 

@@ -375,7 +375,11 @@ function buildWriteRow(record, rowNumber) {
 
 async function main() {
   if (!SHEET_ID) throw new Error("GOOGLE_SHEET_ID nao configurado.");
+  const identityRows=(await sheetsRequest('GET','Lancamento_Vendas!AC2:AC')).values||[];
+  if(identityRows.some(row=>row[0]))throw new Error('Substituicao integral do mes bloqueada: lancamentos possuem IDs permanentes. Use import_lancamentos_google.js para acrescentar vendas sem sobrescrever identidades.');
   const sourceRecords = readInputRecords(INPUT_FILE);
+  const exclusions=await require('../lib/sales-exclusions-client.cjs').load();
+  for(const record of sourceRecords)require('../lib/sales-exclusions.cjs').guardRecord(record,exclusions);
   const targetMonth = MONTH || monthKey(sourceRecords.find((record) => monthKey(record.dataVenda))?.dataVenda);
   if (!targetMonth) throw new Error("Nao foi possivel identificar o mes. Use --month=AAAA-MM.");
   const monthRecords = sourceRecords.filter((record) => monthKey(record.dataVenda) === targetMonth);

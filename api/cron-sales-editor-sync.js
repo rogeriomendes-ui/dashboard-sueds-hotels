@@ -12,7 +12,7 @@ module.exports = async function cronSalesEditorSync(req,res) {
     const result=await run({apply:true});
     if(result.conflict.length) console.warn('sales-editor-sync: conflicts need review',JSON.stringify(result.conflict));
     res.setHeader('content-type','application/json; charset=utf-8');
-    res.end(JSON.stringify({ok:true,sourceWrites:result.sourceWrites,mirrorWrites:result.mirrorWrites,conflicts:result.conflict,counts:result.counts}));
+    res.end(JSON.stringify({ok:true,sourceWrites:result.sourceWrites,mirrorWrites:result.mirrorWrites,exclusions:result.exclusions||0,clearedRows:result.clearedRows||0,conflicts:result.conflict,counts:result.counts}));
   } catch(error) {
     console.error('sales-editor-sync:',error.stack||error.message);
     res.statusCode=500;res.setHeader('content-type','application/json; charset=utf-8');

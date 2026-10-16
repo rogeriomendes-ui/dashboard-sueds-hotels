@@ -24,11 +24,7 @@ assert.deepEqual(result.records.map(x=>x.operation),['mirror-field-update','mirr
 assert.equal(result.conflict.length,0);
 assert.equal(result.mirrorRequests.length,4);
 const verify=input=>{
-  const file=path.join(os.tmpdir(),`sales-editor-validator-${process.pid}.json`);
-  fs.writeFileSync(file,JSON.stringify({records:input.records,existingSellers:input.existingSellers,existingChannels:input.existingChannels,requests:input.sourceRequests}));
-  const checked=spawnSync(process.execPath,[path.join(__dirname,'validate_sales_write.cjs'),file],{encoding:'utf8'});
-  fs.unlinkSync(file);
-  assert.equal(checked.status,0,checked.stderr);
+  assert.equal(require('../lib/sales-write-validator.cjs').validate({records:input.records,existingSellers:input.existingSellers,existingChannels:input.existingChannels,requests:input.sourceRequests}).validated,true);
 };
 verify(result);
 

@@ -10,9 +10,7 @@ const request = {updateCells:{range:{sheetId:1945937754,startRowIndex:409,endRow
 const plan = {records:[record],existingSellers:[current],existingChannels:[{...current,rowNumber:12,fonte:'OMNIBEES'}],requests:[request]};
 const dir = fs.mkdtempSync(path.join(os.tmpdir(),'sueds-status-guard-'));
 function validate(input) {
-  const file = path.join(dir,'plan.json');
-  fs.writeFileSync(file,JSON.stringify(input));
-  return spawnSync(process.execPath,[path.join(__dirname,'validate_sales_write.cjs'),file],{encoding:'utf8'});
+  try {require('../lib/sales-write-validator.cjs').validate(input);return {status:0};}catch(error){return {status:1,stderr:error.message};}
 }
 assert.equal(validate(plan).status,0,'Restore existing row without rerouting history');
 assert.throws(()=>routing.assertSalesWrite({...current,status:'Alterada'},routing.SELLERS_SHEET),/Status nao permitido/);
@@ -28,5 +26,5 @@ const duplicate = structuredClone(plan);
 duplicate.records.push({...record,rowNumber:411}); duplicate.existingSellers.push({...current,rowNumber:411});
 const second = structuredClone(request); second.updateCells.range.startRowIndex=410; second.updateCells.range.endRowIndex=411; duplicate.requests.push(second);
 assert.equal(validate(duplicate).status,0,'Historical duplicate keys may restore distinct cells');
-fs.rmSync(path.join(dir,'plan.json')); fs.rmdirSync(dir);
+fs.rmdirSync(dir);
 console.log('PASS: invalid statuses, Omnibees seller writes, stale reads, unvalidated requests and historical duplicate restoration.');
