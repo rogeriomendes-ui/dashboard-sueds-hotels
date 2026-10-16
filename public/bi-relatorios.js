@@ -417,9 +417,15 @@
       const result = actual / target * 100;
       return `<span class="${result < 100 ? "negative" : "positive"}">${percent.format(result)}%</span>`;
     };
+    const annualVariation = (actual, previous) => {
+      if (actual === null || actual === undefined) return "";
+      if (!(previous > 0)) return actual > 0 ? '<span class="positive">novo</span>' : "—";
+      const result = (actual - previous) / previous * 100;
+      return `<span class="${result < 0 ? "negative" : result > 0 ? "positive" : ""}">${percent.format(result)}%</span>`;
+    };
     els.monthlyGoalTables.innerHTML = (payload.monthlyGoalTables || []).map((table) => {
-      const rows = (table.rows || []).map((row) => `<tr><td>${safe(monthName.format(localDate(`${row.key}-01`)).toUpperCase())}</td><td>${safe(value(row.actual))}</td><td>${safe(value(row.target))}</td><td>${ratio(row.actual, row.target)}</td></tr>`).join("");
-      return `<article class="comparison-table-card"><div class="comparison-table-title ${safe(table.key)}">${safe(table.title)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Mês</th><th>${safe(table.actualLabel)}</th><th>Meta 2026</th><th>%</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
+      const rows = (table.rows || []).map((row) => `<tr><td>${safe(monthName.format(localDate(`${row.key}-01`)).toUpperCase())}</td><td>${safe(value(row.actual))}</td><td>${safe(value(row.previous))}</td><td>${safe(value(row.target))}</td><td>${ratio(row.actual, row.target)}</td><td>${annualVariation(row.actual, row.previous)}</td></tr>`).join("");
+      return `<article class="comparison-table-card"><div class="comparison-table-title ${safe(table.key)}">${safe(table.title)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Mês</th><th>${safe(table.actualLabel)}</th><th>${safe(table.previousLabel || "Ano anterior")}</th><th>Meta 2026</th><th>% Meta</th><th>Var. A/A</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
     }).join("");
   }
 

@@ -114,9 +114,13 @@ assert.equal(detailedShare.totals.values.MaxTour, 120);
 assert.equal(Object.values(detailedShare.totals.values).reduce((total, value) => total + value, 0), detailedShare.totals.total);
 assert.equal(payload.channelHotelComparison.AZUL.current["SUEDS PLAZA"], 1500);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].actual, 3000);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].previous, 1000);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "sales").rows[0].target, 4000);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].actual, null);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].previous, null);
 assert.equal(payload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].target, 1000);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "direct").rows[0].previous, 1000);
+assert.equal(payload.monthlyGoalTables.find((table) => table.key === "site").rows[0].previous, null);
 const rdsGoals = [
   { month: "2026-09", type: "RDS - Hospedagem", hotel: "SUEDS PLAZA", revenueGoal: 1209379 },
   { month: "2026-09", type: "RDS - Hospedagem", hotel: "SUEDS PREMIUM", revenueGoal: 282121 },
@@ -340,7 +344,8 @@ assert.equal(weightedKpi.daily[0].reservations, 2);
 
 const occupancyPayload = __test.buildBiReportsPayload({
   audience: "bi-relatorios-kpi",
-  records: [record({ reservationCode: "OCC-1", checkin: "02/09/2026", checkout: "04/09/2026", reservationCount: 2 })]
+  records: [record({ reservationCode: "OCC-1", checkin: "02/09/2026", checkout: "04/09/2026", reservationCount: 2 })],
+  historicalRecords: [record({ reservationCode: "OCC-2025", dateKey: "2025-09-01", checkin: "02/09/2025", checkout: "04/09/2025", total: 800 })]
 }, { start: "2026-09-01", end: "2026-09-05", hotel: "SUEDS PLAZA" });
 assert.equal(occupancyPayload.occupancy[0].apartments, 116);
 assert.equal(occupancyPayload.occupancy[0].days[1].occupied, 2);
@@ -369,9 +374,16 @@ assert.equal(maintenancePayload.occupancy[0].days[1].maintenance, 0);
 assert.equal(maintenancePayload.revpar.summary.availableRoomNights, 222);
 assert.ok(Math.abs(maintenancePayload.revpar.summary.occupancyRate - 50 / 222 * 100) < 0.000001);
 assert.equal(occupancyPayload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].actual, 1000);
-const sitePayload = __test.buildBiReportsPayload({ records: [], otherChannelRecords: [record({ channel: "SITE", rawChannel: "SITE", reservationCode: "SITE-1", total: 700 })], historicalRecords: [] }, { start: "2026-09-01", end: "2026-09-18" });
+assert.equal(occupancyPayload.monthlyGoalTables.find((table) => table.key === "rds").rows[0].previous, 800);
+const sitePayload = __test.buildBiReportsPayload({
+  records: [],
+  otherChannelRecords: [record({ channel: "SITE", rawChannel: "SITE", reservationCode: "SITE-1", total: 700 })],
+  historicalRecords: [record({ channel: "SITE", rawChannel: "SITE", reservationCode: "SITE-2025", dateKey: "2025-09-01", total: 500 })]
+}, { start: "2026-09-01", end: "2026-09-18" });
 assert.equal(sitePayload.monthlyGoalTables.find((table) => table.key === "site").rows[0].actual, 700);
+assert.equal(sitePayload.monthlyGoalTables.find((table) => table.key === "site").rows[0].previous, 500);
 assert.equal(sitePayload.monthlyGoalTables.find((table) => table.key === "direct").rows[0].actual, 700);
+assert.equal(sitePayload.monthlyGoalTables.find((table) => table.key === "direct").rows[0].previous, 500);
 const bookingEnginePayload = __test.buildBiReportsPayload({
   audience: "bi-relatorios-kpi",
   records: [

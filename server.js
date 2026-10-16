@@ -4067,6 +4067,10 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       .map(([label, groupedRows]) => [label, sum(groupedRows, (record) => Number(record.total || 0))]));
     return [group, { current: hotelValues(rows), previous: hotelValues(historicalRows) }];
   }));
+  const shiftMonthKey = (value, years) => {
+    if (!/^\d{4}-\d{2}$/.test(value)) return "";
+    return `${Number(value.slice(0, 4)) + years}${value.slice(4)}`;
+  };
   const filteredMonthKeys = [];
   const monthCursor = new Date(`${period.start.slice(0, 7)}-01T12:00:00Z`);
   const lastFilteredMonth = period.end.slice(0, 7);
@@ -4089,6 +4093,16 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     const checkoutKey = checkout ? dateKey(checkout) : "";
     return checkoutKey >= period.start && checkoutKey <= period.end;
   }), checkinMonth);
+  const historicalSiteRows = historicalRows.filter((record) => dataset.audience === "bi-relatorios-kpi"
+    ? (record.kpiSiteSale === true || (record.kpiSiteSale === undefined && isKpiSiteOrigin(record.rawChannel || record.channel)))
+    : comparableKey(biReportsChannelLabel(record)).includes("site"));
+  const historicalDirectRows = historicalRows.filter((record) => shareChannelGroup(record) === "SUEDS");
+  const historicalRdsRows = filterRows(historicalRecords.filter((record) => {
+    if (!isCountedSaleStatus(record)) return false;
+    const checkout = parseDate(record.checkout);
+    const checkoutKey = checkout ? dateKey(checkout) : "";
+    return checkoutKey >= previousPeriod.start && checkoutKey <= previousPeriod.end;
+  }), previousCheckinMonth);
   const goals = dataset.goals || [];
   const goalValue = (month, tableKey) => {
     const matches = goals.filter((goal) => {
@@ -4105,12 +4119,20 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     const value = sum(matches, (goal) => Number(goal.revenueGoal || 0));
     return value > 0 ? value : null;
   };
-  const withGoals = (tableKey, series) => series.map((row) => ({ ...row, target: goalValue(row.key, tableKey) }));
+  const withGoalsAndPrevious = (tableKey, series, previousRows, keyGetter = (record) => record.dateKey?.slice(0, 7)) => series.map((row) => {
+    const previousKey = shiftMonthKey(row.key, -1);
+    const monthRows = previousRows.filter((record) => keyGetter(record) === previousKey);
+    return {
+      ...row,
+      previous: monthRows.length ? sum(monthRows, (record) => Number(record.total || 0)) : null,
+      target: goalValue(row.key, tableKey)
+    };
+  });
   const monthlyGoalTables = [
-    { key: "sales", title: "Meta de Vendas", actualLabel: "Venda 2026", rows: withGoals("sales", monthlySeries(rows)) },
-    { key: "rds", title: "META RDS Hospedagem", actualLabel: "RDS 2026", rows: withGoals("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7))) },
-    { key: "direct", title: "Meta Venda Direta", actualLabel: "Venda 2026", rows: withGoals("direct", monthlySeries(directRows)) },
-    { key: "site", title: "Meta do Site", actualLabel: "Venda 2026", rows: withGoals("site", monthlySeries(siteRows)) }
+    { key: "sales", title: "Meta de Vendas", actualLabel: "Venda 2026", previousLabel: "Venda 2025", rows: withGoalsAndPrevious("sales", monthlySeries(rows), historicalRows) },
+    { key: "rds", title: "META RDS Hospedagem", actualLabel: "RDS 2026", previousLabel: "RDS 2025", rows: withGoalsAndPrevious("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)), historicalRdsRows, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)) },
+    { key: "direct", title: "Meta Venda Direta", actualLabel: "Venda 2026", previousLabel: "Venda 2025", rows: withGoalsAndPrevious("direct", monthlySeries(directRows), historicalDirectRows) },
+    { key: "site", title: "Meta do Site", actualLabel: "Venda 2026", previousLabel: "Venda 2025", rows: withGoalsAndPrevious("site", monthlySeries(siteRows), historicalSiteRows) }
   ];
   const checkinLabel = (value) => {
     if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
@@ -4119,10 +4141,6 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       .format(new Date(Date.UTC(year, month - 1, 2)))
       .replace(" de ", "/");
     return label.charAt(0).toUpperCase() + label.slice(1).replace(".", "");
-  };
-  const shiftMonthKey = (value, years) => {
-    if (!/^\d{4}-\d{2}$/.test(value)) return "";
-    return `${Number(value.slice(0, 4)) + years}${value.slice(4)}`;
   };
   const dateKeys = biReportsDateKeys(period.start, period.end);
   const previousDateKeys = biReportsDateKeys(previousPeriod.start, previousPeriod.end);
