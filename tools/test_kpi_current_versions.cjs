@@ -77,6 +77,25 @@ assert.equal(__test.normalizeKpiReportRows(companies, 2026).length, 2);
 assert.deepEqual(__test.filterBiKpiSourceRows(companies, query).map((r) => [r[10], r[23], r[24]]),
   [["325", 1073.25, "1.287,90"], ["999", 429.3, "429,30"]]);
 
+// Trancoso: the same stay was captured before and after room assignment.
+const trancoso = { ...current, Hotel: "SUEDS TRANCOSO", Reserva: "2354", IN: "18/02", OUT: "21/02", "Diária": "605,34", RN: "3", "D.Res": 46295, Total: "1.816,02", Status: "Confirmada", "Empresa KPI": "BTF" };
+const trancosoRow = (apartment, extra = {}) => withCurrent({ ...trancoso, Apto: apartment, ...extra }, { ...trancoso, Apto: apartment, Localizador: "RES007811-19865" });
+const trancosoQuery = { start: "2026-09-01", end: "2026-09-30" };
+for (const data of [[trancosoRow("0"), trancosoRow("2")], [trancosoRow("2"), trancosoRow("0")]]) {
+  const full = [headers, ...data];
+  const normalized = __test.normalizeKpiReportRows(full, 2026);
+  assert.equal(normalized.length, 1);
+  assert.equal(normalized[0].days, "3");
+  assert.equal(normalized[0].total, 1816.02);
+  assert.equal(__test.filterBiKpiSourceRows(full, trancosoQuery)[0][10], "2");
+  assert.equal(__test.filterBiKpiSourceRows(full, trancosoQuery)[0][23], 1816.02);
+  const columns = [[0,4], [5,8], [10,14], [15,16], [23,24], [24,25]].map(([a,b]) => full.map((r) => r.slice(a,b)));
+  assert.deepEqual(__test.normalizeKpiReportObjects(__test.kpiObjectsFromColumnRanges(columns), 2026), normalized);
+}
+assert.equal(__test.filterBiKpiSourceRows([headers, trancosoRow("0"), trancosoRow("2", { Status: "Cancelada" })], trancosoQuery).length, 0);
+assert.equal(__test.normalizeKpiReportRows([headers, trancosoRow("0")], 2026)[0].total, 1816.02);
+assert.equal(__test.normalizeKpiReportRows([headers, trancosoRow("0"), trancosoRow("2", { "Empresa KPI": "OTHER" })], 2026).length, 2);
+
 for (const control of ["invalid json", "null", JSON.stringify({ ...current, Reserva: "wrong" }), JSON.stringify({ ...current, "D.Res": "03/09" })]) {
   assert.throws(() => __test.normalizeKpiReportRows([headers, row({ "KPI Atual v1": control })], 2026), /Controle atual KPI/);
   assert.throws(() => __test.filterBiKpiSourceRows([headers, row({ "KPI Atual v1": control })], query), /Controle atual KPI/);

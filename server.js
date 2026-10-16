@@ -3683,7 +3683,7 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
 }
 
 function kpiCurrentObjects(objects = []) {
-  return objects.flatMap((item) => {
+  const resolved = objects.flatMap((item) => {
     const control = item["KPI Atual v1"];
     if (control === undefined || control === "PRESERVADO") return [item];
     if (control === "HISTORICO" || control === "") return [];
@@ -3695,6 +3695,19 @@ function kpiCurrentObjects(objects = []) {
     }
     return [{ ...item, ...current, ["KPI Atual v1"]: undefined, __kpiCurrent: true }];
   });
+  // Apto 0 is an unassigned room, not an additional room. Captures can leave
+  // both its old control and the assigned room active. Resolve before status
+  // filtering so an old Confirmada cannot revive an assigned Cancelada.
+  const segmentKey = (item) => JSON.stringify([
+    comparableKey(item.Hotel), comparableKey(item["Empresa KPI"]), String(item.Reserva),
+    item.IN, item.OUT, item["D.Res"], parseNumber(item["Diária"]),
+    parseNumber(item.RN), parseNumber(item.Total)
+  ]);
+  const assigned = new Set(resolved.filter((item) => item.__kpiCurrent
+    && String(item.Apto ?? "").trim() && String(item.Apto).trim() !== "0").map(segmentKey));
+  return resolved.filter((item) => !item.__kpiCurrent
+    || (String(item.Apto ?? "").trim() && String(item.Apto).trim() !== "0")
+    || !assigned.has(segmentKey(item)));
 }
 
 function kpiLatestSaleDate(objects = []) {

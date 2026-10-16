@@ -29,3 +29,9 @@ Indicadores, ocupação calculada e XLS utilizam a mesma seleção. Somam-se som
 Regressão da reserva 20413 do Premium: as versões antigas tinham 6 RN e a versão atual registra saída antecipada com 5 RN. O cálculo antigo somava 11 RN (R$ 2.361,15); com o controle atual são 5 RN (R$ 1.073,25), mantendo R$ 1.287,90 como total bruto. A correção não transforma o total bruto em receita calculada e não altera as linhas da planilha.
 
 Validação: `node tools/test_kpi_current_versions.cjs` cobre histórico, versão atual, leitura compacta, XLS, cancelamentos, apartamentos, trechos distintos e controles inválidos.
+
+### Atribuição de apartamento
+
+Quando dois controles atuais têm o mesmo hotel, empresa, reserva, período de hospedagem, data de venda, diária, RN e total bruto, a linha com apartamento atribuído substitui a linha com apartamento `0` ou vazio. A seleção ocorre antes do filtro de status e é compartilhada pelo relatório, ocupação e XLS. A ordem física das linhas não define a versão vencedora. Apartamentos atribuídos distintos, empresas distintas e trechos distintos continuam preservados.
+
+Regressão: Trancoso/BTF/2354, localizador RES007811-19865, apartamento 0 e depois 2, corresponde a uma hospedagem de 3 RN × R$ 605,34 = R$ 1.816,02. Não são 6 RN nem R$ 3.632,04. O controle antigo deve ser marcado HISTORICO; a proteção de leitura impede nova soma dupla caso uma captura volte a deixar ambas as versões ativas.
