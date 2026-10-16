@@ -590,7 +590,7 @@ async function loadDashboard() {
     renderDashboard(state.payload);
   } catch (error) {
     if (requestId !== dashboardRequestId) return;
-    document.getElementById("kpiGrid").innerHTML = `<div class="empty-state">${error.message}</div>`;
+    setText("lastUpdate", error.message);
   } finally {
     if (requestId === dashboardRequestId) setDashboardLoading(false);
   }
@@ -598,39 +598,12 @@ async function loadDashboard() {
 
 function renderDashboard(payload) {
   updateFilters(payload);
-  renderKpis(payload.summary, payload.integrations);
-  renderDemand(payload.demand);
-  renderConversion(payload.conversion);
   renderMedia(payload.media, payload.integrations);
   renderCompetitiveness(payload.competitiveness);
   renderOpportunities(payload.opportunities);
   renderCommercialFunnel(payload);
   const updated = new Date(payload.generatedAt);
   setText("lastUpdate", `Atualizado ${updated.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}, ${updated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`);
-}
-
-function renderKpis(summary, integrations = {}) {
-  const hasDemandData = Boolean(integrations.asksuite?.configured);
-  const demandValue = (value) => (hasDemandData ? value : "");
-  const cards = [
-    ["Diálogos totais", demandValue(formatNumber.format(summary.dialogues)), "Volume bruto de demanda"],
-    ["Reservas", demandValue(formatNumber.format(summary.reservations)), "Pré-vendas geradas"],
-    ["Vendas", demandValue(formatNumber.format(summary.sales)), "Reservas vendidas"],
-    ["Receita", demandValue(formatCurrency.format(summary.revenue)), "Receita confirmada"],
-    ["Conversão diálogo → venda", demandValue(formatPct(summary.dialogueToSaleConversion)), "Eficiência comercial"],
-    ["Investimento em mídia", formatCurrency.format(summary.mediaSpend), "Google + Meta"],
-    ["Custo por venda", demandValue(formatCurrency.format(summary.costPerSale)), "Investimento / venda"],
-    ["ROAS", demandValue(`${summary.roas.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}x`), "Receita / mídia"]
-  ];
-  document.getElementById("kpiGrid").innerHTML = cards
-    .map(([label, value, detail], index) => `
-      <article class="kpi-card ${index === 4 || index === 7 ? "accent" : ""}">
-        <span>${label}</span>
-        <strong>${value}</strong>
-        <small>${detail}</small>
-      </article>
-    `)
-    .join("");
 }
 
 function renderBars(id, rows, valueKey, suffix = "", maxRows = 8) {
@@ -646,111 +619,6 @@ function renderBars(id, rows, valueKey, suffix = "", maxRows = 8) {
       </div>
     `).join("")
     : `<div class="empty-state">Sem dados para este filtro.</div>`;
-}
-
-function renderDemand(demand) {
-  document.getElementById("stateTable").innerHTML = demand.stateTable.map((row) => `
-    <tr>
-      <td>${row.state}</td>
-      <td>${formatNumber.format(row.dialogues)}</td>
-      <td>${formatNumber.format(row.reservations)}</td>
-      <td>${formatNumber.format(row.sales)}</td>
-      <td>${formatCurrency.format(row.revenue)}</td>
-      <td>${formatPct(row.conversion)}</td>
-      <td>${formatCurrency.format(row.ticketAverage)}</td>
-    </tr>
-  `).join("");
-}
-
-function renderConversion(conversion) {
-  const max = Math.max(...conversion.funnel.map((step) => step.value), 1);
-  document.getElementById("funnel").innerHTML = conversion.funnel.map((step) => `
-    <div class="funnel-step">
-      <span>${step.label}</span>
-      <strong>${formatNumber.format(step.value)}</strong>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, (step.value / max) * 100)}%"></div></div>
-    </div>
-  `).join("");
-  renderConversionTable("hotelConversionTable", conversion.byHotel, 6);
-  renderConversionTable("channelConversionTable", conversion.byChannel, 6);
-  renderConversionTable("stateDddConversionTable", conversion.byStateDdd, 20);
-}
-
-function renderConversionTable(id, rows, maxRows = 8) {
-  const items = (rows || []).slice(0, maxRows);
-  const body = document.getElementById(id);
-  if (!body) return;
-  const wrap = body.closest(".table-wrap");
-  if (id === "stateDddConversionTable" && wrap) {
-    wrap.classList.add("state-ddd-table-wrap");
-    wrap.style.maxHeight = "286px";
-    wrap.style.overflowY = "scroll";
-  }
-  body.innerHTML = items.length ? items.map((row) => `
-    <tr>
-      <td title="${row.label}">${row.label}</td>
-      <td>${formatNumber.format(row.dialogues || 0)}</td>
-      <td>${formatNumber.format(row.reservations || 0)}</td>
-      <td>${formatNumber.format(row.sales || 0)}</td>
-      <td>${formatCurrency.format(row.revenue || 0)}</td>
-      <td>${formatPct(row.conversion || 0)}</td>
-      <td>${formatCurrency.format(row.ticketAverage || 0)}</td>
-    </tr>
-  `).join("") : `
-    <tr>
-      <td colspan="7">Sem dados para este filtro.</td>
-    </tr>
-  `;
-}
-
-function renderMediaConversionDetails(media = {}) {
-  const detailConfigs = [
-    {
-      id: "googleConversionDetailTable",
-      rows: media.googleTransactions || media.googleConversionDetails || [],
-      conversions: Number(media.googleConversions || 0),
-      source: "Google Ads",
-      prerequisite: "Para preencher este quadro, precisamos receber transaction_id/codigo da reserva, data, hora e valor pelo GA4 ecommerce ou pelo motor Omnibees."
-    },
-    {
-      id: "metaConversionDetailTable",
-      rows: media.metaTransactions || media.metaConversionDetails || [],
-      conversions: Number(media.metaConversions || 0),
-      source: "Meta Ads",
-      prerequisite: "Para preencher este quadro, precisamos receber transaction_id/codigo da reserva, data, hora e valor pelo Pixel/CAPI ou pelo motor Omnibees."
-    }
-  ];
-
-  detailConfigs.forEach((config) => {
-    const body = document.getElementById(config.id);
-    if (!body) return;
-    const rows = Array.isArray(config.rows) ? config.rows : [];
-    body.innerHTML = rows.length ? rows.map((row) => {
-      const dateText = row.date || row.day || row.transactionDate || "--";
-      const timeText = row.time || row.hour || row.transactionTime || "--";
-      const reservationText = row.reservationCode || row.reservation || row.transactionId || row.id || "--";
-      const value = Number(row.value || row.revenue || row.amount || 0);
-      const label = row.keyword || row.ad || row.campaign || row.label || "--";
-      return `
-        <tr>
-          <td>${escapeHtml(dateText)}</td>
-          <td>${escapeHtml(timeText)}</td>
-          <td>${escapeHtml(reservationText)}</td>
-          <td>${value ? formatCurrencyDetailed.format(value) : "--"}</td>
-          <td>${escapeHtml(row.source || config.source)}</td>
-          <td title="${escapeHtml(label)}">${escapeHtml(label)}</td>
-          <td>${escapeHtml(row.status || "Atribuida")}</td>
-        </tr>
-      `;
-    }).join("") : `
-      <tr>
-        <td colspan="7" class="conversion-detail-empty">
-          ${config.conversions ? `${formatNumber.format(config.conversions)} conversoes atribuidas em ${config.source}, mas a API atual entrega apenas totais agregados.` : `Sem conversoes atribuidas em ${config.source} neste filtro.`}
-          ${config.prerequisite}
-        </td>
-      </tr>
-    `;
-  });
 }
 
 function renderMedia(media, integrations = {}) {
@@ -1004,7 +872,6 @@ function renderMedia(media, integrations = {}) {
       <td colspan="9">${escapeHtml(googleKeywordEmptyMessage)}</td>
     </tr>
   `;
-  renderMediaConversionDetails(media);
 }
 
 function renderCompetitiveness(competitiveness) {
