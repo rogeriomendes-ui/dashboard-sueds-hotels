@@ -1958,6 +1958,7 @@ function normalizeRecord(item) {
   const uh = String(item["UH's"] || item["UHs"] || item["UH"] || "").trim();
   const adults = String(item["Adult"] || item["Adultos"] || "").trim();
   const children = String(item["Crian"] || item["Criancas"] || item["Crianças"] || "").trim();
+  const roomType = String(item["Tipo de Apto"] || item["Tipo Apto"] || item["Acomodacao"] || item["Acomodação"] || "").trim();
   const rawChannel = String(item["Canal"] || "").trim();
   const channel = String(item["Canal Detalhado"] || rawChannel).trim();
   const seller = isBookingEngineChannel(channel)
@@ -1980,6 +1981,7 @@ function normalizeRecord(item) {
     uh,
     adults,
     children,
+    roomType,
     status,
     paymentMethod,
     installments,
@@ -3028,8 +3030,19 @@ function buildAsksuiteMetrics(asksuite, period = {}) {
   ];
 }
 
+function eventTicketProduct(record) {
+  const hotel = String(record.hotel || "").trim();
+  if (/^(ingresso natal|pista reveillon|vip reveillon|mesa fechada(?: vip)? reveillon)$/.test(comparableKey(hotel))) return hotel;
+
+  const roomType = String(record.roomType || "").trim();
+  const key = comparableKey(roomType);
+  if (/ingresso.*natal|natal.*ingresso/.test(key)) return roomType;
+  if (key.includes("reveillon") && /(?:pista|vip|mesa)/.test(key)) return roomType;
+  return "";
+}
+
 function isEventTicket(record) {
-  return /^(ingresso natal|pista reveillon|vip reveillon|mesa fechada(?: vip)? reveillon)$/.test(comparableKey(record.hotel));
+  return Boolean(eventTicketProduct(record));
 }
 
 function ticketQuantity(record) {
@@ -3336,7 +3349,11 @@ function buildMetrics(records, goals, period = {}) {
       withoutGroups: buildAdvancePurchase(advancePurchaseWithoutGroups)
     },
     dailySales,
-    detailedTickets: ticketRecords.map((record) => ({ ...salesDetailRow(record, channelLabelForRecord), quantidade: ticketQuantity(record) })),
+    detailedTickets: ticketRecords.map((record) => ({
+      ...salesDetailRow(record, channelLabelForRecord),
+      hotel: eventTicketProduct(record),
+      quantidade: ticketQuantity(record)
+    })),
     detailedSales
   };
 }

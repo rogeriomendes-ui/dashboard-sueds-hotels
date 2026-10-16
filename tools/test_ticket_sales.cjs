@@ -46,5 +46,19 @@ const sale = (hotel, total, extra = {}) => normalizeRecord({
   const vipAccess = sellerAccessProfile({ portalProfile: vipProfile, headers: {} }, new URL('https://localhost/api/dashboard/vendedores?action=export-tickets'));
   assert.equal(vipAccess.role, 'vip_export');
   assert.equal(buildMetrics(rows, goals, { date: '2026-09-10', month: '2026-09', hotel: 'SUEDS PLAZA' }).detailedTickets.length, 0);
+  const deskhotelTicket = sale('SUEDS EXPERIENCIAS', 1400, {
+    'Data Venda': '2026-09-04',
+    'Codigo Reserva': 'CR29070361172',
+    Vendedor: 'Tatiana Vieira',
+    Adult: '2',
+    Crian: '0',
+    'Tipo de Apto': 'Réveillon 2026 - VIP Mesa compartilhada - Beach Club Sueds (1º Lote)'
+  });
+  const regressionMetrics = buildMetrics([deskhotelTicket], goals, { date: '2026-09-10', month: '2026-09' });
+  const tatiana = regressionMetrics.sellers.find(seller => seller.name === 'Tatiana Vieira');
+  assert.equal(tatiana.salesMonth, 0);
+  assert.equal(tatiana.ticketQuantity, 2);
+  assert.equal(tatiana.ticketSales, 1400);
+  assert.equal(regressionMetrics.detailedTickets[0].hotel, 'Réveillon 2026 - VIP Mesa compartilhada - Beach Club Sueds (1º Lote)');
   console.log('PASS: ingressos separados da hospedagem, K + L, equipe, filtros e Excel exclusivo.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
