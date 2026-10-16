@@ -134,6 +134,7 @@ const sameDayOtherDevice = operationalOpinionResponse(qrOpinions[3], 3, deviceCo
 const nextDay = operationalOpinionResponse(qrOpinions[4], 4, deviceCounts);
 assert.equal(flagged.suspiciousDevice, true, "The same device across different apartments on one day must be flagged");
 assert.equal(flagged.deviceApartmentCount, 2, "Repeated responses for the same apartment must count as one apartment");
+assert.equal(flagged.deviceCode, "DEVICE-A", "The alert must expose a short anonymous device code");
 assert.equal(sameDayOtherDevice.suspiciousDevice, false, "A device used for one apartment must not be flagged");
 assert.equal(nextDay.suspiciousDevice, false, "Device activity must be evaluated separately per day");
 

@@ -7719,6 +7719,7 @@ function operationalOpinionResponse(opinion, index, deviceApartmentCounts = new 
     isQrCode,
     suspiciousDevice: deviceApartmentCount > 1,
     deviceApartmentCount: deviceApartmentCount > 1 ? deviceApartmentCount : 0,
+    deviceCode: isQrCode && opinion.deviceId ? String(opinion.deviceId).slice(0, 8).toUpperCase() : "",
     fieldScores: opinion.fieldScores
   };
 }
