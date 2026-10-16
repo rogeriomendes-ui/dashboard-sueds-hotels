@@ -16,6 +16,13 @@ test('alinha por hotel/data; SS usa disponibilidade de venda; ausência permanec
 test('upload bloqueia datas/quantidades inválidas, duplicatas e cobertura parcial',()=>{
   for(const mutate of [p=>p.channels[0].rows.pop(),p=>p.channels[0].rows.push(p.channels[0].rows[0]),p=>p.channels[0].rows[0].available=null,p=>p.channels[0].rows[0].date='2026-02-31',p=>p.channels.push(p.channels[0]),p=>p.channels=[],p=>p.channels[0].to='2026-10-16']){const p=sample();mutate(p);assert.throws(()=>validate(p));}
 });
+
+test('Omnibees aceita Stop Sales WEB preservando a quantidade original',()=>{
+  const p=sample(),r=p.channels[0].rows[0];r.available=0;r.stopSales=1;validate(p);
+  const result=enrich({occupancy:[{hotel:'SUEDS PLAZA',days:[{date:r.date}]}]},p);
+  assert.deepEqual(result.occupancy[0].days[0].channels.omnibees,r);
+  assert.equal(r.rawAvailable,7);r.stopSales=0;assert.throws(()=>validate(p));
+});
 test('upload grava fonte separada, verifica payload e não altera catálogo ou capturas de reservas',async()=>{
   const old={fetch:global.fetch,token:process.env.INTEGRATION_STATUS_UPLOAD_TOKEN,key:process.env.SUPABASE_SECRET_KEY};process.env.INTEGRATION_STATUS_UPLOAD_TOKEN='t'.repeat(48);process.env.SUPABASE_SECRET_KEY='test-only';let writes=0;
   try{global.fetch=async(url,options)=>{writes++;assert.ok(url.endsWith('/dashboard_snapshots'));const body=JSON.parse(options.body);assert.equal(body.source,'channel_availability_v1');return {ok:true,json:async()=>[{payload:body.payload}]};};
