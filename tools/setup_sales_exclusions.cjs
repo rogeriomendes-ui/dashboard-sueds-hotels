@@ -24,8 +24,9 @@ async function main(){
     const requests=[];
     for(const [col,title] of Object.entries(headers))requests.push(ex.update(sheetId,1,Number(col),[ex.textCell(title)]));
     requests.push({repeatCell:{range:{sheetId,startRowIndex:0,endRowIndex:1,startColumnIndex:25,endColumnIndex:26},cell:{note:'Escolha Excluir lançamento para retirar esta venda das duas planilhas. Os dados serão arquivados para recuperação. Não apague a linha diretamente.'},fields:'note'}});
-    requests.push({setDataValidation:{range:{sheetId,startRowIndex:1,endRowIndex:n,startColumnIndex:25,endColumnIndex:26},rule:{condition:{type:'ONE_OF_LIST',values:[{userEnteredValue:ex.ACTION}]},strict:true,showCustomUi:true,inputMessage:'A exclusão será registrada e aplicada às duas planilhas.'}}});
+    requests.push({setDataValidation:{filteredRowsIncluded:true,range:{sheetId,startRowIndex:1,endRowIndex:n,startColumnIndex:25,endColumnIndex:26},rule:{condition:{type:'ONE_OF_LIST',values:[{userEnteredValue:ex.ACTION}]},strict:true,showCustomUi:true,inputMessage:'A exclusão será registrada e aplicada às duas planilhas.'}}});
     for(const col of [25,28,29])requests.push({copyPaste:{source:{sheetId,startRowIndex:0,endRowIndex:1,startColumnIndex:24,endColumnIndex:25},destination:{sheetId,startRowIndex:0,endRowIndex:1,startColumnIndex:col,endColumnIndex:col+1},pasteType:'PASTE_FORMAT'}});
+    for(const col of [25,28,29])requests.push({repeatCell:{range:{sheetId,startRowIndex:0,endRowIndex:1,startColumnIndex:col,endColumnIndex:col+1},cell:{userEnteredFormat:{textFormat:{foregroundColorStyle:{rgbColor:{red:0.1,green:0.1,blue:0.1}},bold:true}}},fields:'userEnteredFormat.textFormat.foregroundColorStyle,userEnteredFormat.textFormat.bold'}});
     for(const [col,width] of [[25,190],[29,220]])requests.push({updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:col,endIndex:col+1},properties:{pixelSize:width,hiddenByUser:false},fields:'pixelSize,hiddenByUser'}});
     requests.push({updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:28,endIndex:29},properties:{hiddenByUser:true},fields:'hiddenByUser'}});
     if(id===source){
