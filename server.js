@@ -16,7 +16,7 @@ const BI_SALES_RANGE = process.env.GOOGLE_BI_SALES_RANGE || "Lancamento_Vendas!A
 const BI_OTHER_CHANNELS_RANGE = process.env.GOOGLE_BI_OTHER_CHANNELS_RANGE || "'teste lancamento_vendas'!A:S";
 const BI_HISTORICAL_CHANNELS_RANGE = process.env.GOOGLE_BI_HISTORICAL_CHANNELS_RANGE || "'Historico_Canais_AA'!A:S";
 const BI_KPI_2025_RANGE = process.env.GOOGLE_BI_KPI_2025_RANGE || "'base kpi 2025'!A:X";
-const BI_KPI_2026_RANGE = process.env.GOOGLE_BI_KPI_2026_RANGE || "'base kpi 2026'!A:X";
+const BI_KPI_2026_RANGE = process.env.GOOGLE_BI_KPI_2026_RANGE || "'base kpi 2026'!A:Y";
 const KPI_OCCUPANCY_RANGE = process.env.GOOGLE_KPI_OCCUPANCY_RANGE || "'KPI Ocupacao Diaria'!A:F";
 const BI_KPI_CACHE_TTL_MS = Number(process.env.BI_KPI_CACHE_TTL_SECONDS || 300) * 1000;
 const KPI_CAPTURED_AT_METADATA_KEY = "sueds.kpi.full.last_captured_at";
@@ -3652,7 +3652,7 @@ function kpiDateWithReference(value, deltaYears, reference) {
 }
 
 function kpiObjectsFromColumnRanges(columnRanges = []) {
-  const [identityRows = [], stayRows = [], roomRows = [], saleDateRows = [], totalRows = []] = columnRanges;
+  const [identityRows = [], stayRows = [], roomRows = [], saleDateRows = [], totalRows = [], currentRows = []] = columnRanges;
   const rowCount = Math.max(identityRows.length, stayRows.length, roomRows.length, saleDateRows.length, totalRows.length);
   const objects = [];
 
@@ -3673,7 +3673,8 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
       Status: room[2] ?? "",
       RN: room[3] ?? "",
       "D.Res": saleDate[0] ?? "",
-      Total: total[0] ?? ""
+      Total: total[0] ?? "",
+      "KPI Atual v1": currentRows[0]?.[0] === "KPI Atual v1" ? currentRows[index]?.[0] ?? "" : undefined
     };
     if (Object.values(item).some((value) => value !== "" && value !== null && value !== undefined)) objects.push(item);
   }
@@ -3681,7 +3682,23 @@ function kpiObjectsFromColumnRanges(columnRanges = []) {
   return objects;
 }
 
+function kpiCurrentObjects(objects = []) {
+  return objects.flatMap((item) => {
+    const control = item["KPI Atual v1"];
+    if (control === undefined || control === "PRESERVADO") return [item];
+    if (control === "HISTORICO" || control === "") return [];
+    let current;
+    try { current = JSON.parse(control); } catch { throw new Error("Controle atual KPI inválido; relatório bloqueado."); }
+    if (!current || current.Hotel !== item.Hotel || String(current.Reserva) !== String(item.Reserva)
+      || !Number.isFinite(current["D.Res"])) {
+      throw new Error("Controle atual KPI não corresponde à linha histórica.");
+    }
+    return [{ ...item, ...current, ["KPI Atual v1"]: undefined, __kpiCurrent: true }];
+  });
+}
+
 function kpiLatestSaleDate(objects = []) {
+  objects = kpiCurrentObjects(objects);
   // The KPI base has no capture-through watermark. Its latest sale date is a
   // conservative coverage proxy and may lag a capture that had zero new sales.
   return objects.reduce((latest, item) => {
@@ -3695,7 +3712,7 @@ function kpiUniqueStayRows(rows = []) {
   return rows.filter((row) => {
     // An apartment transfer may repeat the same stay in the KPI base. Keep
     // distinct room-night segments, but never multiply an identical segment.
-    const key = [row.checkin.key, row.checkout.key, row.roomNights, row.dailyRate].join("|");
+    const key = [row.checkin.key, row.checkout.key, row.roomNights, row.dailyRate, row.current ? row.apartment : ""].join("|");
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -3733,6 +3750,7 @@ function kpiSourceYearDelta(objects = [], targetYear) {
 }
 
 function normalizeKpiMaintenanceObjects(objects = [], targetYear) {
+  objects = kpiCurrentObjects(objects);
   const deltaYears = kpiSourceYearDelta(objects, targetYear);
   return objects.filter((item) => comparableKey(item.Origem) === "governanca"
     && KPI_COUNTED_STATUSES.has(comparableKey(item.Status))).map((item) => {
@@ -3750,6 +3768,7 @@ function normalizeKpiMaintenanceObjects(objects = [], targetYear) {
 }
 
 function normalizeKpiReportObjects(objects = [], targetYear) {
+  objects = kpiCurrentObjects(objects);
   const deltaYears = kpiSourceYearDelta(objects, targetYear);
   const groups = new Map();
 
@@ -3758,12 +3777,14 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
     const hotel = normalizeHotelName(item.Hotel);
     const reservationCode = String(item.Reserva || item.Localizador || "").trim();
     if (!hotel || !reservationCode) return;
-    const key = `${comparableKey(hotel)}|${comparableKey(reservationCode)}`;
+    const company = String(item["Empresa KPI"] || "").trim();
+    const key = `${comparableKey(hotel)}|${comparableKey(company)}|${comparableKey(reservationCode)}`;
     const sale = kpiDateWithDelta(item["D.Res"], deltaYears);
     const checkin = kpiDateWithReference(item.IN, deltaYears, sale);
     const checkout = kpiDateWithReference(item.OUT, deltaYears, checkin);
     const row = {
       hotel,
+      company,
       reservationCode,
       sale,
       checkin,
@@ -3772,6 +3793,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       siteSale: isKpiSiteOrigin(item.Origem),
       status: String(item.Status || "").trim(),
       apartment: String(item.Apto || "").trim(),
+      current: item.__kpiCurrent === true,
       roomNights: Math.max(0, parseNumber(item.RN)),
       dailyRate: Math.max(0, parseNumber(item["Diária"])),
       total: parseNumber(item.Total)
@@ -3798,6 +3820,7 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       monthKey: sale.key.slice(0, 7),
       reservationCode: representative.reservationCode,
       hotel: representative.hotel,
+      ...(representative.company ? { kpiCompany: representative.company } : {}),
       channel: representative.channel,
       rawChannel: representative.channel,
       kpiSiteSale: representative.siteSale,
@@ -4597,6 +4620,15 @@ function availabilityAlertsPayload(sourceRows = []) {
 }
 
 function filterBiKpiSourceRows(sourceRows = [], query = {}) {
+  if (sourceRows[0]?.[24] === "KPI Atual v1") {
+    const headers = sourceRows[0];
+    const objects = kpiCurrentObjects(sourceRows.slice(1).map((row) => (
+      Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""]))
+    )));
+    const columns = [...headers.slice(0, 24), "Empresa KPI", "__kpiCurrent"];
+    // O XLS usa a mesma versão atual que os indicadores do BI.
+    sourceRows = [columns, ...objects.map((item) => columns.map((header) => item[header] ?? ""))];
+  }
   const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
   const hotel = String(query.hotel || "").trim();
   const channels = Array.isArray(query.channels) ? query.channels : [];
@@ -4606,7 +4638,8 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
   sourceRows.slice(1).forEach((row) => {
     const reservationCode = String(row[3] || row[11] || "").trim();
     if (!reservationCode) return;
-    const key = `${comparableKey(normalizeHotelName(row[0]))}|${comparableKey(reservationCode)}`;
+    const company = sourceRows[0]?.[24] === "Empresa KPI" ? row[24] : "";
+    const key = `${comparableKey(normalizeHotelName(row[0]))}|${comparableKey(company)}|${comparableKey(reservationCode)}`;
     if (!sourceByReservation.has(key)) sourceByReservation.set(key, []);
     sourceByReservation.get(key).push(row);
   });
@@ -4617,7 +4650,7 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
     && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
     && (!checkinMonth || kpiDateKey(record.checkin).slice(0, 7) === checkinMonth)
   )).map((record) => {
-    const key = `${comparableKey(record.hotel)}|${comparableKey(record.reservationCode)}`;
+    const key = `${comparableKey(record.hotel)}|${comparableKey(record.kpiCompany || "")}|${comparableKey(record.reservationCode)}`;
     const candidates = sourceByReservation.get(key) || [];
     const preferred = candidates.reduce((best, row) => {
       if (!best) return row;
@@ -9491,6 +9524,7 @@ async function loadBiKpiReportsDataset() {
     const [values, goalRows, capturedAt] = await Promise.all([
       getSheetValueRanges([
         ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
+        `${currentSheet}!Y:Y`,
         ...compactColumns.map((columns) => `${historicalSheet}!${columns}`)
       ]),
       getSheetValues(METAS_RANGE).catch((error) => {
@@ -9502,8 +9536,8 @@ async function loadBiKpiReportsDataset() {
         return "";
       })
     ]);
-    const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length));
-    const historicalKpiObjects = kpiObjectsFromColumnRanges(values.slice(compactColumns.length));
+    const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length + 1));
+    const historicalKpiObjects = kpiObjectsFromColumnRanges(values.slice(compactColumns.length + 1));
     const kpiRecords = normalizeKpiReportObjects(currentKpiObjects, 2026);
     const historicalRecords = normalizeKpiReportObjects(historicalKpiObjects, 2025);
     const payload = {
@@ -9832,7 +9866,7 @@ async function handleRequest(req, res) {
         checkinMonth: url.searchParams.get("checkinMonth") || ""
       };
       if (url.searchParams.get("format") === "xlsx") {
-        const sourceRows = await getSheetValues(BI_KPI_2026_RANGE);
+        const sourceRows = await getSheetValues(BI_KPI_2026_RANGE.replace(/:X(\d*)$/i, ":Y$1"));
         const workbook = await buildBiKpiSourceWorkbook(sourceRows, query);
         const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
         res.writeHead(200, {
