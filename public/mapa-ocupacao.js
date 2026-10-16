@@ -36,7 +36,7 @@
           td.textContent = displayNumber(reading?.available);
           if (reading) {
             td.title = `${label} · ${day.date} · Disponíveis: ${reading.available}` + (reading.stopSales ? ` · SS em ${reading.stopSales} categoria(s); cupo original: ${reading.rawAvailable}.` : '');
-            if (source === 'juniper' && reading.stopSales && reading.available === 0) { const ss = document.createElement('small'); ss.textContent = ' SS'; td.append(ss); }
+            if (reading.stopSales && reading.available === 0) { const ss = document.createElement('small'); ss.textContent = ' SS'; td.append(ss); }
             if (day.available != null && day.available <= 0 && reading.available > 0) td.className = 'channel-risk';
             else if (day.available > 3 && reading.available === 0) td.className = 'channel-empty';
           } else td.title = 'Sem captura do canal para este hotel/data.';
@@ -61,7 +61,7 @@
       const updatedAt = payload.updatedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.updatedAt)) : "não informada";
       byId("dataStamp").textContent = `Última atualização da ocupação no KPI: ${updatedAt}. “—” indica dia ainda não capturado.`;
       const stamps = (payload.channelCaptures || []).map(c => `${c.source === 'omnibees' ? 'Omnibees' : 'Azul / Juniper'}: ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(c.capturedAt))}`);
-      byId('channelStamp').textContent = (payload.channelError || (stamps.length ? 'Capturas dos canais · ' + stamps.join(' · ') + ' · Brasília.' : 'Canais aguardando publicação das capturas.')) + ' “—” = sem captura; zero = disponibilidade zerada. Azul: SS fecha a venda da categoria.';
+      byId('channelStamp').textContent = (payload.channelError || (stamps.length ? 'Capturas dos canais · ' + stamps.join(' · ') + ' · Brasília.' : 'Canais aguardando publicação das capturas.')) + ' “—” = sem captura; zero = disponibilidade zerada. SS fecha a venda da categoria. Omnibees: referência nos tarifários WEB do Calendário 360.';
       render(payload.occupancy || []); content.hidden = false;
     } catch (caught) { error.textContent = caught.message || "Não foi possível carregar o mapa."; error.hidden = false; }
     finally { loading.hidden = true; }
