@@ -558,6 +558,7 @@ function filteredOpinionResponses() {
   return (state.data?.opinionResponses || []).filter((opinion) => {
     if (state.opinionFilter === "alternatives" && opinion.hasText) return false;
     if (state.opinionFilter === "text" && !opinion.hasText) return false;
+    if (state.opinionFilter === "qr-code" && !opinion.isQrCode) return false;
     if (!search) return true;
     return normalizeQueueSearch(opinion.guestName || "Hóspede").includes(search)
       || normalizeQueueSearch(opinion.apartment).includes(search);
