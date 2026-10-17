@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="portal" class="manager-auth-pending">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capturas na nuvem | Portal SUEDS</title>
+  <script src="/manager-auth.js"></script>
+  <link rel="stylesheet" href="/usuarios.css"><link rel="stylesheet" href="/capturas-nuvem.css">
+</head>
+<body><main class="users-page capture-page">
+  <header class="page-heading"><div><p class="eyebrow">Administração</p><h1>Capturas na nuvem</h1><p>Acompanhe as atualizações e execute uma nova captura sem ligar o notebook.</p></div></header>
+  <p id="captureMessage" class="capture-message" role="status" aria-live="polite">Verificando acesso…</p>
+  <section id="captureContent" class="capture-grid" aria-label="Capturas automáticas" hidden>
+    <article class="users-panel capture-card" id="deskhotel">
+      <h2>DeskHotel</h2><p class="capture-schedule">Diariamente às 07:00, 13:00 e 18:00 · Brasília</p>
+      <p class="capture-status" role="status" aria-live="polite">Consultando…</p>
+      <p class="capture-last">Última execução: consultando…</p><div class="capture-details"></div>
+      <button class="primary-button" type="button" data-capture="deskhotel" disabled>Atualizar agora</button>
+    </article>
+    <article class="users-panel capture-card" id="kpi">
+      <h2>KPI Full</h2><p class="capture-schedule">Diariamente às 07:30, 13:30 e 18:30 · Brasília</p>
+      <p class="capture-status" role="status" aria-live="polite">Consultando…</p>
+      <p class="capture-last">Última execução: consultando…</p><div class="capture-details"></div>
+      <button class="primary-button" type="button" data-capture="kpi" disabled>Atualizar agora</button>
+    </article>
+    <p class="capture-note">As capturas continuam na nuvem mesmo que você feche esta página. Os dados são validados antes e conferidos depois da gravação. O status desta tela é atualizado automaticamente.</p>
+  </section>
+</main><script src="/capturas-nuvem.js"></script></body></html>

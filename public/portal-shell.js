@@ -1,5 +1,6 @@
 (function setupUnifiedPortal() {
   const routes = {
+    capturas_nuvem: { url: "/capturas-nuvem.html", permission: "admin_geral", title: "Capturas na nuvem" },
     comunicados: { url: "/comunicados", permission: "comunicados", title: "Comunicados" },
     inclusao_comunicados: { url: "/comunicados/admin", permission: "inclusao_comunicados", title: "Inclusão de Comunicados" },
     treinamentos: { url: "/Treinamentos", permission: "treinamentos", title: "Centro de Conhecimentos" },

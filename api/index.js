@@ -40,6 +40,7 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/first-access") return firstAccess(req, res);
   if (pathname === "/api/auth/recover") return recover(req, res);
   if (pathname === "/api/auth/site-preview") return sitePreview(req, res);
+  if (pathname === "/api/portal/captures") return require("./portal/captures")(req, res);
   if (pathname === "/api/portal/integration-status-upload") return require("./portal/integration-status-upload")(req, res);
   if (pathname === "/api/portal/integration-status") return require("./portal/integration-status")(req, res);
   if (pathname === "/api/portal/users") return adminUsersHandler(req, res);

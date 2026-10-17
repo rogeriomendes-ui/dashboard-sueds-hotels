@@ -1,0 +1,15 @@
+.capture-page [hidden] { display: none !important; }
+.capture-grid { display: grid; gap: 20px; }
+.capture-card { padding: 24px; }
+.capture-card h2 { font-size: 25px; }
+.capture-schedule, .capture-last, .capture-note { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.capture-status { display: inline-block; margin: 10px 0 8px; padding: 6px 12px; border-radius: 8px; background: var(--soft); font-weight: 700; }
+.capture-status[data-state="concluido"] { color: #116846; background: #e3f4eb; }
+.capture-status[data-state="executando"] { color: #18597a; background: #e5f2fa; }
+.capture-status[data-state="falhou"], .capture-status[data-state="concluido-com-pendencias"], .capture-status[data-state="indisponivel"] { color: #9c3931; background: #fcebea; }
+.capture-details { min-height: 96px; margin: 14px 0 20px; line-height: 1.6; overflow-wrap: anywhere; }
+.capture-details p { margin: 4px 0; font-size: 14px; }
+.capture-message { min-height: 24px; line-height: 1.6; }
+.capture-note { margin: 0; grid-column: 1 / -1; }
+.capture-card button:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+@media (min-width: 760px) { .capture-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
