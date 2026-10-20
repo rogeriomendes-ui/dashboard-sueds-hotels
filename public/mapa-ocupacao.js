@@ -14,7 +14,7 @@
     if (!availabilityFilters.some(input => input.checked)) return true;
     if (day.available == null) return false;
     const channels = [day.channels?.omnibees?.available, day.channels?.juniper?.available];
-    return lowAvailabilityOnly.checked && day.available <= 3
+    return lowAvailabilityOnly.checked && day.available <= 5
       || byId('channelEmptyOnly').checked && day.available > 3 && channels.some(value => value === 0)
       || byId('channelOpenOnly').checked && day.available < 5 && channels.some(value => Number.isFinite(value) && value > 0);
   }
