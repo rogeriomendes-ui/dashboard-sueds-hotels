@@ -15,7 +15,7 @@
     if (day.available == null) return false;
     const channels = [day.channels?.omnibees?.available, day.channels?.juniper?.available];
     return lowAvailabilityOnly.checked && day.available <= 5
-      || byId('channelEmptyOnly').checked && day.available > 3 && channels.some(value => value === 0)
+      || byId('channelEmptyOnly').checked && day.available > 5 && channels.some(value => value === 0)
       || byId('channelOpenOnly').checked && day.available < 5 && channels.some(value => Number.isFinite(value) && value > 0);
   }
 
@@ -38,7 +38,7 @@
             td.title = `${label} · ${day.date} · Disponíveis: ${reading.available}` + (reading.stopSales ? ` · SS em ${reading.stopSales} categoria(s); cupo original: ${reading.rawAvailable}.` : '');
             if (reading.stopSales && reading.available === 0) { const ss = document.createElement('small'); ss.textContent = ' SS'; td.append(ss); }
             if (day.available != null && day.available <= 0 && reading.available > 0) td.className = 'channel-risk';
-            else if (day.available > 3 && reading.available === 0) td.className = 'channel-empty';
+            else if (day.available > 5 && reading.available === 0) td.className = 'channel-empty';
           } else td.title = 'Sem captura do canal para este hotel/data.';
           tr.append(td);
         }

@@ -21,7 +21,7 @@
         <label><span>Hotel</span><select id="hotelFilter" name="hotel"><option value="">Todos os hotéis</option></select></label>
         <fieldset class="availability-options"><legend>Filtros</legend>
           <label class="availability-filter"><input id="lowAvailabilityOnly" type="checkbox"><span>5 ou menos aptos disponíveis no KPI</span></label>
-          <label class="availability-filter"><input id="channelEmptyOnly" type="checkbox"><span>Mais de 3 no KPI e zero na Omnibees e/ou Azul</span></label>
+          <label class="availability-filter"><input id="channelEmptyOnly" type="checkbox"><span>Mais de 5 no KPI e zero na Omnibees e/ou Azul</span></label>
           <label class="availability-filter"><input id="channelOpenOnly" type="checkbox"><span>Menos de 5 no KPI e mais de 0 na Omnibees e/ou Azul</span></label>
           <small>Sem marcação: todas as datas. Várias opções: qualquer critério.</small>
         </fieldset>
@@ -32,10 +32,10 @@
       <div id="loadingState" class="loading" role="status"><span></span> Carregando mapa…</div>
       <section id="dashboardContent" class="occupancy-section" aria-label="Mapa de ocupação por hotel" hidden>
         <p id="channelStamp" class="channel-note"></p>
-        <p class="channel-note"><span class="channel-key-risk">Vermelho: canal com disponibilidade e KPI zerado.</span> <span class="channel-key-empty">Amarelo: canal zerado e KPI com mais de 3 aptos disponíveis.</span></p>
+        <p class="channel-note"><span class="channel-key-risk">Vermelho: canal com disponibilidade e KPI zerado.</span> <span class="channel-key-empty">Amarelo: canal zerado e KPI com mais de 5 aptos disponíveis.</span></p>
         <div id="occupancyMap"></div>
       </section>
     </main>
-    <script src="/mapa-ocupacao.js?v=20261019-filtro-5-aptos"></script>
+    <script src="/mapa-ocupacao.js?v=20261019-canais-mais-5"></script>
   </body>
 </html>
