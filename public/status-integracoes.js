@@ -4,7 +4,7 @@
   const date = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.split('-').reverse().join('/') : d || '—';
   const time = d => d ? new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Sem captura';
   const el = (tag, text, className) => { const n = document.createElement(tag); n.textContent = text; if (className) n.className = className; return n; };
-  const labels = { missing: 'Não localizada', matched: 'Localizada', uncovered: 'Sem cobertura KPI', review: 'Revisar status na origem' };
+  const labels = { cancellation_pending: 'Cancelada no canal e ativa no KPI', missing: 'Não localizada', matched: 'Localizada', uncovered: 'Sem cobertura KPI', review: 'Revisar status na origem' };
   let page = 1, last = null, request = 0, foundRow = null, savingFound = false;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const yesterday = new Date(today + 'T12:00:00Z'); yesterday.setUTCDate(yesterday.getUTCDate() - 1);
@@ -26,9 +26,10 @@
       const hotel = form.elements.hotel.value;
       form.elements.hotel.replaceChildren(new Option('Todos os hotéis', ''), ...data.hotels.map(h => new Option(h, h))); form.elements.hotel.value = hotel;
       const { missing, uncovered, review, confirmed, differentNumber } = data.summary;
-      $('alert').className = 'integration-alert' + (!missing && !uncovered && !review && confirmed ? ' good' : '');
+      $('alert').className = 'integration-alert' + (!missing && !uncovered && !review && !data.summary.cancellation_pending && confirmed ? ' good' : '');
       $('alert').replaceChildren(el('div', missing ? `${num(missing)} reservas confirmadas não localizadas no KPI` : confirmed && !uncovered && !review ? 'Todas as reservas confirmadas comparadas foram localizadas no KPI' : 'Consulte a cobertura e as pendências das capturas'));
       $('alert').append(el('small', `${num(confirmed)} confirmadas nas fontes · ${num(uncovered)} sem cobertura KPI · ${num(review)} para revisão. Totais somados por canal.`));
+      if (data.summary.cancellation_pending) $('alert').append(el('div', `${num(data.summary.cancellation_pending)} canceladas no canal e ainda ativas no KPI — conferir cancelamento.`));
       if (differentNumber) $('alert').append(el('div', `${num(differentNumber)} encontradas por nome e datas iguais, com número da reserva diferente.`));
       if (data.summary.manualFound) $('alert').append(el('div', `Marcações Achei por conferência manual: ${num(data.summary.manualFound)}.`));
       $('cards').replaceChildren();
@@ -36,10 +37,14 @@
         const card = el('article', '', 'integration-card'); card.append(el('h2', c.name));
         if (!c.available) { card.append(el('p', 'Aguardando captura completa')); $('cards').append(card); continue; }
         card.append(el('p', `Cobertura: ${date(c.from)} a ${date(c.to)}`), el('div', num(c.confirmed), 'integration-count'), el('p', 'reservas confirmadas no período filtrado'));
-        const clean = c.confirmed > 0 && !c.missing && !c.uncovered && !c.review;
+        const clean = c.confirmed > 0 && !c.missing && !c.uncovered && !c.review && !c.cancellation_pending;
         card.append(el('p', c.missing ? `${num(c.missing)} não localizadas no KPI` : clean ? 'Todas localizadas no KPI' : c.confirmed ? 'Há reservas sem conclusão' : 'Sem confirmadas no período', 'integration-result' + (clean ? ' good' : '')));
         card.append(el('p', `${num(c.matched)} localizadas · ${num(c.uncovered)} sem cobertura · ${num(c.review)} revisar`));
         if (c.manualFound) card.append(el('p', `Localizadas com marcação manual Achei: ${num(c.manualFound)}.`));
+        if (c.cancellation_pending) {
+          const cancellations = el('button', `${num(c.cancellation_pending)} canceladas no canal e ativas no KPI — conferir`, 'button button-quiet'); cancellations.type = 'button';
+          cancellations.addEventListener('click', async () => { $('source').value = c.source; $('situation').value = 'cancellation_pending'; page = 1; await load(); $('detailsTitle').focus(); }); card.append(cancellations);
+        }
         if (c.differentNumber) {
           const differences = el('button', `${num(c.differentNumber)} com número diferente — conferir`, 'button button-quiet'); differences.type = 'button';
           differences.addEventListener('click', async () => { $('source').value = c.source; $('situation').value = 'different_number'; page = 1; await load(); $('detailsTitle').focus(); }); card.append(differences);
@@ -52,7 +57,7 @@
         button.addEventListener('click', async () => { $('source').value = c.source; $('situation').value = c.missing ? 'missing' : 'all'; page = 1; await load(); $('detailsTitle').focus(); }); card.append(button); $('cards').append(card);
       }
       $('coverage').textContent = data.kpi ? `KPI capturado em ${time(data.kpi.capturedAt)} · Base venda de ${date(data.kpi.from)} a ${date(data.kpi.to)}. Hotéis: ${data.kpi.hotels.join(', ')}. Azul não disponibiliza Trancoso nesta conta.` : 'Aguardando uma captura completa do KPI. Não há conclusão de integração sem essa base.';
-      $('detailsTitle').textContent = $('situation').value === 'all' ? 'Reservas confirmadas' : $('situation').selectedOptions[0].textContent;
+      $('detailsTitle').textContent = $('situation').value === 'all' ? 'Reservas conferidas' : $('situation').selectedOptions[0].textContent;
       $('rows').replaceChildren();
       for (const r of data.details) {
         const tr = document.createElement('tr');
