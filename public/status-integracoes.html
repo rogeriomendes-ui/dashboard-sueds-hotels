@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/status-integracoes.css">
 </head>
 <body><main class="bi-page integration-page">
-  <header class="bi-header"><div><p class="eyebrow">Comercial · Conferência de reservas</p><h1>Status integrações</h1><p class="bi-subtitle">Reservas confirmadas nos canais × reservas localizadas no KPI.</p></div><div class="data-stamp" id="stamp" aria-live="polite">Consultando base…</div></header>
+  <header class="bi-header"><div><p class="eyebrow">Comercial · Conferência de reservas</p><h1>Status integrações</h1><p class="bi-subtitle">Conferência de reservas confirmadas e cancelamentos dos canais no KPI.</p></div><div class="data-stamp" id="stamp" aria-live="polite">Consultando base…</div></header>
   <form class="filters" id="filters">
     <label><span>Venda inicial</span><input type="date" name="from" required value="2026-01-01"></label>
     <label><span>Venda final</span><input type="date" name="to" required></label>
@@ -23,7 +23,7 @@
     <section class="integration-details" aria-labelledby="detailsTitle">
       <div class="integration-detail-heading"><h2 id="detailsTitle" tabindex="-1">Reservas não localizadas no KPI</h2><div class="integration-selects">
         <label>Canal<select id="source"><option value="">Todos os canais</option><option value="omnibees">Omnibees</option><option value="cvc">CVC</option><option value="juniper">Azul / Juniper</option><option value="deskhotel">DeskHotel</option></select></label>
-        <label>Situação<select id="situation"><option value="missing">Não localizadas</option><option value="manual_found">Achei — marcações manuais</option><option value="different_number">Encontradas com número diferente</option><option value="uncovered">Sem cobertura KPI</option><option value="review">Revisar status na origem</option><option value="matched">Localizadas no KPI</option><option value="all">Todas as confirmadas</option></select></label>
+        <label>Situação<select id="situation"><option value="missing">Não localizadas</option><option value="cancellation_pending">Canceladas no canal e ativas no KPI</option><option value="manual_found">Achei — marcações manuais</option><option value="different_number">Encontradas com número diferente</option><option value="uncovered">Sem cobertura KPI</option><option value="review">Revisar status na origem</option><option value="matched">Localizadas no KPI</option><option value="all">Todas as reservas conferidas</option></select></label>
         <button id="exportXls" type="button" class="button button-quiet" title="Baixar todas as reservas dos filtros selecionados em Excel" disabled>XLS</button>
       </div></div>
       <div class="integration-table"><table><thead><tr><th>Canal / Hotel</th><th>Reserva / Status origem</th><th>Hóspede</th><th>Venda</th><th>Check-in / Check-out</th><th>Conferência KPI</th><th>Ação</th></tr></thead><tbody id="rows"></tbody></table></div>
@@ -31,7 +31,7 @@
       <div class="integration-pagination"><button id="previous" class="button button-quiet" type="button">Anterior</button><span id="pageInfo"></span><button id="next" class="button button-quiet" type="button">Próxima</button></div>
     </section>
   </section>
-  <p class="integration-note">Conferência pela última captura completa de cada fonte, usando código e hotel. Quando o código não corresponde, nome do titular e datas completas de check-in/check-out iguais permitem localizar a reserva com o apontamento “número diferente”. As reservas são contadas uma vez por canal; a mesma reserva pode aparecer em mais de um canal. Ausência nesta base indica necessidade de conferência, considerando as datas das capturas. Alteradas e canceladas não entram no total de confirmadas.</p>
+  <p class="integration-note">Conferência pela última captura completa de cada fonte, usando código e hotel. Quando o código não corresponde, nome do titular e datas completas de check-in/check-out iguais permitem localizar a reserva com o apontamento “número diferente”. As reservas são contadas uma vez por canal; a mesma reserva pode aparecer em mais de um canal. Ausência nesta base indica necessidade de conferência, considerando as datas das capturas. Alteradas e canceladas não entram no total de confirmadas. Canceladas ausentes ou já canceladas no KPI são esperadas; canceladas no canal que continuam ativas no KPI aparecem em um alerta separado.</p>
   <p class="integration-note">Totais e listas consideram somente reservas com check-out de hoje em diante, no horário de Brasília. Os filtros de venda continuam aplicados.</p>
   <dialog id="foundDialog" aria-labelledby="foundTitle"><form id="foundForm">
     <h2 id="foundTitle">Achei a reserva</h2><p id="foundReservation"></p>

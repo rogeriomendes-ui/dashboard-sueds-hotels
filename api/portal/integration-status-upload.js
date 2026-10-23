@@ -10,8 +10,12 @@ function validate(payload) {
   if (JSON.stringify(payload.channels.map(c => c.source).sort()) !== JSON.stringify(expected)) throw new Error('Fontes inválidas.');
   for (const c of payload.channels) {
     if (!Array.isArray(c.records) || c.records.length > 50000 || c.available && (!validDate(c.from) || !validDate(c.to) || c.from > c.to || !Array.isArray(c.hotels) || !Number.isFinite(Date.parse(c.capturedAt)))) throw new Error('Cobertura inválida.');
+    if (c.cancelledRecords !== undefined && (!Array.isArray(c.cancelledRecords) || c.cancelledRecords.length > 50000)) throw new Error('Cancelamentos inválidos.');
+    for (const r of c.cancelledRecords || []) {
+      if (!r.code || !r.hotel || !validDate(r.saleDate) || typeof r.status !== 'string' || Object.values(r).some(v => typeof v === 'string' && v.length > 2000)) throw new Error('Cancelamento inválido.');
+    }
     for (const r of c.records) {
-      if (!r.code || !r.hotel || !validDate(r.saleDate) || !['matched', 'missing', 'uncovered', 'review'].includes(r.situation) || !Array.isArray(r.matches) || Object.values(r).some(v => typeof v === 'string' && v.length > 2000)) throw new Error('Reserva inválida.');
+      if (!r.code || !r.hotel || !validDate(r.saleDate) || !['matched', 'missing', 'uncovered', 'review', 'cancellation_pending'].includes(r.situation) || !Array.isArray(r.matches) || Object.values(r).some(v => typeof v === 'string' && v.length > 2000)) throw new Error('Reserva inválida.');
     }
   }
   if (payload.kpi && (!validDate(payload.kpi.from) || !validDate(payload.kpi.to) || !Array.isArray(payload.kpi.hotels) || !Number.isFinite(Date.parse(payload.kpi.capturedAt)))) throw new Error('KPI inválido.');
