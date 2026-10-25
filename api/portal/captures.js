@@ -6,11 +6,16 @@ async function cloudRequest(source, start = false) {
   const token = process.env.SUEDS_CAPTURE_API_TOKEN;
   if (!token) throw Object.assign(new Error('CAPTURE_NOT_CONFIGURED'), { status: 503 });
   const oidc = await require('@vercel/oidc').getVercelOidcToken();
+  const streaming = start && source === 'kpi';
   const response = await fetch(`${ORIGIN}/${start ? 'operations-start' : 'operation-status'}/${source}`, {
     method: start ? 'POST' : 'GET', redirect: 'error',
-    headers: { Authorization: `Bearer ${token}`, 'x-vercel-trusted-oidc-idp-token': oidc },
-    signal: AbortSignal.timeout(25000)
+    headers: { Authorization: `Bearer ${token}`, 'x-vercel-trusted-oidc-idp-token': oidc,
+      ...(streaming ? { Accept: 'application/x-ndjson' } : {}) },
+    signal: AbortSignal.timeout(streaming ? 780000 : 25000)
   });
+  if (streaming && response.status === 202 && response.headers.get('content-type')?.includes('application/x-ndjson')) {
+    return require('../../lib/capture-stream').readCaptureStart(response, require('@vercel/functions').waitUntil);
+  }
   if (!response.headers.get('content-type')?.includes('application/json')) throw Object.assign(new Error('CAPTURE_CONNECTION_FAILED'), { status: 503 });
   const value = await response.json();
   if (!response.ok) throw Object.assign(new Error(response.status === 409 && value.error === 'SOURCE_LOCKED' ? 'SOURCE_LOCKED' : 'CAPTURE_CONNECTION_FAILED'), { status: response.status === 409 ? 409 : 503 });
