@@ -2,9 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.js",
-      "use": "@vercel/node",
-      "config": { "maxDuration": 800 }
+      "src": "api/runtime.mjs",
+      "use": "@vercel/node"
     },
     {
       "src": "public/**",
@@ -144,7 +143,7 @@
     },
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.js"
+      "dest": "/api/runtime.mjs"
     },
     {
       "src": "/",
