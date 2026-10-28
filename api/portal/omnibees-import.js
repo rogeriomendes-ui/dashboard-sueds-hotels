@@ -17,10 +17,10 @@ async function cloudRequest(body) {
   if (!/^https:\/\/sueds-capturas-piloto(?:-[a-z0-9]+-sueds1)?\.vercel\.app$/.test(origin || '') || !token) throw Error('NOT_CONFIGURED');
   const oidc = await require('@vercel/oidc').getVercelOidcToken();
   const route = body.action === 'file' ? `files/${body.index}` : body.action;
-  const response = await fetch(`${origin}/omnibees-import/${body.importId}/${route}`, {
-    method: body.action === 'status' ? 'GET' : 'POST', redirect: 'error',
+  const response = await fetch(`${origin}/omnibees-import/${body.action === 'latest' ? 'latest' : body.importId + '/' + route}`, {
+    method: ['status', 'latest'].includes(body.action) ? 'GET' : 'POST', redirect: 'error',
     headers: { Authorization: `Bearer ${token}`, 'x-vercel-trusted-oidc-idp-token': oidc, 'Content-Type': body.action === 'file' ? 'text/csv' : 'application/json' },
-    ...(body.action === 'status' ? {} : { body: body.action === 'file' ? Buffer.from(body.data, 'base64') : JSON.stringify(body.manifest || {}) }),
+    ...(['status', 'latest'].includes(body.action) ? {} : { body: body.action === 'file' ? Buffer.from(body.data, 'base64') : JSON.stringify(body.manifest || {}) }),
     signal: AbortSignal.timeout(body.action === 'complete' ? 240000 : 60000)
   });
   if (!response.headers.get('content-type')?.includes('application/json')) throw Error('CONNECTION_FAILED');
@@ -46,6 +46,12 @@ function handler({ profile = getPortalProfile, request = cloudRequest } = {}) {
       const user = await profile(req, res);
       if (!user) return json(res, 401, { error: 'Login necessário.' });
       if (!user.roles?.includes('admin_geral')) return json(res, 403, { error: 'Acesso restrito aos administradores.' });
+      if (req.method === 'GET') {
+        const latest = await request({ action: 'latest' });
+        if (latest.status === 'aguardando') return json(res, 200, { status: 'aguardando' });
+        const value = safeResult(latest);
+        return json(res, 200, { ...value, finished: Number.isFinite(Date.parse(latest.finished)) ? new Date(latest.finished).toISOString() : null });
+      }
       if (req.method !== 'POST') return json(res, 405, { error: 'Método não permitido.' });
       const headers = req.headers || {};
       if (!headers.origin || new URL(headers.origin).host !== headers.host || headers['sec-fetch-site'] === 'cross-site'
