@@ -77,3 +77,33 @@
     document.addEventListener('visibilitychange', () => { if (!document.hidden) void reload(); });
   }).catch(() => { message.textContent = 'Entre no Portal para acompanhar as capturas.'; });
 })();
+
+(function omnibeesLastLoad() {
+  const status = document.getElementById('omnibeesLastStatus');
+  if (!status) return;
+  let loading = false;
+  async function reload() {
+    if (loading || document.hidden) return;
+    loading = true;
+    try {
+      const response = await fetch('/api/portal/omnibees-import', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw Error('status');
+      const value = await response.json(), result = value.result || {};
+      if (value.status === 'aguardando') {
+        status.textContent = 'Aguardando primeira carga'; status.dataset.state = 'aguardando';
+        document.getElementById('omnibeesLastDate').textContent = 'Última carga: sem registro';
+        return;
+      }
+      if (value.status !== 'concluido' || value.mode !== 'production' || !result.verified) throw Error('unverified');
+      status.textContent = 'Concluído'; status.dataset.state = 'concluido';
+      document.getElementById('omnibeesLastDate').textContent = 'Última carga: ' + (value.finished ? new Date(value.finished).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'sem data');
+      document.getElementById('omnibeesLastDetails').textContent = result.from + ' a ' + result.to + ' · ' + result.found.toLocaleString('pt-BR') + ' linhas · ' + result.reservations.toLocaleString('pt-BR') + ' reservas · Base conferida';
+    } catch { status.textContent = 'Status indisponível'; status.dataset.state = 'indisponivel'; }
+    finally { loading = false; }
+  }
+  Promise.resolve(window.suedsManagerAuthReady).then(profile => {
+    if (!profile?.roles?.includes('admin_geral')) return;
+    void reload(); setInterval(reload, 60000);
+    document.addEventListener('visibilitychange', reload);
+  }).catch(() => {});
+})();
