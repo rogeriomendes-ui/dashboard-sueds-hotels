@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="portal" class="manager-auth-pending">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Disponibilidade Omnibees · Teste | Portal SUEDS</title><script src="/manager-auth.js"></script><link rel="stylesheet" href="/usuarios.css"><link rel="stylesheet" href="/capturas-nuvem.css"></head>
+<body><main class="users-page capture-page">
+<header class="page-heading"><div><p class="eyebrow">Administração · Capturas na nuvem · Teste</p><h1>Omnibees · Disponibilidade</h1><p>Conferência de inventário e Stop Sales WEB. Nenhuma base será substituída.</p></div></header>
+<p>Sem agendamento. A captura de reservas das 08h permanece independente.</p>
+<p id="inventoryMessage" role="status" aria-live="polite">Verificando acesso…</p>
+<form id="inventoryForm" class="users-panel" hidden>
+<p><label for="inventoryFiles">Amostras JSON do Dot (até 3 MiB no total)</label></p><input id="inventoryFiles" type="file" accept=".json,application/json" multiple required>
+<p>Amostras parciais serão identificadas como parciais. Células ausentes não são tratadas como zero. Preserve os arquivos originais; formatos diferentes precisam ser conferidos antes da adaptação.</p>
+<button class="primary-button" id="inventorySubmit" type="submit">Validar amostra (teste)</button>
+</form><p><a href="/capturas-nuvem.html">Voltar às capturas na nuvem</a></p>
+</main><script src="/omnibees-inventory-test.js"></script></body></html>
