@@ -6,7 +6,7 @@ async function cloudRequest(source, start = false) {
   const token = process.env.SUEDS_CAPTURE_API_TOKEN;
   if (!token) throw Object.assign(new Error('CAPTURE_NOT_CONFIGURED'), { status: 503 });
   const oidc = await require('@vercel/oidc').getVercelOidcToken();
-  const streaming = start && source === 'kpi';
+  const streaming = start && SOURCES.includes(source);
   const response = await fetch(`${ORIGIN}/${start ? 'operations-start' : 'operation-status'}/${source}`, {
     method: start ? 'POST' : 'GET', redirect: 'error',
     headers: { Authorization: `Bearer ${token}`, 'x-vercel-trusted-oidc-idp-token': oidc,
