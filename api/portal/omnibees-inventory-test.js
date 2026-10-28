@@ -15,7 +15,7 @@ function handler({ profile = getPortalProfile, env = process.env, send = fetch, 
       if(typeof body!=='string')body=JSON.stringify(body);
       if(!body || Buffer.byteLength(body)>LIMIT)return json(res,413,{error:'Limite de 3 MiB por amostra.'});
       const parsed=JSON.parse(body);
-      if(parsed?.version!==1 || !Array.isArray(parsed.chunks))return json(res,422,{error:'Formato da amostra não reconhecido. Preserve o original para adaptação.'});
+      if(parsed?.schema_version!==1 && (parsed?.version!==1 || !Array.isArray(parsed.chunks)))return json(res,422,{error:'Formato da amostra não reconhecido. Preserve o original para adaptação.'});
       const origin=env.SUEDS_OMNIBEES_INVENTORY_TEST_URL;
       if(!/^https:\/\/sueds-capturas-piloto-[a-z0-9]+-sueds1\.vercel\.app$/.test(origin || '') || !env.SUEDS_OMNIBEES_IMPORT_TOKEN)throw Error('config');
       const response=await send(origin+'/omnibees-inventory-test',{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+env.SUEDS_OMNIBEES_IMPORT_TOKEN,'x-vercel-trusted-oidc-idp-token':await oidc(),'Content-Type':'application/json'},body,signal:AbortSignal.timeout(60000)});
@@ -30,3 +30,4 @@ function handler({ profile = getPortalProfile, env = process.env, send = fetch, 
 }
 module.exports=handler();
 module.exports.handler=handler;
+
