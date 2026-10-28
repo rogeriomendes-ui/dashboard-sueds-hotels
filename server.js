@@ -9779,6 +9779,7 @@ function serveStatic(req, res) {
 }
 
 async function handleRequest(req, res) {
+  if (new URL(req.url, "http://localhost").pathname === "/api/portal/observatorio") return require("./api/portal/observatorio")(req, res);
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   try {

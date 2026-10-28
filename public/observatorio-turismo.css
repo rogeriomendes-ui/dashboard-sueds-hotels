@@ -1,0 +1,49 @@
+.observatory { max-width: 1500px; margin: auto; }
+.observatory [hidden] { display: none !important; }
+.observatory .filters { grid-template-columns: 1fr 1fr 1.4fr 1.6fr auto; }
+.obs-badge { padding: 8px 14px; border-radius: 24px; background: #e2efeb; color: #175e53; font-size: 12px; white-space: nowrap; }
+.obs-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 18px; border-bottom: 1px solid var(--line); }
+.obs-tabs button { flex: 0 0 auto; padding: 11px 15px; color: var(--navy); border: 1px solid var(--line); background: white; border-radius: 9px; font: inherit; font-size: 13px; cursor: pointer; }
+.obs-tabs button[aria-pressed=true] { color: white; background: var(--navy); border-color: var(--navy); }
+.observatory button:focus-visible, .observatory a:focus-visible { outline: 3px solid var(--gold-deep); outline-offset: 3px; }
+.obs-panel { padding-block: 12px 24px; }
+.obs-panel h2 { font-size: 22px; color: var(--navy-deep); }
+.obs-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.obs-card, .obs-box { border: 1px solid var(--line); border-radius: 14px; background: white; padding: 20px; }
+.obs-card span { display: block; color: var(--muted); font-size: 12px; }
+.obs-card strong { display: block; font-size: clamp(24px, 3vw, 34px); color: var(--navy-deep); margin: 12px 0; }
+.obs-card small { color: var(--muted); }
+.obs-note { color: #506673; font-size: 13px; line-height: 1.6; }
+.obs-warning { background: #fff5df; border-left: 4px solid var(--gold-deep); padding: 14px; border-radius: 6px; color: #644817; }
+.obs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.obs-box h3 { margin-top: 0; }
+.obs-box p, .obs-reading { font-size: 13px; line-height: 1.65; }
+.obs-reading { padding-left: 18px; }
+.obs-reading li { margin-bottom: 14px; }
+.obs-chart { display: flex; flex-direction: column; gap: 10px; }
+.obs-bar-row { display: grid; grid-template-columns: 60px 1fr 85px; gap: 10px; align-items: center; font-size: 12px; }
+.obs-track { background: #edf2f4; border-radius: 4px; overflow: hidden; height: 18px; }
+.obs-bar { height: 100%; background: var(--teal); min-width: 1px; }
+.obs-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: white; margin: 14px 0; }
+.obs-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.obs-table th, .obs-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+.obs-table th { color: var(--navy); background: #edf2f4; white-space: nowrap; }
+.obs-table td { min-width: 90px; max-width: 380px; overflow-wrap: anywhere; }
+.obs-empty { padding: 28px; border: 1px dashed #bccbd2; border-radius: 12px; color: #506673; background: #f8fafb; line-height: 1.6; }
+.obs-heading, .obs-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.obs-footer { border-top: 1px solid var(--line); padding-top: 18px; font-size: 12px; color: var(--muted); }
+.obs-footer > div { display: flex; gap: 8px; }
+.obs-event { border-left: 4px solid var(--teal); margin-bottom: 12px; }
+.obs-event[data-status=cancelado] { border-color: var(--danger); }
+.obs-event[data-status=previsto] { border-color: var(--gold-deep); }
+.obs-event h3 { margin-bottom: 8px; }
+.observatory a { color: #17625d; }
+.observatory dialog { max-width: 680px; width: calc(100% - 32px); max-height: 90vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 16px; padding: 24px; color: var(--navy); }
+.observatory dialog::backdrop { background: #172d3d99; }
+.observatory form:not(.filters) label { display: block; margin: 12px 0; font-size: 13px; }
+.observatory form:not(.filters) input:not([type=checkbox]), .observatory textarea, .observatory form:not(.filters) select { display: block; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #bacbd1; border-radius: 7px; box-sizing: border-box; font: inherit; }
+.obs-check { line-height: 1.5; }
+#management { margin-top: 20px; }
+#eventError { color: var(--danger); }
+@media (max-width: 850px) { .observatory .filters { grid-template-columns: 1fr 1fr; } .obs-cards { grid-template-columns: 1fr 1fr; } .obs-grid { grid-template-columns: 1fr; } .obs-footer { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 450px) { .obs-cards { gap: 8px; } .obs-card { padding: 14px; } .obs-badge { white-space: normal; } .obs-heading { flex-wrap: wrap; } }

@@ -1,0 +1,15 @@
+{
+  "sourceId": "airport",
+  "sourceUrl": "https://www.portoseguro-aero.com.br/estatisticas/",
+  "retrievedAt": "2026-10-27",
+  "notes": "Transcrição conferida da tabela oficial em 27/10/2026. A página indica janeiro a dezembro de 2025, mas somente janeiro a julho têm valores. Embarques incluem conexões e isentos. Meses em branco não são zero.",
+  "rows": [
+    { "period": "2025-01", "arrivals": 1006, "departures": 1006, "boardings": 147955, "landings": 136762, "passengers": 284717 },
+    { "period": "2025-02", "arrivals": 579, "departures": 579, "boardings": 91709, "landings": 84308, "passengers": 176017 },
+    { "period": "2025-03", "arrivals": 650, "departures": 650, "boardings": 98622, "landings": 94676, "passengers": 193298 },
+    { "period": "2025-04", "arrivals": 635, "departures": 633, "boardings": 93183, "landings": 91451, "passengers": 184634 },
+    { "period": "2025-05", "arrivals": 649, "departures": 651, "boardings": 94261, "landings": 89063, "passengers": 183324 },
+    { "period": "2025-06", "arrivals": 671, "departures": 671, "boardings": 88480, "landings": 95710, "passengers": 184190 },
+    { "period": "2025-07", "arrivals": 991, "departures": 991, "boardings": 141467, "landings": 142166, "passengers": 283633 }
+  ]
+}

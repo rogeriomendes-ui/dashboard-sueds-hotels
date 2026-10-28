@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="observatorio_turismo" class="manager-auth-pending">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Observatório de Turismo | Portal SUEDS</title>
+  <script src="/manager-auth.js"></script>
+  <link rel="stylesheet" href="/bi-relatorios.css"><link rel="stylesheet" href="/observatorio-turismo.css">
+</head>
+<body><main class="bi-page observatory">
+  <header class="bi-header"><div><p class="eyebrow">Comercial · Inteligência de mercado</p><h1>Observatório de Turismo</h1><p class="bi-subtitle">Porto Seguro e região · Fontes públicas para decisões comerciais</p></div><span class="obs-badge">Fase 1 · Dados públicos</span></header>
+  <form id="filters" class="filters">
+    <label><span>Mês inicial</span><input name="from" type="month" required></label>
+    <label><span>Mês final</span><input name="to" type="month" required></label>
+    <label><span>Território da fonte</span><select name="region"><option value="">Todos os territórios</option><option>Porto Seguro</option><option>Santa Cruz Cabrália</option><option>Costa do Descobrimento</option><option>Bahia</option><option>Brasil</option></select></label>
+    <label><span>Fonte da aviação</span><select name="aviationSource"><option value="airport">Aeroporto · movimentação total</option><option value="anac">ANAC · etapas básicas</option></select></label>
+    <button class="button button-primary">Aplicar filtros</button>
+  </form>
+  <p id="message" role="status" aria-live="polite">Consultando fontes…</p>
+  <p id="storage" class="obs-warning" hidden></p>
+  <nav class="obs-tabs" aria-label="Seções do Observatório">
+    <button type="button" data-section="overview" aria-pressed="true">Visão geral</button>
+    <button type="button" data-section="aviation" aria-pressed="false">Aviação</button>
+    <button type="button" data-section="tourism" aria-pressed="false">Demanda e mercados</button>
+    <button type="button" data-section="hotels" aria-pressed="false">Hotelaria</button>
+    <button type="button" data-section="events" aria-pressed="false">Calendário</button>
+    <button type="button" data-section="sources" aria-pressed="false">Fontes e atualizações</button>
+  </nav>
+  <section id="overview" class="obs-panel">
+    <h2>Panorama do período</h2><div id="cards" class="obs-cards"></div>
+    <p id="coverage" class="obs-note"></p>
+    <div class="obs-grid"><article class="obs-box"><h3>Movimentação mensal de passageiros</h3><div id="chart" class="obs-chart"></div><p class="obs-note">Barras com valores disponíveis. Lacunas não representam zero. Detalhamento e comparação anual na aba Aviação.</p></article><article class="obs-box"><h3>Leitura dos indicadores</h3><ul class="obs-reading"><li>Movimentação aeroportuária não equivale a turistas únicos.</li><li>Territórios estadual e nacional são identificados separadamente.</li><li>Pesquisa pontual, medição e estimativa não são combinadas.</li><li>Calendário pode apoiar análises; coincidência com variações não prova causalidade.</li></ul><p>Tarifas de concorrentes e indicadores internos entram nas próximas fases.</p></article></div>
+  </section>
+  <section id="aviation" class="obs-panel" hidden><h2>Aviação e conectividade</h2><p id="aviationNote" class="obs-note"></p><div id="monthlyTable"></div><h3>Origens dos voos com destino a Porto Seguro</h3><p class="obs-note">Mercados de conexão aérea. Não representam automaticamente residência dos visitantes.</p><div id="routesTable"></div></section>
+  <section id="tourism" class="obs-panel" hidden><h2>Demanda, turismo internacional e mercados</h2><p class="obs-note">Cada linha preserva território, unidade, metodologia e conceito de origem. Não somar pesquisas sobrepostas.</p><div id="tourismTable"></div></section>
+  <section id="hotels" class="obs-panel" hidden><h2>Meios de hospedagem cadastrados</h2><p class="obs-note">Posição da extração do Cadastur, independente do filtro mensal. Não informa ocupação, classificação de qualidade ou tarifas.</p><div id="hotelsTable"></div></section>
+  <section id="events" class="obs-panel" hidden><div class="obs-heading"><h2>Calendário turístico</h2><button id="newEvent" type="button" class="button button-primary" hidden>Cadastrar evento</button></div><p class="obs-note">Eventos, feriados e férias escolares precisam de fonte e abrangência. Datas previstas e canceladas permanecem identificadas.</p><div id="eventsList"></div></section>
+  <section id="sources" class="obs-panel" hidden><h2>Fontes, cobertura e atualizações</h2><div id="sourcesList" class="obs-grid"></div>
+    <div id="management" class="obs-box" hidden><h3>Atualização autorizada</h3><p>Sem agendamento automático. O aeroporto pode ser consultado no máximo uma vez por hora. As demais fontes usam arquivos estruturados revisados.</p><button id="syncAirport" type="button" class="button button-primary">Consultar aeroporto oficial</button>
+      <form id="importForm"><label>Arquivo JSON validado da fonte<input id="importFile" type="file" accept=".json,application/json" required></label><label class="obs-check"><input id="replaceSource" type="checkbox" required>Confirmo que o arquivo contém toda a série que desejo manter para esta fonte. A carga substituirá a série atual.</label><button class="button button-quiet">Validar e importar</button></form>
+      <details><summary>Contrato de importação</summary><p>Objeto com sourceId, sourceUrl HTTPS, retrievedAt (AAAA-MM-DD), notes e rows. Limite: 2 MB e 5.000 registros, sem duplicações. Fontes aceitas: anac, airport, setur, international e cadastur. Utilize o conversor ANAC e o guia técnico do módulo para preparar os dados. Não importe valores de exemplo.</p></details>
+    </div><h3>Últimas alterações</h3><div id="auditList"></div>
+  </section>
+  <footer class="obs-footer"><span>Exportação dos dados disponíveis nos filtros atuais, com fontes e datas.</span><div><button id="exportCsv" type="button" class="button button-quiet" disabled>Baixar CSV</button><button id="exportExcel" type="button" class="button button-quiet" disabled>Baixar Excel</button></div></footer>
+  <dialog id="eventDialog"><form id="eventForm"><h2 id="eventTitle">Cadastrar evento</h2><input name="id" type="hidden">
+    <label>Título<input name="title" maxlength="180" required></label>
+    <div class="obs-grid"><label>Início<input name="startsOn" type="date" required></label><label>Fim<input name="endsOn" type="date" required></label><label>Território<select name="region"><option>Porto Seguro</option><option>Santa Cruz Cabrália</option><option>Costa do Descobrimento</option><option>Bahia</option><option>Brasil</option></select></label><label>Local / rede escolar<input name="locality" maxlength="180" required></label><label>Tipo<select name="category"><option value="cultural">Cultural</option><option value="feriado">Feriado</option><option value="férias escolares">Férias escolares</option><option value="esportivo">Esportivo</option><option value="congresso">Congresso</option><option value="show">Show</option><option value="outro">Outro</option></select></label><label>Situação<select name="status"><option value="confirmado">Confirmado</option><option value="previsto">Previsto</option><option value="cancelado">Cancelado</option></select></label></div>
+    <label>Fonte oficial ou organizador (HTTPS)<input name="sourceUrl" type="url" pattern="https://.*" maxlength="2000" required></label><label>Notas<textarea name="notes" maxlength="1200" rows="3"></textarea></label><p id="eventError" role="alert"></p><div class="obs-heading"><button id="closeEvent" type="button" class="button button-quiet">Voltar</button><button class="button button-primary">Salvar evento</button></div>
+  </form></dialog>
+</main><script src="/observatorio-turismo.js"></script></body></html>

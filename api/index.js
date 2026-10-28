@@ -32,6 +32,7 @@ const tvMessagesHandler = withPortalEnvironment(handleRequest, "mensagens_tv");
 module.exports = async function api(req, res) {
   const url = new URL(req.url, `https://${req.headers.host || "portal.suedshotels.com.br"}`);
   const pathname = url.pathname;
+  if (pathname === "/api/portal/observatorio") return require("./portal/observatorio")(req, res);
   if (pathname === "/api/cron/sales-editor-sync") return cronSalesEditorSync(req, res);
   if (pathname === "/api/auth/login") return login(req, res);
   if (pathname === "/api/auth/logout") return logout(req, res);
