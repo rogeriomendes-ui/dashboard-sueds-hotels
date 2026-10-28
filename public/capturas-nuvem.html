@@ -28,12 +28,19 @@
       <p id="omnibeesLastStatus" class="capture-status" role="status" aria-live="polite">Consultando…</p>
       <p id="omnibeesLastDate" class="capture-last">Última carga: consultando…</p>
       <div id="omnibeesLastDetails" class="capture-details"></div>
-      <p>Importe os relatórios detalhados dos cinco hotéis para atualizar a base de conferência, sem depender do notebook.</p>
+      <p>O Dot captura e envia automaticamente os relatórios dos cinco hotéis às 08h, sem depender do notebook. Você não precisa enviar arquivos na rotina diária.</p>
       <p>Agendamento ativo. Se precisar de login ou Authenticator, o Dot solicitará pelo ChatGPT.</p><p>Somente reservas. Não altera planilhas de vendas nem disponibilidade.</p>
-      <a class="primary-button" href="/omnibees-import.html">Enviar relatórios Omnibees</a>
+      <p>Use o envio manual apenas para uma carga avulsa ou para retomar um envio. Este botão não inicia a captura no Dot.</p><a class="primary-button" href="/omnibees-import.html">Envio manual de relatórios</a>
+    </article>
+    <article class="users-panel capture-card" id="omnibees-inventory-cloud">
+      <h2>Omnibees · Disponibilidade</h2><p class="capture-schedule">Diariamente às 09:00 · Brasília · Dot na nuvem</p>
+      <p id="inventoryLastStatus" class="capture-status" role="status" aria-live="polite">Consultando…</p><p id="inventoryLastDate" class="capture-last">Última carga: consultando…</p><div id="inventoryLastDetails" class="capture-details"></div>
+      <p>O Dot captura e envia automaticamente a disponibilidade dos cinco hotéis às 09h, após verificar a conclusão das reservas. Você não precisa enviar arquivos na rotina diária. A carga conferida atualiza a linha Omnibees do mapa de ocupação por hotel, incluindo os Stop Sales WEB.</p><p>KPI, Azul/Juniper, planilhas e rotina de reservas das 08h preservados.</p>
+      <p>Agendamento ativo no Dot até 31/07/2027. Antes de iniciar, o Dot verifica se as reservas das 08h terminaram e liberaram a sessão. Se houver execução, login pendente ou estado incerto, adia a disponibilidade e avisa pelo ChatGPT.</p><p>A verificação é operacional; não há encadeamento automático garantido pelo agendador. Primeira execução prevista: 29/10/2026 às 09:00. Login ou Authenticator serão solicitados pelo ChatGPT.</p>
+      <p>Use o envio manual apenas para uma carga avulsa ou para retomar um envio. Este botão não inicia a captura no Dot.</p><a class="primary-button" href="/omnibees-inventory-import.html">Envio manual de disponibilidade</a>
     </article>
     <p class="capture-note">As capturas continuam na nuvem mesmo que você feche esta página. Os dados são validados antes e conferidos depois da gravação. O status desta tela é atualizado automaticamente.</p>
   </section>
-</main><script src="/capturas-nuvem.js"></script></body></html>
+</main><script src="/capturas-nuvem.js"></script><script src="/omnibees-inventory-card.js"></script></body></html>
 
 
