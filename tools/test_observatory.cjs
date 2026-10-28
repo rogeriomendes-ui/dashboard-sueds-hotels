@@ -132,3 +132,17 @@ test('Excel real abre com abas de dados e metodologia', async () => {
   assert.equal(workbook.worksheets.length, 2); assert.equal(workbook.worksheets[0].rowCount, 2);
   assert.equal(workbook.worksheets[1].name, 'Fontes e metodologia');
 });
+
+test('ANAC preserva null por métrica, inclusive em rotas, totais e comparação anual', async () => {
+  const header = 'EMPRESA_SIGLA;ANO;MES;AEROPORTO_DE_ORIGEM_SIGLA;AEROPORTO_DE_DESTINO_SIGLA;NATUREZA;GRUPO_DE_VOO;PASSAGEIROS_PAGOS;PASSAGEIROS_GRATIS;DECOLAGENS;ASSENTOS';
+  const input = 'Atualizado em: 2026-10-27\n' + header + '\nTAM;2025;1;SBGR;SBPS;DOMESTICA;REGULAR;10;0;1;20\nTAM;2025;1;SBGR;SBPS;DOMESTICA;REGULAR;;0;;\nTAM;2024;1;SBGR;SBPS;DOMESTICA;REGULAR;5;0;1;10\n';
+  const dataset = await convert(Readable.from([input]), { sourceUrl: seed.sourceUrl, retrievedAt: seed.retrievedAt, from: '2024-01', to: '2025-01' });
+  const row = dataset.rows.find(r => r.period === '2025-01');
+  assert.equal(row.passengers, null); assert.equal(row.flights, null); assert.equal(row.seats, null);
+  const report = buildReport([dataset], [], new URLSearchParams('from=2025-01&to=2025-01&aviationSource=anac'));
+  assert.deepEqual(report.totals, { passengers: null, flights: null, seats: null });
+  assert.equal(report.routes[0].passengers, null); assert.equal(report.routes[0].flights, null);
+  assert.equal(report.monthly[0].change, null);
+  assert.deepEqual(report.coverage, { available: 1, expected: 1 });
+  assert.throws(() => normalizeDataset({ ...dataset, rows: [{ ...row, flights: '' }] }));
+});

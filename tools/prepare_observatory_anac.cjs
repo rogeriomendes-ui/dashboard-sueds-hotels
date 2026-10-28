@@ -27,6 +27,7 @@ async function convert(stream, { sourceUrl, retrievedAt, from, to }) {
     lineNumber++;
     if (!line.trim()) continue;
     if (line.length > 100000) throw new Error(`Linha ${lineNumber} muito longa.`);
+    if (!columns && /^Atualizado em:/i.test(line.replace(/^\uFEFF/, ''))) continue;
     const cells = csvLine(line);
     if (!columns) {
       columns = Object.fromEntries(cells.map((c, i) => [key(c), i]));
@@ -45,13 +46,14 @@ async function convert(stream, { sourceUrl, retrievedAt, from, to }) {
     if (flightGroup.startsWith('IMPRODUTIV')) continue;
     const nature = key(get('NATUREZA') || '');
     if (!['DOMESTICA','DOMESTICO','INTERNACIONAL'].includes(nature)) throw new Error(`Natureza desconhecida na linha ${lineNumber}.`);
-    const row = { period, origin, destination, originName: get('AEROPORTODEORIGEMNOME') || origin, destinationName: get('AEROPORTODEDESTINONOME') || destination, airline: get('EMPRESASIGLA'), nature: nature === 'INTERNACIONAL' ? 'Internacional' : 'Doméstica', passengers: integer(get('PASSAGEIROSPAGOS')) + integer(get('PASSAGEIROSGRATIS')), seats: integer(get('ASSENTOS'), true), flights: integer(get('DECOLAGENS')) };
+    const paid = integer(get('PASSAGEIROSPAGOS'), true); const free = integer(get('PASSAGEIROSGRATIS'), true);
+    const row = { period, origin, destination, originName: get('AEROPORTODEORIGEMNOME') || origin, destinationName: get('AEROPORTODEDESTINONOME') || destination, airline: get('EMPRESASIGLA'), nature: nature === 'INTERNACIONAL' ? 'Internacional' : 'Doméstica', passengers: paid == null || free == null ? null : paid + free, seats: integer(get('ASSENTOS'), true), flights: integer(get('DECOLAGENS'), true) };
     const id = [period, origin, destination, row.airline, row.nature].join('|');
-    if (groups.has(id)) { const old = groups.get(id); old.passengers += row.passengers; old.flights += row.flights; old.seats = old.seats == null || row.seats == null ? null : old.seats + row.seats; }
+    if (groups.has(id)) { const old = groups.get(id); old.passengers = old.passengers == null || row.passengers == null ? null : old.passengers + row.passengers; old.flights = old.flights == null || row.flights == null ? null : old.flights + row.flights; old.seats = old.seats == null || row.seats == null ? null : old.seats + row.seats; }
     else groups.set(id, row);
     if (groups.size > 5000) throw new Error('Mais de 5.000 agregados. Reduza o período.');
   }
-  const dataset = normalizeDataset({ sourceId: 'anac', sourceUrl, retrievedAt, notes: `Etapas básicas regulares e não regulares envolvendo SBPS. Passageiros pagos + grátis. ${examined} linhas examinadas. Período ${from} a ${to}. Não misturar etapas combinadas.`, rows: [...groups.values()] });
+  const dataset = normalizeDataset({ sourceId: 'anac', sourceUrl, retrievedAt, notes: `Etapas básicas regulares e não regulares envolvendo SBPS. Passageiros pagos + grátis. ${examined} linhas examinadas. Período ${from} a ${to}. Campos ausentes permanecem null; qualquer parcela ausente torna o agregado dessa métrica indisponível, sem imputação de zero. Não misturar etapas combinadas.`, rows: [...groups.values()] });
   if (Buffer.byteLength(JSON.stringify(dataset)) > 1900000) throw new Error('Resultado excede 1,9 MB. Reduza o período.');
   return dataset;
 }

@@ -91,3 +91,11 @@ Antes de publicar, após autorização específica para produção:
 5. Testar login, menu Comercial, acesso negado por API, leitura, calendário, atualização e exportação no endereço publicado. O novo ambiente não altera permissões de módulos antigos.
 
 Se houver falha no módulo, restaurar os arquivos da publicação anterior pelo fluxo de deploy existente. Não apagar tabelas ou registros para reverter a interface. As tabelas novas são independentes dos dados de vendas e reservas.
+
+## Complementação ANAC — 28/10/2026
+
+O conversor aceita o preâmbulo de atualização do CSV oficial e preserva campos vazios como `null` em passageiros, decolagens e assentos. Qualquer parcela ausente deixa indisponível apenas a métrica correspondente do agregado, rota, mês e total selecionado. Não há imputação de zero nem comparação anual com passageiros incompletos. A interface identifica esse comportamento e não desenha barra para passageiros ausentes.
+
+Extração oficial atualizada em 27/10/2026: 2.628 registros envolvendo SBPS em janeiro/2024–setembro/2026, agrupados em 1.970 linhas mês/rota/empresa/natureza, cobrindo os 33 meses. Quatro agregados têm passageiros ausentes; 89 têm decolagens e assentos ausentes. Os meses antes excluídos passam a integrar a série, preservando essas lacunas. Validação: 18 testes, incluindo propagação de null por métrica e comparação anual.
+
+Novas consultas aos metadados e ao download direto MTur/Cadastur retornaram HTTP 502; a consulta web também teve timeout. Essas duas cargas continuam pendentes e não foram preenchidas com dados estimados. A carga SETUR/SEI existente permanece parcial, com três indicadores trimestrais.
