@@ -1,5 +1,13 @@
 # Destino das vendas desde setembro de 2026
 
+## Afiliados DeskHotel — autorizado em 29/10/2026
+
+O marcador explícito `Afiliado: nome` na coluna ORIGEM identifica a modalidade `AFILIADO`, não um vendedor humano. Desde setembro, gravar na aba `teste lancamento_vendas`, Canal `AFILIADO`, Vendedor vazio e Fonte `DESKHOTEL`. Incluir no painel de Vendas e em seus totais/filtro por canal, excluindo do ranking de vendedores e de Outros Canais, como o Robo. Não atribuir ao afiliado metas, comissões ou atendimentos de vendedor. Não inferir a modalidade pelo hóspede.
+
+Preservar o marcador visível na evidência da captura. Se o XLSX omitir esse marcador, aceitar somente quando sua origem-base corresponder à origem-base visível; se ambos mostrarem afiliado, exigir o mesmo nome. Divergências reais continuam bloqueantes. `Depto_Reservas - Loja online` com afiliado mantém Hotel `SUEDS EXPERIENCIAS`. Pagamento e recebimento seguem os valores operacionais capturados; não aplicar as regras de pagamento do Robo. Exemplo confirmado: `CR29070365391`, `Depto_Reservas - Loja online / Afiliado: Rogerio Mendes`.
+
+Manter deduplicação nas duas abas, validação obrigatória e histórico até agosto. Registros existentes não são movidos nem reclassificados automaticamente por esta mudança.
+
 ## Exclusões persistentes — 16/10/2026
 
 Nas duas planilhas, Z contém a ação `Excluir lançamento`, AC guarda o ID permanente protegido no espelho e AD mostra `Ativo`, `Exclusão pendente` ou `Excluído`. Não apagar linhas fisicamente. AA e AB continuam reservadas às funções existentes de ordenação.
