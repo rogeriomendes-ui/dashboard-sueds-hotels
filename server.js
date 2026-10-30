@@ -1961,7 +1961,7 @@ function normalizeRecord(item) {
   const roomType = String(item["Tipo de Apto"] || item["Tipo Apto"] || item["Acomodacao"] || item["Acomodação"] || "").trim();
   const rawChannel = String(item["Canal"] || "").trim();
   const channel = String(item["Canal Detalhado"] || rawChannel).trim();
-  const seller = isBookingEngineChannel(channel)
+  const seller = isBookingEngineChannel(channel) || require('./lib/sales-routing').isAffiliate(rawChannel || channel)
     ? ""
     : normalizeSellerName(item["Vendedor"] || "");
 
@@ -2899,6 +2899,7 @@ function normalizeOfficialSalesChannel(value, record = {}, month = "") {
     : (value || record.channel || record.rawChannel);
   const key = comparableKey(sourceValue);
   if (!key || key === "selecione") return "";
+  if (key === "afiliado") return "AFILIADO";
   if (key === "robo" || comparableKey(record.seller) === comparableKey("Robo")) return "Robo";
 
   if (useHistoricalChannel) {
@@ -3193,6 +3194,7 @@ function buildMetrics(records, goals, period = {}) {
   const channelLabels = new Set([
     ...OFFICIAL_SALES_CHANNELS,
     "Robo",
+    "AFILIADO",
     ...goals
       .filter((goal) => ytdMonths.includes(goal.month) && goal.channel)
       .map((goal) => normalizeOfficialSalesChannel(goal.channel, {}, goal.month || activeMonth))
@@ -3315,7 +3317,7 @@ function buildMetrics(records, goals, period = {}) {
       selectedChannel,
       days: sortLabels(new Set(monthRecords.map((record) => record.dateKey))),
       hotels: sortLabels(new Set(monthRecords.map((record) => record.hotel))),
-      channels: [...OFFICIAL_SALES_CHANNELS, ...ADDITIONAL_SALES_CHANNEL_FILTERS, "Robo"]
+      channels: [...OFFICIAL_SALES_CHANNELS, ...ADDITIONAL_SALES_CHANNEL_FILTERS, "Robo", "AFILIADO"]
     },
     summary: {
       salesToday: sum(selectedSummaryDayRecords, (record) => record.total),
