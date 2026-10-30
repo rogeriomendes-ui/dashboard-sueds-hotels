@@ -17,6 +17,12 @@
 [hidden] { display: none !important; }
 body { margin: 0; min-width: 300px; min-height: 100vh; color: var(--navy); background: var(--paper); }
 button, input, select { font: inherit; }
+.stay-export { margin-bottom: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+.stay-export p { margin: 10px 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.stay-export .filters { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 0; padding: 0; border: 0; box-shadow: none; }
+.stay-export .filters label { flex: 1 1 180px; }
+.stay-export .filter-actions { flex-wrap: wrap; }
+.stay-export #stayExportStatus:empty { display: none; }
 .bi-page { width: min(1440px, 100%); margin: 0 auto; padding: clamp(18px, 2.5vw, 36px); }
 .bi-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
 .eyebrow, .card-kicker { margin: 0 0 6px; color: var(--gold-deep); font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }

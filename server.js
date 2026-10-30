@@ -3782,9 +3782,9 @@ function normalizeKpiMaintenanceObjects(objects = [], targetYear) {
     && item.checkin && item.checkout && item.checkout > item.checkin);
 }
 
-function normalizeKpiReportObjects(objects = [], targetYear) {
+function normalizeKpiReportObjects(objects = [], targetYear, options = {}) {
   objects = kpiCurrentObjects(objects);
-  const deltaYears = kpiSourceYearDelta(objects, targetYear);
+  const deltaYears = options.preserveDates ? 0 : kpiSourceYearDelta(objects, targetYear);
   const groups = new Map();
 
   objects.forEach((item) => {
@@ -3849,7 +3849,8 @@ function normalizeKpiReportObjects(objects = [], targetYear) {
       total: kpiReservationRevenue(validRows),
       source: "KPI FULL"
     };
-  }).filter((record) => record.dateKey && (record.total > 0 || Number(record.days) > 0));
+  }).filter((record) => (record.dateKey || options.includeUndatedSales)
+    && (options.includeZeroValueStays || record.total > 0 || Number(record.days) > 0));
 }
 
 function normalizeKpiReportRows(rows = [], targetYear) {
@@ -4634,7 +4635,19 @@ function availabilityAlertsPayload(sourceRows = []) {
   };
 }
 
+function biKpiStayPeriod(query = {}) {
+  const validDate = (value) => /^20\d{2}-\d{2}-\d{2}$/.test(value || "")
+    && !Number.isNaN(Date.parse(`${value}T12:00:00Z`))
+    && new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) === value;
+  if (!validDate(query.stayStart) || !validDate(query.stayEnd) || query.stayStart > query.stayEnd) {
+    throw new Error("Informe um período de hospedagem válido, com início até o fim.");
+  }
+  return { start: query.stayStart, end: query.stayEnd };
+}
+
 function filterBiKpiSourceRows(sourceRows = [], query = {}) {
+  const byStay = query.dateBasis === "stay";
+  const stayPeriod = byStay ? biKpiStayPeriod(query) : null;
   if (sourceRows[0]?.[24] === "KPI Atual v1") {
     const headers = sourceRows[0];
     const objects = kpiCurrentObjects(sourceRows.slice(1).map((row) => (
@@ -4643,6 +4656,10 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
     const columns = [...headers.slice(0, 24), "Empresa KPI", "__kpiCurrent"];
     // O XLS usa a mesma versão atual que os indicadores do BI.
     sourceRows = [columns, ...objects.map((item) => columns.map((header) => item[header] ?? ""))];
+  }
+  if (byStay) {
+    const activeStatuses = new Set(["confirmada", "alterada", "no hotel", "pendente", "bloqueada", "bloqueado"]);
+    sourceRows = [sourceRows[0], ...sourceRows.slice(1).filter((row) => activeStatuses.has(comparableKey(row[12])))];
   }
   const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
   const hotel = String(query.hotel || "").trim();
@@ -4658,12 +4675,16 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
     if (!sourceByReservation.has(key)) sourceByReservation.set(key, []);
     sourceByReservation.get(key).push(row);
   });
-  return normalizeKpiReportRows(sourceRows, 2026).filter((record) => (
-    record.dateKey >= period.start && record.dateKey <= period.end
-    && isCountedSaleStatus(record)
+  return normalizeKpiReportObjects(rowsToObjectsAny(sourceRows), 2026,
+    byStay ? { preserveDates: true, includeUndatedSales: true, includeZeroValueStays: true } : {}).filter((record) => (
+    (byStay
+      ? kpiDateKey(record.checkin) && kpiDateKey(record.checkout)
+        && kpiDateKey(record.checkout) > kpiDateKey(record.checkin)
+        && kpiDateKey(record.checkin) <= stayPeriod.end && kpiDateKey(record.checkout) > stayPeriod.start
+      : record.dateKey >= period.start && record.dateKey <= period.end && isCountedSaleStatus(record))
     && (!hotel || comparableKey(biReportsHotelLabel(record.hotel)) === comparableKey(biReportsHotelLabel(hotel)))
     && (!channelKeys.size || channelKeys.has(comparableKey(biReportsChannelLabel(record))))
-    && (!checkinMonth || kpiDateKey(record.checkin).slice(0, 7) === checkinMonth)
+    && (byStay || !checkinMonth || kpiDateKey(record.checkin).slice(0, 7) === checkinMonth)
   )).map((record) => {
     const key = `${comparableKey(record.hotel)}|${comparableKey(record.kpiCompany || "")}|${comparableKey(record.reservationCode)}`;
     const candidates = sourceByReservation.get(key) || [];
@@ -4689,7 +4710,7 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
 async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "SUEDS Hotels";
-  const sheet = workbook.addWorksheet("Base KPI 2026", { views: [{ state: "frozen", ySplit: 1 }] });
+  const sheet = workbook.addWorksheet(query.dateBasis === "stay" ? "Reservas por hospedagem" : "Base KPI 2026", { views: [{ state: "frozen", ySplit: 1 }] });
   const headers = Array.from({ length: 24 }, (_, index) => String(sourceRows[0]?.[index] || `Coluna ${index + 1}`));
   headers[23] = "Venda (KPI)";
   headers.push("Total bruto (planilha)");
@@ -9881,13 +9902,21 @@ async function handleRequest(req, res) {
         channels: url.searchParams.getAll("channel"),
         checkinMonth: url.searchParams.get("checkinMonth") || ""
       };
+      query.dateBasis = url.searchParams.get("dateBasis") || "sale";
+      if (!["sale", "stay"].includes(query.dateBasis)) return json(res, 400, { error: "Tipo de extração inválido." });
+      if (query.dateBasis === "stay") {
+        query.stayStart = url.searchParams.get("stayStart") || "";
+        query.stayEnd = url.searchParams.get("stayEnd") || "";
+        try { biKpiStayPeriod(query); } catch (error) { return json(res, 400, { error: error.message }); }
+        if (url.searchParams.get("format") !== "xlsx") return json(res, 400, { error: "A extração por hospedagem está disponível em Excel." });
+      }
       if (url.searchParams.get("format") === "xlsx") {
         const sourceRows = await getSheetValues(BI_KPI_2026_RANGE.replace(/:X(\d*)$/i, ":Y$1"));
         const workbook = await buildBiKpiSourceWorkbook(sourceRows, query);
-        const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
+        const period = query.dateBasis === "stay" ? biKpiStayPeriod(query) : biReportsDateRange(query, biReportsDefaultKpiPeriod());
         res.writeHead(200, {
           "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "content-disposition": `attachment; filename="base-kpi-${period.start}-a-${period.end}.xlsx"`,
+          "content-disposition": `attachment; filename="${query.dateBasis === "stay" ? "reservas-hospedagem" : "base-kpi"}-${period.start}-a-${period.end}.xlsx"`,
           "cache-control": "no-store"
         });
         return res.end(workbook);
@@ -10195,6 +10224,7 @@ module.exports = {
     normalizeKpiMaintenanceObjects,
     normalizeKpiReportRows,
     filterBiKpiSourceRows,
+    biKpiStayPeriod,
     buildBiKpiSourceWorkbook,
     buildSalesCommissionWorkbook,
     buildTicketWorkbook,

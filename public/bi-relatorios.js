@@ -612,6 +612,51 @@
     }
   });
 
+  const stayExportForm = document.getElementById("stayExportForm");
+  if (isKpiReport && stayExportForm) {
+    const stayStart = document.getElementById("stayStart");
+    const stayEnd = document.getElementById("stayEnd");
+    const button = document.getElementById("exportStayXls");
+    const status = document.getElementById("stayExportStatus");
+    const todayParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(new Date()).map(({ type, value }) => [type, value]));
+    stayStart.value = `${todayParts.year}-${todayParts.month}-${todayParts.day}`;
+    stayEnd.value = `${Number(todayParts.year) + 1}-12-31`;
+    stayExportForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (stayStart.value > stayEnd.value) {
+        status.textContent = "A hospedagem inicial deve ser anterior ou igual à final.";
+        return;
+      }
+      const params = new URLSearchParams({ format: "xlsx", dateBasis: "stay", stayStart: stayStart.value,
+        stayEnd: stayEnd.value, hotel: els.hotel.value });
+      selectedChannels().forEach((channel) => params.append("channel", channel));
+      button.disabled = true;
+      status.textContent = "Gerando reservas por hospedagem…";
+      try {
+        const response = await fetch(`${apiUrl}?${params}`, { credentials: "same-origin",
+          headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" } });
+        if (response.status === 401) { window.top.location.href = "/portal-login.html"; return; }
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || "Não foi possível extrair as reservas.");
+        }
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `reservas-hospedagem-${params.get("stayStart")}-a-${params.get("stayEnd")}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        status.textContent = "Excel gerado. Inclui reservas com entrada até a data final e saída após a data inicial, mesmo que já estejam hospedadas.";
+      } catch (error) {
+        status.textContent = error.message || "Não foi possível extrair as reservas.";
+      } finally { button.disabled = false; }
+    });
+  }
+
   els.form.addEventListener("submit", (event) => { event.preventDefault(); load(); });
   els.clear.addEventListener("click", () => {
     els.start.value = isKpiReport ? "" : "2026-09-01";

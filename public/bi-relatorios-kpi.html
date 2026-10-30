@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#172d3d">
     <title>BI - Relatórios by KPI | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20260919-bi-kpi"></script>
-    <link rel="stylesheet" href="/bi-relatorios.css?v=20261006-kpi-desktop-panels">
+    <link rel="stylesheet" href="/bi-relatorios.css?v=20261030-stay-export">
   </head>
   <body>
     <main class="bi-page">
@@ -31,6 +31,17 @@
           <button class="button button-quiet" type="button" id="exportXls" title="Baixar a base filtrada em Excel" disabled>XLS</button>
         </div>
       </form>
+
+      <section class="stay-export" aria-labelledby="stayExportTitle">
+        <h2 id="stayExportTitle">Extrair reservas por hospedagem</h2>
+        <p>Usa o hotel e os canais selecionados acima, independentemente da data da venda e do mês do check-in. Inclui reservas em hospedagem, confirmadas e pendentes. Exclui cancelamentos e manutenção. Dados disponíveis na base do portal.</p>
+        <form class="filters" id="stayExportForm" aria-label="Extração por período de hospedagem">
+          <label><span>Hospedagem inicial</span><input type="date" id="stayStart" required></label>
+          <label><span>Hospedagem final</span><input type="date" id="stayEnd" required></label>
+          <div class="filter-actions"><button class="button button-primary" type="submit" id="exportStayXls">Baixar reservas em Excel</button></div>
+        </form>
+        <p id="stayExportStatus" role="status" aria-live="polite"></p>
+      </section>
 
       <div class="notice notice-warning" id="dataCoverageNotice" role="alert" hidden></div>
 
@@ -149,6 +160,6 @@
         </section>
       </section>
     </main>
-    <script src="/bi-relatorios.js?v=20261009-kpi-captured-at"></script>
+    <script src="/bi-relatorios.js?v=20261030-stay-export"></script>
   </body>
 </html>
