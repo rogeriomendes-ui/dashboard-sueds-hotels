@@ -7,6 +7,7 @@
     <title>BI - Relatórios by KPI | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20260919-bi-kpi"></script>
     <link rel="stylesheet" href="/bi-relatorios.css?v=20261030-stay-export">
+    <link rel="stylesheet" href="/bi-kpi-executive.css?v=20261102">
   </head>
   <body>
     <main class="bi-page">
@@ -43,6 +44,13 @@
         <p id="stayExportStatus" role="status" aria-live="polite"></p>
       </section>
 
+      <form class="filters" id="executivePdfForm" aria-label="Relatório executivo mensal">
+        <label><span>Mês fechado · Executivo PDF</span><input type="month" id="executiveMonth" min="2026-01" required></label>
+        <p>Resumo mensal de todos os canais, considerando o hotel selecionado.</p>
+        <button class="button button-primary" type="submit" id="exportExecutivePdf">Gerar PDF executivo</button>
+        <span id="executivePdfStatus" role="status" aria-live="polite"></span>
+      </form>
+
       <div class="notice notice-warning" id="dataCoverageNotice" role="alert" hidden></div>
 
       <aside class="pending-note" id="comparisonNote">
@@ -76,7 +84,7 @@
 
         <div class="chart-grid">
           <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Vendas por canal</h2></div><div class="heading-tools"><span class="card-help">Valor · share do total</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div><div class="chart chart-bars" id="channelChart"></div></section>
-          <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Cancelamentos por canal</h2></div><div class="heading-tools"><span class="card-help">R$ cancelados · % sobre vendas do canal</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div><div class="chart chart-bars" id="cancellationChannelChart"></div></section>
+          <section class="chart-card" hidden><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Cancelamentos por canal</h2></div><div class="heading-tools"><span class="card-help">R$ cancelados · % sobre vendas do canal</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div><div class="chart chart-bars" id="cancellationChannelChart"></div></section>
         </div>
 
         <section class="chart-card chart-wide"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>Vendas por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="hotelChart"></div></section>
@@ -161,5 +169,6 @@
       </section>
     </main>
     <script src="/bi-relatorios.js?v=20261030-stay-export"></script>
+    <script src="/bi-kpi-executive.js?v=20261102"></script>
   </body>
 </html>
