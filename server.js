@@ -9921,20 +9921,21 @@ async function handleRequest(req, res) {
         });
         return res.end(workbook);
       }
-      if (url.searchParams.get("format") === "pdf") {
-        const { closedMonthPeriod, buildExecutivePdf } = require("./lib/bi-kpi-executive-pdf.cjs");
+      if (["pdf", "pptx"].includes(url.searchParams.get("format"))) {
+        const { closedMonthPeriod, buildExecutivePdf, buildExecutivePptx } = require("./lib/bi-kpi-executive.cjs");
         let period;
         try { period = closedMonthPeriod(url.searchParams.get("month")); }
         catch (error) { return json(res, 400, { error: error.message }); }
         const dataset = await loadBiKpiReportsDataset();
         const payload = buildCachedBiKpiReportsPayload(dataset, { ...period, hotel: query.hotel, channels: [], checkinMonth: "" });
-        const pdf = await buildExecutivePdf(payload);
+        const format = url.searchParams.get("format");
+        const file = await (format === "pptx" ? buildExecutivePptx(payload) : buildExecutivePdf(payload));
         res.writeHead(200, {
-          "content-type": "application/pdf",
-          "content-disposition": `attachment; filename="executivo-kpi-${period.start.slice(0, 7)}.pdf"`,
+          "content-type": format === "pptx" ? "application/vnd.openxmlformats-officedocument.presentationml.presentation" : "application/pdf",
+          "content-disposition": `attachment; filename="executivo-kpi-${period.start.slice(0, 7)}.${format}"`,
           "cache-control": "no-store"
         });
-        return res.end(pdf);
+        return res.end(file);
       }
       const dataset = await loadBiKpiReportsDataset();
       return json(res, 200, buildCachedBiKpiReportsPayload(dataset, query));

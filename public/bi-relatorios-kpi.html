@@ -7,7 +7,7 @@
     <title>BI - Relatórios by KPI | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20260919-bi-kpi"></script>
     <link rel="stylesheet" href="/bi-relatorios.css?v=20261030-stay-export">
-    <link rel="stylesheet" href="/bi-kpi-executive.css?v=20261102">
+    <link rel="stylesheet" href="/bi-kpi-executive.css?v=20261102-pdf-pptx">
   </head>
   <body>
     <main class="bi-page">
@@ -45,9 +45,10 @@
       </section>
 
       <form class="filters" id="executivePdfForm" aria-label="Relatório executivo mensal">
-        <label><span>Mês fechado · Executivo PDF</span><input type="month" id="executiveMonth" min="2026-01" required></label>
+        <label><span>Mês fechado · Relatório executivo</span><input type="month" id="executiveMonth" min="2026-01" required></label>
         <p>Resumo mensal de todos os canais, considerando o hotel selecionado.</p>
-        <button class="button button-primary" type="submit" id="exportExecutivePdf">Gerar PDF executivo</button>
+        <button class="button button-primary" type="submit" id="exportExecutivePdf" value="pdf">Gerar PDF executivo</button>
+        <button class="button button-quiet" type="submit" id="exportExecutivePptx" value="pptx">Gerar PowerPoint</button>
         <span id="executivePdfStatus" role="status" aria-live="polite"></span>
       </form>
 
@@ -169,6 +170,6 @@
       </section>
     </main>
     <script src="/bi-relatorios.js?v=20261030-stay-export"></script>
-    <script src="/bi-kpi-executive.js?v=20261102"></script>
+    <script src="/bi-kpi-executive.js?v=20261102-pdf-pptx"></script>
   </body>
 </html>
