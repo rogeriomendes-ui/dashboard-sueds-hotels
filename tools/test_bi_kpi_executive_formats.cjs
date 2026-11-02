@@ -19,6 +19,9 @@ const strings = pages => pages.flatMap(page => page.ops.filter(op => op.type ===
   assert.equal(pages.filter(page => page.title.includes("RevPAR")).length, 1);
   assert.ok(pages.find(page => page.title.includes("RevPAR")).ops.some(op => op.value === "RevPAR por hotel"));
   assert.ok(strings(pages).includes("R$ 20.000"));
+  assert.ok(pages.some(page => page.ops.some(op => op.type === "arrow" && op.direction === "up")));
+  const falling = buildExecutivePages({ ...payload, summary: { ...payload.summary, sales: 100 } });
+  assert.ok(falling.find(page => page.title === "Principais indicadores").ops.some(op => op.type === "arrow" && op.direction === "down"));
   for (const page of pages) for (const op of page.ops) {
     assert.ok(op.x >= 0 && op.y >= 0 && op.x + op.w <= 1280.1 && op.y + op.h <= 720.1, `${page.title}: ${JSON.stringify(op)}`);
   }
@@ -34,7 +37,12 @@ const strings = pages => pages.flatMap(page => page.ops.filter(op => op.type ===
   assert.ok(checkinText.includes("Jul/2027"), "Mês presente apenas em 2025 deve aparecer no comparativo.");
   const large = { ...payload, byChannel: Array.from({ length: 21 }, (_, i) => ({ label: `Canal ${i}`, value: i * 100 })), futureCheckinMonths: Array.from({ length: 20 }, (_, i) => ({ label: `Mês ${i}`, value: i * 10, roomNights: i })), channelShare: { groups: Array.from({ length: 9 }, (_, i) => `Grupo ${i}`), byHotel: [{ label: "Hotel", total: 1000, values: {} }] } };
   const largeText = strings(buildExecutivePages(large));
-  assert.ok(largeText.includes("Canal 20")); assert.ok(largeText.includes("Demais")); assert.ok(largeText.includes("Mês 19")); assert.ok(largeText.some(text => text.endsWith("Grupo 8")));
+  assert.ok(largeText.includes("Canal 20")); assert.ok(largeText.includes("Demais")); assert.ok(largeText.includes("Mês 19")); assert.ok(largeText.includes("Grupo 8"));
+  const sharePages = buildExecutivePages({ ...payload, channelShare: { groups: ["AZUL", "SUEDS", "CVC", "CONSULTOUR OPERADORA TURISTICA LTDA"], byHotel: [] } }).filter(page => page.title.includes("Participação"));
+  assert.ok(strings(sharePages).includes("AZUL"));
+  assert.ok(strings(sharePages).includes("CONSULTOUR OPERADORA TURISTICA LTDA"));
+  assert.ok(!strings(sharePages).some(label => /^Canal \d/.test(label)));
+  for (const fill of ["59C7EF", "FFE08A", "FFF318"]) assert.ok(sharePages.some(page => page.ops.some(op => op.fill === fill)));
   const pdf = await buildExecutivePdf(payload), pptx = await buildExecutivePptx(payload);
   assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
   const zip = await JSZip.loadAsync(pptx);
@@ -46,6 +54,7 @@ const strings = pages => pages.flatMap(page => page.ops.filter(op => op.type ===
   assert.equal(contents.filter(xml => xml.includes("RevPAR por hotel")).length, 1);
   assert.ok(contents.every(xml => !xml.includes("<p:pic>")), "Os cards devem continuar editáveis, sem screenshots.");
   assert.ok(contents.some(xml => xml.includes("20.000")));
+  assert.ok(contents.some(xml => xml.includes("custGeom")), "Setas devem ser vetoriais no PowerPoint.");
   for (const format of ["pdf", "pptx"]) {
     let status, body;
     await handleRequest({ method: "GET", url: `/api/dashboard/bi-relatorios-kpi?format=${format}&month=2026-13`, headers: { host: "localhost" }, portalProfile: { environments: ["bi_relatorios_kpi"] } }, { writeHead(code) { status = code; }, end(value) { body = value; } });
