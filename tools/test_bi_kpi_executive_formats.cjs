@@ -37,7 +37,11 @@ const strings = pages => pages.flatMap(page => page.ops.filter(op => op.type ===
   assert.ok(checkinText.includes("Jul/2027"), "Mês presente apenas em 2025 deve aparecer no comparativo.");
   const large = { ...payload, byChannel: Array.from({ length: 21 }, (_, i) => ({ label: `Canal ${i}`, value: i * 100 })), futureCheckinMonths: Array.from({ length: 20 }, (_, i) => ({ label: `Mês ${i}`, value: i * 10, roomNights: i })), channelShare: { groups: Array.from({ length: 9 }, (_, i) => `Grupo ${i}`), byHotel: [{ label: "Hotel", total: 1000, values: {} }] } };
   const largeText = strings(buildExecutivePages(large));
-  assert.ok(largeText.includes("Canal 20")); assert.ok(largeText.includes("Demais")); assert.ok(largeText.includes("Mês 19")); assert.ok(largeText.includes("Grupo 8"));
+  assert.ok(largeText.includes("Canal 20")); assert.ok(largeText.includes("Demais")); assert.ok(largeText.includes("Mês 19")); assert.ok(!largeText.includes("Grupo 8"));
+  const rankedShare = buildExecutivePages({ ...payload, channelShare: { groups: ["Pequeno", "Terceiro", "Maior", "Segundo", "Sexto", "Quarto", "Quinto"], totals: { values: { Pequeno: 1, Terceiro: 50, Maior: 100, Segundo: 80, Sexto: 10, Quarto: 30, Quinto: 20 } }, byHotel: [] } }).filter(page => page.title.includes("Participação"));
+  assert.equal(rankedShare.length, 1, "Share deve ocupar um único slide/página.");
+  const rankedHeaders = strings(rankedShare).filter(text => ["Pequeno", "Terceiro", "Maior", "Segundo", "Sexto", "Quarto", "Quinto"].includes(text));
+  assert.deepEqual(rankedHeaders, ["Maior", "Segundo", "Terceiro", "Quarto", "Quinto", "Sexto"]);
   const sharePages = buildExecutivePages({ ...payload, channelShare: { groups: ["AZUL", "SUEDS", "CVC", "CONSULTOUR OPERADORA TURISTICA LTDA"], byHotel: [] } }).filter(page => page.title.includes("Participação"));
   assert.ok(strings(sharePages).includes("AZUL"));
   assert.ok(strings(sharePages).includes("CONSULTOUR OPERADORA TURISTICA LTDA"));
