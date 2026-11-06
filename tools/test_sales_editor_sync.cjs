@@ -97,4 +97,35 @@ const routing=require('../lib/sales-routing');
 const groupRecord={reservationCode:'G1',hotel:'SUEDS PLAZA',monthKey:'2026-10',channel:'GRUPOS',seller:'Aline Nunes',source:'DESKHOTEL'};
 assert.deepEqual(routing.dashboardSources([groupRecord],[]).records,[groupRecord]);
 assert.deepEqual(routing.dashboardSources([groupRecord],[]).otherChannelRecords,[]);
+// Invalid sales must not block valid inserts in either direction.
+const invalidDate=row('BAD-DATE');invalidDate.values[0]=value('30/10//2026');
+const invalidStatus=row('BAD-STATUS','SUEDS PLAZA',20,'Selecione');
+const mixed=plan([header,row('SOURCE-ONLY')],[header,invalidDate,invalidStatus,row('GOOD')],[header],20,20);
+assert.deepEqual(mixed.records.map(r=>r.codigo),['GOOD']);
+assert.equal(mixed.records[0].rowNumber,3); // Rejected rows do not consume destinations.
+assert.deepEqual(mixed.conflict.map(c=>c.code),['BAD-DATE','BAD-STATUS']);
+assert.ok(mixed.conflict.every(c=>c.message&&c.spreadsheetId&&c.row));
+assert.ok(mixed.mirrorRequests.some(r=>r.updateCells?.range?.startColumnIndex===0));
+assert.ok(!mixed.mirrorRequests.some(r=>r.updateCells?.range?.startRowIndex<3&&r.updateCells?.fields==='note'));
+verify(mixed);
+
+// A bad status update must also hold back that sale's otherwise valid amount
+// changes and baselines, without holding back another sale.
+const badUpdate=structuredClone(mirrorRow);badUpdate.values[17].userEnteredValue={stringValue:'Alterada'};badUpdate.values[17].formattedValue='Alterada';
+const partial=plan([header,sourceRow],[header,badUpdate,row('GOOD')],[header],20,20);
+assert.deepEqual(partial.records.map(r=>r.codigo),['GOOD']);
+assert.equal(partial.conflict[0].code,'R1');
+assert.ok(!partial.mirrorRequests.some(r=>r.updateCells?.range?.startRowIndex===1));
+verify(partial);
+const concurrent=plan([header,changedSource],[header,mirrorRow,row('GOOD')],[header],20,20);
+assert.deepEqual(concurrent.records.map(r=>r.codigo),['GOOD']);
+assert.ok(!concurrent.mirrorRequests.some(r=>r.updateCells?.range?.startRowIndex===1));
+verify(concurrent);
+
+// Rejected sales are retried normally after the user fixes them.
+const corrected=plan([header],[header,row('BAD-DATE'),row('BAD-STATUS')],[header],20,20);
+assert.equal(corrected.conflict.length,0);assert.equal(corrected.records.length,2);verify(corrected);
+const allInvalid=plan([header],[header,invalidDate,invalidStatus],[header],20,20);
+assert.equal(allInvalid.sourceRequests.length,0);assert.equal(allInvalid.mirrorRequests.length,0);
+assert.equal(allInvalid.conflict.length,2);verify(allInvalid);
 console.log('sales editor sync planner: ok');
