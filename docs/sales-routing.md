@@ -8,6 +8,8 @@ Preservar o marcador visível na evidência da captura. Se o XLSX omitir esse ma
 
 Manter deduplicação nas duas abas, validação obrigatória e histórico até agosto. Registros existentes não são movidos nem reclassificados automaticamente por esta mudança.
 
+No relatório de ingressos, exibir o nome em coluna `Afiliado`, separado do Vendedor. Preservar nas Observacoes (T) o marcador `Afiliado: nome` observado no DeskHotel, em linha própria, sem apagar outras observações. `normalizeDeskhotel` acrescenta esse marcador às novas capturas. Não inferir nomes pelo hóspede. Para completar o nome em uma venda existente, usar `affiliate-name-update`, leitura atual das duas abas, origem e evidência verificadas, e request limitado a T; validar antes de gravar. Sem nome preservado, o relatório indica `Não informado`.
+
 ## Exclusões persistentes — 16/10/2026
 
 Nas duas planilhas, Z contém a ação `Excluir lançamento`, AC guarda o ID permanente protegido no espelho e AD mostra `Ativo`, `Exclusão pendente` ou `Excluído`. Não apagar linhas fisicamente. AA e AB continuam reservadas às funções existentes de ordenação.

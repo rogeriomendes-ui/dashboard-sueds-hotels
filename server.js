@@ -1961,6 +1961,11 @@ function normalizeRecord(item) {
   const roomType = String(item["Tipo de Apto"] || item["Tipo Apto"] || item["Acomodacao"] || item["Acomodação"] || "").trim();
   const rawChannel = String(item["Canal"] || "").trim();
   const channel = String(item["Canal Detalhado"] || rawChannel).trim();
+  const routing = require("./lib/sales-routing");
+  const affiliate = routing.isAffiliate(rawChannel || channel)
+    ? String(item["Afiliado"] || routing.deskhotelAffiliate(item["Origem"])?.name
+      || routing.deskhotelAffiliate(notes.split(/\r?\n/).find(line => /^\s*afiliado\s*:/i.test(line)))?.name || "").trim()
+    : "";
   const seller = isBookingEngineChannel(channel) || require('./lib/sales-routing').isAffiliate(rawChannel || channel)
     ? ""
     : normalizeSellerName(item["Vendedor"] || "");
@@ -1973,6 +1978,7 @@ function normalizeRecord(item) {
     hotel: normalizeHotelName(item["Hotel Normalizado"] || item["Hotel"] || ""),
     channel,
     rawChannel,
+    affiliate,
     seller,
     customer: String(item["Cliente"] || "").trim(),
     checkin,
@@ -3357,6 +3363,7 @@ function buildMetrics(records, goals, period = {}) {
     detailedTickets: ticketRecords.map((record) => ({
       ...salesDetailRow(record, channelLabelForRecord),
       canal: require("./lib/sales-routing").isAffiliate(record.rawChannel || record.channel) ? "AFILIADO" : channelLabelForRecord(record),
+      afiliado: record.affiliate || (require("./lib/sales-routing").isAffiliate(record.rawChannel || record.channel) ? "Não informado" : ""),
       hotel: eventTicketProduct(record),
       quantidade: ticketQuantity(record)
     })),
@@ -4845,20 +4852,20 @@ async function buildTicketWorkbook(metrics) {
     { key: "aReceber", width: 18 }, { key: "canal", width: 24 }, { key: "formaPagamento", width: 24 },
     { key: "parcelas", width: 12 }, { key: "status", width: 16 }, { key: "observacoes", width: 45 },
     { key: "telefone", width: 20 }, { key: "email", width: 32 }, { key: "mesa", width: 14 },
-    { key: "dificuldadeMobilidade", width: 28 }
+    { key: "dificuldadeMobilidade", width: 28 }, { key: "afiliado", width: 26 }
   ];
   const periodLabel = metrics.period.ticketScope === "all"
     ? `Acumulado até ${metrics.period.today.split("-").reverse().join("/")}`
     : metrics.period.month;
-  addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${periodLabel} • Vendas confirmadas • Valores separados da hospedagem`, "R");
-  sheet.getRow(4).values = ["Data Venda", "Código Reserva", "Ingresso / evento", "Vendedor", "Cliente", "Quantidade", "Valor Total", "Recebido", "A Receber", "Canal", "Forma Pagto", "Parcelas", "Status", "Observações", "Telefone", "Email", "MESA", "DIFICULDADE MOBILIDADE?"];
+  addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${periodLabel} • Vendas confirmadas • Valores separados da hospedagem`, "S");
+  sheet.getRow(4).values = ["Data Venda", "Código Reserva", "Ingresso / evento", "Vendedor", "Cliente", "Quantidade", "Valor Total", "Recebido", "A Receber", "Canal", "Forma Pagto", "Parcelas", "Status", "Observações", "Telefone", "Email", "MESA", "DIFICULDADE MOBILIDADE?", "Afiliado"];
   styleExcelHeader(sheet.getRow(4));
   const sales = metrics.detailedTickets || [];
   sales.forEach((sale) => {
     const row = sheet.addRow({ ...sale, dataVenda: excelDateFromKey(sale.dataVenda) });
     row.height = 24;
   });
-  sheet.autoFilter = `A4:R${Math.max(4, 4 + sales.length)}`;
+  sheet.autoFilter = `A4:S${Math.max(4, 4 + sales.length)}`;
   sheet.getColumn(1).numFmt = "dd/mm/yyyy";
   sheet.getColumn(6).numFmt = "#,##0";
   [7, 8, 9].forEach((column) => { sheet.getColumn(column).numFmt = '"R$" #,##0.00'; });

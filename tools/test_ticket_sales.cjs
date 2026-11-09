@@ -64,6 +64,7 @@ const sale = (hotel, total, extra = {}) => normalizeRecord({
   const affiliate = sale('SUEDS EXPERIENCIAS', 1425, {
     'Data Venda': '2026-11-09', 'Codigo Reserva': 'CR29070366218',
     Canal: 'AFILIADO', Vendedor: '', Fonte: 'DESKHOTEL', Adult: '3', Crian: '0',
+    Observacoes: 'Observação preservada\nAfiliado: Renato',
     'Tipo de Apto': 'Réveillon 2026 - Pista - Beach Club Sueds (1º Lote)'
   });
   const sources = routing.dashboardSources([
@@ -91,6 +92,12 @@ const sale = (hotel, total, extra = {}) => normalizeRecord({
   assert.match(sheet.getCell('A2').value, /Acumulado até 09\/11\/2026/);
   const affiliateRow = sheet.getRows(5, 3).find(row => row.getCell(2).value === affiliate.reservationCode);
   assert.equal(affiliateRow.getCell(10).value, 'AFILIADO');
+  assert.equal(sheet.getCell('S4').value, 'Afiliado');
+  assert.equal(affiliateRow.getCell(19).value, 'Renato');
+  assert.equal(normalizeRecord({Canal:'AFILIADO',Vendedor:'Nome errado',Cliente:'Hóspede'}).affiliate, '');
+  assert.equal(normalizeRecord({Canal:'AFILIADO',Origem:'Depto_Reservas - Loja online / Afiliado: Outro nome'}).affiliate, 'Outro nome');
+  assert.equal(normalizeRecord({Canal:'SITE',Observacoes:'Afiliado: Não atribuir'}).affiliate, '');
+  assert.equal(normalizeRecord({Canal:'AFILIADO',Afiliado:'Nome explícito'}).affiliate, 'Nome explícito');
   assert.equal(affiliateRow.getCell(6).value, 3);
   assert.equal(sheet.getCell('F8').value, 8);
   assert.equal(sheet.getCell('G8').value, 2925);
