@@ -9607,6 +9607,27 @@ async function loadBiKpiReportsDataset() {
   }
 }
 
+async function loadTicketMetrics(period) {
+  if (!SHEET_ID || !getServiceAccount()) {
+    return buildMetrics(demoDataset().records, [], period);
+  }
+  // DeskHotel stores the event product in U, including affiliate sales.
+  // Read only the two sales tabs, with the same contact fields as the export.
+  const ticketRange = (range) => `${range.split("!")[0]}!A:Y`;
+  const [sellerRows, channelRows] = await Promise.all([
+    getFirstAvailableSheetValues([ticketRange(SALES_RANGE), ticketRange(BASE_RANGE)]),
+    getSheetValues(ticketRange(OTHER_CHANNELS_RANGE)).catch((error) => {
+      if (isMissingSheetError(error)) return [];
+      throw error;
+    })
+  ]);
+  const { records } = require("./lib/sales-routing").dashboardSources(
+    rowsToObjects(sellerRows).map(normalizeRecord),
+    rowsToObjects(channelRows).map(normalizeRecord)
+  );
+  return buildMetrics(records, [], period);
+}
+
 async function loadMetrics(period) {
   const [dataset, analytics, asksuiteMarketRows, kpiDataset] = await Promise.all([
     loadDataset(),
@@ -10013,8 +10034,7 @@ async function handleRequest(req, res) {
         const period = periodFromUrl(url);
         let metrics;
         if (ticketsOnly) {
-          const dataset = await loadDataset();
-          metrics = buildMetrics(dataset.records, dataset.goals, {
+          metrics = await loadTicketMetrics({
             ...period,
             ticketScope: url.searchParams.get("ticketScope") === "all" ? "all" : "month"
           });
