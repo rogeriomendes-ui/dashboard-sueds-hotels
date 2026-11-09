@@ -3891,8 +3891,8 @@ function biReportsDefaultKpiPeriod(now = new Date()) {
 
 function biReportsDateRange(query = {}, defaultPeriod = null) {
   const fallback = defaultPeriod || { start: "2026-09-01", end: "2026-09-18" };
-  const start = /^202[67]-\d{2}-\d{2}$/.test(query.start || "") ? query.start : fallback.start;
-  const end = /^202[67]-\d{2}-\d{2}$/.test(query.end || "") ? query.end : fallback.end;
+  const start = /^202[567]-\d{2}-\d{2}$/.test(query.start || "") ? query.start : fallback.start;
+  const end = /^202[567]-\d{2}-\d{2}$/.test(query.end || "") ? query.end : fallback.end;
   return start <= end ? { start, end } : fallback;
 }
 
@@ -4002,8 +4002,14 @@ function biReportsReservationCount(sourceRows = []) {
 
 function buildBiReportsPayload(dataset = {}, query = {}) {
   const period = biReportsDateRange(query, dataset.audience === "bi-relatorios-kpi" ? biReportsDefaultKpiPeriod() : null);
+  const isKpi = dataset.audience === "bi-relatorios-kpi";
+  const reportYear = Number(period.start.slice(0, 4));
+  if (isKpi && period.start < "2026-01-01") dataset = { ...dataset,
+    records: [...(dataset.records || []), ...(dataset.historicalRecords || [])],
+    maintenanceBlocks: [...(dataset.maintenanceBlocks || []), ...(dataset.historicalMaintenanceBlocks || [])]
+  };
   const identity = (record, index, origin) => record.reservationCode
-    ? `${comparableKey(record.reservationCode)}|${comparableKey(record.hotel)}`
+    ? `${isKpi ? record.dateKey?.slice(0, 4) : ""}|${comparableKey(record.reservationCode)}|${comparableKey(record.hotel)}`
     : `${origin}|${index}`;
   const combined = [];
   const seen = new Set();
@@ -4017,14 +4023,14 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     combined.push(record);
   }));
 
-  const counted2026 = combined.filter((record) => (
-    record.dateKey?.startsWith("2026-") && isCountedSaleStatus(record)
+  const countedSales = combined.filter((record) => (
+    (isKpi || record.dateKey?.startsWith("2026-")) && isCountedSaleStatus(record)
   ));
-  const cancelled2026 = combined.filter((record) => (
-    record.dateKey?.startsWith("2026-") && comparableKey(record.status) === "cancelada"
+  const cancelledSales = combined.filter((record) => (
+    (isKpi || record.dateKey?.startsWith("2026-")) && comparableKey(record.status) === "cancelada"
   ));
-  const periodRows = counted2026.filter((record) => record.dateKey >= period.start && record.dateKey <= period.end);
-  const periodCancelledRows = cancelled2026.filter((record) => record.dateKey >= period.start && record.dateKey <= period.end);
+  const periodRows = countedSales.filter((record) => record.dateKey >= period.start && record.dateKey <= period.end);
+  const periodCancelledRows = cancelledSales.filter((record) => record.dateKey >= period.start && record.dateKey <= period.end);
   const previousPeriod = {
     start: shiftDateYear(period.start, -1),
     end: shiftDateYear(period.end, -1)
@@ -4196,10 +4202,10 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     };
   });
   const monthlyGoalTables = [
-    { key: "sales", title: "Meta de Vendas", actualLabel: "Venda 2026", previousLabel: "Venda 2025", rows: withGoalsAndPrevious("sales", monthlySeries(rows), historicalRows) },
-    { key: "rds", title: "META RDS Hospedagem", actualLabel: "RDS 2026", previousLabel: "RDS 2025", rows: withGoalsAndPrevious("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)), historicalRdsRows, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)) },
-    { key: "direct", title: "Meta Venda Direta", actualLabel: "Venda 2026", previousLabel: "Venda 2025", rows: withGoalsAndPrevious("direct", monthlySeries(directRows), historicalDirectRows) },
-    { key: "site", title: "Meta do Site", actualLabel: "Venda 2026", previousLabel: "Venda 2025", rows: withGoalsAndPrevious("site", monthlySeries(siteRows), historicalSiteRows) }
+    { key: "sales", title: "Meta de Vendas", actualLabel: `Venda ${reportYear}`, previousLabel: `Venda ${reportYear - 1}`, rows: withGoalsAndPrevious("sales", monthlySeries(rows), historicalRows) },
+    { key: "rds", title: "META RDS Hospedagem", actualLabel: `RDS ${reportYear}`, previousLabel: `RDS ${reportYear - 1}`, rows: withGoalsAndPrevious("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)), historicalRdsRows, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)) },
+    { key: "direct", title: "Meta Venda Direta", actualLabel: `Venda ${reportYear}`, previousLabel: `Venda ${reportYear - 1}`, rows: withGoalsAndPrevious("direct", monthlySeries(directRows), historicalDirectRows) },
+    { key: "site", title: "Meta do Site", actualLabel: `Venda ${reportYear}`, previousLabel: `Venda ${reportYear - 1}`, rows: withGoalsAndPrevious("site", monthlySeries(siteRows), historicalSiteRows) }
   ];
   const checkinLabel = (value) => {
     if (!/^\d{4}-\d{2}$/.test(value)) return "Não informado";
@@ -4498,7 +4504,9 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   const hasHistoricalDirectSales = historicalRecords.some((record) => (
     comparableKey(record.source) === comparableKey("DESKHOTEL") || String(record.seller || "").trim()
   ));
-  const historicalCoverage = dataset.comparisonCoverage || `Base histórica de 2025 atualizada: ${formattedHistoricalSources}.${hasHistoricalDirectSales
+  const historicalCoverage = isKpi && reportYear === 2025
+    ? "Vendas de 2025 disponíveis na base KPI. A base de 2024 não está disponível para comparação anual."
+    : dataset.comparisonCoverage || `Base histórica de 2025 atualizada: ${formattedHistoricalSources}.${hasHistoricalDirectSales
     ? " As vendas diretas presentes na planilha também estão incluídas."
     : " Vendas diretas da equipe e do DeskHotel ainda não constam nesta base."}`;
 
@@ -4512,7 +4520,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
     } : null,
     comparison: {
       available: historicalPeriodRows.length > 0,
-      year: 2025,
+      year: reportYear - 1,
       period: previousPeriod,
       coverage: historicalCoverage,
       sources: historicalSources,
@@ -4656,7 +4664,7 @@ function biKpiStayPeriod(query = {}) {
   return { start: query.stayStart, end: query.stayEnd };
 }
 
-function filterBiKpiSourceRows(sourceRows = [], query = {}) {
+function filterBiKpiSourceRows(sourceRows = [], query = {}, sourceYear = Number(biReportsDateRange(query, biReportsDefaultKpiPeriod()).start.slice(0, 4))) {
   const byStay = query.dateBasis === "stay";
   const stayPeriod = byStay ? biKpiStayPeriod(query) : null;
   if (sourceRows[0]?.[24] === "KPI Atual v1") {
@@ -4686,7 +4694,7 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
     if (!sourceByReservation.has(key)) sourceByReservation.set(key, []);
     sourceByReservation.get(key).push(row);
   });
-  return normalizeKpiReportObjects(rowsToObjectsAny(sourceRows), 2026,
+  return normalizeKpiReportObjects(rowsToObjectsAny(sourceRows), sourceYear,
     byStay ? { preserveDates: true, includeUndatedSales: true, includeZeroValueStays: true } : {}).filter((record) => (
     (byStay
       ? kpiDateKey(record.checkin) && kpiDateKey(record.checkout)
@@ -4718,10 +4726,10 @@ function filterBiKpiSourceRows(sourceRows = [], query = {}) {
   });
 }
 
-async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
+async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}, sourceGroups = null) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "SUEDS Hotels";
-  const sheet = workbook.addWorksheet(query.dateBasis === "stay" ? "Reservas por hospedagem" : "Base KPI 2026", { views: [{ state: "frozen", ySplit: 1 }] });
+  const sheet = workbook.addWorksheet(query.dateBasis === "stay" ? "Reservas por hospedagem" : `Base KPI ${biReportsDateRange(query, biReportsDefaultKpiPeriod()).start.slice(0, 4)}`, { views: [{ state: "frozen", ySplit: 1 }] });
   const headers = Array.from({ length: 24 }, (_, index) => String(sourceRows[0]?.[index] || `Coluna ${index + 1}`));
   headers[23] = "Venda (KPI)";
   headers.push("Total bruto (planilha)");
@@ -4730,7 +4738,9 @@ async function buildBiKpiSourceWorkbook(sourceRows = [], query = {}) {
   ).filter((index) => index >= 0));
   sheet.addRow(headers);
   styleExcelHeader(sheet.getRow(1));
-  const rows = filterBiKpiSourceRows(sourceRows, query);
+  const rows = sourceGroups
+    ? sourceGroups.flatMap(({ rows, year }) => filterBiKpiSourceRows(rows, query, year))
+    : filterBiKpiSourceRows(sourceRows, query);
   rows.forEach((source) => {
     const values = headers.map((_, index) => {
       const value = source[index] ?? "";
@@ -9968,9 +9978,12 @@ async function handleRequest(req, res) {
         if (url.searchParams.get("format") !== "xlsx") return json(res, 400, { error: "A extração por hospedagem está disponível em Excel." });
       }
       if (url.searchParams.get("format") === "xlsx") {
-        const sourceRows = await getSheetValues(BI_KPI_2026_RANGE.replace(/:X(\d*)$/i, ":Y$1"));
-        const workbook = await buildBiKpiSourceWorkbook(sourceRows, query);
         const period = query.dateBasis === "stay" ? biKpiStayPeriod(query) : biReportsDateRange(query, biReportsDefaultKpiPeriod());
+        const ranges = [];
+        if (query.dateBasis !== "stay" && period.start < "2026-01-01") ranges.push({ range: BI_KPI_2025_RANGE, year: 2025 });
+        if (query.dateBasis === "stay" || period.end >= "2026-01-01") ranges.push({ range: BI_KPI_2026_RANGE.replace(/:X(\d*)$/i, ":Y$1"), year: 2026 });
+        const sources = await Promise.all(ranges.map(async ({ range, year }) => ({ year, rows: await getSheetValues(range) })));
+        const workbook = await buildBiKpiSourceWorkbook(sources[0]?.rows || [], query, sources);
         res.writeHead(200, {
           "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "content-disposition": `attachment; filename="${query.dateBasis === "stay" ? "reservas-hospedagem" : "base-kpi"}-${period.start}-a-${period.end}.xlsx"`,

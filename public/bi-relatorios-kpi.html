@@ -21,8 +21,8 @@
       </header>
 
       <form class="filters" id="filterForm" aria-label="Filtros do relatório">
-        <label><span>Venda inicial</span><input type="date" id="startDate" name="start" min="2026-01-01" max="2026-12-31" value=""></label>
-        <label><span>Venda final</span><input type="date" id="endDate" name="end" min="2026-01-01" max="2026-12-31" value=""></label>
+        <label><span>Venda inicial</span><input type="date" id="startDate" name="start" min="2025-01-01" max="2026-12-31" value=""></label>
+        <label><span>Venda final</span><input type="date" id="endDate" name="end" min="2025-01-01" max="2026-12-31" value=""></label>
         <label><span>Hotel</span><select id="hotelFilter" name="hotel"><option value="">Todos os hotéis</option></select></label>
         <div class="channel-filter"><span class="filter-label">Canal</span><details class="channel-picker" id="channelFilter"><summary id="channelSummary">Todos os canais</summary><div class="channel-picker-menu"><button type="button" class="channel-clear" id="clearChannels">Todos os canais</button><div id="channelOptions" class="channel-options"></div></div></details></div>
         <label><span>Mês do check-in</span><select id="checkinFilter" name="checkinMonth"><option value="">Todos os meses</option></select></label>
@@ -55,8 +55,8 @@
       <div class="notice notice-warning" id="dataCoverageNotice" role="alert" hidden></div>
 
       <aside class="pending-note" id="comparisonNote">
-        <span class="pending-icon" aria-hidden="true">2025</span>
-        <div><strong id="comparisonTitle">Comparativo 2025 × 2026</strong><p id="comparisonReason">Carregando a cobertura histórica disponível…</p></div>
+        <span class="pending-icon" aria-hidden="true"><span data-report-year="previous">2025</span></span>
+        <div><strong id="comparisonTitle">Comparativo <span data-report-year="previous">2025</span> × <span data-report-year="current">2026</span></strong><p id="comparisonReason">Carregando a cobertura histórica disponível…</p></div>
       </aside>
 
       <div class="notice notice-error" id="errorNotice" role="alert" hidden></div>
@@ -65,33 +65,33 @@
       <section id="dashboardContent" hidden>
         <div class="top-metrics">
           <div class="summary-grid" aria-label="Resumo do período">
-            <article class="summary-card summary-primary"><span>Vendido no período</span><small class="summary-period" id="periodCaption">—</small><div class="summary-current"><strong id="totalSales">R$ 0</strong><em id="salesGrowth" class="flat">—</em></div><div class="summary-prior" id="previousPeriodSummary"><span id="previousPeriodLabel">Mesmo período em 2025</span><b id="previousPeriodSales">R$ 0</b></div></article>
-            <article class="summary-card"><span>Reservas</span><div class="summary-current"><strong id="totalReservations">0</strong><b id="reservationsGrowth">—</b></div><div class="summary-compare" id="reservationsComparison"><small id="reservationsPrevious">2025: 0</small></div><small>reservas consideradas</small></article>
-            <article class="summary-card"><span>Ticket médio</span><div class="summary-current"><strong id="averageTicket">R$ 0</strong><b id="ticketGrowth">—</b></div><div class="summary-compare" id="ticketComparison"><small id="ticketPrevious">2025: R$ 0</small></div><small>valor médio por reserva</small></article>
+            <article class="summary-card summary-primary"><span>Vendido no período</span><small class="summary-period" id="periodCaption">—</small><div class="summary-current"><strong id="totalSales">R$ 0</strong><em id="salesGrowth" class="flat">—</em></div><div class="summary-prior" id="previousPeriodSummary"><span id="previousPeriodLabel">Mesmo período em <span data-report-year="previous">2025</span></span><b id="previousPeriodSales">R$ 0</b></div></article>
+            <article class="summary-card"><span>Reservas</span><div class="summary-current"><strong id="totalReservations">0</strong><b id="reservationsGrowth">—</b></div><div class="summary-compare" id="reservationsComparison"><small id="reservationsPrevious"><span data-report-year="previous">2025</span>: 0</small></div><small>reservas consideradas</small></article>
+            <article class="summary-card"><span>Ticket médio</span><div class="summary-current"><strong id="averageTicket">R$ 0</strong><b id="ticketGrowth">—</b></div><div class="summary-compare" id="ticketComparison"><small id="ticketPrevious"><span data-report-year="previous">2025</span>: R$ 0</small></div><small>valor médio por reserva</small></article>
             <article class="summary-card"><span>Hotéis com vendas</span><strong id="activeHotels">0</strong><small>no recorte selecionado</small></article>
           </div>
 
           <div class="performance-grid" aria-label="Indicadores de hospedagem">
-            <article class="performance-card"><span>ADR · Diária média</span><div class="performance-current"><strong id="topAdr">R$ 0</strong><b id="topAdrGrowth">—</b></div><div class="performance-compare"><small id="topAdrPrevious">2025: R$ 0</small></div></article>
-            <article class="performance-card"><span>Taxa de ocupação</span><div class="performance-current"><strong id="topOccupancy">0%</strong><b id="topOccupancyGrowth">—</b></div><div class="performance-compare"><small id="topOccupancyPrevious">2025: 0%</small></div></article>
-            <article class="performance-card"><span>RevPAR</span><div class="performance-current"><strong id="topRevpar">R$ 0</strong><b id="topRevparGrowth">—</b></div><div class="performance-compare"><small id="topRevparPrevious">2025: R$ 0</small></div></article>
+            <article class="performance-card"><span>ADR · Diária média</span><div class="performance-current"><strong id="topAdr">R$ 0</strong><b id="topAdrGrowth">—</b></div><div class="performance-compare"><small id="topAdrPrevious"><span data-report-year="previous">2025</span>: R$ 0</small></div></article>
+            <article class="performance-card"><span>Taxa de ocupação</span><div class="performance-current"><strong id="topOccupancy">0%</strong><b id="topOccupancyGrowth">—</b></div><div class="performance-compare"><small id="topOccupancyPrevious"><span data-report-year="previous">2025</span>: 0%</small></div></article>
+            <article class="performance-card"><span>RevPAR</span><div class="performance-current"><strong id="topRevpar">R$ 0</strong><b id="topRevparGrowth">—</b></div><div class="performance-compare"><small id="topRevparPrevious"><span data-report-year="previous">2025</span>: R$ 0</small></div></article>
           </div>
         </div>
 
         <section class="chart-card chart-wide">
-          <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada de vendas</h2></div><div class="legend-group"><span class="legend legend-2025"><i></i> 2025 <b id="comparisonTotal">—</b></span><span class="legend"><i></i> 2026</span></div></div>
+          <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada de vendas</h2></div><div class="legend-group"><span class="legend legend-2025"><i></i> <span data-report-year="previous">2025</span> <b id="comparisonTotal">—</b></span><span class="legend"><i></i> <span data-report-year="current">2026</span></span></div></div>
           <div class="chart chart-line" id="dailyChart"></div>
         </section>
 
         <div class="chart-grid">
-          <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Vendas por canal</h2></div><div class="heading-tools"><span class="card-help">Valor · share do total</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div><div class="chart chart-bars" id="channelChart"></div></section>
-          <section class="chart-card" hidden><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Cancelamentos por canal</h2></div><div class="heading-tools"><span class="card-help">R$ cancelados · % sobre vendas do canal</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div><div class="chart chart-bars" id="cancellationChannelChart"></div></section>
+          <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Vendas por canal</h2></div><div class="heading-tools"><span class="card-help">Valor · share do total</span><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div></div><div class="chart chart-bars" id="channelChart"></div></section>
+          <section class="chart-card" hidden><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Cancelamentos por canal</h2></div><div class="heading-tools"><span class="card-help">R$ cancelados · % sobre vendas do canal</span><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div></div><div class="chart chart-bars" id="cancellationChannelChart"></div></section>
         </div>
 
-        <section class="chart-card chart-wide"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>Vendas por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="hotelChart"></div></section>
+        <section class="chart-card chart-wide"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>Vendas por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div><div class="chart chart-bars" id="hotelChart"></div></section>
 
         <section class="chart-card chart-wide">
-          <div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>Vendas por mês do check-in</h2></div><div class="heading-tools"><span class="card-help">Percentual do total vendido no período</span><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+          <div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>Vendas por mês do check-in</h2></div><div class="heading-tools"><span class="card-help">Percentual do total vendido no período</span><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div></div>
           <div class="chart chart-columns" id="checkinChart"></div>
         </section>
 
@@ -101,50 +101,50 @@
         </section>
 
         <section class="pickup-section">
-          <div class="section-heading"><div><p class="card-kicker">Ritmo de venda</p><h2>Curvas por mês do check-in</h2></div><div class="heading-tools"><p>Como cada mês de hospedagem foi ganhando receita ao longo do período.</p><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+          <div class="section-heading"><div><p class="card-kicker">Ritmo de venda</p><h2>Curvas por mês do check-in</h2></div><div class="heading-tools"><p>Como cada mês de hospedagem foi ganhando receita ao longo do período.</p><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div></div>
           <div class="pickup-grid" id="pickupGrid"></div>
         </section>
 
         <section class="rate-section" aria-labelledby="averageRateTitle">
-          <div class="section-heading"><div><p class="card-kicker">Rentabilidade da hospedagem</p><h2 id="averageRateTitle">Diária média</h2></div><div class="heading-tools"><p>Receita das reservas com hospedagem válida dividida pelas UHs-noite.</p><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+          <div class="section-heading"><div><p class="card-kicker">Rentabilidade da hospedagem</p><h2 id="averageRateTitle">Diária média</h2></div><div class="heading-tools"><p>Receita das reservas com hospedagem válida dividida pelas UHs-noite.</p><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div></div>
 
           <div class="rate-summary-grid" aria-label="Resumo da diária média">
-            <article class="rate-summary-card rate-2025"><span>Diária média 2025</span><strong id="averageRate2025">R$ 0</strong><small id="roomNights2025">0 UHs-noite</small></article>
-            <article class="rate-summary-card rate-2026"><span>Diária média 2026</span><strong id="averageRate2026">R$ 0</strong><small id="roomNights2026">0 UHs-noite</small></article>
+            <article class="rate-summary-card rate-2025"><span>Diária média <span data-report-year="previous">2025</span></span><strong id="averageRate2025">R$ 0</strong><small id="roomNights2025">0 UHs-noite</small></article>
+            <article class="rate-summary-card rate-2026"><span>Diária média <span data-report-year="current">2026</span></span><strong id="averageRate2026">R$ 0</strong><small id="roomNights2026">0 UHs-noite</small></article>
           </div>
 
           <section class="chart-card chart-wide">
-            <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada da diária média</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div>
+            <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada da diária média</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div>
             <div class="chart chart-line" id="averageRateDailyChart"></div>
           </section>
 
           <div class="chart-grid">
-            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Diária média por canal</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="averageRateChannelChart"></div></section>
-            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>Diária média por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="averageRateHotelChart"></div></section>
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Origem</p><h2>Diária média por canal</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div><div class="chart chart-bars" id="averageRateChannelChart"></div></section>
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>Diária média por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div><div class="chart chart-bars" id="averageRateHotelChart"></div></section>
           </div>
 
           <section class="chart-card chart-wide">
-            <div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>Diária média por mês do check-in</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div>
+            <div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>Diária média por mês do check-in</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div>
             <div class="chart chart-columns" id="averageRateCheckinChart"></div>
           </section>
         </section>
 
         <section class="rate-section revpar-section" aria-labelledby="revparTitle">
-          <div class="section-heading"><div><p class="card-kicker">Receita por disponibilidade</p><h2 id="revparTitle">RevPAR gerado pelas vendas</h2></div><div class="heading-tools"><p>Receita do recorte dividida pelos apartamentos disponíveis nos respectivos meses de hospedagem.</p><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div></div>
+          <div class="section-heading"><div><p class="card-kicker">Receita por disponibilidade</p><h2 id="revparTitle">RevPAR gerado pelas vendas</h2></div><div class="heading-tools"><p>Receita do recorte dividida pelos apartamentos disponíveis nos respectivos meses de hospedagem.</p><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div></div>
 
           <div class="rate-summary-grid" aria-label="Resumo do RevPAR">
-            <article class="rate-summary-card rate-2025"><span>RevPAR gerado em 2025</span><strong id="revpar2025">R$ 0</strong><small id="availableRoomNights2025">0 aptos-noite disponíveis</small></article>
-            <article class="rate-summary-card rate-2026"><span>RevPAR gerado em 2026</span><strong id="revpar2026">R$ 0</strong><small id="availableRoomNights2026">0 aptos-noite disponíveis</small></article>
+            <article class="rate-summary-card rate-2025"><span>RevPAR gerado em <span data-report-year="previous">2025</span></span><strong id="revpar2025">R$ 0</strong><small id="availableRoomNights2025">0 aptos-noite disponíveis</small></article>
+            <article class="rate-summary-card rate-2026"><span>RevPAR gerado em <span data-report-year="current">2026</span></span><strong id="revpar2026">R$ 0</strong><small id="availableRoomNights2026">0 aptos-noite disponíveis</small></article>
           </div>
 
           <section class="chart-card chart-wide">
-            <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada de geração de RevPAR</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div>
+            <div class="card-heading"><div><p class="card-kicker">Evolução</p><h2>Curva acumulada de geração de RevPAR</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div>
             <div class="chart chart-line" id="revparDailyChart"></div>
           </section>
 
           <div class="chart-grid revpar-grid">
-            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>RevPAR por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-bars" id="revparHotelChart"></div></section>
-            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>RevPAR por mês do check-in</h2></div><div class="compare-key"><span class="year-2025"><i></i>2025</span><span class="year-2026"><i></i>2026</span></div></div><div class="chart chart-columns" id="revparCheckinChart"></div></section>
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Unidades</p><h2>RevPAR por hotel</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div><div class="chart chart-bars" id="revparHotelChart"></div></section>
+            <section class="chart-card"><div class="card-heading"><div><p class="card-kicker">Produção futura</p><h2>RevPAR por mês do check-in</h2></div><div class="compare-key"><span class="year-2025"><i></i><span data-report-year="previous">2025</span></span><span class="year-2026"><i></i><span data-report-year="current">2026</span></span></div></div><div class="chart chart-columns" id="revparCheckinChart"></div></section>
           </div>
         </section>
 
@@ -169,7 +169,7 @@
         </section>
       </section>
     </main>
-    <script src="/bi-relatorios.js?v=20261030-stay-export"></script>
+    <script src="/bi-relatorios.js?v=20261109-kpi-2025"></script>
     <script src="/bi-kpi-executive.js?v=20261102-pdf-pptx"></script>
   </body>
 </html>

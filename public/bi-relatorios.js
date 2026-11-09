@@ -3,6 +3,8 @@
 
   const apiUrl = document.documentElement.dataset.biApi || "/api/dashboard/bi-relatorios";
   const isKpiReport = document.documentElement.dataset.requiredEnvironment === "bi_relatorios_kpi";
+  let reportYear = 2026;
+  let previousYear = 2025;
   const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
   const moneyCents = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
@@ -102,7 +104,7 @@
   function setPerformanceCard(valueEl, previousEl, growthEl, current, previous, formatter) {
     if (!valueEl) return;
     valueEl.textContent = formatter(current || 0);
-    previousEl.textContent = `2025: ${formatter(previous || 0)}`;
+    previousEl.textContent = `${previousYear}: ${formatter(previous || 0)}`;
     setGrowthBadge(growthEl, current, previous);
   }
 
@@ -268,13 +270,13 @@
       const growth = row.previous > 0 ? (row.current - row.previous) / row.previous * 100 : null;
       const growthDirection = growth === null ? (row.current > 0 ? "up" : "flat") : growth > .05 ? "up" : growth < -.05 ? "down" : "flat";
       const growthArrow = growthDirection === "up" ? "↑" : growthDirection === "down" ? "↓" : "→";
-      const growthText = growth === null ? `${growthArrow} novo em 2026` : `${growthArrow} ${wholePercent.format(Math.abs(growth))}%`;
+      const growthText = growth === null ? `${growthArrow} novo em ${reportYear}` : `${growthArrow} ${wholePercent.format(Math.abs(growth))}%`;
       const growthColor = growthDirection === "up" ? "#137a5a" : growthDirection === "down" ? "#c64b47" : "#607885";
       const valueFontSize = options.showCancelRate ? (w < 420 ? 8 : 9) : options.showGrowth ? (options.showShare ? 10.5 : 11.5) : (options.showShare ? 8.5 : 9);
       const growthMarkup = options.showGrowth
         ? `<text x="0" y="${y + 33}" fill="${growthColor}" font-size="11.5" font-weight="850">${safe(growthText)}</text>`
         : "";
-      return `<g><title>${safe(label)} — 2025: ${safe(previousText)}; 2026: ${safe(currentText)}${options.showCancelRate ? `; vendas 2025: ${safe(money.format(row.previousSales))}; vendas 2026: ${safe(money.format(row.currentSales))}` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
+      return `<g><title>${safe(label)} — ${previousYear}: ${safe(previousText)}; ${reportYear}: ${safe(currentText)}${options.showCancelRate ? `; vendas ${previousYear}: ${safe(money.format(row.previousSales))}; vendas ${reportYear}: ${safe(money.format(row.currentSales))}` : ""}${options.showGrowth ? `; variação: ${safe(growthText)}` : ""}</title>
         <text x="0" y="${y + (options.showGrowth ? 15 : 25)}" fill="#435d6d" font-size="10.5">${safe(clipped)}</text>
         <rect x="${barX}" y="${y + 5}" width="${usable}" height="12" rx="4" fill="#f4eee3"/>
         <rect x="${barX}" y="${y + 5}" width="${previousLength}" height="12" rx="4" fill="#d7b16b"/>
@@ -286,7 +288,7 @@
       </g>`;
     }).join("");
     target.style.height = `${h}px`;
-    target.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${safe(options.label || "Comparação de vendas de 2025 e 2026")}">${body}</svg>`;
+    target.innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${safe(options.label || `Comparação de vendas de ${previousYear} e ${reportYear}`)}">${body}</svg>`;
   }
 
   function renderColumns(target, rows, comparisonRows, options = {}) {
@@ -320,22 +322,22 @@
       const currentPeriodLabel = String(row.label || "");
       const previousPeriodLabel = /^\d{4}-\d{2}$/.test(String(row.key || ""))
         ? currentPeriodLabel.replace(/(20\d{2})$/, (year) => String(Number(year) - 1))
-        : "2025";
+        : String(previousYear);
       const shareMarkup = options.showShare
         ? `${row.previous ? `<text x="${previousX + barW / 2}" y="${Math.max(12, pad.t + ih - previousHeight - 6)}" text-anchor="middle" fill="#ac8440" font-size="8.5" font-weight="800">${safe(percent.format(previousShare))}%</text>` : ""}${row.current ? `<text x="${currentX + barW / 2}" y="${Math.max(12, pad.t + ih - currentHeight - 6)}" text-anchor="middle" fill="#20384a" font-size="8.5" font-weight="800">${safe(percent.format(currentShare))}%</text>` : ""}`
         : "";
       markup += `<g><title>${safe(previousPeriodLabel)}: ${safe(money.format(row.previous))}${options.showShare ? ` (${safe(percent.format(previousShare))}%)` : ""}; ${safe(currentPeriodLabel)}: ${safe(money.format(row.current))}${options.showShare ? ` (${safe(percent.format(currentShare))}%)` : ""}</title><rect x="${previousX}" y="${pad.t + ih - previousHeight}" width="${barW}" height="${row.previous ? Math.max(2, previousHeight) : 0}" rx="4" fill="#d7b16b"/><rect x="${currentX}" y="${pad.t + ih - currentHeight}" width="${barW}" height="${row.current ? Math.max(2, currentHeight) : 0}" rx="4" fill="#315269"/>${shareMarkup}<text x="${groupX}" y="${h - 16}" text-anchor="middle" fill="#617681" font-size="9">${safe(label)}</text></g>`;
     });
     target.style.overflowX = w > availableWidth ? "auto" : "hidden";
-    target.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:${w}px;min-width:${w}px" role="img" aria-label="${safe(options.label || "Comparação de vendas por mês do check-in em 2025 e 2026")}">${markup}</svg>`;
+    target.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:${w}px;min-width:${w}px" role="img" aria-label="${safe(options.label || `Comparação de vendas por mês do check-in em ${previousYear} e ${reportYear}`)}">${markup}</svg>`;
   }
 
   function renderPickup(rows) {
     if (!rows.length) { els.pickup.innerHTML = '<div class="empty-chart">Nenhuma curva de check-in neste recorte.</div>'; return; }
-    els.pickup.innerHTML = rows.map((row, index) => `<article class="pickup-card"><header><h3>${safe(row.label)}</h3><span class="pickup-values"><em class="value-2025">25 ${safe(shortMoney.format(row.comparisonValue || 0))}</em><em class="value-2026">26 ${safe(shortMoney.format(row.value || 0))}</em></span></header><div class="pickup-chart" id="pickup-${index}"></div></article>`).join("");
+    els.pickup.innerHTML = rows.map((row, index) => `<article class="pickup-card"><header><h3>${safe(row.label)}</h3><span class="pickup-values"><em class="value-2025">${String(previousYear).slice(-2)} ${safe(shortMoney.format(row.comparisonValue || 0))}</em><em class="value-2026">${String(reportYear).slice(-2)} ${safe(shortMoney.format(row.value || 0))}</em></span></header><div class="pickup-chart" id="pickup-${index}"></div></article>`).join("");
     rows.forEach((row, index) => renderLine(document.getElementById(`pickup-${index}`), row.daily.map((point) => ({ date: point.date, value: point.cumulative })), {
       compact: true,
-      label: `Curvas de vendas de 2025 e 2026 para check-in em ${row.label}`,
+      label: `Curvas de vendas de ${previousYear} e ${reportYear} para check-in em ${row.label}`,
       comparisonPoints: (row.comparisonDaily || []).map((point) => ({ date: point.date, value: point.cumulative }))
     }));
   }
@@ -376,7 +378,7 @@
     const rows = labels.map((label) => `<tr><td>${safe(label)}</td><td>${safe(money.format(current.get(label) || 0))}</td><td>${safe(money.format(previous.get(label) || 0))}</td><td>${growthCell(current.get(label) || 0, previous.get(label) || 0)}</td></tr>`).join("");
     const currentTotal = payload.summary?.sales || 0;
     const previousTotal = payload.comparison?.summary?.sales || 0;
-    els.hotelSalesSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Vendas totais por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th><th>2026</th><th>2025</th><th>Variação</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td>${safe(money.format(currentTotal))}</td><td>${safe(money.format(previousTotal))}</td><td>${growthCell(currentTotal, previousTotal)}</td></tr></tfoot></table></div></article>`;
+    els.hotelSalesSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Vendas totais por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th><th>${reportYear}</th><th>${previousYear}</th><th>Variação</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td>${safe(money.format(currentTotal))}</td><td>${safe(money.format(previousTotal))}</td><td>${growthCell(currentTotal, previousTotal)}</td></tr></tfoot></table></div></article>`;
   }
 
   function renderChannelShareSummary(payload) {
@@ -388,7 +390,7 @@
     const cell = (value, total, group) => `<td${groupClass(group)} data-label="${safe(group)}">${total ? percent.format(value / total * 100) : "0,0"}%</td>`;
     const headers = groups.map((group) => `<th${groupClass(group)} title="${safe(group)}" aria-label="${safe(group)}">${safe(group.trim().split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word)).slice(0, 2).join(" "))}</th>`).join("");
     const rows = (share.byHotel || []).map((hotel) => `<tr><td data-label="Hotel">${safe(hotel.label)}</td>${groups.map((group) => cell(hotel.values?.[group] || 0, hotel.total || 0, group)).join("")}<td data-label="Total">100,0%</td></tr>`).join("");
-    els.channelShareSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Share de vendas por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)} · 2026</div><div class="comparison-table-scroll"><table class="comparison-table share-table"><thead><tr><th>Hotel</th>${headers}<th>Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td data-label="Hotel">Total</td>${groups.map((group) => cell(totals.values?.[group] || 0, totals.total || 0, group)).join("")}<td data-label="Total">100%</td></tr></tfoot></table></div></article>`;
+    els.channelShareSummary.innerHTML = `<article class="comparison-table-card"><div class="comparison-table-title">Share de vendas por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)} · ${reportYear}</div><div class="comparison-table-scroll"><table class="comparison-table share-table"><thead><tr><th>Hotel</th>${headers}<th>Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td data-label="Hotel">Total</td>${groups.map((group) => cell(totals.values?.[group] || 0, totals.total || 0, group)).join("")}<td data-label="Total">100%</td></tr></tfoot></table></div></article>`;
   }
 
   function renderChannelHotelComparisons(payload) {
@@ -404,7 +406,7 @@
       const rows = labels.map((label) => { const now = data.current[label] || 0; const before = data.previous[label] || 0; return `<tr><td>${safe(label)}</td><td>${safe(money.format(now))}</td><td>${safe(money.format(before))}</td><td>${growthCell(now, before)}</td></tr>`; }).join("");
       const currentTotal = Object.values(data.current).reduce((total, value) => total + value, 0);
       const previousTotal = Object.values(data.previous).reduce((total, value) => total + value, 0);
-      return `<article class="comparison-table-card"><div class="comparison-table-title ${group.toLowerCase()}">Vendas — ${group} por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th><th>2026</th><th>2025</th><th>Variação</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td>${safe(money.format(currentTotal))}</td><td>${safe(money.format(previousTotal))}</td><td>${growthCell(currentTotal, previousTotal)}</td></tr></tfoot></table></div></article>`;
+      return `<article class="comparison-table-card"><div class="comparison-table-title ${group.toLowerCase()}">Vendas — ${group} por hotel</div><div class="comparison-table-period">Período ${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Hotel</th><th>${reportYear}</th><th>${previousYear}</th><th>Variação</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td>${safe(money.format(currentTotal))}</td><td>${safe(money.format(previousTotal))}</td><td>${growthCell(currentTotal, previousTotal)}</td></tr></tfoot></table></div></article>`;
     }).join("");
   }
 
@@ -425,7 +427,7 @@
     };
     els.monthlyGoalTables.innerHTML = (payload.monthlyGoalTables || []).map((table) => {
       const rows = (table.rows || []).map((row) => `<tr><td>${safe(monthName.format(localDate(`${row.key}-01`)).toUpperCase())}</td><td>${safe(value(row.actual))}</td><td>${safe(value(row.previous))}</td><td>${safe(value(row.target))}</td><td>${ratio(row.actual, row.target)}</td><td>${annualVariation(row.actual, row.previous)}</td></tr>`).join("");
-      return `<article class="comparison-table-card"><div class="comparison-table-title ${safe(table.key)}">${safe(table.title)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Mês</th><th>${safe(table.actualLabel)}</th><th>${safe(table.previousLabel || "Ano anterior")}</th><th>Meta 2026</th><th>% Meta</th><th>Var. A/A</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
+      return `<article class="comparison-table-card"><div class="comparison-table-title ${safe(table.key)}">${safe(table.title)}</div><div class="comparison-table-scroll"><table class="comparison-table"><thead><tr><th>Mês</th><th>${safe(table.actualLabel)}</th><th>${safe(table.previousLabel || "Ano anterior")}</th><th>Meta ${reportYear}</th><th>% Meta</th><th>Var. A/A</th></tr></thead><tbody>${rows}</tbody></table></div></article>`;
     }).join("");
   }
 
@@ -440,6 +442,16 @@
 
   function render(payload) {
     currentPayload = payload;
+    reportYear = Number(payload.period.start.slice(0, 4));
+    previousYear = payload.comparison?.year || reportYear - 1;
+    const endYear = Number(payload.period.end.slice(0, 4));
+    if (endYear !== reportYear) {
+      previousYear = `${previousYear}–${endYear - 1}`;
+      reportYear = `${reportYear}–${endYear}`;
+    }
+    document.querySelectorAll("[data-report-year]").forEach((label) => {
+      label.textContent = label.dataset.reportYear === "current" ? reportYear : previousYear;
+    });
     if (els.coverageNotice) {
       const latestSaleDate = payload.dataCoverage?.latestSaleDate;
       const showCoverageWarning = isKpiReport && payload.dataCoverage?.queryEndBeyondAvailable && /^\d{4}-\d{2}-\d{2}$/.test(latestSaleDate || "");
@@ -459,7 +471,7 @@
     if (els.salesGrowth) els.salesGrowth.hidden = !hasPreviousSales;
     if (els.reservationsGrowth) els.reservationsGrowth.hidden = !hasPreviousSales;
     if (els.ticketGrowth) els.ticketGrowth.hidden = !hasPreviousSales;
-    els.previousLabel.textContent = `Mesmo período em ${payload.comparison?.year || 2025}`;
+    els.previousLabel.textContent = `Mesmo período em ${previousYear}`;
     els.previousSales.textContent = money.format(payload.comparison?.summary?.sales || 0);
     if (els.salesGrowth) setGrowthBadge(els.salesGrowth, payload.summary.sales || 0, payload.comparison?.summary?.sales || 0);
     if (els.reservationsComparison) {
@@ -477,13 +489,13 @@
     setPerformanceCard(els.topOccupancy, els.topOccupancyPrevious, els.topOccupancyGrowth, currentOccupancy, previousOccupancy, (value) => `${wholePercent.format(value)}%`);
     setPerformanceCard(els.topRevpar, els.topRevparPrevious, els.topRevparGrowth, payload.revpar?.summary?.revpar, payload.comparison?.revpar?.summary?.revpar, money.format.bind(money));
     els.period.textContent = `${fmtDate(payload.period.start)} a ${fmtDate(payload.period.end)}`;
-    els.comparisonTitle.textContent = payload.comparison?.available ? "Comparativo 2025 × 2026 atualizado" : "Comparativo 2025 × 2026 em preparação";
-    els.reason.textContent = payload.comparison?.coverage || payload.comparison?.pendingReason || "A base histórica de 2025 ainda não está disponível.";
+    els.comparisonTitle.textContent = payload.comparison?.available ? `Comparativo ${previousYear} × ${reportYear} atualizado` : `Comparativo ${previousYear} × ${reportYear} em preparação`;
+    els.reason.textContent = payload.comparison?.coverage || payload.comparison?.pendingReason || `A base histórica de ${previousYear} ainda não está disponível.`;
     els.comparisonTotal.textContent = payload.comparison?.available ? shortMoney.format(payload.comparison.summary?.sales || 0) : "sem dados";
     const updatedAt = isKpiReport ? payload.dataCoverage?.baseUpdatedAt : payload.generatedAt;
     els.stamp.textContent = `${isKpiReport ? "KPI capturado" : "Atualizado"} ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(updatedAt || payload.generatedAt))}`;
     renderLine(els.daily, (payload.daily || []).map((point) => ({ date: point.date, value: point.cumulative })), {
-      label: "Curvas acumuladas de vendas de 2025 e 2026",
+      label: `Curvas acumuladas de vendas de ${previousYear} e ${reportYear}`,
       comparisonPoints: (payload.comparison?.daily || []).map((point) => ({ date: point.date, value: point.cumulative }))
     });
     renderBars(els.channels, payload.byChannel || [], payload.comparison?.byChannel || [], {
@@ -496,7 +508,7 @@
     if (els.cancellations) renderBars(els.cancellations, payload.cancellations?.byChannel || [], payload.comparison?.cancellations?.byChannel || [], {
       showCancelRate: true,
       empty: "Sem cancelamentos neste recorte.",
-      label: "Cancelamentos em reais e taxa sobre as vendas do mesmo canal em 2025 e 2026"
+      label: `Cancelamentos em reais e taxa sobre as vendas do mesmo canal em ${previousYear} e ${reportYear}`
     });
     renderBars(els.hotelChart, payload.byHotel || [], payload.comparison?.byHotel || [], { showGrowth: isKpiReport, fullValueLabels: true });
     renderColumns(els.checkinChart, payload.byCheckinMonth || [], payload.comparison?.byCheckinMonth || [], {
@@ -517,7 +529,7 @@
     els.roomNights2025.textContent = `${integer.format(payload.comparison?.summary?.roomNights || 0)} UHs-noite`;
     els.roomNights2026.textContent = `${integer.format(payload.summary.roomNights || 0)} UHs-noite`;
     renderLine(els.averageRateDaily, (payload.daily || []).map((point) => ({ date: point.date, value: point.averageDailyRate || 0 })), {
-      label: "Curvas acumuladas da diária média de 2025 e 2026",
+      label: `Curvas acumuladas da diária média de ${previousYear} e ${reportYear}`,
       empty: "Sem diárias válidas para calcular neste recorte.",
       comparisonPoints: (payload.comparison?.daily || []).map((point) => ({ date: point.date, value: point.averageDailyRate || 0 }))
     });
@@ -529,14 +541,14 @@
       els.averageRateCheckin,
       (payload.byCheckinMonth || []).map((item) => ({ ...item, value: item.averageDailyRate || 0 })),
       (payload.comparison?.byCheckinMonth || []).map((item) => ({ ...item, value: item.averageDailyRate || 0 })),
-      { label: "Comparação da diária média por mês do check-in em 2025 e 2026", empty: "Sem diárias válidas por mês de check-in." }
+      { label: `Comparação da diária média por mês do check-in em ${previousYear} e ${reportYear}`, empty: "Sem diárias válidas por mês de check-in." }
     );
     els.revpar2025.textContent = money.format(payload.comparison?.revpar?.summary?.revpar || 0);
     els.revpar2026.textContent = money.format(payload.revpar?.summary?.revpar || 0);
     els.availableRoomNights2025.textContent = `${integer.format(payload.comparison?.revpar?.summary?.availableRoomNights || 0)} aptos-noite disponíveis`;
     els.availableRoomNights2026.textContent = `${integer.format(payload.revpar?.summary?.availableRoomNights || 0)} aptos-noite disponíveis`;
     renderLine(els.revparDaily, payload.revpar?.daily || [], {
-      label: "Curvas acumuladas de geração de RevPAR em 2025 e 2026",
+      label: `Curvas acumuladas de geração de RevPAR em ${previousYear} e ${reportYear}`,
       empty: "Sem receita de hospedagem para calcular o RevPAR neste recorte.",
       comparisonPoints: payload.comparison?.revpar?.daily || []
     });
@@ -549,7 +561,7 @@
       els.revparCheckin,
       (payload.revpar?.byCheckinMonth || []).map((item) => ({ ...item, value: item.revpar || 0 })),
       (payload.comparison?.revpar?.byCheckinMonth || []).map((item) => ({ ...item, value: item.revpar || 0 })),
-      { label: "Comparação do RevPAR por mês do check-in em 2025 e 2026", empty: "Sem receita de hospedagem por mês para calcular o RevPAR." }
+      { label: `Comparação do RevPAR por mês do check-in em ${previousYear} e ${reportYear}`, empty: "Sem receita de hospedagem por mês para calcular o RevPAR." }
     );
   }
 
