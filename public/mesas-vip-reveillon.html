@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mesas VIP Réveillon | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20260902-vip-tables"></script>
-    <link rel="stylesheet" href="/mesas-vip-reveillon.css?v=20260910-excel-palco-v1">
+    <link rel="stylesheet" href="/mesas-vip-reveillon.css?v=20261109-ingressos-acumulados">
   </head>
   <body>
     <main class="vip-page">
@@ -22,7 +22,14 @@
         <article class="summary-card available"><span class="status-dot"></span><div><strong id="availableCount">59</strong><small>Disponíveis</small></div></article>
         <article class="summary-card sold"><span class="status-dot"></span><div><strong id="soldCount">0</strong><small>Pagas (5/5)</small></div></article>
         <article class="summary-card blocked"><span class="status-dot"></span><div><strong id="blockedCount">0</strong><small>Em andamento</small></div></article>
-        <button id="exportTickets" class="export-excel" type="button">Gerar Excel Ingressos</button>
+        <div class="ticket-export">
+          <label for="ticketScope">Período dos ingressos</label>
+          <select id="ticketScope">
+            <option value="all">Acumulado até hoje</option>
+            <option value="month">Mês vigente</option>
+          </select>
+          <button id="exportTickets" class="export-excel" type="button">Gerar Excel Ingressos</button>
+        </div>
         <p id="lastUpdated" class="last-updated" aria-live="polite">Carregando mapa…</p>
       </section>
 
@@ -86,6 +93,6 @@
       </form>
     </dialog>
 
-    <script src="/mesas-vip-reveillon.js?v=20260910-excel-palco-v1"></script>
+    <script src="/mesas-vip-reveillon.js?v=20261109-ingressos-acumulados"></script>
   </body>
 </html>

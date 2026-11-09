@@ -44,6 +44,9 @@ h1 { margin-bottom: 6px; font-size: clamp(28px, 4vw, 42px); line-height: 1; lett
 .export-excel { align-self: center; min-height: 42px; padding: 9px 16px; border: 1px solid #159b86; border-radius: 6px; color: #fff; background: #159b86; font-size: 14px; font-weight: 900; box-shadow: 0 7px 18px rgba(21, 155, 134, .2); }
 .export-excel:hover { background: #117d6d; }
 .export-excel:disabled { cursor: wait; opacity: .7; }
+.ticket-export { display: flex; flex-direction: column; gap: 6px; align-self: center; }
+.ticket-export label { font-size: 12px; color: var(--muted); }
+.ticket-export select { min-height: 36px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: inherit; font: inherit; }
 .last-updated { display: flex; align-items: center; justify-content: flex-end; margin: 0; color: var(--muted); font-size: 13px; text-align: right; }
 
 .map-card { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 12px 34px rgba(16, 40, 59, .08); }
@@ -129,7 +132,7 @@ h1 { margin-bottom: 6px; font-size: clamp(28px, 4vw, 42px); line-height: 1; lett
   .intro { font-size: 14px; }
   .refresh-button span { display: none; }
   .summary { grid-template-columns: repeat(3, 1fr); }
-  .summary .export-excel { grid-column: 1 / -1; justify-self: start; }
+  .summary .ticket-export { grid-column: 1 / -1; justify-self: start; }
   .last-updated { grid-column: 1 / -1; justify-content: flex-start; text-align: left; }
   .summary-card { min-width: 0; padding: 9px; }
   .summary-card .status-dot { width: 13px; height: 13px; flex: 0 0 auto; }

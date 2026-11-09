@@ -3068,7 +3068,9 @@ function buildMetrics(records, goals, period = {}) {
   const channelLabelForRecord = (record) => normalizeOfficialSalesChannel(record.channel, record, record.monthKey || activeMonth);
   const ticketRecords = records.filter((record) => isEventTicket(record)
     && comparableKey(record.status) === "confirmada"
-    && (isYearToDate ? record.dateKey >= ytdStart && record.dateKey <= today : record.monthKey === month)
+    && (period.ticketScope === "all"
+      ? Boolean(record.dateKey) && record.dateKey <= today
+      : isYearToDate ? record.dateKey >= ytdStart && record.dateKey <= today : record.monthKey === month)
     && (!selectedDay || record.dateKey === selectedDay)
     && (!selectedHotel || comparableKey(record.hotel) === comparableKey(selectedHotel))
     && (!selectedDirectChannel || comparableKey(channelLabelForRecord(record)) === comparableKey(selectedDirectChannel)));
@@ -3306,6 +3308,7 @@ function buildMetrics(records, goals, period = {}) {
     period: {
       today,
       month,
+      ticketScope: period.ticketScope === "all" ? "all" : "month",
       day: selectedDay,
       hotel: selectedHotel,
       channel: selectedChannel,
@@ -3353,6 +3356,7 @@ function buildMetrics(records, goals, period = {}) {
     dailySales,
     detailedTickets: ticketRecords.map((record) => ({
       ...salesDetailRow(record, channelLabelForRecord),
+      canal: require("./lib/sales-routing").isAffiliate(record.rawChannel || record.channel) ? "AFILIADO" : channelLabelForRecord(record),
       hotel: eventTicketProduct(record),
       quantidade: ticketQuantity(record)
     })),
@@ -4843,7 +4847,10 @@ async function buildTicketWorkbook(metrics) {
     { key: "telefone", width: 20 }, { key: "email", width: 32 }, { key: "mesa", width: 14 },
     { key: "dificuldadeMobilidade", width: 28 }
   ];
-  addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${metrics.period.month} • Vendas confirmadas • Valores separados da hospedagem`, "R");
+  const periodLabel = metrics.period.ticketScope === "all"
+    ? `Acumulado até ${metrics.period.today.split("-").reverse().join("/")}`
+    : metrics.period.month;
+  addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${periodLabel} • Vendas confirmadas • Valores separados da hospedagem`, "R");
   sheet.getRow(4).values = ["Data Venda", "Código Reserva", "Ingresso / evento", "Vendedor", "Cliente", "Quantidade", "Valor Total", "Recebido", "A Receber", "Canal", "Forma Pagto", "Parcelas", "Status", "Observações", "Telefone", "Email", "MESA", "DIFICULDADE MOBILIDADE?"];
   styleExcelHeader(sheet.getRow(4));
   const sales = metrics.detailedTickets || [];
@@ -10003,11 +10010,21 @@ async function handleRequest(req, res) {
       if (["export", "export-tickets"].includes(url.searchParams.get("action"))) {
         const ticketsOnly = url.searchParams.get("action") === "export-tickets";
         if (!isSalesLeadershipAccess(access) && !(ticketsOnly && access.role === "vip_export")) return forbidden(res);
-        const metrics = await loadMetrics(periodFromUrl(url));
+        const period = periodFromUrl(url);
+        let metrics;
+        if (ticketsOnly) {
+          const dataset = await loadDataset();
+          metrics = buildMetrics(dataset.records, dataset.goals, {
+            ...period,
+            ticketScope: url.searchParams.get("ticketScope") === "all" ? "all" : "month"
+          });
+        } else {
+          metrics = await loadMetrics(period);
+        }
         const workbook = await (ticketsOnly ? buildTicketWorkbook(metrics) : buildSalesCommissionWorkbook(metrics));
         res.writeHead(200, {
           "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "content-disposition": `attachment; filename="${ticketsOnly ? `relatorio-ingressos-${metrics.period.month}.xlsx` : salesReportFileName(metrics.period)}"`,
+          "content-disposition": `attachment; filename="${ticketsOnly ? `relatorio-ingressos-${metrics.period.ticketScope === "all" ? `acumulado-ate-${metrics.period.today}` : metrics.period.month}.xlsx` : salesReportFileName(metrics.period)}"`,
           "cache-control": "no-store"
         });
         return res.end(workbook);

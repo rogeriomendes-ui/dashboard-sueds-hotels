@@ -60,5 +60,40 @@ const sale = (hotel, total, extra = {}) => normalizeRecord({
   assert.equal(tatiana.ticketQuantity, 2);
   assert.equal(tatiana.ticketSales, 1400);
   assert.equal(regressionMetrics.detailedTickets[0].hotel, 'Réveillon 2026 - VIP Mesa compartilhada - Beach Club Sueds (1º Lote)');
+  const routing = require('../lib/sales-routing');
+  const affiliate = sale('SUEDS EXPERIENCIAS', 1425, {
+    'Data Venda': '2026-11-09', 'Codigo Reserva': 'CR29070366218',
+    Canal: 'AFILIADO', Vendedor: '', Fonte: 'DESKHOTEL', Adult: '3', Crian: '0',
+    'Tipo de Apto': 'Réveillon 2026 - Pista - Beach Club Sueds (1º Lote)'
+  });
+  const sources = routing.dashboardSources([
+    deskhotelTicket,
+    sale('Ingresso Natal', 100, { 'Data Venda': '2025-12-01' }),
+    sale('Ingresso Natal', 999, { 'Data Venda': '2026-10-01', Status: 'Cancelada' }),
+    sale('Ingresso Natal', 999, { 'Data Venda': '2026-12-01' }),
+    sale('Ingresso Natal', 999, { 'Data Venda': '' }),
+    // A stale seller-tab copy must not duplicate the affiliate sale.
+    { ...affiliate, channel: '', rawChannel: '' }
+  ], [affiliate]);
+  const currentPeriod = { date: '2026-11-09', month: '2026-11' };
+  const monthly = buildMetrics(sources.records, [], currentPeriod);
+  assert.equal(monthly.detailedTickets.length, 1);
+  const accumulated = buildMetrics(sources.records, [{ month: '2026-11', seller: 'Equipe Sueds', revenueGoal: 5000 }], { ...currentPeriod, ticketScope: 'all' });
+  assert.equal(accumulated.detailedTickets.length, 3);
+  assert.equal(accumulated.detailedTickets.filter(row => row.codigoReserva === affiliate.reservationCode).length, 1);
+  assert.equal(accumulated.detailedTickets.find(row => row.codigoReserva === affiliate.reservationCode).canal, 'AFILIADO');
+  assert.equal(accumulated.detailedTickets.find(row => row.codigoReserva === affiliate.reservationCode).vendedor, '');
+  assert.equal(accumulated.sellers.find(seller => seller.name === 'EQUIPE SUEDS').ticketSales, 1500);
+  assert.equal(accumulated.summary.salesMonth, 0);
+  const accumulatedWorkbook = new ExcelJS.Workbook();
+  await accumulatedWorkbook.xlsx.load(await buildTicketWorkbook(accumulated));
+  const sheet = accumulatedWorkbook.worksheets[0];
+  assert.match(sheet.getCell('A2').value, /Acumulado até 09\/11\/2026/);
+  const affiliateRow = sheet.getRows(5, 3).find(row => row.getCell(2).value === affiliate.reservationCode);
+  assert.equal(affiliateRow.getCell(10).value, 'AFILIADO');
+  assert.equal(affiliateRow.getCell(6).value, 3);
+  assert.equal(sheet.getCell('F8').value, 8);
+  assert.equal(sheet.getCell('G8').value, 2925);
+  assert.equal(sheet.getCell('H8').value, 2925);
   console.log('PASS: ingressos separados da hospedagem, K + L, equipe, filtros e Excel exclusivo.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

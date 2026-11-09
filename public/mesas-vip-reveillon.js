@@ -112,11 +112,12 @@
     const originalText = button.textContent;
     const date = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
     const month = date.slice(0, 7);
+    const ticketScope = byId("ticketScope").value;
     button.disabled = true;
     button.textContent = "Gerando...";
     showMessage("");
     try {
-      const response = await fetch(`/api/dashboard/vendedores?action=export-tickets&date=${encodeURIComponent(date)}&month=${encodeURIComponent(month)}`, {
+      const response = await fetch(`/api/dashboard/vendedores?action=export-tickets&date=${encodeURIComponent(date)}&month=${encodeURIComponent(month)}&ticketScope=${encodeURIComponent(ticketScope)}`, {
         cache: "no-store",
         credentials: "same-origin"
       });
