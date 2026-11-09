@@ -27,6 +27,8 @@ Data de corte: Data Venda >= 01/09/2026. Agosto e meses anteriores mantêm local
 
 ## Captura DeskHotel / dash.chatbooking.com.br
 
+Telefone e Email do hóspede devem ser capturados junto com o código e a origem visível. Gravar como texto em V (Telefone) e W (Email) nas duas abas de vendas. `normalizeDeskhotel` preserva esses campos. Após inserir vendas novas ou reconciliar reservas existentes, executar `node tools/fill_deskhotel_contacts.cjs <captura.json>` para simular e `--apply` para completar somente células vazias. O JSON contém `records` com `codigo`, `hotel`, `origin`, `telefone`, `email` e `evidence` observados no DeskHotel. A rotina consulta as duas abas, valida os requests `contact-fill`, relê antes de gravar e confere depois. Nunca substituir contato já preenchido ou fórmula, nem completar por nome de hóspede. Contato ausente/inválido permanece vazio e gera pendência; chave ausente ou duplicada também gera pendência. Não incluir arquivos de captura com dados pessoais nos commits.
+
 Leia a coluna ORIGEM da reserva, incluindo todas as unidades e os status solicitados. Não use apenas o nome do vendedor. Sem origem verificável, não grave a reserva com canal vazio; registre pendência para conferência.
 
 | Origem | Aba | Canal | Vendedor | Fonte S |
