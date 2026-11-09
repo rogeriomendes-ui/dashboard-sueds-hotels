@@ -4870,6 +4870,28 @@ async function buildTicketWorkbook(metrics) {
   sheet.getColumn(6).numFmt = "#,##0";
   [7, 8, 9].forEach((column) => { sheet.getColumn(column).numFmt = '"R$" #,##0.00'; });
   sheet.addRow({ hotel: "TOTAL", quantidade: sum(sales, (sale) => sale.quantidade), valorTotal: sum(sales, (sale) => sale.valorTotal), recebido: sum(sales, (sale) => sale.recebido), aReceber: sum(sales, (sale) => sale.aReceber) }).font = { bold: true };
+  const affiliateSales = sales.filter((sale) => require("./lib/sales-routing").isAffiliate(sale.canal));
+  const affiliates = new Map();
+  affiliateSales.forEach((sale) => {
+    const name = String(sale.afiliado || "").trim() || "Não informado";
+    const key = comparableKey(name);
+    if (!affiliates.has(key)) affiliates.set(key, { afiliado: name, quantidade: 0, valorTotal: 0 });
+    const affiliate = affiliates.get(key);
+    affiliate.quantidade += sale.quantidade;
+    affiliate.valorTotal += sale.valorTotal;
+  });
+  const summary = workbook.addWorksheet("Resumo por afiliado", { views: [{ state: "frozen", ySplit: 4 }] });
+  summary.columns = [{ key: "afiliado", width: 32 }, { key: "quantidade", width: 24 }, { key: "valorTotal", width: 24 }];
+  addSalesReportTitle(summary, "Resumo por afiliado", `Período: ${periodLabel} • Ingressos confirmados do canal AFILIADO`, "C");
+  summary.getRow(4).values = ["Afiliado", "Quantidade de ingressos", "Valor total vendido"];
+  styleExcelHeader(summary.getRow(4));
+  [...affiliates.values()]
+    .sort((a, b) => b.valorTotal - a.valorTotal || a.afiliado.localeCompare(b.afiliado, "pt-BR"))
+    .forEach((affiliate) => { summary.addRow(affiliate).height = 24; });
+  summary.autoFilter = `A4:C${Math.max(4, 4 + affiliates.size)}`;
+  summary.getColumn(2).numFmt = "#,##0";
+  summary.getColumn(3).numFmt = '"R$" #,##0.00';
+  summary.addRow({ afiliado: "TOTAL", quantidade: sum(affiliateSales, (sale) => sale.quantidade), valorTotal: sum(affiliateSales, (sale) => sale.valorTotal) }).font = { bold: true };
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 

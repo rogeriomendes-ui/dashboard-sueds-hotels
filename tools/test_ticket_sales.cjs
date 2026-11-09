@@ -32,7 +32,10 @@ const sale = (hotel, total, extra = {}) => normalizeRecord({
   assert.equal(payload.sellers.find(seller => seller.name === 'Aline Nunes').ticketSales, 1000);
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(await buildTicketWorkbook(metrics));
-  assert.equal(workbook.worksheets.length, 1);
+  assert.equal(workbook.worksheets.length, 2);
+  const emptySummary = workbook.getWorksheet('Resumo por afiliado');
+  assert.equal(emptySummary.getCell('B5').value, 0);
+  assert.equal(emptySummary.getCell('C5').value, 0);
   assert.equal(workbook.worksheets[0].getCell('F11').value, 21);
   assert.equal(workbook.worksheets[0].getCell('G11').value, 1300);
   assert.equal(workbook.worksheets[0].getCell('C5').value, 'Ingresso Natal');
@@ -102,5 +105,30 @@ const sale = (hotel, total, extra = {}) => normalizeRecord({
   assert.equal(sheet.getCell('F8').value, 8);
   assert.equal(sheet.getCell('G8').value, 2925);
   assert.equal(sheet.getCell('H8').value, 2925);
+  const summary = accumulatedWorkbook.getWorksheet('Resumo por afiliado');
+  assert.match(summary.getCell('A2').value, /Acumulado até 09\/11\/2026/);
+  assert.deepEqual(summary.getRow(5).values.slice(1), ['Renato', 3, 1425]);
+  assert.deepEqual(summary.getRow(6).values.slice(1), ['TOTAL', 3, 1425]);
+  const affiliateSale = (code, name, total, extra = {}) => sale('Pista Reveillon', total, {
+    'Data Venda':'2026-11-09','Codigo Reserva':code,Canal:'AFILIADO',Vendedor:'',Adult:'2',Crian:'0',
+    Observacoes:name ? `Afiliado: ${name}` : '',...extra
+  });
+  const summaryMetrics = buildMetrics([
+    affiliate,
+    affiliateSale('SECOND', 'renato', 200),
+    affiliateSale('THIRD', 'Luísa', 600, {Adult:'3',Crian:'1'}),
+    affiliateSale('UNKNOWN', '', 50, {Adult:'1'}),
+    affiliateSale('CANCELLED', 'Renato', 999, {Status:'Cancelada'}),
+    affiliateSale('OCTOBER', 'Luísa', 500, {'Data Venda':'2026-10-09'}),
+    sale('Pista Reveillon', 100, {'Data Venda':'2026-11-09'})
+  ], [], currentPeriod);
+  const summaryWorkbook = new ExcelJS.Workbook();
+  await summaryWorkbook.xlsx.load(await buildTicketWorkbook(summaryMetrics));
+  const grouped = summaryWorkbook.getWorksheet('Resumo por afiliado');
+  assert.deepEqual(grouped.getRow(5).values.slice(1), ['Renato', 5, 1625]);
+  assert.deepEqual(grouped.getRow(6).values.slice(1), ['Luísa', 4, 600]);
+  assert.deepEqual(grouped.getRow(7).values.slice(1), ['Não informado', 1, 50]);
+  assert.deepEqual(grouped.getRow(8).values.slice(1), ['TOTAL', 10, 2275]);
+  assert.equal(grouped.autoFilter, 'A4:C7');
   console.log('PASS: ingressos separados da hospedagem, K + L, equipe, filtros e Excel exclusivo.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
