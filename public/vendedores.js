@@ -448,9 +448,10 @@ function renderRankingClosure(data) {
   button.title = data.rankingClosure?.frozen ? `Conferido por ${data.rankingClosure.closedBy}` : "Confirma e preserva os valores deste mês encerrado";
   button.textContent = data.rankingClosure?.frozen ? `Conferido e congelado em ${new Date(data.rankingClosure.closedAt).toLocaleDateString("pt-BR")}` : "Conferido e congelar";
   const month = data.period.month;
+  const rankingTotal = data.sellers.find(seller => seller.name === "EQUIPE SUEDS")?.salesMonth ?? data.summary.salesMonth;
   button.onclick = async () => {
     if (monthSelect.value !== month) return;
-    if (!window.confirm(`Congelar o ranking de ${MONTH_LABELS[month]} com ${commissionMoney.format(data.summary.salesMonth)}? O ranking e o Excel serão preservados após alterações nas reservas. Este fechamento não poderá ser substituído pelo botão.`)) return;
+    if (!window.confirm(`Congelar o ranking de ${MONTH_LABELS[month]} com ${commissionMoney.format(rankingTotal)}? O ranking e o Excel serão preservados após alterações nas reservas. Este fechamento não poderá ser substituído pelo botão.`)) return;
     button.disabled = true;
     try {
       const response = await fetch(`/api/dashboard/vendedores?action=freeze&month=${encodeURIComponent(month)}&date=${dateForMonth(month)}`, {
