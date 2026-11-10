@@ -205,6 +205,7 @@ async function exportExcel(ticketsOnly = false) {
   const button = byId(ticketsOnly ? "exportTickets" : "exportExcel");
   if (!button || button.disabled) return;
   const month = monthSelect.value;
+  if (byId("freezeRanking")) byId("freezeRanking").disabled = true;
   const date = dateForMonth(month);
   const url = `/api/dashboard/vendedores?action=${ticketsOnly ? "export-tickets" : "export"}&date=${encodeURIComponent(date)}&month=${encodeURIComponent(month)}`;
   const originalText = button.textContent;
@@ -234,6 +235,7 @@ async function exportExcel(ticketsOnly = false) {
 
 async function load() {
   const month = monthSelect.value;
+  if (byId("freezeRanking")) byId("freezeRanking").disabled = true;
   const date = dateForMonth(month);
   const url = `/api/dashboard/vendedores?date=${encodeURIComponent(date)}&month=${encodeURIComponent(month)}`;
   byId("lastUpdate").textContent = "Atualizando...";
@@ -255,6 +257,7 @@ async function load() {
     renderSummary(data.summary);
     renderSellers(data.sellers);
     updateExportButton(data.canExport);
+    renderRankingClosure(data);
     byId("lastUpdate").textContent = formatUpdatedAt(data.generatedAt);
   } catch (error) {
     updateExportButton(false);
@@ -430,3 +433,32 @@ async function boot() {
 }
 
 boot();
+
+function renderRankingClosure(data) {
+  let button = byId("freezeRanking");
+  if (!button) {
+    button = document.createElement("button");
+    button.id = "freezeRanking";
+    button.className = "export-excel";
+    button.type = "button";
+    byId("exportExcel").parentElement.appendChild(button);
+  }
+  button.hidden = !data.rankingClosure?.frozen && !data.canFreeze;
+  button.disabled = Boolean(data.rankingClosure?.frozen);
+  button.title = data.rankingClosure?.frozen ? `Conferido por ${data.rankingClosure.closedBy}` : "Confirma e preserva os valores deste mês encerrado";
+  button.textContent = data.rankingClosure?.frozen ? `Conferido e congelado em ${new Date(data.rankingClosure.closedAt).toLocaleDateString("pt-BR")}` : "Conferido e congelar";
+  const month = data.period.month;
+  button.onclick = async () => {
+    if (monthSelect.value !== month) return;
+    if (!window.confirm(`Congelar o ranking de ${MONTH_LABELS[month]} com ${commissionMoney.format(data.summary.salesMonth)}? O ranking e o Excel serão preservados após alterações nas reservas. Este fechamento não poderá ser substituído pelo botão.`)) return;
+    button.disabled = true;
+    try {
+      const response = await fetch(`/api/dashboard/vendedores?action=freeze&month=${encodeURIComponent(month)}&date=${dateForMonth(month)}`, {
+        method: "POST", headers: { "content-type": "application/json", "x-dashboard-token": accessToken }, body: JSON.stringify({ digest: data.rankingClosure.digest })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Falha ao congelar o ranking.");
+      await load();
+    } catch (error) { window.alert(error.message); button.disabled = false; }
+  };
+}

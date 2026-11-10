@@ -58,7 +58,7 @@ module.exports = async function api(req, res) {
   }
   if (pathname === "/api/portal/mesas-vip-reveillon") return reveillonVipTablesHandler(req, res);
   if (pathname === "/api/knowledge") return knowledge(req, res);
-  if (pathname === "/api/dashboard/vendedores" && req.method === "GET") {
+  if (pathname === "/api/dashboard/vendedores" && ["GET", "POST"].includes(req.method)) {
     const profile = await getPortalProfile(req, res);
     const canExportVipTickets = url.searchParams.get("action") === "export-tickets" && hasEnvironment(profile, "mesas_vip_reveillon");
     if (hasEnvironment(profile, "ranking_vendedores") || canExportVipTickets) req.portalProfile = profile;

@@ -4771,6 +4771,8 @@ function buildSellersPayload(metrics, access = {}) {
   return {
     audience: "vendedores",
     canExport: canViewLeadershipData,
+    rankingClosure: metrics.rankingClosure,
+    canFreeze: isSalesLeadershipAccess(access) && Boolean(metrics.rankingClosure?.eligible),
     generatedAt: metrics.generatedAt,
     period: metrics.period,
     summary: {
@@ -4802,9 +4804,9 @@ function buildSellersPayload(metrics, access = {}) {
           monthlyGoalPct: seller.monthlyGoalPct
         };
         if (includeCommission) {
-          payload.commission = isTeamSeller
+          payload.commission = metrics.frozenCommissions?.[seller.name] || (isTeamSeller
             ? teamManagerCommission(seller, metrics.period)
-            : sellerCommission(seller, teamGoalMet);
+            : sellerCommission(seller, teamGoalMet));
         }
         return payload;
       })
@@ -4961,9 +4963,9 @@ async function buildSalesCommissionWorkbook(metrics) {
   const reportSellers = (metrics.sellers || [])
     .filter((seller) => !STRATEGIC_CHANNEL_SELLERS.includes(seller.name))
     .map((seller) => {
-      const commission = isTeamCardName(seller.name)
+      const commission = metrics.frozenCommissions?.[seller.name] || (isTeamCardName(seller.name)
         ? teamManagerCommission(seller, metrics.period)
-        : sellerCommission(seller, teamGoalMet);
+        : sellerCommission(seller, teamGoalMet));
       const activeAmount = Number(commission?.amount || 0);
       const appliedRate = Number(commission?.ratePct || 0) / 100;
       return {
@@ -9815,6 +9817,20 @@ async function loadMetrics(period) {
   return metrics;
 }
 
+const rankingClosure = require("./lib/seller-ranking-closure.cjs");
+async function loadRankingMetrics(period) {
+  if (rankingClosure.eligible(period, todayKey().slice(0, 7))) period = rankingClosure.canonicalPeriod(period);
+  const eligible = rankingClosure.eligible(period, todayKey().slice(0, 7));
+  if (eligible && !SUPABASE_SERVICE_ROLE_KEY) throw new Error("O armazenamento dos rankings não está configurado. Configure a credencial do servidor antes de consultar ou congelar meses encerrados.");
+  if (eligible) {
+    const closed = await rankingClosure.read(supabaseSnapshotRequest, period.month);
+    if (closed) return { ...closed.metrics, frozenWorkbook: closed.workbook, rankingClosure: { frozen: true, closedAt: closed.closedAt, closedBy: closed.closedBy } };
+  }
+  const metrics = await loadMetrics(period);
+  metrics.rankingClosure = { frozen: false, eligible, digest: eligible ? rankingClosure.digest(metrics) : null };
+  return metrics;
+}
+
 function periodFromUrl(url) {
   const date = url.searchParams.get("date") || "";
   const month = url.searchParams.get("month") || "";
@@ -10069,6 +10085,23 @@ async function handleRequest(req, res) {
       if (url.searchParams.get("authOnly") === "1") {
         return json(res, 200, { ok: true, profile: access });
       }
+      if (url.searchParams.get("action") === "freeze") {
+        if (!isSalesLeadershipAccess(access)) return forbidden(res);
+        if (req.method !== "POST") return json(res, 405, { error: "method_not_allowed" });
+        const period = rankingClosure.canonicalPeriod(periodFromUrl(url));
+        if (!rankingClosure.eligible(period, todayKey().slice(0, 7))) return json(res, 400, { message: "Selecione um mês encerrado, sem filtros." });
+        const existing = await rankingClosure.read(supabaseSnapshotRequest, period.month);
+        if (existing) return json(res, 409, { message: "Este ranking já está congelado." });
+        const body = await readJsonBody(req);
+        // Re-read the sales source rather than approving a cached preview.
+        dataCache.expiresAt = 0;
+        const metrics = await loadMetrics(period);
+        metrics.frozenCommissions = Object.fromEntries(buildSellersPayload(metrics, { role: "manager" }).sellers.map(seller => [seller.name, seller.commission]));
+        try {
+          const closed = await rankingClosure.save(supabaseSnapshotRequest, metrics, access.displayName || "Gestor", body.digest, await buildSalesCommissionWorkbook(metrics));
+          return json(res, 200, { ok: true, closedAt: closed.closedAt });
+        } catch (error) { return json(res, 409, { message: error.message }); }
+      }
       if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
       if (["export", "export-tickets"].includes(url.searchParams.get("action"))) {
         const ticketsOnly = url.searchParams.get("action") === "export-tickets";
@@ -10081,9 +10114,9 @@ async function handleRequest(req, res) {
             ticketScope: url.searchParams.get("ticketScope") === "all" ? "all" : "month"
           });
         } else {
-          metrics = await loadMetrics(period);
+          metrics = await loadRankingMetrics(period);
         }
-        const workbook = await (ticketsOnly ? buildTicketWorkbook(metrics) : buildSalesCommissionWorkbook(metrics));
+        const workbook = !ticketsOnly && metrics.frozenWorkbook ? Buffer.from(metrics.frozenWorkbook, "base64") : await (ticketsOnly ? buildTicketWorkbook(metrics) : buildSalesCommissionWorkbook(metrics));
         res.writeHead(200, {
           "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "content-disposition": `attachment; filename="${ticketsOnly ? `relatorio-ingressos-${metrics.period.ticketScope === "all" ? `acumulado-ate-${metrics.period.today}` : metrics.period.month}.xlsx` : salesReportFileName(metrics.period)}"`,
@@ -10091,7 +10124,7 @@ async function handleRequest(req, res) {
         });
         return res.end(workbook);
       }
-      const metrics = await loadMetrics(periodFromUrl(url));
+      const metrics = await loadRankingMetrics(periodFromUrl(url));
       return json(res, 200, buildSellersPayload(metrics, access));
     }
 
