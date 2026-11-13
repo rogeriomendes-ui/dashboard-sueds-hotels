@@ -3209,7 +3209,13 @@ function buildMetrics(records, goals, period = {}) {
       .filter(Boolean)
   ]);
 
-  const recordsByChannel = groupBy(filteredRecords, channelLabelForRecord);
+  const { isAffiliate, CUTOVER } = require("./lib/sales-routing");
+  const affiliateTickets = ticketRecords.filter((record) => (
+    isAffiliate(record.rawChannel || record.channel)
+    && record.monthKey >= CUTOVER
+    && (isYearToDate ? record.dateKey >= ytdStart : record.monthKey === month)
+  ));
+  const recordsByChannel = groupBy([...filteredRecords, ...affiliateTickets], channelLabelForRecord);
   const channels = [...channelLabels]
     .map((label) => {
       const rows = recordsByChannel.get(label) || [];
