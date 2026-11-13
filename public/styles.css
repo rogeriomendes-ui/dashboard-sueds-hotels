@@ -826,7 +826,7 @@ h2 {
   font-size: 11px;
 }
 
-.seller-summary-metrics .metric-card strong {
+.portal-shell-page .portal-home .seller-summary-metrics .metric-card strong {
   margin: 4px 0;
   font-size: clamp(18px, 1.5vw, 24px);
   overflow-wrap: anywhere;
