@@ -177,7 +177,7 @@
   #portalHome .manager-hotel-grid h2 { font-size: 15px; }
 }
 
-@container (max-width: 1550px) {
+@container (max-width: 1750px) {
   #portalHome .manager-hotel-grid { grid-template-columns: 1fr; }
 }
 @container (max-width: 1450px) {
