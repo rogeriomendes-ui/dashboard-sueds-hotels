@@ -5014,7 +5014,7 @@ async function buildSalesCommissionWorkbook(metrics) {
   [5, 6, 8, 10, 12].forEach((column) => { summarySheet.getColumn(column).numFmt = "0.00%"; });
   summarySheet.getColumn(14).alignment = { vertical: "middle", horizontal: "left", wrapText: true };
   summarySheet.getRow(summaryEndRow + 2).values = [
-    "Totais do período", metrics.summary?.reservationsMonth || 0, metrics.summary?.salesMonth || 0,
+    "Totais do período", teamSeller?.reservationsMonth || 0, teamSeller?.salesMonth || 0,
     metrics.summary?.monthlyGoal || 0, null, null, null, null, null, null, null, null,
     reportSellers.reduce((total, item) => total + item.commission, 0), null
   ];
@@ -5037,10 +5037,14 @@ async function buildSalesCommissionWorkbook(metrics) {
     { key: "formaPagamento", width: 23 }, { key: "parcelas", width: 10 }, { key: "status", width: 15 },
     { key: "fonte", width: 20 }, { key: "observacoes", width: 48 }
   ];
+  const { isRobot, isSite } = require("./lib/sales-routing");
+  const detailedSales = (metrics.detailedSales || []).filter((sale) => (
+    !isRobot(sale.canal, sale.vendedor) && !isSite(sale.canal) && !isSite(sale.vendedor)
+  ));
   addSalesReportTitle(
     detailSheet,
     "Vendas completas",
-    `Período: ${monthLabel} • ${Number(metrics.detailedSales?.length || 0)} vendas listadas`,
+    `Período: ${monthLabel} • ${detailedSales.length} vendas listadas`,
     "T"
   );
   detailSheet.getRow(4).values = [
@@ -5050,7 +5054,7 @@ async function buildSalesCommissionWorkbook(metrics) {
   ];
   styleExcelHeader(detailSheet.getRow(4), "5A7D21");
 
-  (metrics.detailedSales || []).forEach((sale, index) => {
+  detailedSales.forEach((sale, index) => {
     const normalizedSale = Object.fromEntries(
       Object.entries(sale).map(([key, value]) => [key, value === "" ? null : value])
     );
@@ -5069,7 +5073,7 @@ async function buildSalesCommissionWorkbook(metrics) {
       });
     }
   });
-  const detailEndRow = 4 + Number(metrics.detailedSales?.length || 0);
+  const detailEndRow = 4 + detailedSales.length;
   detailSheet.autoFilter = { from: "A4", to: `T${Math.max(detailEndRow, 4)}` };
   [1, 7, 8].forEach((column) => { detailSheet.getColumn(column).numFmt = "dd/mm/yyyy"; });
   [9, 10, 11, 12, 17].forEach((column) => { detailSheet.getColumn(column).numFmt = "#,##0"; });
