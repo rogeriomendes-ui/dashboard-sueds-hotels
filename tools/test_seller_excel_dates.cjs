@@ -69,6 +69,26 @@ assert.equal(__test.excelDateFromKey("data inválida"), null);
   assert.equal(summary.getCell("B7").value, 1);
   assert.equal(summary.getCell("C7").value, 1200);
 
+  // Old closures must be filtered without recalculating their archived seller values.
+  sheet.addRow({ codigoReserva: "FROZEN-SITE", canal: "SITE", vendedor: "Site", valorTotal: 300 });
+  sheet.addRow({ codigoReserva: "FROZEN-ROBO", canal: "Robo", vendedor: "Alice (Robo)", valorTotal: 300 });
+  sheet.getCell("A2").value = "Período: outubro de 2026 • 3 vendas listadas";
+  summary.getCell("M5").value = 42.25;
+  summary.getCell("C7").value = 1800;
+  const frozenWorkbook = Buffer.from(await workbook.xlsx.writeBuffer()).toString("base64");
+  const filtered = new ExcelJS.Workbook();
+  await filtered.xlsx.load(await __test.buildSalesCommissionWorkbook({
+    frozenWorkbook, period: { month: "2026-10" },
+    sellers: [{ name: "EQUIPE SUEDS", reservationsMonth: 1, salesMonth: 1200 }]
+  }));
+  const frozenDetails = filtered.getWorksheet("Vendas completas");
+  assert.deepEqual(frozenDetails.getColumn("B").values.slice(5).filter(Boolean), ["TEST-1"]);
+  assert.equal(frozenDetails.getCell("A2").text.includes("1 vendas listadas"), true);
+  assert.deepEqual(frozenDetails.autoFilter, "A4:T5");
+  assert.equal(filtered.getWorksheet("Resumo").getCell("M5").value, 42.25);
+  assert.equal(filtered.getWorksheet("Resumo").getCell("C7").value, 1200);
+  assert.equal(frozenWorkbook, Buffer.from(await workbook.xlsx.writeBuffer()).toString("base64"));
+
   console.log("Seller Excel dates: OK");
 })().catch((error) => {
   console.error(error);

@@ -4907,8 +4907,40 @@ async function buildTicketWorkbook(metrics) {
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
+function includeSellerExcelSale(sale) {
+  const { isRobot, isSite } = require("./lib/sales-routing");
+  return !isRobot(sale.canal, sale.vendedor) && !isSite(sale.canal) && !isSite(sale.vendedor);
+}
+
 async function buildSalesCommissionWorkbook(metrics) {
   const workbook = new ExcelJS.Workbook();
+  if (metrics.frozenWorkbook) {
+    await workbook.xlsx.load(Buffer.from(metrics.frozenWorkbook, "base64"));
+    const detail = workbook.getWorksheet("Vendas completas");
+    for (let row = detail.rowCount; row >= 5; row--) {
+      const sale = { canal: detail.getCell(`D${row}`).text, vendedor: detail.getCell(`E${row}`).text };
+      if (!includeSellerExcelSale(sale)) detail.spliceRows(row, 1);
+    }
+    let count = 0;
+    let lastDataRow = 4;
+    detail.eachRow((row, index) => {
+      if (index >= 5 && row.getCell(2).text) {
+        count++;
+        lastDataRow = index;
+      }
+    });
+    detail.getCell("A2").value = detail.getCell("A2").text.replace(/\d+ vendas listadas/, `${count} vendas listadas`);
+    detail.autoFilter = { from: "A4", to: `T${lastDataRow}` };
+    const summary = workbook.getWorksheet("Resumo");
+    const team = (metrics.sellers || []).find((seller) => isTeamCardName(seller.name));
+    summary.eachRow((row) => {
+      if (row.getCell(1).text === "Totais do período") {
+        row.getCell(2).value = team?.reservationsMonth || 0;
+        row.getCell(3).value = team?.salesMonth || 0;
+      }
+    });
+    return Buffer.from(await workbook.xlsx.writeBuffer());
+  }
   workbook.creator = "SUEDS Hotels";
   workbook.company = "SUEDS Hotels";
   workbook.created = new Date();
@@ -5037,10 +5069,7 @@ async function buildSalesCommissionWorkbook(metrics) {
     { key: "formaPagamento", width: 23 }, { key: "parcelas", width: 10 }, { key: "status", width: 15 },
     { key: "fonte", width: 20 }, { key: "observacoes", width: 48 }
   ];
-  const { isRobot, isSite } = require("./lib/sales-routing");
-  const detailedSales = (metrics.detailedSales || []).filter((sale) => (
-    !isRobot(sale.canal, sale.vendedor) && !isSite(sale.canal) && !isSite(sale.vendedor)
-  ));
+  const detailedSales = (metrics.detailedSales || []).filter(includeSellerExcelSale);
   addSalesReportTitle(
     detailSheet,
     "Vendas completas",
@@ -10122,7 +10151,7 @@ async function handleRequest(req, res) {
         } else {
           metrics = await loadRankingMetrics(period);
         }
-        const workbook = !ticketsOnly && metrics.frozenWorkbook ? Buffer.from(metrics.frozenWorkbook, "base64") : await (ticketsOnly ? buildTicketWorkbook(metrics) : buildSalesCommissionWorkbook(metrics));
+        const workbook = await (ticketsOnly ? buildTicketWorkbook(metrics) : buildSalesCommissionWorkbook(metrics));
         res.writeHead(200, {
           "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "content-disposition": `attachment; filename="${ticketsOnly ? `relatorio-ingressos-${metrics.period.ticketScope === "all" ? `acumulado-ate-${metrics.period.today}` : metrics.period.month}.xlsx` : salesReportFileName(metrics.period)}"`,
