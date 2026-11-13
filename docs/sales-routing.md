@@ -74,6 +74,8 @@ Consulte as duas abas, mesmo quando o pedido citar só Lancamento_Vendas. Se uma
 
 ## Portal
 
+No painel de Vendas e no BI, o Site consolida o KPI Full (incluindo Omnibees) com vendas de Fonte DESKHOTEL e Canal SITE desde setembro de 2026. Deduplicar por ano, Código Reserva e Hotel, mantendo o valor do KPI Full quando a reserva existir nas duas fontes. Não somar novamente a cópia operacional da Omnibees. Preservar o histórico até agosto, as regras de status e a separação de Robô/Afiliado. Essa consolidação é de leitura e não move nem reclassifica linhas nas planilhas.
+
 O canal (D) escolhido pelo vendedor no espelho é editável e sincronizado com a linha existente em `Lancamento_Vendas`, sem reclassificar a origem nem mover a reserva. Na primeira sincronização dessa coluna, preserve a seleção atual do vendedor; depois use o histórico de sincronização para detectar alterações simultâneas. GRUPOS em vendas DeskHotel permanece nos relatórios de vendedores. Atualizações manuais de canal usam `mirror-field-update` e requests limitados à célula D.
 
 A localização física não define a categoria contábil. `dashboardSources` combina Site/Robo de teste lancamento_vendas com vendedores. Robo continua fora da Equipe; Site permanece no canal Site. OTAs como Airbnb ficam em Outros Canais. Deduplicação entre abas evita soma dupla durante migração. Asksuite permanece histórico até agosto.

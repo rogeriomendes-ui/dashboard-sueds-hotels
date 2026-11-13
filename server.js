@@ -9607,7 +9607,25 @@ async function loadBiReportsDataset() {
   return payload;
 }
 
-async function loadBiKpiReportsDataset() {
+async function loadDeskhotelSiteRecords(operationalDataset) {
+  let dataset = operationalDataset ? await operationalDataset : null;
+  if (!dataset && dataCache.payload && Date.now() < dataCache.expiresAt) dataset = dataCache.payload;
+  if (!dataset) {
+    const [sellerRows, channelRows] = await Promise.all([
+      getFirstAvailableSheetValues([BI_SALES_RANGE, BASE_RANGE]),
+      getSheetValues(BI_OTHER_CHANNELS_RANGE).catch((error) => {
+        if (isMissingSheetError(error)) return [];
+        throw error;
+      })
+    ]);
+    dataset = require("./lib/sales-routing").dashboardSources(
+      rowsToObjects(sellerRows).map(normalizeRecord), rowsToObjects(channelRows).map(normalizeRecord)
+    );
+  }
+  return (dataset.records || []).filter((record) => !isEventTicket(record));
+}
+
+async function loadBiKpiReportsDataset(operationalDataset) {
   if (biKpiReportsDataCache.payload && Date.now() < biKpiReportsDataCache.expiresAt) {
     return biKpiReportsDataCache.payload;
   }
@@ -9640,7 +9658,7 @@ async function loadBiKpiReportsDataset() {
     };
     const currentSheet = sheetPrefix(BI_KPI_2026_RANGE);
     const historicalSheet = sheetPrefix(BI_KPI_2025_RANGE);
-    const [values, goalRows, capturedAt] = await Promise.all([
+    const [values, goalRows, capturedAt, deskhotelRecords] = await Promise.all([
       getSheetValueRanges([
         ...compactColumns.map((columns) => `${currentSheet}!${columns}`),
         `${currentSheet}!Y:Y`,
@@ -9653,14 +9671,15 @@ async function loadBiKpiReportsDataset() {
       loadKpiCapturedAt().catch((error) => {
         console.error("[bi-kpi-captured-at]", error.message || error);
         return "";
-      })
+      }),
+      loadDeskhotelSiteRecords(operationalDataset)
     ]);
     const currentKpiObjects = kpiObjectsFromColumnRanges(values.slice(0, compactColumns.length + 1));
     const historicalKpiObjects = kpiObjectsFromColumnRanges(values.slice(compactColumns.length + 1));
     const kpiRecords = normalizeKpiReportObjects(currentKpiObjects, 2026);
     const historicalRecords = normalizeKpiReportObjects(historicalKpiObjects, 2025);
     const payload = {
-      records: kpiRecords,
+      records: require("./lib/sales-routing").mergeDeskhotelSiteSales(kpiRecords, deskhotelRecords),
       maintenanceBlocks: normalizeKpiMaintenanceObjects(currentKpiObjects, 2026),
       kpiLatestSaleDate: kpiLatestSaleDate(currentKpiObjects),
       otherChannelRecords: [],
@@ -9670,7 +9689,7 @@ async function loadBiKpiReportsDataset() {
       kpiCapturedAt: capturedAt,
       loadedAt: new Date().toISOString(),
       audience: "bi-relatorios-kpi",
-      comparisonCoverage: "Comparativo baseado exclusivamente nas abas base kpi 2025 e base kpi 2026 do KPI Full. Venda calculada por Diária × RN; reservas com mais de uma linha foram consolidadas."
+      comparisonCoverage: "Base KPI Full 2025 e 2026, com vendas SITE do DeskHotel desde setembro de 2026. Reservas presentes nas duas fontes são contadas uma vez, com o valor do KPI Full."
     };
     biKpiReportsDataCache = { payload, expiresAt: Date.now() + BI_KPI_CACHE_TTL_MS };
     return payload;
@@ -9705,11 +9724,12 @@ async function loadTicketMetrics(period) {
 }
 
 async function loadMetrics(period) {
+  const operationalDataset = loadDataset();
   const [dataset, analytics, asksuiteMarketRows, kpiDataset] = await Promise.all([
-    loadDataset(),
+    operationalDataset,
     loadAnalyticsMetrics(period),
     loadAsksuiteMarketRawRows(),
-    loadBiKpiReportsDataset()
+    loadBiKpiReportsDataset(operationalDataset)
   ]);
   const metrics = buildMetrics(dataset.records, dataset.goals, period);
   const today = period.date || todayKey();
@@ -9724,7 +9744,7 @@ async function loadMetrics(period) {
     || selectedChannel === comparableKey("SITE")
     || selectedChannel === comparableKey("SITE SUEDS");
   const kpiSiteRows = (kpiDataset.records || []).filter((record) => (
-    record.kpiSiteSale === true
+    siteChannelSelected && record.kpiSiteSale === true
     && isCountedSaleStatus(record)
     && (isYearToDate
       ? record.dateKey >= ytdStart && record.dateKey <= today
