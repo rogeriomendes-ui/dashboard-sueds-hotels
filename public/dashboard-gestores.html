@@ -7,6 +7,7 @@
     <script src="manager-auth.js?v=20260901-site-management"></script>
     <link rel="stylesheet" href="styles.css?v=20261113-compact-sales-v2">
     <link rel="stylesheet" href="portal-navigation.css?v=20261010-sino-piscando">
+    <link rel="stylesheet" href="comercial-home.css?v=20261113-layout">
   </head>
   <body class="portal-shell-page">
     <aside id="portalSidebar" class="portal-sidebar" aria-label="Menu do portal">
@@ -151,18 +152,20 @@
             <article class="metric-card primary">
               <span id="salesTodayLabel">Vendas hoje (Equipe SUEDS)</span>
               <strong id="salesToday">R$ 0</strong>
-              <small id="reservationsToday">0 reservas hoje</small>
-              <small id="dailyGoal" class="goal-line">Meta do dia R$ 0</small>
+              <div class="metric-footnote">
+                <small id="reservationsToday">0 reservas hoje</small>
+                <small id="dailyGoal" class="goal-line">Meta do dia R$ 0</small>
+              </div>
             </article>
             <article class="metric-card">
               <span>Recebido no mês (Venda Direta)</span>
               <strong id="receivedMonth">R$ 0</strong>
-              <small>Confirmadas</small>
+              <div class="metric-footnote"><small>Confirmadas</small></div>
             </article>
             <article class="metric-card">
               <span>A receber (Venda Direta)</span>
               <strong id="remainingMonth">R$ 0</strong>
-              <small>No mês</small>
+              <div class="metric-footnote"><small>No mês</small></div>
             </article>
           </div>
           <div id="sellerRanking" class="ranking-list"></div>
@@ -184,7 +187,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Hotéis</p>
-              <h2 id="hotelSalesLabel">Vendas no mês ( Equipe + Site ) (Venda Direta)</h2>
+              <h2 id="hotelSalesLabel">Vendas Direta ( Equipe + Site + Robô )</h2>
             </div>
           </div>
           <div id="hotelTable" class="hotel-table"></div>
@@ -194,7 +197,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Hotéis</p>
-              <h2 id="otherHotelSalesLabel">Vendas no mês (Operadoras + OTAs)</h2>
+              <h2 id="otherHotelSalesLabel">Vendas Operadoras + OTAs</h2>
             </div>
           </div>
           <div id="otherHotelTable" class="hotel-table"></div>
@@ -204,7 +207,7 @@
           <div class="panel-header">
             <div>
               <p class="eyebrow">Hotéis</p>
-              <h2 id="combinedHotelSalesLabel">Vendas no mês (Venda Direta + Outros Canais)</h2>
+              <h2 id="combinedHotelSalesLabel">Venda Direta + Operadoras + OTAs</h2>
             </div>
           </div>
           <div id="combinedHotelTable" class="hotel-table"></div>
@@ -343,7 +346,7 @@
       </section>
     </div>
 
-    <script src="gestores.js?v=20261113-sales-goals"></script>
+    <script src="gestores.js?v=20261113-sales-titles"></script>
     <script src="portal-navigation.js?v=20261007-icone-universidade"></script>
     <script src="portal-shell.js?v=20261027-observatorio"></script>
   </body>

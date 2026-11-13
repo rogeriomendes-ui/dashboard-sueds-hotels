@@ -547,19 +547,16 @@ function render(data) {
 
   const hasDayFilter = Boolean(data.filters?.selectedDay);
   const hasGlobalFilter = hasDayFilter || Boolean(data.filters?.selectedHotel) || Boolean(data.filters?.selectedChannel);
-  const hasHotelOrDayFilter = hasDayFilter || Boolean(data.filters?.selectedHotel);
   const salesScopeLabel = data.filters?.selectedChannel
     ? displayLabel(data.filters.selectedChannel)
     : "Equipe + Site + Robô";
-  const salesPeriodLabel = `${hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês"} ( ${salesScopeLabel} ) (Venda Direta)`;
   byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Equipe SUEDS)`;
   const directSalesLabel = hasGlobalFilter
     ? `Vendas Direta no recorte (${salesScopeLabel})`
     : "Vendas Direta (Equipe + Site + Robô)";
-  byId("hotelSalesLabel").textContent = salesPeriodLabel;
-  const hotelChannelPeriodLabel = hasHotelOrDayFilter ? "Vendas no recorte" : "Vendas no mês";
-  byId("otherHotelSalesLabel").textContent = `${hotelChannelPeriodLabel} (Operadoras + OTAs) (Outros Canais)`;
-  byId("combinedHotelSalesLabel").textContent = `${hotelChannelPeriodLabel} (Venda Direta + Outros Canais)`;
+  byId("hotelSalesLabel").textContent = "Vendas Direta ( Equipe + Site + Robô )";
+  byId("otherHotelSalesLabel").textContent = "Vendas Operadoras + OTAs";
+  byId("combinedHotelSalesLabel").textContent = "Venda Direta + Operadoras + OTAs";
   byId("salesToday").textContent = money.format(data.summary.salesToday);
   byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
   byId("dailyGoal").textContent = `Meta do dia ${money.format(data.summary.dailyGoal || 0)}`;
