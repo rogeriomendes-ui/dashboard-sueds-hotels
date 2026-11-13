@@ -31,9 +31,9 @@
 #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .eyebrow {
   margin: 0 0 6px;
   color: var(--sales-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: .8px;
+  letter-spacing: .6px;
 }
 
 #portalHome :is(.manager-summary-grid, .manager-hotel-grid) h2 {
@@ -62,7 +62,7 @@
   border-bottom: 1px solid var(--sales-border);
   font-size: 12px;
 }
-#portalHome .home-goal-card thead th { color: var(--sales-muted); font-size: 10px; }
+#portalHome .home-goal-card thead th { color: var(--sales-muted); font-size: 11px; }
 #portalHome .home-goal-card tbody th { font-size: 11px; }
 #portalHome .home-goal-card tbody tr:last-child > * { border-bottom: 0; }
 #portalHome .home-goal-card :is(th, td):nth-child(n+5) { width: 13%; }
@@ -96,7 +96,7 @@
   letter-spacing: -.5px;
 }
 #portalHome .metric-footnote { display: flex; flex-direction: column; justify-content: flex-end; }
-#portalHome .metric-footnote small { font-size: 10px; line-height: 1.4; }
+#portalHome .metric-footnote small { font-size: 11px; line-height: 1.4; }
 
 #portalHome :is(.manager-summary-grid, .manager-hotel-grid) :is(.ranking-list, .bar-list, .hotel-table) {
   gap: 0;
@@ -105,7 +105,7 @@
 #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .icm-low { color: #c53e46; }
 #portalHome :is(.manager-summary-grid, .manager-hotel-grid) :is(.icm-ok, .icm-no-goal) { color: #15816a; }
 #portalHome .direct-sales-total .row-label { white-space: normal; overflow: visible; line-height: 1.4; }
-#portalHome .direct-sales-total .row-label small { font-size: 10px; }
+#portalHome .direct-sales-total .row-label small { font-size: 11px; }
 
 @media (min-width: 721px) {
   #portalHome .manager-summary-grid .seller-table-row {
@@ -116,10 +116,10 @@
     min-height: 50px;
     padding: 9px 0;
     border-bottom: 1px solid #edf1f4;
-    font-size: 12px;
+    font-size: 13px;
   }
   #portalHome :is(.manager-summary-grid, .manager-hotel-grid) :is(.seller-table-row, .performance-row) strong {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
   }
@@ -130,13 +130,28 @@
     color: var(--sales-muted);
   }
   #portalHome :is(.manager-summary-grid, .manager-hotel-grid) :is(.seller-table-head, .performance-head) span {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
+    white-space: nowrap;
   }
-  #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .performance-row span:nth-child(n+2) { font-size: 12px; }
-  #portalHome .manager-summary-grid .performance-row {
-    grid-template-columns: minmax(145px, 1.6fr) minmax(45px, .5fr) repeat(2, minmax(85px, 1fr)) 44px 48px;
-    gap: 10px;
+  /* Header and data rows inherit the same tracks and column spacing. */
+  #portalHome .manager-summary-grid .bar-list {
+    grid-template-columns: minmax(180px, 1fr) repeat(5, max-content);
+    column-gap: 12px;
+  }
+  #portalHome .manager-hotel-grid .hotel-table { column-gap: 12px; }
+  #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .performance-row {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    column-gap: 12px;
+  }
+  #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .performance-row > :nth-child(n+2) {
+    text-align: right;
+    white-space: nowrap;
+  }
+  #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .performance-head > span {
+    font-size: 11px;
+    white-space: nowrap;
   }
   #portalHome .manager-summary-grid .seller-table-row:nth-child(2) {
     background: #f4f9f7;
@@ -154,6 +169,9 @@
   #portalHome .manager-hotel-grid h2 { font-size: 15px; }
 }
 
+@container (max-width: 1550px) {
+  #portalHome .manager-hotel-grid { grid-template-columns: 1fr; }
+}
 @container (max-width: 1250px) {
   #portalHome :is(.home-sales-goals, .manager-summary-grid) { grid-template-columns: 1fr; }
 }
