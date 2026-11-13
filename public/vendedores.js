@@ -141,7 +141,7 @@ function renderSellers(sellers = []) {
       const note = active ? String(commission.note || "") : "";
       const amount = active
         ? `${commissionMoney.format(commission.amount || 0)}${note ? "*" : ""}`
-        : "—";
+        : commission === null ? "" : "—";
       const rate = active ? `${commission.ratePct.toFixed(2).replace(".", ",")}%` : "";
       const tooltip = note || (rate ? `Taxa aplicada: ${rate}` : "");
       return `<span class="metric-cell commission ${active ? "commission-active" : ""}" data-label="${label}" title="${tooltip}">${amount}</span>`;

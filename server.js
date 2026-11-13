@@ -4981,7 +4981,7 @@ async function buildSalesCommissionWorkbook(metrics) {
         goalRate: commission?.tier === "goal" ? appliedRate : null,
         super: commission?.tier === "super" ? activeAmount : null,
         superRate: commission?.tier === "super" ? appliedRate : null,
-        commission: activeAmount,
+        commission: commission ? activeAmount : null,
         note: commission?.note || null
       };
     });
@@ -5080,6 +5080,8 @@ async function buildSalesCommissionWorkbook(metrics) {
 }
 
 function teamManagerCommission(seller, period = {}) {
+  if (period.month >= "2026-10") return null;
+
   const icm = Number(seller?.monthlyGoalPct);
   const sales = Number(seller?.salesMonth);
   if (!Number.isFinite(icm) || !Number.isFinite(sales)) return null;
