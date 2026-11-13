@@ -767,6 +767,52 @@ h2 {
   grid-template-columns: 1.15fr 0.95fr;
 }
 
+.seller-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.seller-summary-metrics .metric-card {
+  min-width: 0;
+  min-height: 110px;
+  padding: 12px;
+  gap: 4px;
+}
+
+.seller-summary-metrics .metric-card span,
+.seller-summary-metrics .metric-card small {
+  font-size: 12px;
+}
+
+.seller-summary-metrics .metric-card strong {
+  margin: 6px 0;
+  font-size: clamp(20px, 2vw, 32px);
+  overflow-wrap: anywhere;
+}
+
+#channelBars .direct-sales-total {
+  padding: 10px 0;
+  margin-bottom: 8px;
+  border-bottom: 2px solid var(--line);
+  font-weight: 800;
+}
+
+.direct-sales-total .row-label small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+@media (max-width: 600px) {
+  .seller-summary-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
 .manager-hotel-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 14px;

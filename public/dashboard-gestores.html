@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SUEDS Hotels | Gestores</title>
     <script src="manager-auth.js?v=20260901-site-management"></script>
-    <link rel="stylesheet" href="styles.css?v=20260910-ingressos">
+    <link rel="stylesheet" href="styles.css?v=20261113-sales-home">
     <link rel="stylesheet" href="portal-navigation.css?v=20261010-sino-piscando">
   </head>
   <body class="portal-shell-page">
@@ -134,31 +134,6 @@
           </div>
 
 
-      <section class="hero-metrics">
-        <article class="metric-card primary">
-          <span id="salesTodayLabel">Vendas hoje (Venda Direta)</span>
-          <strong id="salesToday">R$ 0</strong>
-          <small id="reservationsToday">0 reservas hoje</small>
-          <small id="dailyGoal" class="goal-line">Meta do dia R$ 0</small>
-        </article>
-        <article class="metric-card">
-          <span id="salesMonthLabel">Vendas Direta (Equipe + Site + Robô)</span>
-          <strong id="salesMonth">R$ 0</strong>
-          <small id="ticketAverage">Ticket médio R$ 0</small>
-          <small id="monthlyGoal" class="goal-line">Meta do mês R$ 0</small>
-        </article>
-        <article class="metric-card">
-          <span>Recebido no mês (Venda Direta)</span>
-          <strong id="receivedMonth">R$ 0</strong>
-          <small>Confirmadas</small>
-        </article>
-        <article class="metric-card">
-          <span>A receber (Venda Direta)</span>
-          <strong id="remainingMonth">R$ 0</strong>
-          <small>No mês</small>
-        </article>
-      </section>
-
       <section class="dashboard-grid manager-summary-grid">
         <article class="panel">
           <div class="panel-header">
@@ -166,6 +141,24 @@
               <p class="eyebrow">Equipe (Venda Direta)</p>
               <h2>Ranking de vendedores</h2>
             </div>
+          </div>
+          <div class="seller-summary-metrics" aria-label="Resumo de vendas da equipe">
+            <article class="metric-card primary">
+              <span id="salesTodayLabel">Vendas hoje (Equipe SUEDS)</span>
+              <strong id="salesToday">R$ 0</strong>
+              <small id="reservationsToday">0 reservas hoje</small>
+              <small id="dailyGoal" class="goal-line">Meta do dia R$ 0</small>
+            </article>
+            <article class="metric-card">
+              <span>Recebido no mês (Venda Direta)</span>
+              <strong id="receivedMonth">R$ 0</strong>
+              <small>Confirmadas</small>
+            </article>
+            <article class="metric-card">
+              <span>A receber (Venda Direta)</span>
+              <strong id="remainingMonth">R$ 0</strong>
+              <small>No mês</small>
+            </article>
           </div>
           <div id="sellerRanking" class="ranking-list"></div>
         </article>
@@ -345,7 +338,7 @@
       </section>
     </div>
 
-    <script src="gestores.js?v=20260911-equipe-hoje"></script>
+    <script src="gestores.js?v=20261113-sales-home"></script>
     <script src="portal-navigation.js?v=20261007-icone-universidade"></script>
     <script src="portal-shell.js?v=20261027-observatorio"></script>
   </body>

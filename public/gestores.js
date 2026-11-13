@@ -313,6 +313,7 @@ function performanceTable(items, firstColumn, options = {}) {
       <span>ICM %</span>
       <span>Prev. %</span>
     </div>
+    ${options.leadingRow || ""}
     ${bars(items, options)}
     ${totalRow}
   `;
@@ -552,7 +553,7 @@ function render(data) {
     : "Equipe + Site + Robô";
   const salesPeriodLabel = `${hasGlobalFilter ? "Vendas no recorte" : "Vendas no mês"} ( ${salesScopeLabel} ) (Venda Direta)`;
   byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Equipe SUEDS)`;
-  byId("salesMonthLabel").textContent = hasGlobalFilter
+  const directSalesLabel = hasGlobalFilter
     ? `Vendas Direta no recorte (${salesScopeLabel})`
     : "Vendas Direta (Equipe + Site + Robô)";
   byId("hotelSalesLabel").textContent = salesPeriodLabel;
@@ -562,9 +563,6 @@ function render(data) {
   byId("salesToday").textContent = money.format(data.summary.salesToday);
   byId("reservationsToday").textContent = `${data.summary.reservationsToday} reservas ${hasDayFilter ? "no dia" : "hoje"}`;
   byId("dailyGoal").textContent = `Meta do dia ${money.format(data.summary.dailyGoal || 0)}`;
-  byId("salesMonth").textContent = money.format(data.summary.salesMonth);
-  byId("ticketAverage").textContent = `Ticket médio ${money.format(data.summary.ticketAverageMonth)}`;
-  byId("monthlyGoal").textContent = `Meta do mês ${money.format(data.summary.monthlyGoal || 0)}`;
   byId("receivedMonth").textContent = money.format(data.summary.receivedMonth);
   byId("remainingMonth").textContent = money.format(data.summary.remainingMonth);
   renderGlobalFilters(data.filters || { days: [], hotels: [], channels: [] });
@@ -609,7 +607,23 @@ function render(data) {
   );
   const hotelCardLabel = (label) => displayLabel(label).replace(/^Sueds\s+/i, "");
   const goalProgressPct = data.period?.goalProgressPct;
-  byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", { formatLabel: directChannelLabel, goalProgressPct });
+  const directSalesTotal = {
+    label: directSalesLabel,
+    reservations: data.summary.reservationsMonth,
+    value: data.summary.salesMonth,
+    monthlyGoal: data.summary.monthlyGoal,
+    monthlyGoalPct: data.summary.monthlyGoal
+      ? (data.summary.salesMonth / data.summary.monthlyGoal) * 100 : null,
+    projectionPct: projectionPct(data.summary.salesMonth, data.summary.monthlyGoal, goalProgressPct)
+  };
+  byId("channelBars").innerHTML = performanceTable(visibleDirectChannels, "Canal", {
+    formatLabel: directChannelLabel,
+    goalProgressPct,
+    leadingRow: bars([directSalesTotal], {
+      rowClass: "direct-sales-total",
+      formatLabel: (label) => `${escapeHtml(label)}<small>Ticket médio ${money.format(data.summary.ticketAverageMonth)}</small>`
+    })
+  });
   byId("hotelTable").innerHTML = performanceTable(data.hotels, "Hotel", { formatLabel: hotelCardLabel, showTotal: true, goalProgressPct });
   const hotelBreakdowns = hotelSalesBreakdowns(data);
   byId("otherHotelTable").innerHTML = performanceTable(hotelBreakdowns.other, "Hotel", { formatLabel: hotelCardLabel, showTotal: true, goalProgressPct });
