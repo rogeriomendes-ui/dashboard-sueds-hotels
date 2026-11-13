@@ -177,7 +177,24 @@
   #portalHome .manager-hotel-grid h2 { font-size: 15px; }
 }
 
-@container (max-width: 1750px) {
+@media (min-width: 1024px) {
+  #portalHome .manager-hotel-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #portalHome .manager-hotel-grid > .panel { padding: 16px 14px; }
+  #portalHome .manager-hotel-grid .hotel-table {
+    grid-template-columns: minmax(90px, 1.2fr) minmax(max-content, .7fr) repeat(2, minmax(max-content, 1fr)) repeat(2, minmax(max-content, .6fr));
+    column-gap: 16px;
+  }
+  #portalHome .manager-hotel-grid .performance-row { column-gap: 16px; }
+  #portalHome .manager-hotel-grid .row-label {
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+  }
+}
+@media (max-width: 1023px) {
   #portalHome .manager-hotel-grid { grid-template-columns: 1fr; }
 }
 @container (max-width: 1450px) {
