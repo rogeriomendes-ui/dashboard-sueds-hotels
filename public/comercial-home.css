@@ -108,9 +108,14 @@
 #portalHome .direct-sales-total .row-label small { font-size: 11px; }
 
 @media (min-width: 721px) {
+  #portalHome #sellerRanking {
+    grid-template-columns: 24px minmax(120px, 1fr) minmax(max-content, .75fr) repeat(2, minmax(max-content, 1.1fr)) repeat(2, minmax(max-content, .6fr)) minmax(96px, 1fr);
+    column-gap: 12px;
+  }
   #portalHome .manager-summary-grid .seller-table-row {
-    grid-template-columns: 24px minmax(100px, 1.35fr) minmax(48px, .55fr) repeat(2, minmax(82px, 1fr)) 42px 46px minmax(84px, .9fr);
-    gap: 8px;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    column-gap: 12px;
   }
   #portalHome :is(.manager-summary-grid, .manager-hotel-grid) :is(.seller-table-row, .performance-row) {
     min-height: 50px;
@@ -135,15 +140,18 @@
     white-space: nowrap;
   }
   /* Header and data rows inherit the same tracks and column spacing. */
-  #portalHome .manager-summary-grid .bar-list {
-    grid-template-columns: minmax(180px, 1fr) repeat(5, max-content);
-    column-gap: 12px;
+  #portalHome .manager-summary-grid .bar-list,
+  #portalHome .manager-hotel-grid .hotel-table {
+    grid-template-columns: minmax(128px, 1.4fr) minmax(max-content, .7fr) repeat(2, minmax(max-content, 1fr)) repeat(2, minmax(max-content, .6fr));
+    column-gap: 18px;
   }
-  #portalHome .manager-hotel-grid .hotel-table { column-gap: 12px; }
+  #portalHome .manager-summary-grid .bar-list {
+    grid-template-columns: minmax(180px, 1.4fr) minmax(max-content, .7fr) repeat(2, minmax(max-content, 1fr)) repeat(2, minmax(max-content, .6fr));
+  }
   #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .performance-row {
     grid-column: 1 / -1;
     grid-template-columns: subgrid;
-    column-gap: 12px;
+    column-gap: 18px;
   }
   #portalHome :is(.manager-summary-grid, .manager-hotel-grid) .performance-row > :nth-child(n+2) {
     text-align: right;
@@ -172,7 +180,7 @@
 @container (max-width: 1550px) {
   #portalHome .manager-hotel-grid { grid-template-columns: 1fr; }
 }
-@container (max-width: 1250px) {
+@container (max-width: 1450px) {
   #portalHome :is(.home-sales-goals, .manager-summary-grid) { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
