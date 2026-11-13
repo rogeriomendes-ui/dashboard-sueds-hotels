@@ -719,6 +719,55 @@ function exportDetailedSales() {
   URL.revokeObjectURL(url);
 }
 
+let homeSalesGoalsController = null;
+
+function renderHomeSalesGoals(payload) {
+  const year = Number(payload.period.start.slice(0, 4));
+  const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" });
+  const value = (amount) => amount == null ? "—" : money.format(amount);
+  const percentCell = (amount, threshold) => `<span class="${amount < threshold ? "negative" : "positive"}">${percentage.format(amount)}%</span>`;
+  byId("homeSalesGoals").innerHTML = ["sales", "direct"].map((key) => {
+    const table = (payload.monthlyGoalTables || []).find((item) => item.key === key);
+    const title = key === "sales" ? "Meta de Vendas" : "Meta Venda Direta";
+    const rows = (table?.rows || []).map((row) => {
+      const goalPct = row.actual != null && row.target > 0 ? percentCell(row.actual / row.target * 100, 100) : "—";
+      const variation = row.actual == null ? "—" : row.previous > 0
+        ? percentCell((row.actual - row.previous) / row.previous * 100, 0)
+        : row.actual > 0 ? '<span class="positive">novo</span>' : "—";
+      return `<tr><th scope="row">${escapeHtml(monthName.format(new Date(`${row.key}-01T12:00:00Z`)).toUpperCase())}</th><td>${value(row.actual)}</td><td>${value(row.previous)}</td><td>${value(row.target)}</td><td>${goalPct}</td><td>${variation}</td></tr>`;
+    }).join("");
+    return `<article class="home-goal-card"><h2 class="home-goal-title ${key}">${title}</h2><div class="home-goal-scroll"><table aria-label="${title}"><thead><tr><th scope="col">Mês</th><th scope="col">Venda ${year}</th><th scope="col">Venda ${year - 1}</th><th scope="col">Meta ${year}</th><th scope="col">% Meta</th><th scope="col">Var. A/A</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Sem dados para o período.</td></tr>'}</tbody></table></div></article>`;
+  }).join("");
+}
+
+async function loadHomeSalesGoals({ month, day, hotel, channel }) {
+  homeSalesGoalsController?.abort();
+  const controller = new AbortController();
+  homeSalesGoalsController = controller;
+  const end = day || dateForMonth(month);
+  const start = day || (month === "ytd" ? `${end.slice(0, 4)}-01-01` : `${month}-01`);
+  const params = new URLSearchParams({ start, end });
+  if (hotel) params.set("hotel", hotel);
+  if (channel) {
+    const key = comparableLabel(channel);
+    params.set("channel", ["site", "site sueds", "central de reservas"].includes(key) ? "Reserva Direta" : channel);
+  }
+  byId("homeSalesGoals").setAttribute("aria-busy", "true");
+  const timeout = setTimeout(() => controller.abort(), 45000);
+  try {
+    const response = await fetch(`/api/dashboard/bi-relatorios-kpi?${params.toString()}`, { signal: controller.signal });
+    if (!response.ok) throw new Error("Falha ao carregar metas");
+    const payload = await response.json();
+    if (homeSalesGoalsController === controller) renderHomeSalesGoals(payload);
+  } catch (error) {
+    if (homeSalesGoalsController !== controller) return;
+    byId("homeSalesGoals").innerHTML = '<p class="panel-error">Não foi possível carregar as metas por KPI. Tente atualizar a página.</p>';
+  } finally {
+    clearTimeout(timeout);
+    if (homeSalesGoalsController === controller) byId("homeSalesGoals").setAttribute("aria-busy", "false");
+  }
+}
+
 async function load() {
   const month = byId("monthSelect").value;
   const params = new URLSearchParams({
@@ -740,6 +789,7 @@ async function load() {
 
   if (!response.ok) throw new Error("Falha ao carregar dados dos gestores");
   render(await response.json());
+  await loadHomeSalesGoals({ month, day, hotel, channel });
 }
 
 setupMonthSelect();
