@@ -83,21 +83,22 @@ function plazaNight(row, rates, demand, policy, floors, periods) {
     if (delta!==null) { comparable=true; if(delta!==0) diverges=true; }
     amounts.push(money((own ? rmsRate : bandRate) ?? null),money(bandRate ?? null),money(rmsRate ?? null),delta>0 ? "+"+money(delta) : money(delta));
   }
-  let reason=threshold && bandReady ? "Faixa acima de "+threshold+"% de ocupação. Ajuste de "+formatPct(pct)+"." : row[17];
+  let reason=!bandReady ? (standard>0 ? "Ocupação indisponível." : "Sem tarifa Standard vigente para simular.") : threshold ? "Faixa acima de "+threshold+"% de ocupação. Ajuste de "+formatPct(pct)+"." : "Nenhuma faixa aplicável. Manter a tarifa vigente.";
   if (period && bandReady) reason=period.nome+" · ocupação de "+row[7]+"% · ajuste do período: "+formatPct(pct)+".";
   if (bandReady && suggested>raw) reason+=" Piso aplicado.";
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
   const action=hold ? "Manter" : bandReady ? suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
   const comparison=!comparable ? "Sem comparação" : diverges ? "Diverge" : "Coincide";
-  return [date(night),comparison,change,...amounts,money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
-    quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(effective) : "—",date(row[10]),row[12],row[13],row[14],reason,
-    hold ? reason : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Piso aplicado." : ""),
+  const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Piso aplicado." : "");
+  return [date(night),amounts[1],amounts[6],amounts[11],own ? ownReason : reason,comparison,change,
+    ...[0,5,10].flatMap(i=>[amounts[i],amounts[i+(own?2:3)],amounts[i+4]]),money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
+    quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(effective) : "—",date(row[10]),row[12],row[13],row[14],own ? reason : ownReason,
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—"];
 }
 
 function filterPlazaRow(row) {
-  row.hidden=(element("onlyDifferent").checked && row.cells[1].textContent!=="Diverge") ||
-    (element("onlyChanged").checked && row.cells[2].textContent==="—");
+  row.hidden=element("compareModels").checked && ((element("onlyDifferent").checked && row.cells[5].textContent!=="Diverge") ||
+    (element("onlyChanged").checked && row.cells[6].textContent==="—"));
 }
 let analysisVersion=0;
 async function showPlaza(data,plaza) {
@@ -107,10 +108,16 @@ async function showPlaza(data,plaza) {
   const nights=data.analysis.rows.filter(r=>r[0]>=data.today);
   const periods=data.periods.filter(p=>p.hotel_id===plaza.id);
   const render=(r,rates)=>plazaNight(r,rates,data.analysis.conversaoDeskhotel,policy,floors,periods);
-  const priceColumns=["Standard","Luxo","Suíte Master"].flatMap(category=>["atual","modelo escolhido","BeePrice","RMS Próprio","RMS − faixa"].map(label=>category+" · "+label));
-  table("nights",["Noite","Comparação","Mudança RMS · Standard",...priceColumns,"Tarifa de referência","Plaza × referência","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo da faixa","Motivo do RMS","Consulta Omnibees"],
+  const other=policy?.modelo==="proprio" ? "BeePrice" : "RMS Próprio";
+  const categories=["Standard","Luxo","Suíte Master"];
+  const priceColumns=categories.flatMap(category=>["vigente",other,"RMS − faixa"].map(label=>category+" · "+label));
+  table("nights",["Noite",...categories.map(c=>c+" · sugerida"),"Motivo do modelo ativo","Comparação","Mudança RMS · Standard",...priceColumns,"Tarifa de referência","Plaza × referência","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo · "+other,"Consulta Omnibees"],
     nights.map(r=>render(r,data.rates[r[0]])));
-  element("selectedModel").textContent="Modelo escolhido: "+(policy?.modelo==="proprio" ? "RMS Próprio" : "BeePrice")+". No RMS Próprio, abaixo de 80%, procura e conversão devem atingir as referências mensais, com venda e ADVP ≥ 0. Aumento de 5%, ou 10% a partir de 70% de ocupação e 10 aptos à frente.";
+  for(const row of element("nights").rows){
+    row.cells[4].classList.add("reason");
+    for(const col of [5,6,8,9,11,12,14,15,22,23,28]) row.cells[col].classList.add("compare-only");
+    row.cells[28].classList.add("reason");
+  }
   const applyFilter=()=>{for(const row of element("nights").tBodies[0].rows) filterPlazaRow(row);};
   element("onlyDifferent").onchange=applyFilter;
   element("onlyChanged").onchange=applyFilter;
@@ -148,6 +155,19 @@ async function showHotel(data,hotel) {
   element("analysis").hidden=!hotel;
   if (!hotel) return;
   const isPlaza=hotel.code==="PLAZA";
+  const policy=data.policies.find(p=>p.hotel_id===hotel.id);
+  const ownModel=policy?.modelo==="proprio";
+  element("selectedModel").textContent="Modelo ativo: "+(ownModel?"RMS Próprio":"BeePrice");
+  element("compareLabel").textContent="Comparar com "+(ownModel?"BeePrice":"RMS Próprio");
+  const compare=element("compareModels");
+  compare.checked=element("onlyDifferent").checked=element("onlyChanged").checked=false;
+  element("analysis").classList.remove("comparing");
+  compare.onchange=()=>{
+    element("analysis").classList.toggle("comparing",compare.checked);
+    if(isPlaza && element("nights").tBodies[0]) {
+      for(const row of element("nights").tBodies[0].rows) filterPlazaRow(row);
+    }
+  };
   element("panelHotel").textContent=hotel.name;
   element("plazaNotes").hidden=!isPlaza;
   const competitors=data.competitors.filter(c=>c.hotel_id===hotel.id);
@@ -166,8 +186,6 @@ async function showHotel(data,hotel) {
       const map=await response.json();
       if (version!==analysisVersion) return;
       const days=map.occupancy.find(h=>h.hotel===map.selected.hotel)?.days || [];
-      const policy=data.policies.find(p=>p.hotel_id===hotel.id);
-      const ownModel=policy?.modelo==="proprio";
       const floors=data.floors.filter(f=>f.hotel_id===hotel.id);
       const periods=data.periods.filter(p=>p.hotel_id===hotel.id);
       const adjustment=d=>{
@@ -178,19 +196,36 @@ async function showHotel(data,hotel) {
         return threshold ? Number(policy["pct"+threshold]) : null;
       };
       dates=days.map(d=>d.date);
-      table("nights",["Noite","Ocupação","Aptos ocupados","Ajuste por ocupação","Tarifa vigente (R$)","Tarifa sugerida"],days.map(d=>{
-        const pct=adjustment(d);
-        return [date(d.date),d.rate==null?"—":d.rate.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%",d.occupied ?? "—",
-          d.rate>=100?"Manter":ownModel?"Sem apuração":pct!=null?pct+"%":"—","—","—"];
-      }));
+      const other=ownModel?"BeePrice":"RMS Próprio";
+      table("nights",["Noite","Tarifa sugerida","Motivo do modelo ativo","Tarifa · "+other,"Motivo · "+other,"Ocupação","Aptos ocupados","Tarifa vigente (R$)"],days.map(d=>[
+        date(d.date),"—","","—","",d.rate==null?"—":d.rate.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%",d.occupied ?? "—","—"
+      ]));
+      for(const row of element("nights").rows) {
+        row.cells[3].classList.add("compare-only");
+        row.cells[4].classList.add("compare-only","reason");
+        row.cells[2].classList.add("reason");
+      }
       days.forEach((d,i)=>{
+        const cells=element("nights").tBodies[0].rows[i].cells;
         const {floor}=nightPolicy(d.date,d.rate,policy,floors);
-        const pct=adjustment(d);
-        if (ownModel || pct==null || d.rate>=100) return;
-        const cells=element("nights").tBodies[0].rows[i].cells, input=document.createElement("input");
+        const pct=adjustment(d), hold=d.rate>=100;
+        const period=periods.find(p=>p.inicio<=d.date && d.date<=p.fim);
+        const input=document.createElement("input");
         input.type="number";input.min=".01";input.step=".01";input.setAttribute("aria-label","Tarifa vigente em "+date(d.date));
-        cells[4].replaceChildren(input);
-        input.oninput=()=>cells[5].textContent=input.valueAsNumber>0 && input.validity.valid ? money(Math.max(floor,Math.round(Math.round(input.valueAsNumber*100)*(100+pct)/100)/100)) : "—";
+        if(pct!=null || hold) cells[7].replaceChildren(input);
+        function update(){
+          const rate=input.valueAsNumber>0 && input.validity.valid ? input.valueAsNumber : null;
+          const raw=rate!=null && pct!=null ? Math.round(Math.round(rate*100)*(100+pct)/100)/100 : null;
+          const band=hold ? rate : raw==null ? null : Math.max(floor,raw);
+          const holdReason=d.rate>100?"Overbooking. Manter a diária vigente.":"Noite esgotada. Manter a diária vigente.";
+          const bandReason=hold ? holdReason : d.rate==null?"Ocupação indisponível.":pct==null?"Sem faixa aplicável.":(period?.nome || "Faixa geral")+" · ajuste de "+pct+"%."+(raw!=null && floor>raw?" Piso aplicado.":"");
+          const ownReason=hold ? holdReason : "Aguardando dados de demanda, conversão, curva e tarifas do hotel.";
+          cells[ownModel?3:1].textContent=money(band);
+          cells[ownModel?4:2].textContent=bandReason+(!rate && (pct!=null || hold)?" Informe a diária vigente.":"");
+          cells[ownModel?1:3].textContent=money(hold ? rate : null);
+          cells[ownModel?2:4].textContent=ownReason+(hold && !rate?" Informe a diária vigente.":"");
+        }
+        input.oninput=update;update();
       });
       element("hotelNote").textContent=days.some(d=>d.rate!=null)?"Ocupação do mapa KPI. Nas noites com faixa aplicável, informe a diária vigente para calcular a sugestão. Curva histórica, conversão e tarifas próprias automáticas ainda sem integração para esta unidade.":"Sem ocupação apurada para este hotel no período.";
       if (ownModel) element("hotelNote").textContent="Modelo RMS Próprio selecionado. A simulação desta unidade aguarda os dados de procura, conversão, curva histórica e tarifas.";
