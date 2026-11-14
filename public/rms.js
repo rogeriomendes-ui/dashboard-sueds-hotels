@@ -60,24 +60,35 @@ function plazaNight(row, rates, demand, policy, floors, periods) {
   const band=[80,70,60,50].find(n=>occupancy>n) ?? 0;
   const pct=period ? Number(period["pct"+band]) : threshold ? Number(policy["pct"+threshold]) : Number(row[4]);
   const adjust=(current,percent)=>Math.round(Math.round(current*100)*(100+percent)/100)/100;
-  const raw=ready ? adjust(standard,pct) : null;
-  const suggested=ready ? Math.max(floor,raw) : null;
-  const effective=ready && suggested>raw ? 100*(suggested/standard-1) : pct;
+  const bandReady=standard>0 && Number.isFinite(occupancy) && (period || threshold || ready);
+  const raw=bandReady ? adjust(standard,pct) : null;
+  const suggested=bandReady ? Math.max(floor,raw) : null;
+  const effective=bandReady && suggested>raw ? 100*(suggested/standard-1) : pct;
   const formatPct=n=>n.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%";
+  const rmsPercent=Number(row[4]);
+  const rmsStandard=ready ? Math.max(floor,adjust(standard,rmsPercent)) : null;
+  const rmsEffective=ready && rmsStandard>adjust(standard,rmsPercent) ? 100*(rmsStandard/standard-1) : rmsPercent;
   const amounts=[];
+  let comparable=false, diverges=false;
   for (const key of ["standard","luxo","suite"]) {
     const current=rates?.[key];
     const limited=rates?.restricted?.includes(key);
     amounts.push(current ? money(current)+(limited?" (estadia mínima)":"") : rates?.at ? "Sem oferta" : "Sem cotação");
-    amounts.push(hold ? (current ? money(current) : "—") : current && ready ? money(key==="standard" ? suggested : Math.max(floor,adjust(current,effective))) : "—");
+    const bandRate=hold ? current : current && bandReady ? (key==="standard" ? suggested : Math.max(floor,adjust(current,effective))) : null;
+    const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
+    const delta=bandRate>0 && rmsRate>0 ? Math.round((rmsRate-bandRate)*100)/100 : null;
+    if (delta!==null) { comparable=true; if(delta!==0) diverges=true; }
+    amounts.push(money(bandRate ?? null),money(rmsRate ?? null),delta>0 ? "+"+money(delta) : money(delta));
   }
-  let reason=threshold && ready ? "Faixa acima de "+threshold+"% de ocupação. Ajuste de "+formatPct(pct)+"." : row[17];
-  if (period && ready) reason=period.nome+" · ocupação de "+row[7]+"% · ajuste do período: "+formatPct(pct)+".";
-  if (ready && suggested>raw) reason+=" Piso aplicado.";
+  let reason=threshold && bandReady ? "Faixa acima de "+threshold+"% de ocupação. Ajuste de "+formatPct(pct)+"." : row[17];
+  if (period && bandReady) reason=period.nome+" · ocupação de "+row[7]+"% · ajuste do período: "+formatPct(pct)+".";
+  if (bandReady && suggested>raw) reason+=" Piso aplicado.";
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
-  const action=hold ? "Manter" : ready ? suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
-  return [date(night),...amounts,money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
-    quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : ready ? formatPct(effective) : "—",date(row[10]),row[12],row[13],row[14],reason,
+  const action=hold ? "Manter" : bandReady ? suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
+  const comparison=!comparable ? "Sem comparação" : diverges ? "Diverge" : "Coincide";
+  return [date(night),comparison,...amounts,money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
+    quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(effective) : "—",date(row[10]),row[12],row[13],row[14],reason,
+    hold ? reason : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Piso aplicado." : ""),
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—"];
 }
 
@@ -89,8 +100,12 @@ async function showPlaza(data,plaza) {
   const nights=data.analysis.rows.filter(r=>r[0]>=data.today);
   const periods=data.periods.filter(p=>p.hotel_id===plaza.id);
   const render=(r,rates)=>plazaNight(r,rates,data.analysis.conversaoDeskhotel,policy,floors,periods);
-  table("nights",["Noite","Standard atual","Standard sugerida","Luxo atual","Luxo sugerida","Suíte Master atual","Suíte Master sugerida","Tarifa de referência","Plaza × referência","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão","Ajuste","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo","Consulta Omnibees"],
+  const priceColumns=["Standard","Luxo","Suíte Master"].flatMap(category=>["atual","faixa","RMS","RMS − faixa"].map(label=>category+" · "+label));
+  table("nights",["Noite","Comparação",...priceColumns,"Tarifa de referência","Plaza × referência","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo da faixa","Motivo do RMS","Consulta Omnibees"],
     nights.map(r=>render(r,data.rates[r[0]])));
+  const applyFilter=()=>{for(const row of element("nights").tBodies[0].rows) row.hidden=element("onlyDifferent").checked && row.cells[1].textContent!=="Diverge";};
+  element("onlyDifferent").onchange=applyFilter;
+  applyFilter();
   element("analysis").hidden=false;
   const pending=nights.filter(r=>!(Date.now()-Date.parse(data.rates[r[0]]?.at)<30*60*1000)).map(r=>r[0]);
   let failed=0;
@@ -109,6 +124,7 @@ async function showPlaza(data,plaza) {
         data.rates[r[0]]=rates;
         const cells=rows.get(r[0]).cells;
         render(r,rates).forEach((v,i)=>cells[i].textContent=v);
+        rows.get(r[0]).hidden=element("onlyDifferent").checked && cells[1].textContent!=="Diverge";
       }
     } catch {failed+=batch.length;}
   }
@@ -180,6 +196,7 @@ async function showHotel(data,hotel) {
               const cells=rows[i+batch.indexOf(r[0])].cells;
               plazaNight(r,data.rates[r[0]],data.analysis.conversaoDeskhotel,data.policies.find(p=>p.hotel_id===hotel.id),data.floors.filter(f=>f.hotel_id===hotel.id),data.periods.filter(p=>p.hotel_id===hotel.id))
                 .forEach((v,k)=>cells[k].textContent=v);
+              cells[0].parentElement.hidden=element("onlyDifferent").checked && cells[1].textContent!=="Diverge";
             }
           }
         } catch {}
