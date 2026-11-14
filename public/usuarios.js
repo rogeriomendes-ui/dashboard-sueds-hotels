@@ -97,7 +97,12 @@
     if (event.target.name !== "roles" || !event.target.checked) return;
     const role = state.catalog.roles.find((item) => String(item.id) === event.target.value);
     if (!role) return;
-    if (role.slug === "admin_geral") form.querySelectorAll('input[name="environments"]').forEach((input) => { input.checked = true; });
+    if (role.slug === "admin_geral") {
+      const rms = state.catalog.environments.find((environment) => environment.slug === "rms");
+      form.querySelectorAll('input[name="environments"]').forEach((input) => {
+        if (input.value !== String(rms?.id)) input.checked = true;
+      });
+    }
     suggestEnvironment(role.slug);
   });
 
