@@ -91,6 +91,8 @@ module.exports = async function rms(req, res) {
         if (saved.error) throw saved.error;
         if (!saved.data) return json(res,404,{error:"Período não cadastrado."});
       } else if (body?.tipo === "politica") {
+        if (body.modelo!==undefined && !["beeprice","proprio"].includes(body.modelo))
+          return json(res,400,{error:"Modelo indisponível para este hotel."});
         const fields = ["piso","pct50","pct60","pct70","pct80","pct90"];
         if (!hotels.data.some(h=>h.id===body.hotel_id) || !fields.every(key=>{
           const v=body[key];
@@ -98,7 +100,7 @@ module.exports = async function rms(req, res) {
             (key==="piso" ? v>0 && v<1e10 : v>=0 && v<1e6));
         })) return json(res,400,{error:"Confira o hotel, o piso e os percentuais."});
         const saved=await client.from("rms_politicas").upsert({
-          hotel_id:body.hotel_id,...Object.fromEntries(fields.map(key=>[key,body[key]]))
+          hotel_id:body.hotel_id,...(body.modelo!==undefined ? {modelo:body.modelo} : {}),...Object.fromEntries(fields.map(key=>[key,body[key]]))
         },{onConflict:"hotel_id"});
         if (saved.error) throw saved.error;
       } else if (body?.tipo === "concorrente") {
@@ -126,7 +128,7 @@ module.exports = async function rms(req, res) {
     }
     const floors = await client.from("rms_pisos").select("hotel_id,inicio,fim,valor,incluido_em,incluido_por,gravado_em,gravado_por").order("inicio");
     if (floors.error) throw floors.error;
-    const policies=await client.from("rms_politicas").select("hotel_id,piso,pct50,pct60,pct70,pct80,pct90,gravado_em,gravado_por");
+    const policies=await client.from("rms_politicas").select("hotel_id,modelo,piso,pct50,pct60,pct70,pct80,pct90,gravado_em,gravado_por");
     if (policies.error) throw policies.error;
     const periods=await client.from("rms_faixas_festivas").select("hotel_id,nome,inicio,fim,pct0,pct50,pct60,pct70,pct80,gravado_em,gravado_por").order("inicio");
     if (periods.error) throw periods.error;
