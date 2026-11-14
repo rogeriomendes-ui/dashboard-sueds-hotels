@@ -42,28 +42,29 @@ function table(id, labels, rows) {
   }
 }
 
-function nightPolicy(night,occupancy,policy,floors) {
+function nightFloor(night,policy,floors) {
   const periodFloors=floors.filter(f=>f.inicio<=night && night<=f.fim).map(f=>Number(f.valor));
-  const floor=periodFloors.length ? Math.max(...periodFloors) : Number(policy?.piso ?? 0);
-  const threshold=thresholds.filter(t=>occupancy>t && policy?.["pct"+t]!=null).pop();
-  return {floor,threshold};
+  return periodFloors.length ? Math.max(...periodFloors) : Number(policy?.piso ?? 0);
+}
+
+function periodAdjustment(period, occupancy) {
+  if (!period || occupancy == null || !Number.isFinite(Number(occupancy))) return null;
+  const band=[80,70,60,50].find(t=>occupancy>t) ?? 0;
+  return Number(period["pct"+band]);
 }
 
 function plazaNight(row, rates, demand, policy, floors, periods) {
   const night=row[0], brisa=value(row[2]), standard=rates?.standard;
   const [quotes,sales]=demand[night] || [];
-  const {floor,threshold}=nightPolicy(night,value(row[7]),policy,floors);
+  const floor=nightFloor(night,policy,floors);
   const ready=standard>0 && row[6]!=="Revisar" && row[4]!=="";
   const period=periods.find(p=>p.inicio<=night && night<=p.fim);
   const occupancy=value(row[7]);
   const hold=occupancy>=100;
-  const band=[80,70,60,50].find(n=>occupancy>n) ?? 0;
-  const pct=period ? Number(period["pct"+band]) : threshold ? Number(policy["pct"+threshold]) : 0;
+  const pct=periodAdjustment(period,occupancy);
   const adjust=(current,percent)=>Math.round(Math.round(current*100)*(100+percent)/100)/100;
-  const bandReady=standard>0 && Number.isFinite(occupancy);
-  const raw=bandReady ? adjust(standard,pct) : null;
-  const suggested=bandReady ? Math.max(floor,raw) : null;
-  const effective=bandReady && suggested>raw ? 100*(suggested/standard-1) : pct;
+  const bandReady=pct!=null && standard>0;
+  const suggested=bandReady ? adjust(standard,pct) : null;
   const formatPct=n=>n.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%";
   const rmsPercent=Number(row[4]);
   const rmsStandard=ready ? Math.max(floor,adjust(standard,rmsPercent)) : null;
@@ -77,22 +78,21 @@ function plazaNight(row, rates, demand, policy, floors, periods) {
     const current=rates?.[key];
     const limited=rates?.restricted?.includes(key);
     amounts.push(current ? money(current)+(limited?" (estadia mínima)":"") : rates?.at ? "Sem oferta" : "Sem cotação");
-    const bandRate=hold ? current : current && bandReady ? (key==="standard" ? suggested : Math.max(floor,adjust(current,effective))) : null;
+    const bandRate=hold ? current : current && pct!=null ? adjust(current,pct) : null;
     const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
     const delta=bandRate>0 && rmsRate>0 ? Math.round((rmsRate-bandRate)*100)/100 : null;
     if (delta!==null) { comparable=true; if(delta!==0) diverges=true; }
     amounts.push(money((own ? rmsRate : bandRate) ?? null),money(bandRate ?? null),money(rmsRate ?? null),delta>0 ? "+"+money(delta) : money(delta));
   }
-  let reason=!bandReady ? (standard>0 ? "Ocupação indisponível." : "Sem tarifa Standard vigente para simular.") : threshold ? "Faixa acima de "+threshold+"% de ocupação. Ajuste de "+formatPct(pct)+"." : "Nenhuma faixa aplicável. Manter a tarifa vigente.";
-  if (period && bandReady) reason=period.nome+" · ocupação de "+row[7]+"% · ajuste do período: "+formatPct(pct)+".";
-  if (bandReady && suggested>raw) reason+=" Piso aplicado.";
+  let reason=!period ? "Sem período BeePrice cadastrado para esta noite." : pct==null ? "Ocupação indisponível." :
+    period.nome+" · ocupação de "+row[7]+"% · ajuste do período: "+formatPct(pct)+".";
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
   const action=hold ? "Manter" : bandReady ? suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
   const comparison=!comparable ? "Sem comparação" : diverges ? "Diverge" : "Coincide";
   const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
   return [date(night),amounts[1],amounts[6],amounts[11],own ? ownReason : reason,comparison,change,
     ...[0,5,10].flatMap(i=>[amounts[i],amounts[i+(own?2:3)],amounts[i+4]]),money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
-    quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(effective) : "—",date(row[10]),row[12],row[13],row[14],own ? reason : ownReason,
+    quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(pct) : "—",date(row[10]),row[12],row[13],row[14],own ? reason : ownReason,
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—"];
 }
 
@@ -186,15 +186,7 @@ async function showHotel(data,hotel) {
       const map=await response.json();
       if (version!==analysisVersion) return;
       const days=map.occupancy.find(h=>h.hotel===map.selected.hotel)?.days || [];
-      const floors=data.floors.filter(f=>f.hotel_id===hotel.id);
       const periods=data.periods.filter(p=>p.hotel_id===hotel.id);
-      const adjustment=d=>{
-        if(d.rate==null)return null;
-        const period=periods.find(p=>p.inicio<=d.date && d.date<=p.fim);
-        if(period)return Number(period["pct"+([80,70,60,50].find(t=>d.rate>t) ?? 0)]);
-        const {threshold}=nightPolicy(d.date,d.rate,policy,floors);
-        return threshold ? Number(policy["pct"+threshold]) : null;
-      };
       dates=days.map(d=>d.date);
       const other=ownModel?"BeePrice":"RMS Próprio";
       table("nights",["Noite","Tarifa sugerida","Motivo do modelo ativo","Tarifa · "+other,"Motivo · "+other,"Ocupação","Aptos ocupados","Tarifa vigente (R$)"],days.map(d=>[
@@ -207,18 +199,17 @@ async function showHotel(data,hotel) {
       }
       days.forEach((d,i)=>{
         const cells=element("nights").tBodies[0].rows[i].cells;
-        const {floor}=nightPolicy(d.date,d.rate,policy,floors);
-        const pct=adjustment(d), hold=d.rate>=100;
         const period=periods.find(p=>p.inicio<=d.date && d.date<=p.fim);
+        const pct=periodAdjustment(period,d.rate), hold=d.rate>=100;
         const input=document.createElement("input");
         input.type="number";input.min=".01";input.step=".01";input.setAttribute("aria-label","Tarifa vigente em "+date(d.date));
         if(pct!=null || hold) cells[7].replaceChildren(input);
         function update(){
           const rate=input.valueAsNumber>0 && input.validity.valid ? input.valueAsNumber : null;
           const raw=rate!=null && pct!=null ? Math.round(Math.round(rate*100)*(100+pct)/100)/100 : null;
-          const band=hold ? rate : raw==null ? null : Math.max(floor,raw);
+          const band=hold ? rate : raw;
           const holdReason=d.rate>100?"Overbooking. Manter a diária vigente.":"Noite esgotada. Manter a diária vigente.";
-          const bandReason=hold ? holdReason : d.rate==null?"Ocupação indisponível.":pct==null?"Sem faixa aplicável.":(period?.nome || "Faixa geral")+" · ajuste de "+pct+"%."+(raw!=null && floor>raw?" Piso aplicado.":"");
+          const bandReason=hold ? holdReason : d.rate==null?"Ocupação indisponível.":pct==null?"Sem período BeePrice cadastrado para esta noite.":period.nome+" · ajuste de "+pct+"%.";
           const ownReason=hold ? holdReason : "Aguardando dados de demanda, conversão, curva e tarifas do hotel.";
           cells[ownModel?3:1].textContent=money(band);
           cells[ownModel?4:2].textContent=bandReason+(!rate && (pct!=null || hold)?" Informe a diária vigente.":"");
@@ -316,12 +307,11 @@ async function load(options) {
         activate.hidden=model===active;
         element("competitors").hidden=element("ownCriteria").hidden=!own;
         element("festive").hidden=own;
-        element("policy").hidden=element("minimum").hidden=false;
+        element("policy").hidden=element("minimum").hidden=!own;
         element("ownNote").textContent=hotels.find(h=>h.id===hotelId)?.code==="PLAZA"
           ? "O percentual varia por noite conforme ocupação, procura e conversão frente ao mês e saldo ADVP. Perto da chegada, esses sinais pesam mais. A tarifa concorrente tem peso secundário. O ajuste pode superar 40% quando os indicadores sustentam a alta. Nas reduções, vale o mínimo do período ou, na ausência dele, o mínimo geral. Noites esgotadas ou em overbooking mantêm a tarifa."
           : "A simulação desta unidade depende da integração de procura, conversão, curva histórica e tarifas.";
-        element("generalHelp").textContent=own?"O mínimo geral e os mínimos por período valem para os dois modelos.":"Fora dos períodos cadastrados, vale a maior faixa geral ultrapassada. Os mínimos do hotel valem para os dois modelos.";
-        for(const t of thresholds) policyForm.elements["pct"+t].parentElement.hidden=own;
+        for(const t of thresholds) policyForm.elements["pct"+t].parentElement.hidden=true;
       }
       radios.forEach(r=>r.onchange=()=>view(r.value));
       activate.onclick=async()=>{
@@ -379,7 +369,6 @@ async function load(options) {
     };
     renderHotel(options && previousHotel===select.value ? previousView : null);
     element("hotelPicker").hidden=false;
-    element("policy").hidden=element("minimum").hidden=!select.value;
 
   } else {
     select.onchange=()=>{

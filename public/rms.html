@@ -36,12 +36,12 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 <div class="compare-only"><label style="display:flex;align-items:center"><input type="checkbox" id="onlyDifferent"> Mostrar somente noites com tarifas divergentes</label>
 <label style="display:flex;align-items:center"><input type="checkbox" id="onlyChanged"> Mostrar somente noites alteradas pela nova regra do RMS Próprio</label></div>
 </div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><div class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div></section>
-<section hidden id="policy"><h2>Regras do hotel</h2><p id="generalHelp">Preencha os campos que deseja usar. Vale o percentual da maior faixa preenchida que a ocupação ultrapassar, aplicado uma vez sobre a diária vigente de cada noite.</p>
+<section hidden id="policy"><h2>Regras do hotel</h2><p id="generalHelp">O mínimo geral do RMS Próprio vale nas noites sem mínimo específico por período.</p>
 <form id="policyForm">
 
 <label>Tarifa diária mínima (R$)<input name="piso" type="number" min=".01" step=".01"></label>
 <button>Salvar regras do hotel</button></form><p id="policyAudit" aria-live="polite"></p></section>
-<section hidden id="festive"><h2>Faixas BeePrice por período</h2><p id="periodCount"></p><p>Simulação para dois adultos. Nas noites indicadas, a faixa do período substitui as faixas gerais. O piso da noite continua valendo. Nenhuma tarifa é enviada aos canais.</p><div id="festiveForms"></div></section>
+<section hidden id="festive"><h2>Faixas BeePrice por período</h2><p id="periodCount"></p><p>Simulação para dois adultos. Cada noite usa a faixa de ocupação cadastrada para o período do hotel. Nenhuma tarifa é enviada aos canais.</p><div id="festiveForms"></div></section>
 <section hidden id="minimum"><h2>Tarifa mínima por período</h2><form id="form">
 
 <label>Primeira noite<input type="date" name="inicio" required></label>
