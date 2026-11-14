@@ -26,9 +26,11 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 <p>Tarifas públicas da Omnibees por noite. Luxo e Suíte Master acompanham o percentual do Standard.</p>
 <p>Conversão estimada por noite: reservas diretas aprovadas ÷ orçamentos do CRM Demanda (equipe, robô e site), com dados até 13/11. Uma reserva conta em cada noite da hospedagem.</p>
 <label style="display:flex;align-items:center"><input type="checkbox" id="onlyDifferent"> Mostrar somente noites com tarifas divergentes</label>
+<label style="display:flex;align-items:center"><input type="checkbox" id="onlyChanged"> Mostrar somente noites alteradas pela nova regra do RMS Próprio</label><p id="selectedModel"></p>
 </div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><div class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div></section>
 <section hidden id="policy"><h2>Regras do hotel</h2><p>Preencha os campos que deseja usar. Vale o percentual da maior faixa preenchida que a ocupação ultrapassar, aplicado uma vez sobre a diária vigente de cada noite.</p>
 <form id="policyForm">
+<label>Modelo de simulação<select name="modelo"><option value="beeprice">Modelo BeePrice</option><option value="proprio">Modelo RMS Próprio</option></select></label>
 <label>Tarifa diária mínima (R$)<input name="piso" type="number" min=".01" step=".01"></label>
 <button>Salvar regras do hotel</button></form><p id="policyAudit" aria-live="polite"></p></section>
 <section hidden id="festive"><h2>Faixas de flutuação por período</h2><p>Simulação para dois adultos. Nas noites indicadas, a faixa do período substitui as faixas gerais. O piso da noite continua valendo. Nenhuma tarifa é enviada aos canais.</p><div id="festiveForms"></div></section>
