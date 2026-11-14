@@ -169,19 +169,28 @@ async function showHotel(data,hotel) {
       const policy=data.policies.find(p=>p.hotel_id===hotel.id);
       const ownModel=policy?.modelo==="proprio";
       const floors=data.floors.filter(f=>f.hotel_id===hotel.id);
+      const periods=data.periods.filter(p=>p.hotel_id===hotel.id);
+      const adjustment=d=>{
+        if(d.rate==null)return null;
+        const period=periods.find(p=>p.inicio<=d.date && d.date<=p.fim);
+        if(period)return Number(period["pct"+([80,70,60,50].find(t=>d.rate>t) ?? 0)]);
+        const {threshold}=nightPolicy(d.date,d.rate,policy,floors);
+        return threshold ? Number(policy["pct"+threshold]) : null;
+      };
       dates=days.map(d=>d.date);
       table("nights",["Noite","Ocupação","Aptos ocupados","Ajuste por ocupação","Tarifa vigente (R$)","Tarifa sugerida"],days.map(d=>{
-        const rule=nightPolicy(d.date,d.rate,policy,floors);
+        const pct=adjustment(d);
         return [date(d.date),d.rate==null?"—":d.rate.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%",d.occupied ?? "—",
-          d.rate>=100?"Manter":ownModel?"Sem apuração":rule.threshold?policy["pct"+rule.threshold]+"%":"—","—","—"];
+          d.rate>=100?"Manter":ownModel?"Sem apuração":pct!=null?pct+"%":"—","—","—"];
       }));
       days.forEach((d,i)=>{
-        const {threshold,floor}=nightPolicy(d.date,d.rate,policy,floors);
-        if (ownModel || !threshold || d.rate>=100) return;
+        const {floor}=nightPolicy(d.date,d.rate,policy,floors);
+        const pct=adjustment(d);
+        if (ownModel || pct==null || d.rate>=100) return;
         const cells=element("nights").tBodies[0].rows[i].cells, input=document.createElement("input");
         input.type="number";input.min=".01";input.step=".01";input.setAttribute("aria-label","Tarifa vigente em "+date(d.date));
         cells[4].replaceChildren(input);
-        input.oninput=()=>cells[5].textContent=input.valueAsNumber>0 && input.validity.valid ? money(Math.max(floor,Math.round(Math.round(input.valueAsNumber*100)*(100+Number(policy["pct"+threshold]))/100)/100)) : "—";
+        input.oninput=()=>cells[5].textContent=input.valueAsNumber>0 && input.validity.valid ? money(Math.max(floor,Math.round(Math.round(input.valueAsNumber*100)*(100+pct)/100)/100)) : "—";
       });
       element("hotelNote").textContent=days.some(d=>d.rate!=null)?"Ocupação do mapa KPI. Nas noites com faixa aplicável, informe a diária vigente para calcular a sugestão. Curva histórica, conversão e tarifas próprias automáticas ainda sem integração para esta unidade.":"Sem ocupação apurada para este hotel no período.";
       if (ownModel) element("hotelNote").textContent="Modelo RMS Próprio selecionado. A simulação desta unidade aguarda os dados de procura, conversão, curva histórica e tarifas.";
@@ -219,6 +228,8 @@ async function showHotel(data,hotel) {
 }
 
 async function load(options) {
+  const previousHotel=element("settingsHotel").value;
+  const previousView=document.querySelector("input[name=viewModel]:checked")?.value;
   const response = await fetch("/api/portal/rms",{cache:"no-store",...options});
   const data = await response.json();
   if (!response.ok) throw Error(data.error || "Falha ao carregar o RMS.");
@@ -230,10 +241,10 @@ async function load(options) {
     element("hotelPicker").hidden=false;
   if (floorMode) {
 
-    function renderHotel() {
+    function renderHotel(restoreView) {
       const hotelId=select.value;
       const periods=data.periods.filter(p=>p.hotel_id===hotelId);
-      element("festive").hidden=!periods.length;
+      element("periodCount").textContent=periods.length ? periods.length+" períodos cadastrados para este hotel." : "Nenhum período BeePrice cadastrado para este hotel.";
       const forms=element("festiveForms");
       forms.replaceChildren();
       for (const p of periods) {
@@ -259,7 +270,32 @@ async function load(options) {
         forms.append(title,form,stamp);
       }
       const policy=data.policies.find(p=>p.hotel_id===hotelId);
-      policyForm.elements.modelo.value=policy?.modelo || "beeprice";
+      const active=policy?.modelo || "beeprice";
+      const radios=[...document.querySelectorAll("input[name=viewModel]")];
+      const activate=element("activateModel");
+      function view(model) {
+        const own=model==="proprio";
+        radios.forEach(r=>{r.checked=r.value===model;});
+        element("models").hidden=false;
+        element("activeModel").textContent="Modelo em uso na simulação deste hotel: "+(active==="proprio"?"RMS Próprio":"Modelo padrão BeePrice")+".";
+        activate.hidden=model===active;
+        element("competitors").hidden=element("ownCriteria").hidden=!own;
+        element("festive").hidden=own;
+        element("policy").hidden=element("minimum").hidden=false;
+        element("ownNote").textContent=hotels.find(h=>h.id===hotelId)?.code==="PLAZA"
+          ? "A partir de 80% de ocupação, o aumento simulado é de 10%. Abaixo de 80%, o RMS avalia procura, conversão e saldo ADVP para sugerir 5% ou 10%. A tarifa concorrente tem peso secundário. Noites esgotadas ou em overbooking mantêm a tarifa."
+          : "A simulação desta unidade depende da integração de procura, conversão, curva histórica e tarifas.";
+        element("generalHelp").textContent=own?"O mínimo geral e os mínimos por período valem para os dois modelos.":"Fora dos períodos cadastrados, vale a maior faixa geral ultrapassada. Os mínimos do hotel valem para os dois modelos.";
+        for(const t of thresholds) policyForm.elements["pct"+t].parentElement.hidden=own;
+      }
+      radios.forEach(r=>r.onchange=()=>view(r.value));
+      activate.onclick=async()=>{
+        activate.disabled=true;
+        try {await load({method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"modelo",hotel_id:hotelId,modelo:radios.find(r=>r.checked).value})});}
+        catch(error){element("status").textContent=error.message;}
+        finally{activate.disabled=false;}
+      };
+      view(restoreView || active);
       for (const key of ["piso",...thresholds.map(t=>"pct"+t)]) policyForm.elements[key].value=policy?.[key] ?? "";
       element("policyAudit").textContent=policy ? "Última gravação: "+auditStamp(policy.gravado_em,policy.gravado_por) : "";
       table("floors",["Primeira noite","Última noite","Piso","Inclusão · data e usuário","Última gravação · data e usuário"],floors.filter(f=>f.hotel_id===hotelId).map(f=>[
@@ -306,10 +342,10 @@ async function load(options) {
       element("status").textContent="";
       renderHotel();
     };
-    renderHotel();
+    renderHotel(options && previousHotel===select.value ? previousView : null);
     element("hotelPicker").hidden=false;
     element("policy").hidden=element("minimum").hidden=!select.value;
-    element("competitors").hidden = !select.value;
+
   } else {
     select.onchange=()=>{
       sessionStorage.setItem("rmsHotel",select.value);

@@ -85,11 +85,16 @@ module.exports = async function rms(req, res) {
       }
       if (body?.tipo === "faixa_festiva") {
         const fields=["pct0","pct50","pct60","pct70","pct80"];
-        if (!plaza || body.hotel_id!==plaza.id || !validDate(body.inicio) || !fields.every(k=>Number.isFinite(body[k]) && body[k]>=0 && body[k]<=99999 && Number(body[k].toFixed(2))===body[k]))
+        if (!hotels.data.some(h=>h.id===body.hotel_id) || !validDate(body.inicio) || !fields.every(k=>Number.isFinite(body[k]) && body[k]>=0 && body[k]<=99999 && Number(body[k].toFixed(2))===body[k]))
           return json(res,400,{error:"Confira o período e os percentuais."});
-        const saved=await client.from("rms_faixas_festivas").update(Object.fromEntries(fields.map(k=>[k,body[k]]))).eq("hotel_id",plaza.id).eq("inicio",body.inicio).select("inicio").maybeSingle();
+        const saved=await client.from("rms_faixas_festivas").update(Object.fromEntries(fields.map(k=>[k,body[k]]))).eq("hotel_id",body.hotel_id).eq("inicio",body.inicio).select("inicio").maybeSingle();
         if (saved.error) throw saved.error;
         if (!saved.data) return json(res,404,{error:"Período não cadastrado."});
+      } else if (body?.tipo === "modelo") {
+        if (!hotels.data.some(h=>h.id===body.hotel_id) || !["proprio","beeprice"].includes(body.modelo))
+          return json(res,400,{error:"Hotel ou modelo inválido."});
+        const saved=await client.from("rms_politicas").upsert({hotel_id:body.hotel_id,modelo:body.modelo},{onConflict:"hotel_id"});
+        if(saved.error) throw saved.error;
       } else if (body?.tipo === "politica") {
         if (body.modelo!==undefined && !["beeprice","proprio"].includes(body.modelo))
           return json(res,400,{error:"Modelo indisponível para este hotel."});
