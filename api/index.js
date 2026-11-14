@@ -48,6 +48,7 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/portal/integration-status") return require("./portal/integration-status")(req, res);
   if (pathname === "/api/portal/users") return adminUsersHandler(req, res);
   if (pathname === "/api/dre/folha-import") return dreFolhaImportHandler(req, res);
+  if (pathname === "/api/portal/rms") return require("./portal/rms")(req, res);
   if (pathname === "/api/dre") return dreHandler(req, res);
   if (pathname === "/api/portal/announcements") return announcementsHandler(req, res);
   if (pathname === "/api/portal/overdue-payments") {

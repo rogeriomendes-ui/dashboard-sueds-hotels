@@ -19,3 +19,4 @@ tools/
 .git/
 .agents/
 .codex/
+/lib/rms-analise.json
