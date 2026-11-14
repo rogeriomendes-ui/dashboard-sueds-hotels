@@ -53,7 +53,7 @@ function periodAdjustment(period, occupancy) {
   return Number(period["pct"+band]);
 }
 
-function plazaNight(row, rates, demand, policy, floors, periods) {
+function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   const night=row[0], brisa=value(row[2]), standard=rates?.standard;
   const [quotes,sales]=demand[night] || [];
   const floor=nightFloor(night,policy,floors);
@@ -63,8 +63,8 @@ function plazaNight(row, rates, demand, policy, floors, periods) {
   const hold=occupancy>=100;
   const pct=periodAdjustment(period,occupancy);
   const adjust=(current,percent)=>Math.round(Math.round(current*100)*(100+percent)/100)/100;
-  const bandReady=pct!=null && standard>0;
-  const suggested=bandReady ? adjust(standard,pct) : null;
+  const target=plazaLevelComparison(catalog,period,night,occupancy);
+  const suggested=target.simulated.standard, bandReady=suggested>0;
   const formatPct=n=>n.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%";
   const rmsPercent=Number(row[4]);
   const rmsStandard=ready ? Math.max(floor,adjust(standard,rmsPercent)) : null;
@@ -78,22 +78,78 @@ function plazaNight(row, rates, demand, policy, floors, periods) {
     const current=rates?.[key];
     const limited=rates?.restricted?.includes(key);
     amounts.push(current ? money(current)+(limited?" (estadia mínima)":"") : rates?.at ? "Sem oferta" : "Sem cotação");
-    const bandRate=hold ? current : current && pct!=null ? adjust(current,pct) : null;
+    const bandRate=hold ? current : target.simulated[key];
     const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
     const delta=bandRate>0 && rmsRate>0 ? Math.round((rmsRate-bandRate)*100)/100 : null;
     if (delta!==null) { comparable=true; if(delta!==0) diverges=true; }
     amounts.push(money((own ? rmsRate : bandRate) ?? null),money(bandRate ?? null),money(rmsRate ?? null),delta>0 ? "+"+money(delta) : money(delta));
   }
   let reason=!period ? "Sem período BeePrice cadastrado para esta noite." : pct==null ? "Ocupação indisponível." :
-    period.nome+" · ocupação de "+row[7]+"% · ajuste do período: "+formatPct(pct)+".";
+    target.level ? period.nome+" · "+target.level.code+" · "+formatPct(pct)+" sobre a base Web com café." : "Sem nível tarifário vinculado.";
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
-  const action=hold ? "Manter" : bandReady ? suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
+  const action=hold ? "Manter" : bandReady ? !standard ? "Aplicar nível" : suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
   const comparison=!comparable ? "Sem comparação" : diverges ? "Diverge" : "Coincide";
   const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
   return [date(night),amounts[1],amounts[6],amounts[11],own ? ownReason : reason,comparison,change,
     ...[0,5,10].flatMap(i=>[amounts[i],amounts[i+(own?2:3)],amounts[i+4]]),money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
     quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(pct) : "—",date(row[10]),row[12],row[13],row[14],own ? reason : ownReason,
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—"];
+}
+
+function renderCatalog(catalog,hotelId) {
+  const form=element("gridEditor");
+  form.replaceChildren();
+  function picker(label,items) {
+    const field=document.createElement("label"), select=document.createElement("select");
+    field.textContent=label;
+    items.forEach((name,i)=>select.add(new Option(name,String(i))));
+    field.append(select); form.append(field);
+    return select;
+  }
+  const baseSelect=picker("Nível base",catalog.bases.map(b=>b.code+" · "+b.name));
+  const plan=picker("Tarifário",catalog.plans);
+  const level=picker("Ver nível",[]);
+  const rooms=["standard","luxo","suite"], labels=["Standard","Luxo","Suíte Master"];
+  const room=picker("Categoria",labels), pax=picker("Hóspedes",[1,2,3,4]);
+  pax.value="1";
+  const days=["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+  const day=picker("Dia da semana",days);
+  const field=document.createElement("label"), price=document.createElement("input"), save=document.createElement("button");
+  field.textContent="Novo valor base (R$)";
+  Object.assign(price,{type:"number",min:".01",max:"99999999.99",step:".01",required:true});
+  field.append(price); form.append(field,save); save.textContent="Salvar valor na simulação";
+  function refreshLevels(){
+    level.replaceChildren(...catalog.bases[baseSelect.value].levels.map((l,i)=>new Option(l.code+" · "+l.name,i)));
+    refresh();
+  }
+  function refresh(){
+    const base=catalog.bases[baseSelect.value], grid=base.grids[plan.value];
+    const l=base.levels[level.value], persons=Number(pax.value)+1;
+    const baseValue=(k,d)=>catalog.edits?.[JSON.stringify([base.name,Number(plan.value),k,persons,d])] ?? grid?.[k]?.[persons-1];
+    price.value=baseValue(rooms[room.value],Number(day.value)) ?? "";
+    field.hidden=save.hidden=!grid || l.pct!==0;
+    price.disabled=save.hidden;
+    element("gridNote").textContent=!grid ? "Tarifário identificado no BeePrice sem preços preenchidos nesta captura." :
+      "Grade em reais para "+persons+" hóspede(s). "+(l.pct ? "Acréscimo de "+l.pct+"% sobre a base de cada célula." : "Uma edição da base recalcula os níveis derivados na simulação.");
+    table("baseGrid",["Categoria",...days],grid?rooms.map((k,i)=>[labels[i],...days.map((_,d)=>money(Math.round(baseValue(k,d)*(100+l.pct))/100))]):[]);
+  }
+  baseSelect.onchange=refreshLevels;
+  for(const s of [plan,level,pax,room,day]) s.onchange=refresh;
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    if(price.disabled || save.hidden) return;
+    const base=catalog.bases[baseSelect.value].name, plano=Number(plan.value), quarto=rooms[room.value], persons=Number(pax.value)+1,dia=Number(day.value),valor=price.valueAsNumber;
+    save.disabled=true;
+    try{
+      const res=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"grade_plaza",hotel_id:hotelId,base,plano,quarto,pax:persons,dia,valor})});
+      const result=await res.json();
+      if(!res.ok) throw Error(result.error || "Falha ao salvar a grade.");
+      Object.assign(catalog.edits,result.catalog.edits);
+      refresh(); element("status").textContent="Valor base salvo na simulação.";
+    } catch(error){element("status").textContent=error.message;}
+    finally{save.disabled=false;}
+  };
+  refreshLevels();
 }
 
 function filterPlazaRow(row) {
@@ -107,7 +163,14 @@ async function showPlaza(data,plaza) {
   const floors=data.floors.filter(f=>f.hotel_id===plaza?.id);
   const nights=data.analysis.rows.filter(r=>r[0]>=data.today);
   const periods=data.periods.filter(p=>p.hotel_id===plaza.id);
-  const render=(r,rates)=>plazaNight(r,rates,data.analysis.conversaoDeskhotel,policy,floors,periods);
+  const checked=data.analysis.rows.filter(r=>data.catalog?.calendar[r[0]]);
+  element("levelNote").textContent=data.catalog ? "Calendário consultado em "+date(data.catalog.snapshot)+". Valores da grade Web com café para 2 adultos. Em esgotamento ou overbooking, a simulação mantém a vigente.":"Calendário ainda não importado.";
+  table("levelNights",["Noite","Ocupação Portal","Ocupação BeePrice","Nível Portal","Nível BeePrice","Resultado",...["Standard","Luxo","Suíte Master"].flatMap(c=>[c+" · Portal",c+" · BeePrice"])],checked.map(r=>{
+    const p=periods.find(p=>p.inicio<=r[0] && r[0]<=p.fim), occ=value(r[7]);
+    const t=plazaLevelComparison(data.catalog,p,r[0],occ);
+    return [date(r[0]),r[7]+"%",t.observation.occ+"%",t.level?.code||"—",t.observation.code,t.status,...["standard","luxo","suite"].flatMap(k=>[occ>=100?"Manter vigente":money(t.simulated[k]),money(t.reference[k])])];
+  }));
+  const render=(r,rates)=>plazaNight(r,rates,data.analysis.conversaoDeskhotel,policy,floors,periods,data.catalog);
   const other=policy?.modelo==="proprio" ? "BeePrice" : "RMS Próprio";
   const categories=["Standard","Luxo","Suíte Master"];
   const priceColumns=categories.flatMap(category=>["vigente",other,"RMS − faixa"].map(label=>category+" · "+label));
@@ -240,7 +303,7 @@ async function showHotel(data,hotel) {
             prices=fresh.quotes;
             for (const r of fresh.rows) {
               const cells=rows[i+batch.indexOf(r[0])].cells;
-              plazaNight(r,data.rates[r[0]],data.analysis.conversaoDeskhotel,data.policies.find(p=>p.hotel_id===hotel.id),data.floors.filter(f=>f.hotel_id===hotel.id),data.periods.filter(p=>p.hotel_id===hotel.id))
+              plazaNight(r,data.rates[r[0]],data.analysis.conversaoDeskhotel,data.policies.find(p=>p.hotel_id===hotel.id),data.floors.filter(f=>f.hotel_id===hotel.id),data.periods.filter(p=>p.hotel_id===hotel.id),data.catalog)
                 .forEach((v,k)=>cells[k].textContent=v);
               filterPlazaRow(cells[0].parentElement);
             }
@@ -271,6 +334,9 @@ async function load(options) {
       const hotelId=select.value;
       const periods=data.periods.filter(p=>p.hotel_id===hotelId);
       element("periodCount").textContent=periods.length ? periods.length+" períodos cadastrados para este hotel." : "Nenhum período BeePrice cadastrado para este hotel.";
+      const catalog=hotels.find(h=>h.id===hotelId)?.code==="PLAZA" ? data.catalog : null;
+      element("catalogBox").hidden=!catalog;
+      if(catalog) renderCatalog(catalog,hotelId);
       const forms=element("festiveForms");
       forms.replaceChildren();
       for (const p of periods) {
@@ -278,9 +344,15 @@ async function load(options) {
         title.textContent=p.nome+" · "+date(p.inicio)+" a "+date(p.fim);
         const bands=[0,50,60,70,80];
         for (const [i,b] of bands.entries()) {
-          const label=document.createElement("label"), input=document.createElement("input");
-          label.textContent=(b?"Acima de "+b+"% até ":"Até ")+(bands[i+1] ?? 100)+"% · ajuste (%)";
-          Object.assign(input,{name:"pct"+b,type:"number",required:true,min:"0",max:"99999",step:".01",value:p["pct"+b]});
+          const base=catalog?.bases[catalog.periods[p.inicio]];
+          const label=document.createElement("label"), input=document.createElement(base?"select":"input");
+          label.textContent=(b?"Acima de "+b+"% até ":"Até ")+(bands[i+1] ?? 100)+(base?"% · nível":"% · ajuste (%)");
+          if(base) {
+            input.name="pct"+b; input.required=true;
+            input.add(new Option("Selecione um nível",""));
+            for(const l of base.levels) input.add(new Option(l.code+" · "+l.name,l.pct));
+            input.value=p["pct"+b];
+          } else Object.assign(input,{name:"pct"+b,type:"number",required:true,min:"0",max:"99999",step:".01",value:p["pct"+b]});
           label.append(input); form.append(label);
         }
         const save=document.createElement("button");
