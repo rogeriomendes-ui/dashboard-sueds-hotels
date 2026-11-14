@@ -89,7 +89,7 @@ function plazaNight(row, rates, demand, policy, floors, periods) {
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
   const action=hold ? "Manter" : bandReady ? suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
   const comparison=!comparable ? "Sem comparação" : diverges ? "Diverge" : "Coincide";
-  const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Piso aplicado." : "");
+  const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
   return [date(night),amounts[1],amounts[6],amounts[11],own ? ownReason : reason,comparison,change,
     ...[0,5,10].flatMap(i=>[amounts[i],amounts[i+(own?2:3)],amounts[i+4]]),money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
     quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(effective) : "—",date(row[10]),row[12],row[13],row[14],own ? reason : ownReason,
@@ -318,7 +318,7 @@ async function load(options) {
         element("festive").hidden=own;
         element("policy").hidden=element("minimum").hidden=false;
         element("ownNote").textContent=hotels.find(h=>h.id===hotelId)?.code==="PLAZA"
-          ? "A partir de 80% de ocupação, o aumento simulado é de 10%. Abaixo de 80%, o RMS avalia procura, conversão e saldo ADVP para sugerir 5% ou 10%. A tarifa concorrente tem peso secundário. Noites esgotadas ou em overbooking mantêm a tarifa."
+          ? "O percentual varia por noite conforme ocupação, procura e conversão frente ao mês e saldo ADVP. Perto da chegada, esses sinais pesam mais. A tarifa concorrente tem peso secundário. O ajuste pode superar 40% quando os indicadores sustentam a alta. Nas reduções, vale o mínimo do período ou, na ausência dele, o mínimo geral. Noites esgotadas ou em overbooking mantêm a tarifa."
           : "A simulação desta unidade depende da integração de procura, conversão, curva histórica e tarifas.";
         element("generalHelp").textContent=own?"O mínimo geral e os mínimos por período valem para os dois modelos.":"Fora dos períodos cadastrados, vale a maior faixa geral ultrapassada. Os mínimos do hotel valem para os dois modelos.";
         for(const t of thresholds) policyForm.elements["pct"+t].parentElement.hidden=own;
