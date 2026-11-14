@@ -33,6 +33,7 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 <section hidden id="analysis"><h2 id="panelHotel"></h2><p><strong id="selectedModel"></strong> · Simulação para dois adultos</p><label style="display:flex;align-items:center"><input type="checkbox" id="compareModels"><span id="compareLabel"></span></label><div id="plazaNotes"><p>Ocupação e curva de 13/11/2026 · Dois adultos com café da manhã · Valores anunciados em reais</p>
 <p>Tarifas públicas da Omnibees por noite. Luxo e Suíte Master acompanham o percentual do Standard.</p>
 <p>Conversão estimada por noite: reservas diretas aprovadas ÷ orçamentos do CRM Demanda (equipe, robô e site), com dados até 13/11. Uma reserva conta em cada noite da hospedagem.</p>
+<details><summary>Conferir níveis com o calendário BeePrice</summary><p id="levelNote"></p><div class="scroll"><table id="levelNights"></table></div></details>
 <div class="compare-only"><label style="display:flex;align-items:center"><input type="checkbox" id="onlyDifferent"> Mostrar somente noites com tarifas divergentes</label>
 <label style="display:flex;align-items:center"><input type="checkbox" id="onlyChanged"> Mostrar somente noites alteradas pela nova regra do RMS Próprio</label></div>
 </div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><div class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div></section>
@@ -41,7 +42,7 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 
 <label>Tarifa diária mínima (R$)<input name="piso" type="number" min=".01" step=".01"></label>
 <button>Salvar regras do hotel</button></form><p id="policyAudit" aria-live="polite"></p></section>
-<section hidden id="festive"><h2>Faixas BeePrice por período</h2><p id="periodCount"></p><p>Simulação para dois adultos. Cada noite usa a faixa de ocupação cadastrada para o período do hotel. Nenhuma tarifa é enviada aos canais.</p><div id="festiveForms"></div></section>
+<section hidden id="festive"><h2>Faixas BeePrice por período</h2><p id="periodCount"></p><p>Simulação para dois adultos. Cada noite usa a faixa de ocupação cadastrada para o período do hotel. Nenhuma tarifa é enviada aos canais.</p><details id="catalogBox" hidden><summary>Tarifários e níveis do Plaza</summary><form id="gridEditor"></form><p id="gridNote"></p><div class="scroll"><table id="baseGrid"></table></div></details><div id="festiveForms"></div></section>
 <section hidden id="minimum"><h2>Tarifa mínima por período</h2><form id="form">
 
 <label>Primeira noite<input type="date" name="inicio" required></label>
@@ -50,4 +51,4 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 <button>Salvar tarifa mínima</button></form>
 <p>Da primeira à última noite, o mínimo do período substitui o mínimo geral do hotel. Se dois períodos cobrirem a mesma noite, vale o maior mínimo entre eles. Salvar o mesmo hotel e período atualiza o valor.</p>
 <div class="scroll"><table id="floors"></table></div></section></main>
-<script src="/rms.js"></script></html>
+<script src="/rms-levels.js"></script><script src="/rms.js"></script></html>

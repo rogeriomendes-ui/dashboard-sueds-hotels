@@ -27,6 +27,8 @@ module.exports = async function rms(req, res) {
     if (competitors.error) throw competitors.error;
     const configs=competitors.data.map(c=>motor.configuration(c,hotels.data));
     const plaza=hotels.data.find(h=>h.code==="PLAZA");
+    const catalog=process.env.RMS_PLAZA_NIVEIS_GZ && plaza
+      ? JSON.parse(gunzipSync(Buffer.from(process.env.RMS_PLAZA_NIVEIS_GZ,"base64"))) : null;
     const reference=configs.find(c=>c.hotel_id===plaza?.id && c.nome.trim().toLowerCase()==="brisa da praia" && c.categoria==="Standard Plus");
     if (!reference) for (const row of analysis.rows) row[2]="";
     const live=req.method==="POST" && req.body?.tipo==="tarifas_plaza";
@@ -83,10 +85,21 @@ module.exports = async function rms(req, res) {
         try { return json(res,200,{preco:await motor.quote(c,body.noite)}); }
         catch (err) { return json(res,502,{error:err.message==="A consulta deste motor ainda não está integrada." ? err.message : "Não foi possível confirmar a tarifa no motor."}); }
       }
-      if (body?.tipo === "faixa_festiva") {
+      if (body?.tipo === "grade_plaza") {
+        const {hotel_id,base,plano,quarto,pax,dia,valor}=body;
+        const parent=catalog?.bases.find(b=>b.name===base);
+        if (!plaza || hotel_id!==plaza.id || !Number.isInteger(plano) || !parent?.grids[plano]?.[quarto]?.[pax-1] ||
+            !["standard","luxo","suite"].includes(quarto) || !Number.isInteger(pax) || !Number.isInteger(dia) || dia<0 || dia>6 ||
+            !Number.isFinite(valor) || valor<=0 || valor>=1e8 || Number(valor.toFixed(2))!==valor)
+          return json(res,400,{error:"Confira os campos da grade."});
+        const saved=await client.from("rms_grade_tarifaria").upsert({hotel_id,base,plano,quarto,pax,dia,valor},{onConflict:"hotel_id,base,plano,quarto,pax,dia"});
+        if(saved.error) throw saved.error;
+      } else if (body?.tipo === "faixa_festiva") {
         const fields=["pct0","pct50","pct60","pct70","pct80"];
         if (!hotels.data.some(h=>h.id===body.hotel_id) || !validDate(body.inicio) || !fields.every(k=>Number.isFinite(body[k]) && body[k]>=0 && body[k]<=99999 && Number(body[k].toFixed(2))===body[k]))
           return json(res,400,{error:"Confira o período e os percentuais."});
+        if (body.hotel_id===plaza?.id && !fields.every(k=>catalog?.bases[catalog.periods[body.inicio]]?.levels.some(l=>l.pct===body[k])))
+          return json(res,400,{error:"Selecione um nível cadastrado para cada faixa."});
         const saved=await client.from("rms_faixas_festivas").update(Object.fromEntries(fields.map(k=>[k,body[k]]))).eq("hotel_id",body.hotel_id).eq("inicio",body.inicio).select("inicio").maybeSingle();
         if (saved.error) throw saved.error;
         if (!saved.data) return json(res,404,{error:"Período não cadastrado."});
@@ -137,7 +150,17 @@ module.exports = async function rms(req, res) {
     if (policies.error) throw policies.error;
     const periods=await client.from("rms_faixas_festivas").select("hotel_id,nome,inicio,fim,pct0,pct50,pct60,pct70,pct80,gravado_em,gravado_por").order("inicio");
     if (periods.error) throw periods.error;
-    return json(res,200,{analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data});
+    if (catalog) {
+      catalog.edits={};
+      for(let offset=0; ;offset+=500) {
+        const page=await client.from("rms_grade_tarifaria").select("base,plano,quarto,pax,dia,valor").eq("hotel_id",plaza.id)
+          .order("base").order("plano").order("quarto").order("pax").order("dia").range(offset,offset+499);
+        if(page.error) throw page.error;
+        for(const e of page.data) catalog.edits[JSON.stringify([e.base,e.plano,e.quarto,e.pax,e.dia])]=Number(e.valor);
+        if(page.data.length<500) break;
+      }
+    }
+    return json(res,200,{catalog,analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data});
   } catch {
     return json(res,500,{error:"Falha ao consultar ou salvar dados do RMS."});
   }
