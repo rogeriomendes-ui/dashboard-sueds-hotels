@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="rms" class="manager-auth-pending">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RMS | Portal SUEDS</title><script src="/manager-auth.js"></script>
+<style>
+body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}main{padding:clamp(16px,3vw,44px)}h1{margin:0}section{background:white;border:1px solid #d1dfe3;border-radius:12px;padding:20px;margin:16px 0}.scroll{overflow:auto;max-height:70vh}table{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;font-size:14px;width:100%}th,td{padding:10px;text-align:left;border-bottom:1px solid #e0e6e8;white-space:nowrap}th{position:sticky;top:0;background:#e7f1f2}form{display:flex;flex-wrap:wrap;gap:12px;align-items:end}label{display:grid;gap:6px}input,select,button{font:inherit;padding:8px;border:1px solid #82999f;border-radius:6px}button{background:#165b60;color:white;cursor:pointer}
+.rms-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid #bdd0d4;margin:16px 0}.rms-tabs a{padding:10px 14px;color:#264751;text-decoration:none;border-bottom:3px solid transparent}.rms-tabs a[aria-current="page"]{background:#e1eeef;color:#124e54;font-weight:700;border-color:#165b60}.rms-tabs a:focus-visible{outline:2px solid #165b60}#status:empty{display:none}#competitors>summary{cursor:pointer;padding:12px 0;font-weight:600}
+</style>
+<main><h1 id="title">RMS</h1><nav class="rms-tabs" aria-label="Menu RMS"><a id="panelTab" href="/gestores?modulo=rms" target="_top">Painel RMS</a><a id="settingsTab" href="/gestores?modulo=rms_pisos" target="_top">Configurações RMS</a></nav>
+<p id="status" role="status">Carregando…</p>
+<div hidden id="hotelPicker"><label>Hotel Sueds<select id="settingsHotel" required></select></label></div>
+<details hidden id="competitors"><summary>Concorrentes comparáveis</summary><section>
+<form id="competitorForm">
+
+<label>Hotel concorrente<input name="nome" required maxlength="120"></label>
+<label>Motor de reservas<input name="motor_url" type="url" placeholder="https://" required></label>
+<label>Categoria comparável<input name="categoria" maxlength="120" required></label>
+<label>Critérios de comparação<input name="criterios" maxlength="500" placeholder="Categoria, ocupantes, refeições e condições"></label>
+<button>Salvar concorrente</button></form>
+<p>Para atualizar os critérios, salve o mesmo concorrente para o mesmo hotel Sueds.</p>
+<div class="scroll"><table id="competitorList"></table></div>
+<h3>Consultar tarifa por noite</h3><form id="quoteForm"><label>Concorrente<select name="concorrente" required></select></label>
+<label>Noite de hospedagem<input type="date" name="noite" required></label><button>Buscar tarifa</button></form>
+<p id="quoteResult" role="status"></p></section></details>
+<section hidden id="analysis"><h2 id="panelHotel"></h2><div id="plazaNotes"><p>Ocupação e curva de 13/11/2026 · Dois adultos com café da manhã · Valores anunciados em reais</p>
+<p>Tarifas públicas da Omnibees por noite. Luxo e Suíte Master acompanham o percentual do Standard.</p>
+<p>Conversão estimada por noite: reservas diretas aprovadas ÷ orçamentos do CRM Demanda (equipe, robô e site), com dados até 13/11. Uma reserva conta em cada noite da hospedagem.</p>
+</div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><div class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div></section>
+<section hidden id="policy"><h2>Regras do hotel</h2><p>Preencha os campos que deseja usar. Vale o percentual da maior faixa preenchida que a ocupação ultrapassar, aplicado uma vez sobre a diária vigente de cada noite.</p>
+<form id="policyForm">
+<label>Tarifa diária mínima (R$)<input name="piso" type="number" min=".01" step=".01"></label>
+<button>Salvar regras do hotel</button></form><p id="policyAudit" aria-live="polite"></p></section>
+<section hidden id="festive"><h2>Faixas de flutuação por período</h2><p>Simulação para dois adultos. Nas noites indicadas, a faixa do período substitui as faixas gerais. O piso da noite continua valendo. Nenhuma tarifa é enviada aos canais.</p><div id="festiveForms"></div></section>
+<section hidden id="minimum"><h2>Tarifa mínima por período</h2><form id="form">
+
+<label>Primeira noite<input type="date" name="inicio" required></label>
+<label>Última noite<input type="date" name="fim" required></label>
+<label>Tarifa mínima (R$)<input type="number" min=".01" step=".01" name="valor" required></label>
+<button>Salvar tarifa mínima</button></form>
+<p>Da primeira à última noite, o mínimo do período substitui o mínimo geral do hotel. Se dois períodos cobrirem a mesma noite, vale o maior mínimo entre eles. Salvar o mesmo hotel e período atualiza o valor.</p>
+<div class="scroll"><table id="floors"></table></div></section></main>
+<script src="/rms.js"></script></html>
