@@ -5,10 +5,14 @@ function setupNightScroll() {
   const bars = document.querySelectorAll(".night-position");
   const viewport = element("nightScroll");
   const table = element("nights");
+  const vertical = element("nightVertical");
   function sync() {
+    vertical.value = viewport.scrollTop;
     for (const bar of bars) bar.value = viewport.scrollLeft;
   }
   function resize() {
+    vertical.max = viewport.scrollHeight - viewport.clientHeight;
+    vertical.hidden = Number(vertical.max) <= 0;
     const maximum = viewport.scrollWidth - viewport.clientWidth;
     for (const bar of bars) {
       bar.max = maximum;
@@ -22,6 +26,7 @@ function setupNightScroll() {
       sync();
     });
   }
+  vertical.addEventListener("input", () => { viewport.scrollTop = vertical.valueAsNumber; });
   viewport.addEventListener("scroll", sync);
   const observer = new ResizeObserver(resize);
   observer.observe(table);
@@ -212,7 +217,7 @@ async function showPlaza(data,plaza) {
   const categories=["Standard","Luxo","Suíte Master"];
   const priceColumns=categories.flatMap(category=>["Vigente","Sugerida",other,"RMS − faixa"].map(label=>category+"\n"+label));
   priceColumns.splice(2,0,"Brisa da Praia\nStandard Plus","Plaza vigente × Brisa\nDiferença (%)","Plaza sugerido × Brisa\nDiferença (%)");
-  table("nights",["Noite",...priceColumns,"Motivo do modelo ativo","Comparação","Mudança RMS · Standard","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo · "+other,"Consulta Omnibees"],
+  table("nights",["Noite",...priceColumns,"Motivo do modelo ativo","Comparação","Mudança RMS · Standard","Ocupação","ADVP × ano anterior\n(aptos)","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo · "+other,"Consulta Omnibees"],
     nights.map(r=>render(r,data.rates[r[0]])));
   for(const row of element("nights").rows){
     row.cells[16].classList.add("reason");

@@ -81,7 +81,9 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 #nights tbody tr:hover td{background:#e9f2f3}
 #nights input{width:7rem}
 #analysis .night-position{display:block;box-sizing:border-box;width:100%;height:22px;margin:3px 0;padding:0;border:0;accent-color:#165b60;cursor:pointer}
-#analysis #nightScroll{margin-top:0}
+.night-frame{display:flex;align-items:stretch}
+#analysis #nightScroll{margin-top:0;min-width:0;flex:1}
+#nightVertical{writing-mode:vertical-lr;direction:ltr;align-self:stretch;height:auto;min-height:0;width:22px;margin:0;padding:0;border:0;accent-color:#165b60;cursor:pointer}
 #nightScroll::-webkit-scrollbar:horizontal{height:0}
 
 
@@ -114,7 +116,7 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 <details><summary>Conferir níveis com o calendário BeePrice</summary><p id="levelNote"></p><div class="scroll"><table id="levelNights"></table></div></details>
 <div class="compare-only"><label style="display:flex;align-items:center"><input type="checkbox" id="onlyDifferent"> Mostrar somente noites com tarifas divergentes</label>
 <label style="display:flex;align-items:center"><input type="checkbox" id="onlyChanged"> Mostrar somente noites alteradas pela nova regra do RMS Próprio</label></div>
-</div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal superior da tabela de noites"><div id="nightScroll" class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal inferior da tabela de noites"></section>
+</div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal superior da tabela de noites"><div class="night-frame"><div id="nightScroll" class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div><input id="nightVertical" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem vertical da tabela de noites"></div><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal inferior da tabela de noites"></section>
 <section hidden id="policy"><h2>Regras do hotel</h2><p id="generalHelp">O mínimo geral do RMS Próprio vale nas noites sem mínimo específico por período.</p>
 <form id="policyForm">
 
