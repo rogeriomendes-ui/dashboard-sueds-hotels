@@ -55,7 +55,7 @@
   font-weight: 800;
 }
 
-#portalHome .home-goal-card table { table-layout: fixed; min-width: 540px; }
+#portalHome .home-goal-card table { table-layout: auto; min-width: 650px; }
 #portalHome .home-goal-card :is(th, td) {
   padding: 10px 12px;
   border: 0;

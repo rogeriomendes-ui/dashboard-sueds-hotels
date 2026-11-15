@@ -733,15 +733,14 @@ function renderHomeSalesGoals(payload) {
       const days = lastDayOfMonth(row.key);
       const first = start.startsWith(row.key) ? Number(start.slice(8, 10)) : 1;
       const last = end.startsWith(row.key) ? Number(end.slice(8, 10)) : days;
-      const projected = row.actual != null && row.target > 0
-        ? projectionPct(row.actual, row.target, (last - first + 1) / days * 100)
-        : null;
+      const projectedSales = row.actual == null ? null : row.actual / (last - first + 1) * days;
+      const projected = projectedSales != null && row.target > 0 ? projectedSales / row.target * 100 : null;
       const variation = row.actual == null ? "—" : row.previous > 0
         ? percentCell((row.actual - row.previous) / row.previous * 100, 0)
         : row.actual > 0 ? '<span class="positive">novo</span>' : "—";
-      return `<tr>${showMonth ? `<th scope="row">${escapeHtml(monthName.format(new Date(`${row.key}-01T12:00:00Z`)).toUpperCase())}</th>` : ""}<td>${value(row.actual)}</td><td>${value(row.previous)}</td><td>${value(row.target)}</td><td>${goalPct}</td><td>${projected == null ? "—" : percentCell(projected, 100)}</td><td>${variation}</td></tr>`;
+      return `<tr>${showMonth ? `<th scope="row">${escapeHtml(monthName.format(new Date(`${row.key}-01T12:00:00Z`)).toUpperCase())}</th>` : ""}<td>${value(row.actual)}</td><td>${value(row.previous)}</td><td>${value(row.target)}</td><td>${goalPct}</td><td>${projected == null ? "—" : percentCell(projected, 100)}</td><td>${value(projectedSales)}</td><td>${variation}</td></tr>`;
     }).join("");
-    return `<article class="home-goal-card"><h2 class="home-goal-title ${key}">${title}</h2><div class="home-goal-scroll"><table aria-label="${title}"><thead><tr>${showMonth ? '<th scope="col">Mês</th>' : ""}<th scope="col">Venda ${year}</th><th scope="col">Venda ${year - 1}</th><th scope="col">Meta ${year}</th><th scope="col">% Meta</th><th scope="col" title="Percentual da meta ao fim do mês, mantendo a média diária do período">Projeção</th><th scope="col">Var. A/A</th></tr></thead><tbody>${rows || `<tr><td colspan="${showMonth ? 7 : 6}">Sem dados para o período.</td></tr>`}</tbody></table></div></article>`;
+    return `<article class="home-goal-card"><h2 class="home-goal-title ${key}">${title}</h2><div class="home-goal-scroll"><table aria-label="${title}"><thead><tr>${showMonth ? '<th scope="col">Mês</th>' : ""}<th scope="col">Venda ${year}</th><th scope="col">Venda ${year - 1}</th><th scope="col">Meta ${year}</th><th scope="col">% Meta</th><th scope="col" title="Percentual da meta ao fim do mês, mantendo a média diária do período">Projeção %</th><th scope="col">Projeção R$</th><th scope="col">Var. A/A</th></tr></thead><tbody>${rows || `<tr><td colspan="${showMonth ? 8 : 7}">Sem dados para o período.</td></tr>`}</tbody></table></div></article>`;
   }).join("");
 }
 
