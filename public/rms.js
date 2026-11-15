@@ -2,17 +2,27 @@ const element = id => document.getElementById(id);
 const floorMode = new URLSearchParams(location.search).get("aba") === "pisos";
 
 function setupNightScroll() {
-  const top = element("nightScrollTop");
+  const bars = document.querySelectorAll(".night-position");
   const viewport = element("nightScroll");
   const table = element("nights");
-  function resize() {
-    top.hidden = viewport.scrollWidth <= viewport.clientWidth;
-    top.style.width = viewport.clientWidth + "px";
-    top.firstElementChild.style.width = viewport.scrollWidth + "px";
-    top.scrollLeft = viewport.scrollLeft;
+  function sync() {
+    for (const bar of bars) bar.value = viewport.scrollLeft;
   }
-  top.addEventListener("scroll", () => { viewport.scrollLeft = top.scrollLeft; });
-  viewport.addEventListener("scroll", () => { top.scrollLeft = viewport.scrollLeft; });
+  function resize() {
+    const maximum = viewport.scrollWidth - viewport.clientWidth;
+    for (const bar of bars) {
+      bar.max = maximum;
+      bar.hidden = maximum <= 0;
+    }
+    sync();
+  }
+  for (const bar of bars) {
+    bar.addEventListener("input", () => {
+      viewport.scrollLeft = bar.valueAsNumber;
+      sync();
+    });
+  }
+  viewport.addEventListener("scroll", sync);
   const observer = new ResizeObserver(resize);
   observer.observe(table);
   observer.observe(viewport);
