@@ -22,6 +22,10 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 #gridEditor label{min-width:0}
 #periodPicker{font-weight:600;margin:20px 0 12px}
 #periodPicker select{font-weight:400}
+#newPeriodForm{background:#f6fafa;border:1px solid #cbdcde;border-radius:10px;padding:16px;margin:12px 0}
+#newPeriodForm h3,#newPeriodForm fieldset,#newPeriodForm p{width:100%;margin:0}
+#newPeriodForm fieldset{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(145px,100%),1fr));gap:10px;border:0;padding:0;min-width:0}
+#newPeriodForm legend{font-weight:650;margin-bottom:8px}
 .period-editor{border:1px solid #cbdcde;border-radius:10px;overflow:hidden}
 .period-editor header{padding:16px 20px;background:#e8f2f2;border-bottom:1px solid #cfdfdf}
 .period-editor h3{font-size:1.05rem;margin:0 0 4px}
@@ -69,6 +73,19 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 <button>Salvar regras do hotel</button></form><p id="policyAudit" aria-live="polite"></p></section>
 <section hidden id="festive"><div class="period-heading"><h2>Faixas BeePrice por período</h2><p id="periodCount"></p></div>
 <p>Simulação para dois adultos, conforme a ocupação de cada noite.</p>
+<button type="button" id="startPeriod" aria-expanded="false" aria-controls="newPeriodForm">+ Criar tarifário por faixa</button>
+<form id="newPeriodForm" hidden>
+<h3>Novo tarifário por faixa</h3>
+<label>Nome do período<input name="nome" required maxlength="120" placeholder="Ex.: Carnaval 2028"></label>
+<label>Primeira noite<input type="date" name="inicio" required></label>
+<label>Última noite<input type="date" name="fim" required></label>
+<label id="newBaseLabel">Tarifário base<select name="base_origem"></select></label>
+<fieldset id="newBasePrices"><legend>Diárias da nova base · Web com café para 2 adultos</legend>
+<label>Standard (R$)<input type="number" name="standard" min=".01" max="99999999.99" step=".01" required></label>
+<label>Luxo (R$)<input type="number" name="luxo" min=".01" max="99999999.99" step=".01" required></label>
+<label>Suíte Master (R$)<input type="number" name="suite" min=".01" max="99999999.99" step=".01" required></label></fieldset>
+<fieldset id="newBands"><legend>Faixas de ocupação</legend></fieldset>
+<button type="submit">Salvar novo tarifário</button><button type="button" id="cancelPeriod">Cancelar</button><p id="newPeriodMsg" role="status"></p></form>
 <label id="periodPicker">Período de hospedagem<select id="periodChoice" aria-controls="festiveForms"></select></label>
 <div id="festiveForms"></div>
 <details id="catalogBox" hidden><summary>Tarifários e níveis do Plaza</summary><form id="gridEditor"></form><p id="gridNote"></p><div class="scroll"><table id="baseGrid"></table></div></details></section>

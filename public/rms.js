@@ -127,11 +127,14 @@ function renderCatalog(catalog,hotelId) {
     const l=base.levels[level.value], persons=Number(pax.value)+1;
     const baseValue=(k,d)=>catalog.edits?.[JSON.stringify([base.name,Number(plan.value),k,persons,d])] ?? grid?.[k]?.[persons-1];
     price.value=baseValue(rooms[room.value],Number(day.value)) ?? "";
-    field.hidden=save.hidden=!grid || l.pct!==0;
+    field.hidden=save.hidden=!baseValue(rooms[room.value],Number(day.value)) || l.pct!==0;
     price.disabled=save.hidden;
     element("gridNote").textContent=!grid ? "Tarifário identificado no BeePrice sem preços preenchidos nesta captura." :
       "Grade em reais para "+persons+" hóspede(s). "+(l.pct ? "Acréscimo de "+l.pct+"% sobre a base de cada célula." : "Uma edição da base recalcula os níveis derivados na simulação.");
-    table("baseGrid",["Categoria",...days],grid?rooms.map((k,i)=>[labels[i],...days.map((_,d)=>money(Math.round(baseValue(k,d)*(100+l.pct))/100))]):[]);
+    table("baseGrid",["Categoria",...days],grid?rooms.map((k,i)=>[labels[i],...days.map((_,d)=>{
+      const v=baseValue(k,d);
+      return money(v>0 ? Math.round(v*(100+l.pct))/100 : null);
+    })]):[]);
   }
   baseSelect.onchange=refreshLevels;
   for(const s of [plan,level,pax,room,day]) s.onchange=refresh;
@@ -316,7 +319,61 @@ async function showHotel(data,hotel) {
   } catch(error) { if(currentVersion===analysisVersion) element("ratesStatus").textContent=error.message; }
 }
 
-async function load(options) {
+function setupNewPeriod(hotel,catalog){
+  const form=element("newPeriodForm"), start=element("startPeriod"), message=element("newPeriodMsg");
+  const baseSelect=form.elements.base_origem, prices=element("newBasePrices");
+  const plaza=hotel?.code==="PLAZA";
+  form.reset();
+  form.hidden=true; start.setAttribute("aria-expanded","false");
+  start.disabled=plaza && !catalog;
+  start.title=start.disabled?"O catálogo do Plaza precisa estar disponível para criar um tarifário.":"";
+  element("newBaseLabel").hidden=!plaza;
+  baseSelect.replaceChildren(new Option("Criar nova base",""),...(catalog?.bases||[]).map(b=>new Option(b.code+" · "+b.name,b.name)));
+  function refreshBands(){
+    const base=catalog?.bases.find(b=>b.name===baseSelect.value);
+    prices.disabled=prices.hidden=!plaza || Boolean(base);
+    const fields=element("newBands");
+    fields.querySelectorAll("label").forEach(l=>l.remove());
+    const bands=[0,50,60,70,80];
+    bands.forEach((lower,i)=>{
+      const label=document.createElement("label"), input=document.createElement(base?"select":"input");
+      label.textContent=(lower?"Acima de "+lower+"% até ":"Até ")+(bands[i+1]||100)+"% · "+(base?"nível":"aumento (%)");
+      input.name="pct"+lower; input.required=true;
+      if(base){
+        base.levels.forEach(l=>input.add(new Option(l.code+" · "+l.pct+"%",l.pct)));
+      }else Object.assign(input,{type:"number",min:"0",max:"99999",step:".01"});
+      input.value=String(base?.levels[i]?.pct ?? (base?base.levels[0].pct:0));
+      label.append(input); fields.append(label);
+    });
+  }
+  baseSelect.onchange=refreshBands;
+  form.elements.inicio.oninput=()=>{form.elements.fim.min=form.elements.inicio.value;};
+  start.onclick=()=>{form.hidden=false; start.setAttribute("aria-expanded","true"); form.elements.nome.focus();};
+  element("cancelPeriod").onclick=()=>{form.reset();form.elements.fim.min="";refreshBands();message.textContent="";form.hidden=true;start.setAttribute("aria-expanded","false");start.focus();};
+  form.elements.fim.min=""; message.textContent="";refreshBands();
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    const button=event.submitter||form.querySelector('[type="submit"]');
+    const body=Object.fromEntries(new FormData(form));
+    for(const b of [0,50,60,70,80]) body["pct"+b]=Number(body["pct"+b]);
+    if(plaza && !body.base_origem) body.precos_duplo=["standard","luxo","suite"].map(k=>Number(body[k]));
+    button.disabled=true; message.textContent="Salvando…";
+    let created=false;
+    try{
+      const res=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,hotel_id:hotel.id,tipo:"novo_periodo"})});
+      const result=await res.json();
+      if(!res.ok) throw Error(result.error||"Falha ao criar o tarifário.");
+      created=true;
+      if(element("settingsHotel").value!==hotel.id) return;
+      await load(undefined,result.inicio);
+      element("status").textContent="Tarifário criado. As faixas do novo período estão selecionadas.";
+      element("periodChoice").focus();
+    }catch(err){message.textContent=created?"Tarifário criado. Recarregue a tela para consultá-lo.":err.message;}
+    finally{button.disabled=false;}
+  };
+}
+
+async function load(options,createdPeriod) {
   const previousHotel=element("settingsHotel").value;
   const previousPeriod=element("periodChoice").value;
   const previousView=document.querySelector("input[name=viewModel]:checked")?.value;
@@ -336,6 +393,7 @@ async function load(options) {
       const periods=data.periods.filter(p=>p.hotel_id===hotelId).sort((a,b)=>a.inicio.localeCompare(b.inicio));
       element("periodCount").textContent=periods.length ? periods.length+" períodos cadastrados para este hotel." : "Nenhum período BeePrice cadastrado para este hotel.";
       const catalog=hotels.find(h=>h.id===hotelId)?.code==="PLAZA" ? data.catalog : null;
+      setupNewPeriod(hotels.find(h=>h.id===hotelId),catalog);
       element("catalogBox").hidden=!catalog;
       if(catalog) renderCatalog(catalog,hotelId);
       const forms=element("festiveForms");
@@ -355,6 +413,7 @@ async function load(options) {
       }
       for(const name of ["Em vigor","Próximos","Encerrados"]) if(groups.has(name)) choice.append(groups.get(name));
       if(options && hotelId===previousHotel && periods.some(p=>p.inicio===previousPeriod)) choice.value=previousPeriod;
+      if(createdPeriod && hotelId===previousHotel && periods.some(p=>p.inicio===createdPeriod)) choice.value=createdPeriod;
       const editors=new Map();
       for (const p of periods) {
         const card=document.createElement("article"), header=document.createElement("header"), dates=document.createElement("small");
@@ -470,7 +529,7 @@ async function load(options) {
       element("status").textContent="";
       renderHotel();
     };
-    renderHotel(options && previousHotel===select.value ? previousView : null);
+    renderHotel((options || createdPeriod) && previousHotel===select.value ? previousView : null);
     element("hotelPicker").hidden=false;
 
   } else {
