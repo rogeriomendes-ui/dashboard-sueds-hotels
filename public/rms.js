@@ -96,8 +96,7 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   let comparable=false, diverges=false;
   for (const key of ["standard","luxo","suite"]) {
     const current=rates?.[key];
-    const limited=rates?.restricted?.includes(key);
-    amounts.push(current ? money(current)+(limited?" (estadia mínima)":"") : rates?.at ? "Sem oferta" : "Sem cotação");
+    amounts.push(current ? money(current) : rates?.at ? "Sem oferta" : "Sem cotação");
     const bandRate=hold ? current : target.simulated[key];
     const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
     const delta=bandRate>0 && rmsRate>0 ? Math.round((rmsRate-bandRate)*100)/100 : null;
@@ -110,8 +109,9 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   const action=hold ? "Manter" : bandReady ? !standard ? "Aplicar nível" : suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
   const comparison=!comparable ? "Sem comparação" : diverges ? "Diverge" : "Coincide";
   const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
-  return [date(night),...[0,5,10].flatMap(i=>[amounts[i],amounts[i+1],amounts[i+(own?2:3)],amounts[i+4]]),
-    own ? ownReason : reason,comparison,change,money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
+  const priceCells=[0,5,10].flatMap(i=>[amounts[i],amounts[i+1],amounts[i+(own?2:3)],amounts[i+4]]);
+  priceCells.splice(2,0,money(brisa), standard>0 && brisa>0 ? formatPct(100*(standard/brisa-1)) : "—");
+  return [date(night),...priceCells,own ? ownReason : reason,comparison,change,row[7]+"%",row[8],
     quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(pct) : "—",date(row[10]),row[12],row[13],row[14],own ? reason : ownReason,
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—"];
 }
@@ -176,8 +176,8 @@ function renderCatalog(catalog,hotelId) {
 }
 
 function filterPlazaRow(row) {
-  row.hidden=element("compareModels").checked && ((element("onlyDifferent").checked && row.cells[14].textContent!=="Diverge") ||
-    (element("onlyChanged").checked && row.cells[15].textContent==="—"));
+  row.hidden=element("compareModels").checked && ((element("onlyDifferent").checked && row.cells[16].textContent!=="Diverge") ||
+    (element("onlyChanged").checked && row.cells[17].textContent==="—"));
 }
 let analysisVersion=0;
 async function showPlaza(data,plaza) {
@@ -197,15 +197,16 @@ async function showPlaza(data,plaza) {
   const other=policy?.modelo==="proprio" ? "BeePrice" : "RMS Próprio";
   const categories=["Standard","Luxo","Suíte Master"];
   const priceColumns=categories.flatMap(category=>["Vigente","Sugerida",other,"RMS − faixa"].map(label=>category+"\n"+label));
-  table("nights",["Noite",...priceColumns,"Motivo do modelo ativo","Comparação","Mudança RMS · Standard","Tarifa de referência","Plaza × referência","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo · "+other,"Consulta Omnibees"],
+  priceColumns.splice(2,0,"Brisa da Praia\nStandard Plus","Plaza vigente × Brisa\nDiferença (%)");
+  table("nights",["Noite",...priceColumns,"Motivo do modelo ativo","Comparação","Mudança RMS · Standard","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo · "+other,"Consulta Omnibees"],
     nights.map(r=>render(r,data.rates[r[0]])));
   for(const row of element("nights").rows){
-    row.cells[13].classList.add("reason");
-    for(const start of [1,5,9]) {
+    row.cells[15].classList.add("reason");
+    for(const start of [1,7,11]) {
       row.cells[start].classList.add("category-start");
       row.cells[start+1].classList.add("suggested");
     }
-    for(const col of [3,4,7,8,11,12,14,15,22,23,28]) row.cells[col].classList.add("compare-only");
+    for(const col of [5,6,9,10,13,14,16,17,22,23,28]) row.cells[col].classList.add("compare-only");
     row.cells[28].classList.add("reason");
   }
   const applyFilter=()=>{for(const row of element("nights").tBodies[0].rows) filterPlazaRow(row);};
@@ -317,9 +318,12 @@ async function showHotel(data,hotel) {
     refreshNightScroll();
     const grid=element("nights"), rows=grid.tBodies[0].rows;
     for (const c of competitors) {
-      const index=grid.tHead.rows[0].cells.length;
-      grid.tHead.rows[0].appendChild(document.createElement("th")).textContent=c.nome+" · "+c.categoria;
-      for(const row of rows) row.insertCell().textContent="Consultando…";
+      const isReference=isPlaza && c.nome.trim().toLowerCase()==="brisa da praia" && c.categoria==="Standard Plus";
+      const index=isReference ? 3 : grid.tHead.rows[0].cells.length;
+      if (!isReference) {
+        grid.tHead.rows[0].appendChild(document.createElement("th")).textContent=c.nome+" · "+c.categoria;
+        for(const row of rows) row.insertCell().textContent="Consultando…";
+      }
       for(let i=0;i<dates.length;i+=4) {
         if(currentVersion!==analysisVersion) return;
         const batch=dates.slice(i,i+4);
@@ -340,7 +344,11 @@ async function showHotel(data,hotel) {
           }
         } catch {}
         if(currentVersion!==analysisVersion) return;
-        batch.forEach((d,j)=>rows[i+j].cells[index].textContent=typeof prices[d]==="number"?money(prices[d]):prices[d]===null?"Sem oferta":"Sem cotação");
+        batch.forEach((d,j)=>{
+          const cells=rows[i+j].cells;
+          cells[index].textContent=typeof prices[d]==="number"?money(prices[d]):prices[d]===null?"Sem oferta":"Sem cotação";
+          if(isReference && !(prices[d]>0)) cells[4].textContent="—";
+        });
       }
     }
   } catch(error) { if(currentVersion===analysisVersion) element("ratesStatus").textContent=error.message; }
