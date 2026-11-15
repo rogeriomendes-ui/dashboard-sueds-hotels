@@ -90,8 +90,8 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   const action=hold ? "Manter" : bandReady ? !standard ? "Aplicar nível" : suggested>standard ? "Subir" : suggested<standard ? "Reduzir" : "Manter" : "Revisar";
   const comparison=!comparable ? "Sem comparação" : diverges ? "Diverge" : "Coincide";
   const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
-  return [date(night),amounts[1],amounts[6],amounts[11],own ? ownReason : reason,comparison,change,
-    ...[0,5,10].flatMap(i=>[amounts[i],amounts[i+(own?2:3)],amounts[i+4]]),money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
+  return [date(night),...[0,5,10].flatMap(i=>[amounts[i],amounts[i+1],amounts[i+(own?2:3)],amounts[i+4]]),
+    own ? ownReason : reason,comparison,change,money(brisa),standard && brisa ? formatPct(100*(standard/brisa-1)) : "—",row[7]+"%",row[8],
     quotes ?? "—",conversionRate(quotes,sales),action,hold ? "0%" : bandReady ? formatPct(pct) : "—",date(row[10]),row[12],row[13],row[14],own ? reason : ownReason,
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—"];
 }
@@ -156,8 +156,8 @@ function renderCatalog(catalog,hotelId) {
 }
 
 function filterPlazaRow(row) {
-  row.hidden=element("compareModels").checked && ((element("onlyDifferent").checked && row.cells[5].textContent!=="Diverge") ||
-    (element("onlyChanged").checked && row.cells[6].textContent==="—"));
+  row.hidden=element("compareModels").checked && ((element("onlyDifferent").checked && row.cells[14].textContent!=="Diverge") ||
+    (element("onlyChanged").checked && row.cells[15].textContent==="—"));
 }
 let analysisVersion=0;
 async function showPlaza(data,plaza) {
@@ -176,12 +176,16 @@ async function showPlaza(data,plaza) {
   const render=(r,rates)=>plazaNight(r,rates,data.analysis.conversaoDeskhotel,policy,floors,periods,data.catalog);
   const other=policy?.modelo==="proprio" ? "BeePrice" : "RMS Próprio";
   const categories=["Standard","Luxo","Suíte Master"];
-  const priceColumns=categories.flatMap(category=>["vigente",other,"RMS − faixa"].map(label=>category+" · "+label));
-  table("nights",["Noite",...categories.map(c=>c+" · sugerida"),"Motivo do modelo ativo","Comparação","Mudança RMS · Standard",...priceColumns,"Tarifa de referência","Plaza × referência","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo · "+other,"Consulta Omnibees"],
+  const priceColumns=categories.flatMap(category=>["Vigente","Sugerida",other,"RMS − faixa"].map(label=>category+"\n"+label));
+  table("nights",["Noite",...priceColumns,"Motivo do modelo ativo","Comparação","Mudança RMS · Standard","Tarifa de referência","Plaza × referência","Ocupação","Saldo ADVP","Orçamentos","Taxa de conversão","Sugestão da faixa","Ajuste da faixa","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Motivo · "+other,"Consulta Omnibees"],
     nights.map(r=>render(r,data.rates[r[0]])));
   for(const row of element("nights").rows){
-    row.cells[4].classList.add("reason");
-    for(const col of [5,6,8,9,11,12,14,15,22,23,28]) row.cells[col].classList.add("compare-only");
+    row.cells[13].classList.add("reason");
+    for(const start of [1,5,9]) {
+      row.cells[start].classList.add("category-start");
+      row.cells[start+1].classList.add("suggested");
+    }
+    for(const col of [3,4,7,8,11,12,14,15,22,23,28]) row.cells[col].classList.add("compare-only");
     row.cells[28].classList.add("reason");
   }
   const applyFilter=()=>{for(const row of element("nights").tBodies[0].rows) filterPlazaRow(row);};
@@ -255,13 +259,14 @@ async function showHotel(data,hotel) {
       const periods=data.periods.filter(p=>p.hotel_id===hotel.id);
       dates=days.map(d=>d.date);
       const other=ownModel?"BeePrice":"RMS Próprio";
-      table("nights",["Noite","Tarifa sugerida","Motivo do modelo ativo","Tarifa · "+other,"Motivo · "+other,"Ocupação","Aptos ocupados","Tarifa vigente (R$)"],days.map(d=>[
-        date(d.date),"—","","—","",d.rate==null?"—":d.rate.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%",d.occupied ?? "—","—"
+      table("nights",["Noite","Tarifa vigente (R$)","Tarifa sugerida","Motivo do modelo ativo","Tarifa · "+other,"Motivo · "+other,"Ocupação","Aptos ocupados"],days.map(d=>[
+        date(d.date),"—","—","","—","",d.rate==null?"—":d.rate.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%",d.occupied ?? "—"
       ]));
       for(const row of element("nights").rows) {
-        row.cells[3].classList.add("compare-only");
-        row.cells[4].classList.add("compare-only","reason");
-        row.cells[2].classList.add("reason");
+        row.cells[4].classList.add("compare-only");
+        row.cells[5].classList.add("compare-only","reason");
+        row.cells[3].classList.add("reason");
+        row.cells[2].classList.add("suggested");
       }
       days.forEach((d,i)=>{
         const cells=element("nights").tBodies[0].rows[i].cells;
@@ -269,7 +274,7 @@ async function showHotel(data,hotel) {
         const pct=periodAdjustment(period,d.rate), hold=d.rate>=100;
         const input=document.createElement("input");
         input.type="number";input.min=".01";input.step=".01";input.setAttribute("aria-label","Tarifa vigente em "+date(d.date));
-        if(pct!=null || hold) cells[7].replaceChildren(input);
+        if(pct!=null || hold) cells[1].replaceChildren(input);
         function update(){
           const rate=input.valueAsNumber>0 && input.validity.valid ? input.valueAsNumber : null;
           const raw=rate!=null && pct!=null ? Math.round(Math.round(rate*100)*(100+pct)/100)/100 : null;
@@ -277,10 +282,10 @@ async function showHotel(data,hotel) {
           const holdReason=d.rate>100?"Overbooking. Manter a diária vigente.":"Noite esgotada. Manter a diária vigente.";
           const bandReason=hold ? holdReason : d.rate==null?"Ocupação indisponível.":pct==null?"Sem período BeePrice cadastrado para esta noite.":period.nome+" · ajuste de "+pct+"%.";
           const ownReason=hold ? holdReason : "Aguardando dados de demanda, conversão, curva e tarifas do hotel.";
-          cells[ownModel?3:1].textContent=money(band);
-          cells[ownModel?4:2].textContent=bandReason+(!rate && (pct!=null || hold)?" Informe a diária vigente.":"");
-          cells[ownModel?1:3].textContent=money(hold ? rate : null);
-          cells[ownModel?2:4].textContent=ownReason+(hold && !rate?" Informe a diária vigente.":"");
+          cells[ownModel?4:2].textContent=money(band);
+          cells[ownModel?5:3].textContent=bandReason+(!rate && (pct!=null || hold)?" Informe a diária vigente.":"");
+          cells[ownModel?2:4].textContent=money(hold ? rate : null);
+          cells[ownModel?3:5].textContent=ownReason+(hold && !rate?" Informe a diária vigente.":"");
         }
         input.oninput=update;update();
       });
