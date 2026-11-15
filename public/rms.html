@@ -80,12 +80,10 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 #nights th.suggested{background:#dbeceb}
 #nights tbody tr:hover td{background:#e9f2f3}
 #nights input{width:7rem}
-#nightScrollTop{overflow-x:scroll;overflow-y:hidden;margin-top:10px}
-#nightScrollTop>div{height:1px}
-#analysis #nightScroll{overflow-x:scroll;margin-top:0}
-:is(#nightScrollTop,#nightScroll)::-webkit-scrollbar{width:14px;height:14px}
-:is(#nightScrollTop,#nightScroll)::-webkit-scrollbar-track{background:#e0e9eb}
-:is(#nightScrollTop,#nightScroll)::-webkit-scrollbar-thumb{background:#617f85;border:2px solid #e0e9eb;border-radius:8px}
+#analysis .night-position{display:block;box-sizing:border-box;width:100%;height:22px;margin:3px 0;padding:0;border:0;accent-color:#165b60;cursor:pointer}
+#analysis #nightScroll{margin-top:0}
+#nightScroll::-webkit-scrollbar:horizontal{height:0}
+
 
 </style>
 <main><h1 id="title">RMS</h1><nav class="rms-tabs" aria-label="Menu RMS"><a id="panelTab" href="/gestores?modulo=rms" target="_top">Painel RMS</a><a id="settingsTab" href="/gestores?modulo=rms_pisos" target="_top">Configurações RMS</a></nav>
@@ -116,7 +114,7 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 <details><summary>Conferir níveis com o calendário BeePrice</summary><p id="levelNote"></p><div class="scroll"><table id="levelNights"></table></div></details>
 <div class="compare-only"><label style="display:flex;align-items:center"><input type="checkbox" id="onlyDifferent"> Mostrar somente noites com tarifas divergentes</label>
 <label style="display:flex;align-items:center"><input type="checkbox" id="onlyChanged"> Mostrar somente noites alteradas pela nova regra do RMS Próprio</label></div>
-</div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><div id="nightScrollTop" hidden tabindex="0" role="region" aria-label="Rolagem horizontal superior da tabela de noites"><div></div></div><div id="nightScroll" class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div></section>
+</div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal superior da tabela de noites"><div id="nightScroll" class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal inferior da tabela de noites"></section>
 <section hidden id="policy"><h2>Regras do hotel</h2><p id="generalHelp">O mínimo geral do RMS Próprio vale nas noites sem mínimo específico por período.</p>
 <form id="policyForm">
 
