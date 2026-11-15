@@ -1,5 +1,25 @@
 const element = id => document.getElementById(id);
 const floorMode = new URLSearchParams(location.search).get("aba") === "pisos";
+
+function setupNightScroll() {
+  const top = element("nightScrollTop");
+  const viewport = element("nightScroll");
+  const table = element("nights");
+  function resize() {
+    top.hidden = viewport.scrollWidth <= viewport.clientWidth;
+    top.style.width = viewport.clientWidth + "px";
+    top.firstElementChild.style.width = viewport.scrollWidth + "px";
+    top.scrollLeft = viewport.scrollLeft;
+  }
+  top.addEventListener("scroll", () => { viewport.scrollLeft = top.scrollLeft; });
+  viewport.addEventListener("scroll", () => { top.scrollLeft = viewport.scrollLeft; });
+  const observer = new ResizeObserver(resize);
+  observer.observe(table);
+  observer.observe(viewport);
+  return resize;
+}
+const refreshNightScroll = floorMode ? null : setupNightScroll();
+
 element(floorMode ? "settingsTab" : "panelTab").setAttribute("aria-current","page");
 const money = n => n == null ? "—" : n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const value = s => s ? Number(s.replaceAll(".","").replace(",",".")) : null;
@@ -193,6 +213,7 @@ async function showPlaza(data,plaza) {
   element("onlyChanged").onchange=applyFilter;
   applyFilter();
   element("analysis").hidden=false;
+  refreshNightScroll();
   const pending=nights.filter(r=>!(Date.now()-Date.parse(data.rates[r[0]]?.at)<30*60*1000)).map(r=>r[0]);
   let failed=0;
   if (pending.length) element("ratesStatus").textContent="Consultando tarifas para dois adultos na Omnibees…";
@@ -293,6 +314,7 @@ async function showHotel(data,hotel) {
       if (ownModel) element("hotelNote").textContent="Modelo RMS Próprio selecionado. A simulação desta unidade aguarda os dados de procura, conversão, curva histórica e tarifas.";
     }
     if (currentVersion!==analysisVersion) return;
+    refreshNightScroll();
     const grid=element("nights"), rows=grid.tBodies[0].rows;
     for (const c of competitors) {
       const index=grid.tHead.rows[0].cells.length;
