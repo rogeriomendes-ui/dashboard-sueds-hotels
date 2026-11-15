@@ -205,6 +205,7 @@ async function showPlaza(data,plaza) {
       row.cells[start+1].classList.add("suggested");
     }
   }
+  setupFluctuation(plaza,policy,nights.map(r=>r[0]),version);
   element("analysis").hidden=false;
   refreshNightScroll();
   const pending=nights.filter(r=>!(Date.now()-Date.parse(data.rates[r[0]]?.at)<30*60*1000)).map(r=>r[0]);
@@ -222,7 +223,7 @@ async function showPlaza(data,plaza) {
         const rates=fresh.rates[r[0]];
         if(rates.error){failed++;continue;}
         data.rates[r[0]]=rates;
-        const cells=rows.get(r[0]).cells;
+        const cells=analysisCells(rows.get(r[0]));
         render(r,rates).forEach((v,i)=>cells[i].textContent=v);
       }
     } catch {failed+=batch.length;}
@@ -232,6 +233,7 @@ async function showPlaza(data,plaza) {
 
 async function showHotel(data,hotel) {
   const version=++analysisVersion;
+  element("fluct").hidden=true;
   element("nights").replaceChildren();
   element("ratesStatus").textContent="";
   element("hotelNote").textContent="";
@@ -269,7 +271,7 @@ async function showHotel(data,hotel) {
         row.cells[2].classList.add("suggested");
       }
       days.forEach((d,i)=>{
-        const cells=element("nights").tBodies[0].rows[i].cells;
+        const cells=Array.from(element("nights").tBodies[0].rows[i].cells);
         const period=periods.find(p=>p.inicio<=d.date && d.date<=p.fim);
         const pct=periodAdjustment(period,d.rate), hold=d.rate>=100;
         const input=document.createElement("input");
@@ -287,6 +289,7 @@ async function showHotel(data,hotel) {
         }
         input.oninput=update;update();
       });
+      setupFluctuation(hotel,policy,dates,version);
       element("hotelNote").textContent=days.some(d=>d.rate!=null)?"Ocupação do mapa KPI. Nas noites com faixa aplicável, informe a diária vigente para calcular a sugestão. Curva histórica, conversão e tarifas próprias automáticas ainda sem integração para esta unidade.":"Sem ocupação apurada para este hotel no período.";
       if (ownModel) element("hotelNote").textContent="Modelo RMS Próprio selecionado. A simulação desta unidade aguarda os dados de procura, conversão, curva histórica e tarifas.";
     }
@@ -295,7 +298,7 @@ async function showHotel(data,hotel) {
     const grid=element("nights"), rows=grid.tBodies[0].rows;
     for (const c of competitors) {
       const isReference=isPlaza && c.nome.trim().toLowerCase()==="brisa da praia" && c.categoria==="Standard Plus";
-      const index=isReference ? 3 : grid.tHead.rows[0].cells.length;
+      const index=isReference ? 3 : analysisCells(grid.tHead.rows[0]).length;
       if (!isReference) {
         grid.tHead.rows[0].appendChild(document.createElement("th")).textContent=c.nome+" · "+c.categoria;
         for(const row of rows) row.insertCell().textContent="Consultando…";
@@ -312,7 +315,7 @@ async function showHotel(data,hotel) {
             if(currentVersion!==analysisVersion) return;
             prices=fresh.quotes;
             for (const r of fresh.rows) {
-              const cells=rows[i+batch.indexOf(r[0])].cells;
+              const cells=analysisCells(rows[i+batch.indexOf(r[0])]);
               plazaNight(r,data.rates[r[0]],data.analysis.conversaoDeskhotel,data.policies.find(p=>p.hotel_id===hotel.id),data.floors.filter(f=>f.hotel_id===hotel.id),data.periods.filter(p=>p.hotel_id===hotel.id),data.catalog)
                 .forEach((v,k)=>cells[k].textContent=v);
             }
@@ -320,7 +323,7 @@ async function showHotel(data,hotel) {
         } catch {}
         if(currentVersion!==analysisVersion) return;
         batch.forEach((d,j)=>{
-          const cells=rows[i+j].cells;
+          const cells=analysisCells(rows[i+j]);
           cells[index].textContent=typeof prices[d]==="number"?money(prices[d]):prices[d]===null?"Sem oferta":"Sem cotação";
           if(isReference && !(prices[d]>0)) {
             cells[4].textContent="—";

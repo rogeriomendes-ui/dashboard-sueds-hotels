@@ -24,6 +24,8 @@ module.exports = async function rms(req, res) {
       : {};
     const hotels = await client.from("hotels").select("id,code,name").eq("status","active").is("deleted_at",null).order("name");
     if (hotels.error) throw hotels.error;
+    if(req.method==="POST" && ["flutuacao_consultar","flutuacao_automatica","flutuacao_aplicar"].includes(req.body?.tipo))
+      return await require("../../lib/rms-flutuacao")(client,req.body,hotels.data.find(h=>h.id===req.body.hotel_id),profile,today,analysis.rows.at(-1)[0],validDate,res);
     const competitors = await client.from("rms_concorrentes").select("hotel_id,nome,criterios").order("nome");
     if (competitors.error) throw competitors.error;
     const configs=competitors.data.map(c=>motor.configuration(c,hotels.data));
