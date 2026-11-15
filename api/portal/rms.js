@@ -1,6 +1,7 @@
 const { createPortalClient, getProfileFromClient, json } = require("../../lib/portal-auth");
 const { gunzipSync } = require("node:zlib");
 const motor = require("../../lib/rms-motor");
+const {addPeriods,newPeriod}=require("../../lib/rms-periodos");
 
 function validDate(s) {
   if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
@@ -71,6 +72,10 @@ module.exports = async function rms(req, res) {
     }
     require("../../lib/rms-pricing").recalculate(analysis);
     if (live) return json(res,200,{rates,rows:analysis.rows.filter(r=>quotes[r[0]])});
+    const readPeriods=()=>client.from("rms_faixas_festivas").select("hotel_id,nome,inicio,fim,pct0,pct50,pct60,pct70,pct80,gravado_em,gravado_por,base_origem,precos_duplo,niveis_pct").order("inicio");
+    const periods=await readPeriods();
+    if(periods.error) throw periods.error;
+    if(catalog) addPeriods(catalog,periods.data,plaza.id);
     if (req.method === "POST") {
       if (!/^application\/json\b/i.test(req.headers["content-type"] || "")) return json(res,415,{error:"Envie JSON."});
       const body = req.body;
@@ -85,7 +90,16 @@ module.exports = async function rms(req, res) {
         try { return json(res,200,{preco:await motor.quote(c,body.noite)}); }
         catch (err) { return json(res,502,{error:err.message==="A consulta deste motor ainda não está integrada." ? err.message : "Não foi possível confirmar a tarifa no motor."}); }
       }
-      if (body?.tipo === "grade_plaza") {
+      if(body?.tipo==="novo_periodo"){
+        const hotel=hotels.data.find(h=>h.id===body.hotel_id);
+        const record=hotel && newPeriod(body,hotel.code==="PLAZA",catalog,validDate);
+        if(!record) return json(res,400,{error:"Confira o nome, as datas, a base e as cinco faixas."});
+        const result=await client.from("rms_faixas_festivas").insert(record);
+        if(["23505","23P01"].includes(result.error?.code))
+          return json(res,409,{error:"Já existe um tarifário para uma ou mais noites desse período."});
+        if(result.error) throw result.error;
+        return json(res,201,{inicio:record.inicio});
+      } else if (body?.tipo === "grade_plaza") {
         const {hotel_id,base,plano,quarto,pax,dia,valor}=body;
         const parent=catalog?.bases.find(b=>b.name===base);
         if (!plaza || hotel_id!==plaza.id || !Number.isInteger(plano) || !parent?.grids[plano]?.[quarto]?.[pax-1] ||
@@ -100,9 +114,11 @@ module.exports = async function rms(req, res) {
           return json(res,400,{error:"Confira o período e os percentuais."});
         if (body.hotel_id===plaza?.id && !fields.every(k=>catalog?.bases[catalog.periods[body.inicio]]?.levels.some(l=>l.pct===body[k])))
           return json(res,400,{error:"Selecione um nível cadastrado para cada faixa."});
-        const saved=await client.from("rms_faixas_festivas").update(Object.fromEntries(fields.map(k=>[k,body[k]]))).eq("hotel_id",body.hotel_id).eq("inicio",body.inicio).select("inicio").maybeSingle();
+        const saved=await client.from("rms_faixas_festivas").update(Object.fromEntries(fields.map(k=>[k,body[k]]))).eq("hotel_id",body.hotel_id).eq("inicio",body.inicio).select("inicio,pct0,pct50,pct60,pct70,pct80,gravado_em,gravado_por").maybeSingle();
         if (saved.error) throw saved.error;
         if (!saved.data) return json(res,404,{error:"Período não cadastrado."});
+        const changed=periods.data.find(p=>p.inicio===body.inicio && p.hotel_id===body.hotel_id);
+        if(changed) Object.assign(changed,saved.data);
       } else if (body?.tipo === "modelo") {
         if (!hotels.data.some(h=>h.id===body.hotel_id) || !["proprio","beeprice"].includes(body.modelo))
           return json(res,400,{error:"Hotel ou modelo inválido."});
@@ -148,8 +164,6 @@ module.exports = async function rms(req, res) {
     if (floors.error) throw floors.error;
     const policies=await client.from("rms_politicas").select("hotel_id,modelo,piso,pct50,pct60,pct70,pct80,pct90,gravado_em,gravado_por");
     if (policies.error) throw policies.error;
-    const periods=await client.from("rms_faixas_festivas").select("hotel_id,nome,inicio,fim,pct0,pct50,pct60,pct70,pct80,gravado_em,gravado_por").order("inicio");
-    if (periods.error) throw periods.error;
     if (catalog) {
       catalog.edits={};
       for(let offset=0; ;offset+=500) {
