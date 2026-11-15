@@ -7,6 +7,31 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 .rms-tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid #bdd0d4;margin:16px 0}.rms-tabs a{padding:10px 14px;color:#264751;text-decoration:none;border-bottom:3px solid transparent}.rms-tabs a[aria-current="page"]{background:#e1eeef;color:#124e54;font-weight:700;border-color:#165b60}.rms-tabs a:focus-visible{outline:2px solid #165b60}#status:empty{display:none}#competitors>summary{cursor:pointer;padding:12px 0;font-weight:600}
 [hidden]{display:none!important}.model-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}.model-options label{display:flex;align-items:flex-start;border:1px solid #bdd0d4;border-radius:8px;padding:14px;cursor:pointer}.model-options label:has(:checked){background:#e7f1f2;border-color:#165b60}.model-options small{display:block;margin-top:5px;line-height:1.45}
 #analysis:not(.comparing) .compare-only{display:none}#nights .reason{white-space:normal;min-width:17rem;max-width:30rem}
+#models h2,#festive h2{margin:0;font-size:1.28rem;letter-spacing:-.025em}
+#models .model-options{margin:16px 0}
+#models .model-options label{padding:16px;gap:10px}
+#models small,#periodCount,#gridNote,.period-audit{color:#506571}
+.model-use,.period-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.model-use{padding-top:12px;border-top:1px solid #d9e3e6}
+.model-use p,#periodCount{margin:0;font-size:.9rem}
+#festive{min-width:0}
+#festive select,#festive input{min-width:0;max-width:100%;width:100%;box-sizing:border-box;background:white;color:inherit}
+#festive summary{cursor:pointer;font-weight:650}
+#catalogBox{padding:14px 16px;margin:20px 0;border:1px solid #ccdcdf;background:#f7fafb;border-radius:8px}
+#gridEditor{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));margin-top:16px}
+#gridEditor label{min-width:0}
+#periodPicker{font-weight:600;margin:20px 0 12px}
+#periodPicker select{font-weight:400}
+.period-editor{border:1px solid #cbdcde;border-radius:10px;overflow:hidden}
+.period-editor header{padding:16px 20px;background:#e8f2f2;border-bottom:1px solid #cfdfdf}
+.period-editor h3{font-size:1.05rem;margin:0 0 4px}
+.period-editor header small{color:#365b62}
+.period-editor form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));align-items:stretch;gap:12px;padding:18px}
+.period-editor label{align-content:start;font-size:.88rem;font-weight:600}
+.period-editor select{font-weight:400}
+.period-footer{grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid #dce5e7;padding-top:12px}
+.period-audit{margin:0;font-size:.84rem}
+@media(max-width:560px){#models,#festive{padding:14px}.period-editor form{grid-template-columns:minmax(0,1fr);padding:12px}.period-footer button{width:100%}}
 </style>
 <main><h1 id="title">RMS</h1><nav class="rms-tabs" aria-label="Menu RMS"><a id="panelTab" href="/gestores?modulo=rms" target="_top">Painel RMS</a><a id="settingsTab" href="/gestores?modulo=rms_pisos" target="_top">Configurações RMS</a></nav>
 <p id="status" role="status">Carregando…</p>
@@ -15,7 +40,7 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 <div class="model-options" role="radiogroup" aria-labelledby="modelHeading">
 <label><input type="radio" name="viewModel" value="beeprice"><span><strong>1. Modelo padrão BeePrice</strong><small>Aplica a faixa de ocupação cadastrada para o período.</small></span></label>
 <label><input type="radio" name="viewModel" value="proprio"><span><strong>2. RMS Próprio</strong><small>Combina ocupação, demanda, curva de vendas atual e do ano anterior (ADVP), competitividade e conversão.</small></span></label></div>
-<p id="activeModel"></p><button type="button" id="activateModel">Usar este modelo na simulação</button></section>
+<div class="model-use"><p id="activeModel"></p><button type="button" id="activateModel">Usar este modelo na simulação</button></div></section>
 <section hidden id="ownCriteria"><h2>Critérios do RMS Próprio</h2><p id="ownNote"></p></section>
 <details hidden id="competitors"><summary>Concorrentes comparáveis</summary><section>
 <form id="competitorForm">
@@ -42,7 +67,11 @@ body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}
 
 <label>Tarifa diária mínima (R$)<input name="piso" type="number" min=".01" step=".01"></label>
 <button>Salvar regras do hotel</button></form><p id="policyAudit" aria-live="polite"></p></section>
-<section hidden id="festive"><h2>Faixas BeePrice por período</h2><p id="periodCount"></p><p>Simulação para dois adultos. Cada noite usa a faixa de ocupação cadastrada para o período do hotel. Nenhuma tarifa é enviada aos canais.</p><details id="catalogBox" hidden><summary>Tarifários e níveis do Plaza</summary><form id="gridEditor"></form><p id="gridNote"></p><div class="scroll"><table id="baseGrid"></table></div></details><div id="festiveForms"></div></section>
+<section hidden id="festive"><div class="period-heading"><h2>Faixas BeePrice por período</h2><p id="periodCount"></p></div>
+<p>Simulação para dois adultos, conforme a ocupação de cada noite.</p>
+<label id="periodPicker">Período de hospedagem<select id="periodChoice" aria-controls="festiveForms"></select></label>
+<div id="festiveForms"></div>
+<details id="catalogBox" hidden><summary>Tarifários e níveis do Plaza</summary><form id="gridEditor"></form><p id="gridNote"></p><div class="scroll"><table id="baseGrid"></table></div></details></section>
 <section hidden id="minimum"><h2>Tarifa mínima por período</h2><form id="form">
 
 <label>Primeira noite<input type="date" name="inicio" required></label>

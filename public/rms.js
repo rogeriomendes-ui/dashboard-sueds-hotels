@@ -318,6 +318,7 @@ async function showHotel(data,hotel) {
 
 async function load(options) {
   const previousHotel=element("settingsHotel").value;
+  const previousPeriod=element("periodChoice").value;
   const previousView=document.querySelector("input[name=viewModel]:checked")?.value;
   const response = await fetch("/api/portal/rms",{cache:"no-store",...options});
   const data = await response.json();
@@ -332,16 +333,37 @@ async function load(options) {
 
     function renderHotel(restoreView) {
       const hotelId=select.value;
-      const periods=data.periods.filter(p=>p.hotel_id===hotelId);
+      const periods=data.periods.filter(p=>p.hotel_id===hotelId).sort((a,b)=>a.inicio.localeCompare(b.inicio));
       element("periodCount").textContent=periods.length ? periods.length+" períodos cadastrados para este hotel." : "Nenhum período BeePrice cadastrado para este hotel.";
       const catalog=hotels.find(h=>h.id===hotelId)?.code==="PLAZA" ? data.catalog : null;
       element("catalogBox").hidden=!catalog;
       if(catalog) renderCatalog(catalog,hotelId);
       const forms=element("festiveForms");
       forms.replaceChildren();
+      const choice=element("periodChoice");
+      choice.replaceChildren();
+      element("periodPicker").hidden=!periods.length;
+      const groups=new Map();
+      for(const p of periods){
+        const groupName=p.fim<data.today?"Encerrados":p.inicio>data.today?"Próximos":"Em vigor";
+        if(!groups.has(groupName)){
+          const group=document.createElement("optgroup");
+          group.label=groupName;
+          groups.set(groupName,group);
+        }
+        groups.get(groupName).append(new Option(date(p.inicio)+" a "+date(p.fim)+" · "+p.nome,p.inicio));
+      }
+      for(const name of ["Em vigor","Próximos","Encerrados"]) if(groups.has(name)) choice.append(groups.get(name));
+      if(options && hotelId===previousHotel && periods.some(p=>p.inicio===previousPeriod)) choice.value=previousPeriod;
+      const editors=new Map();
       for (const p of periods) {
+        const card=document.createElement("article"), header=document.createElement("header"), dates=document.createElement("small");
+        card.className="period-editor";
+        card.hidden=p.inicio!==choice.value;
         const title=document.createElement("h3"), form=document.createElement("form"), stamp=document.createElement("p");
-        title.textContent=p.nome+" · "+date(p.inicio)+" a "+date(p.fim);
+        title.textContent=p.nome;
+        dates.textContent=date(p.inicio)+" a "+date(p.fim);
+        header.append(title,dates);
         const bands=[0,50,60,70,80];
         for (const [i,b] of bands.entries()) {
           const base=catalog?.bases[catalog.periods[p.inicio]];
@@ -350,13 +372,21 @@ async function load(options) {
           if(base) {
             input.name="pct"+b; input.required=true;
             input.add(new Option("Selecione um nível",""));
-            for(const l of base.levels) input.add(new Option(l.code+" · "+l.name,l.pct));
+            for(const l of base.levels){
+              const option=new Option(l.code+" · "+(l.pct===0?"Base":"+"+l.pct+"%"),l.pct);
+              option.title=l.name;
+              input.add(option);
+            }
             input.value=p["pct"+b];
           } else Object.assign(input,{name:"pct"+b,type:"number",required:true,min:"0",max:"99999",step:".01",value:p["pct"+b]});
           label.append(input); form.append(label);
         }
         const save=document.createElement("button");
-        save.textContent="Salvar faixas de "+p.nome; form.append(save);
+        save.textContent="Salvar faixas";
+        const footer=document.createElement("div");
+        footer.className="period-footer";
+        stamp.className="period-audit";
+        footer.append(stamp,save); form.append(footer);
         stamp.textContent=p.gravado_em?"Última gravação: "+auditStamp(p.gravado_em,p.gravado_por):"Cadastro inicial conforme BeePrice.";
         form.onsubmit=async event=>{
           event.preventDefault(); save.disabled=true;
@@ -365,8 +395,9 @@ async function load(options) {
           catch(error){element("status").textContent=error.message;}
           finally {save.disabled=false;}
         };
-        forms.append(title,form,stamp);
+        card.append(header,form); forms.append(card); editors.set(p.inicio,card);
       }
+      choice.onchange=()=>{for(const [start,card] of editors) card.hidden=start!==choice.value;};
       const policy=data.policies.find(p=>p.hotel_id===hotelId);
       const active=policy?.modelo || "beeprice";
       const radios=[...document.querySelectorAll("input[name=viewModel]")];
