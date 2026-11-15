@@ -6,7 +6,7 @@
 body{font:16px Inter,Arial,sans-serif;background:#f4f7f8;color:#172d3d;margin:0}main{padding:clamp(16px,3vw,44px)}h1{margin:0}section{background:white;border:1px solid #d1dfe3;border-radius:12px;padding:20px;margin:16px 0}.scroll{overflow:auto;max-height:70vh}table{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;font-size:14px;width:100%}th,td{padding:10px;text-align:left;border-bottom:1px solid #e0e6e8;white-space:nowrap}th{position:sticky;top:0;background:#e7f1f2}form{display:flex;flex-wrap:wrap;gap:12px;align-items:end}label{display:grid;gap:6px}input,select,button{font:inherit;padding:8px;border:1px solid #82999f;border-radius:6px}button{background:#165b60;color:white;cursor:pointer}
 .rms-tabs{display:grid;grid-template-columns:fit-content(100%);gap:2px;border-bottom:1px solid #bdd0d4;margin:12px 0}.rms-tabs a{padding:6px 12px;color:#264751;text-decoration:none;border-bottom:3px solid transparent}.rms-tabs a[aria-current="page"]{background:#e1eeef;color:#124e54;font-weight:700;border-color:#165b60}.rms-tabs a:focus-visible{outline:2px solid #165b60}#status:empty{display:none}#competitors>summary{cursor:pointer;padding:12px 0;font-weight:600}
 [hidden]{display:none!important}.model-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}.model-options label{display:flex;align-items:flex-start;border:1px solid #bdd0d4;border-radius:8px;padding:14px;cursor:pointer}.model-options label:has(:checked){background:#e7f1f2;border-color:#165b60}.model-options small{display:block;margin-top:5px;line-height:1.45}
-#analysis:not(.comparing) .compare-only{display:none}#nights .reason{white-space:normal;min-width:17rem;max-width:30rem}
+#nights .reason{white-space:normal;min-width:17rem;max-width:30rem}
 main:has(#settingsTab[aria-current]){
   max-width:1180px;margin-inline:auto;padding:clamp(12px,2vw,26px);
   font-size:14px;line-height:1.45
@@ -74,7 +74,7 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 #nights td:first-child{background:white;font-weight:600;z-index:1}
 #nights th:first-child{z-index:2}
 #nights .category-start{border-left:1px solid #c7d9dc}
-#nights :is(.category-start,.suggested,.category-start~.compare-only:not(.reason)){font-variant-numeric:tabular-nums}
+#nights :is(.category-start,.suggested){font-variant-numeric:tabular-nums}
 #nights :is(.category-start,.suggested){text-align:right}
 #nights .suggested{font-weight:650;color:#124e54;background:#f0f7f6}
 #nights th.suggested{background:#dbeceb}
@@ -110,12 +110,9 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 <h3>Consultar tarifa por noite</h3><form id="quoteForm"><label>Concorrente<select name="concorrente" required></select></label>
 <label>Noite de hospedagem<input type="date" name="noite" required></label><button>Buscar tarifa</button></form>
 <p id="quoteResult" role="status"></p></section></details>
-<section hidden id="analysis"><h2 id="panelHotel"></h2><p><strong id="selectedModel"></strong> · Simulação para dois adultos</p><label style="display:flex;align-items:center"><input type="checkbox" id="compareModels"><span id="compareLabel"></span></label><div id="plazaNotes"><p>Ocupação e curva de 13/11/2026 · Dois adultos com café da manhã · Valores anunciados em reais</p>
-<p>Tarifas públicas da Omnibees por noite. Luxo e Suíte Master acompanham o percentual do Standard.</p>
+<section hidden id="analysis"><h2 id="panelHotel"></h2><p><strong id="selectedModel"></strong> · Simulação para dois adultos</p><div id="plazaNotes"><p>Ocupação e curva de 13/11/2026 · Dois adultos com café da manhã · Valores anunciados em reais</p>
+<p>Tarifas públicas da Omnibees por noite. </p>
 <p>Conversão estimada por noite: reservas diretas aprovadas ÷ orçamentos do CRM Demanda (equipe, robô e site), com dados até 13/11. Uma reserva conta em cada noite da hospedagem.</p>
-<details><summary>Conferir níveis com o calendário BeePrice</summary><p id="levelNote"></p><div class="scroll"><table id="levelNights"></table></div></details>
-<div class="compare-only"><label style="display:flex;align-items:center"><input type="checkbox" id="onlyDifferent"> Mostrar somente noites com tarifas divergentes</label>
-<label style="display:flex;align-items:center"><input type="checkbox" id="onlyChanged"> Mostrar somente noites alteradas pela nova regra do RMS Próprio</label></div>
 </div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal superior da tabela de noites"><div class="night-frame"><div id="nightScroll" class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div><input id="nightVertical" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem vertical da tabela de noites"></div><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal inferior da tabela de noites"></section>
 <section hidden id="policy"><h2>Regras do hotel</h2><p id="generalHelp">O mínimo geral do RMS Próprio vale nas noites sem mínimo específico por período.</p>
 <form id="policyForm">
