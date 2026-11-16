@@ -725,6 +725,7 @@ function renderHomeSalesGoals(payload) {
   const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" });
   const value = (amount) => amount == null ? "—" : money.format(amount);
   const percentCell = (amount, threshold) => `<span class="${amount < threshold ? "negative" : "positive"}">${percentage.format(amount)}%</span>`;
+  const labels = [`Venda ${year}`, `Venda ${year - 1}`, `Meta ${year}`, "% Meta", "Projeção %", "Projeção R$", "Var. A/A"];
   byId("homeSalesGoals").innerHTML = ["sales", "direct"].map((key) => {
     const table = (payload.monthlyGoalTables || []).find((item) => item.key === key);
     const title = key === "sales" ? "Meta de Vendas" : "Meta Venda Direta";
@@ -738,9 +739,19 @@ function renderHomeSalesGoals(payload) {
       const variation = row.actual == null ? "—" : row.previous > 0
         ? percentCell((row.actual - row.previous) / row.previous * 100, 0)
         : row.actual > 0 ? '<span class="positive">novo</span>' : "—";
-      return `<tr>${showMonth ? `<th scope="row">${escapeHtml(monthName.format(new Date(`${row.key}-01T12:00:00Z`)).toUpperCase())}</th>` : ""}<td>${value(row.actual)}</td><td>${value(row.previous)}</td><td>${value(row.target)}</td><td>${goalPct}</td><td>${projected == null ? "—" : percentCell(projected, 100)}</td><td>${value(projectedSales)}</td><td>${variation}</td></tr>`;
+      const values = [
+        value(row.actual),
+        value(row.previous),
+        value(row.target),
+        goalPct,
+        projected == null ? "—" : percentCell(projected, 100),
+        value(projectedSales),
+        variation
+      ];
+      const cells = values.map((item, index) => `<td data-label="${labels[index]}">${item}</td>`).join("");
+      return `<tr>${showMonth ? `<th scope="row">${escapeHtml(monthName.format(new Date(`${row.key}-01T12:00:00Z`)).toUpperCase())}</th>` : ""}${cells}</tr>`;
     }).join("");
-    return `<article class="home-goal-card"><h2 class="home-goal-title ${key}">${title}</h2><div class="home-goal-scroll"><table aria-label="${title}"><thead><tr>${showMonth ? '<th scope="col">Mês</th>' : ""}<th scope="col">Venda ${year}</th><th scope="col">Venda ${year - 1}</th><th scope="col">Meta ${year}</th><th scope="col">% Meta</th><th scope="col" title="Percentual da meta ao fim do mês, mantendo a média diária do período">Projeção %</th><th scope="col">Projeção R$</th><th scope="col">Var. A/A</th></tr></thead><tbody>${rows || `<tr><td colspan="${showMonth ? 8 : 7}">Sem dados para o período.</td></tr>`}</tbody></table></div></article>`;
+    return `<article class="home-goal-card"><h2 class="home-goal-title ${key}">${title}</h2><div class="home-goal-scroll"><table aria-label="${title}"><thead><tr>${showMonth ? '<th scope="col">Mês</th>' : ""}${labels.map((label) => `<th scope="col"${label === "Projeção %" ? ' title="Percentual da meta ao fim do mês, mantendo a média diária do período"' : ""}>${label}</th>`).join("")}</tr></thead><tbody>${rows || `<tr><td colspan="${showMonth ? 8 : 7}">Sem dados para o período.</td></tr>`}</tbody></table></div></article>`;
   }).join("");
 }
 

@@ -201,6 +201,44 @@
   #portalHome :is(.home-sales-goals, .manager-summary-grid) { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
+  #portalHome .home-goal-card { min-width: 0; }
+  #portalHome .home-goal-title { padding: 7px 10px; }
+  #portalHome .home-goal-card table,
+  #portalHome .home-goal-card tbody { display: block; min-width: 0; }
+  #portalHome .home-goal-card thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  #portalHome .home-goal-card tbody tr {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    padding: 7px 10px;
+    gap: 7px 4px;
+  }
+  #portalHome .home-goal-card tbody tr + tr { border-top: 1px solid var(--sales-border); }
+  #portalHome .home-goal-card tbody :is(th, td):nth-child(n) {
+    width: auto;
+    padding: 0;
+    line-height: 1.25;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    border: 0;
+  }
+  #portalHome .home-goal-card :is(th[scope="row"], td[colspan]) { grid-column: 1 / -1; }
+  #portalHome .home-goal-card td[data-label] { grid-column: span 3; }
+  #portalHome .home-goal-card td[data-label]:nth-of-type(-n+3) { grid-column: span 4; }
+  #portalHome .home-goal-card td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 1px;
+    color: var(--sales-muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
   #portalHome :is(.home-sales-goals, .manager-summary-grid, .manager-hotel-grid) { grid-template-columns: 1fr; gap: 12px; }
   #portalHome :is(.manager-summary-grid, .manager-hotel-grid) > .panel { padding: 14px; }
   #portalHome :is(.manager-summary-grid, .manager-hotel-grid) h2 { font-size: 16px; }
