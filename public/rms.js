@@ -215,6 +215,29 @@ async function showPlaza(data,plaza) {
       row.cells[start+1].classList.add("suggested");
     }
   }
+  const references=policy?.modelo==="proprio"?new Map():appliedBeeRates(data.beeHistory,data.catalog);
+  const grid=element("nights");
+  const headers=Array.from(grid.tHead.rows[0].cells,cell=>cell.textContent);
+  let differences=0;
+  for(const [index,night] of nights.entries()){
+    const reference=references.get(night[0]);
+    if(!reference) continue;
+    const cells=grid.tBodies[0].rows[index].cells;
+    for(const [room,label] of [["standard","Standard"],["luxo","Luxo"],["suite","Suíte Master"]]){
+      const site=cells[headers.indexOf(label+"\nSITE sugerido")];
+      const web=cells[headers.indexOf(label+"\nWEB simulado")];
+      const actual=reference.web[room];
+      if(!(actual>0) || !web || web.textContent==="—" || web.textContent===money(actual)) continue;
+      const description="WEB simulada "+web.textContent+" · WEB do nível aplicado pelo BeePrice "+money(actual)+" · "+reference.level+" · "+reference.at;
+      for(const cell of [site,web]){
+        if(!cell || cell.textContent==="—") continue;
+        cell.classList.add("bee-difference");
+        cell.title=description;
+      }
+      differences++;
+    }
+  }
+  element("beeDifferenceNote").hidden=!differences;
   setupFluctuation(plaza,policy,nights.map(r=>r[0]),version);
   element("analysis").hidden=false;
   refreshNightScroll();
@@ -224,6 +247,7 @@ async function showPlaza(data,plaza) {
 async function showHotel(data,hotel) {
   const version=++analysisVersion;
   element("fluct").hidden=true;
+  element("beeDifferenceNote").hidden=true;
   element("nights").replaceChildren();
   element("ratesStatus").textContent="";
   element("hotelNote").textContent="";

@@ -26,4 +26,33 @@ function beeWebDecision(target,current,hold) {
   }
   return {prices,retained};
 }
+// O histórico importado informa o nível aplicado. Use a grade original WEB com café para 2 adultos.
+function appliedBeeRates(history,catalog) {
+  const latest=new Map();
+  const levels=new Map();
+  for(const base of catalog?.bases || []) for(const level of base.levels){
+    const name=level.name.trim().toUpperCase();
+    levels.set(name,levels.has(name)?null:{base,level});
+  }
+  for(const event of history || []){
+    const stamp=/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}:\d{2})$/.exec(event.at);
+    if(!stamp) continue;
+    const time=stamp[3]+stamp[2]+stamp[1]+stamp[4];
+    const match=levels.get(event.level.trim().toUpperCase());
+    const web={};
+    for(const room of ["standard","luxo","suite"]){
+      const price=match?.base.grids[0]?.[room]?.[1];
+      if(price>0) web[room]=Math.round(price*(100+match.level.pct))/100;
+    }
+    for(const night of event.nights){
+      const parts=/^(\d{2})\/(\d{2})\/(\d{2}|\d{4})$/.exec(night);
+      if(!parts) continue;
+      const key=parts[3].padStart(4,"20")+"-"+parts[2]+"-"+parts[1];
+      const prior=latest.get(key);
+      if(!prior || time>prior.time) latest.set(key,{time,web,at:event.at,level:event.level});
+      else if(time===prior.time && prior.level!==event.level) prior.web={};
+    }
+  }
+  return latest;
+}
 if (typeof module !== "undefined") module.exports = {plazaLevelComparison,beeWebDecision};
