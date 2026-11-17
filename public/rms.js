@@ -315,7 +315,25 @@ async function showHotel(data,hotel) {
         return (base?.levels.find(l=>l.pct===Number(pct))?.code || "—")+" · "+pct+"%";
       })];
     }));
-    table("beeHistory",["Data da flutuação","Novo nível","Noites atualizadas"],(data.beeHistory || []).map(r=>[r.at,r.level,r.nights.join(", ")]));
+    const auditFilter=element("audit89Filter");
+    function showBeeHistory(){
+      const note=element("audit89Note");
+      note.hidden=!auditFilter.checked;
+      if(!auditFilter.checked){
+        table("beeHistory",["Data da flutuação","Novo nível","Noites atualizadas"],(data.beeHistory || []).map(r=>[r.at,r.level,r.nights.join(", ")]));
+        return;
+      }
+      const rows=data.auditoria89 || [];
+      const occupancy=(n,total)=>n+"/"+total+" ("+(n/total).toLocaleString("pt-BR",{style:"percent",minimumFractionDigits:2,maximumFractionDigits:2})+")";
+      const band=pct=>pct===0?"Base":"+"+pct+"%";
+      note.textContent=rows.length
+        ? rows.length+" noites. Ocupações reconstruídas com o inventário Omnibees de 17/11/2026. A faixa BeePrice vem do aviso. A faixa RMS usa os 116 apartamentos físicos e as regras do período. A ocupação no horário do aviso pode ter sido diferente."
+        : "A conferência de 17/11/2026 ainda não foi carregada.";
+      table("beeHistory",["Noite","Aviso BeePrice","Ocupação com os 89 extras","Ocupação sem os 89 extras","Faixa aplicada pelo BeePrice","Faixa indicada pelo RMS"],
+        rows.map(r=>[date(r.noite),r.aviso,occupancy(r.ocupados+89,205),occupancy(r.ocupados,116),band(r.aplicada),band(r.simulada)]));
+    }
+    auditFilter.onchange=showBeeHistory;
+    showBeeHistory();
   }
   element("panelHotel").textContent=hotel.name;
   element("plazaNotes").hidden=!isPlaza;
