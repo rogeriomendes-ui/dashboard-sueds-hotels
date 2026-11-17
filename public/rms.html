@@ -111,7 +111,7 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 <label>Noite de hospedagem<input type="date" name="noite" required></label><button>Buscar tarifa</button></form>
 <p id="quoteResult" role="status"></p></section></details>
 <section hidden id="analysis"><h2 id="panelHotel"></h2><p><strong id="selectedModel"></strong> · Simulação para dois adultos</p><div id="plazaNotes"><p>Ocupação e curva de 13/11/2026 · Dois adultos com café da manhã · Valores anunciados em reais</p>
-<p>Tarifas públicas da Omnibees por noite. </p>
+<p>A comparação com o Brisa usa o SITE final para dois adultos com café. A Tarifa Gestor indica o SITE final desejado. O ajuste aprovado tem como destino o WEB regular. </p>
 <p>Conversão estimada por noite: reservas diretas aprovadas ÷ orçamentos do CRM Demanda (equipe, robô e site), com dados até 13/11. Uma reserva conta em cada noite da hospedagem.</p>
 </div><p id="hotelNote"></p><p id="ratesStatus" role="status"></p><fieldset id="fluct" hidden><legend>Flutuação de tarifas</legend><p>Tarifário para 2 adultos. Preencha a Tarifa Gestor para substituir a sugerida. Ao aplicar, as tarifas ficam pendentes até a integração ser ligada.</p><label><input type="checkbox" id="allNights"> Flutuar todas</label> <button type="button" id="applyNights">Aplicar flutuação</button> <button type="button" id="dailyFluct" aria-pressed="false">Ligar flutuação diária automática</button> <span role="status" id="fluctMsg"></span></fieldset><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal superior da tabela de noites"><div class="night-frame"><div id="nightScroll" class="scroll" tabindex="0" aria-label="Tabela de análise por noite"><table id="nights"></table></div><input id="nightVertical" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem vertical da tabela de noites"></div><input class="night-position" type="range" hidden min="0" max="0" value="0" aria-controls="nightScroll" aria-label="Rolagem horizontal inferior da tabela de noites"></section>
 <section hidden id="policy"><h2>Regras do hotel</h2><p id="generalHelp">O mínimo geral do RMS Próprio vale nas noites sem mínimo específico por período.</p>
@@ -145,4 +145,4 @@ main:has(#panelTab[aria-current]) #hotelPicker{max-width:340px}
 <button>Salvar tarifa mínima</button></form>
 <p>Da primeira à última noite, o mínimo do período substitui o mínimo geral do hotel. Se dois períodos cobrirem a mesma noite, vale o maior mínimo entre eles. Salvar o mesmo hotel e período atualiza o valor.</p>
 <div class="scroll"><table id="floors"></table></div></section></main>
-<script src="/rms-levels.js"></script><script src="/rms-flutuacao.js"></script><script src="/rms.js"></script></html>
+<script src="/rms-plaza-tarifas.js"></script><script src="/rms-levels.js"></script><script src="/rms-flutuacao.js"></script><script src="/rms.js"></script></html>

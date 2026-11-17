@@ -19,9 +19,7 @@ module.exports = async function rms(req, res) {
     const analysis = JSON.parse(gunzipSync(Buffer.from(process.env.RMS_ANALISE_GZ, "base64")).toString("utf8"));
     analysis.conversaoDeskhotel = JSON.parse(process.env.RMS_CONVERSAO_DESKHOTEL || "{}");
     const today=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});
-    const snapshot=process.env.RMS_COTACOES_PLAZA_GZ
-      ? JSON.parse(gunzipSync(Buffer.from(process.env.RMS_COTACOES_PLAZA_GZ,"base64")).toString("utf8"))
-      : {};
+    const {quoteNight}=require("../../lib/rms-omnibees");
     const hotels = await client.from("hotels").select("id,code,name").eq("status","active").is("deleted_at",null).order("name");
     if (hotels.error) throw hotels.error;
     if(req.method==="POST" && ["flutuacao_consultar","flutuacao_automatica","flutuacao_aplicar"].includes(req.body?.tipo))
@@ -57,19 +55,21 @@ module.exports = async function rms(req, res) {
       }
       return json(res,200,{quotes,rows});
     }
+    const source=(live || req.method==="GET") ? await require("../../lib/rms-web-regular").officialSource(client,plaza?.id) : null;
     if (live) {
       const nights=req.body.noites;
       if (!Array.isArray(nights) || !nights.length || nights.length>4 ||
           !nights.every(d=>validDate(d) && d>=today && analysis.rows.some(r=>r[0]===d)))
         return json(res,400,{error:"Período fora da análise."});
       await Promise.all([...new Set(nights)].map(async d=>{
-        try { quotes[d]=await require("../../lib/rms-omnibees").quoteNight(d); }
+        try { quotes[d]=quoteNight(d,source); }
         catch { quotes[d]={error:true}; }
       }));
     }
-    const rates=live ? quotes : snapshot;
+    const rates=live ? quotes : Object.fromEntries(analysis.rows.map(r=>[r[0],quoteNight(r[0],source)]));
     for (const row of analysis.rows) {
-      const current=rates[row[0]]?.standard;
+      const rate=rates[row[0]];
+      const current=rate?.site?.standard?.final;
       row[1]=current ? current.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "";
     }
     require("../../lib/rms-pricing").recalculate(analysis);
