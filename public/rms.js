@@ -236,18 +236,35 @@ async function showHotel(data,hotel) {
   if(!beeMenu.hidden){
     element("histNight").value ||= data.today;
     let historyVersion=0;
+    function updateHistoryFilter(){
+      element("histDateLabel").textContent=element("histChanges").checked?"Dia da leitura (Bahia)":"Noite da hospedagem";
+      element("histSearch").click();
+    }
+    element("histChanges").onchange=updateHistoryFilter;
+    element("histNight").onchange=updateHistoryFilter;
     element("histSearch").onclick=async()=>{
+      const changes=element("histChanges").checked;
       const night=element("histNight").value, version=++historyVersion, rows=[];
       element("histRows").replaceChildren();
       element("histStatus").textContent="Consultando…";
       try {
         for(let offset=0;;offset+=100){
-          const response=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"historico_plaza",noite:night,offset})});
+          const response=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"historico_plaza",noite:night,offset,mudancas:changes})});
           if(!response.ok) throw Error();
           const page=await response.json();
           if(version!==historyVersion) return;
           rows.push(...page.rows);
           if(page.rows.length<100) break;
+        }
+        if(changes){
+          const stamp=v=>new Date(v).toLocaleString("pt-BR",{timeZone:"America/Bahia"});
+          const band=r=>[r.faixa,r.nivel].filter(Boolean).join(" Â· ") || "â€”";
+          table("histRows",["Noite","Leitura anterior (Bahia)","Nova leitura (Bahia)","Faixa anterior","Nova faixa",
+            "WEB Standard anterior","WEB Standard nova","WEB Luxo anterior","WEB Luxo nova","WEB SuÃ­te anterior","WEB SuÃ­te nova"],
+            rows.map(({noite,anterior,atual})=>[date(noite),stamp(anterior.captura),stamp(atual.captura),band(anterior),band(atual),
+              ...["standard","luxo","suite"].flatMap(room=>[money(anterior[room]),money(atual[room])])]));
+          element("histStatus").textContent=rows.length ? rows.length+" mudanÃ§a(s) em "+date(night)+"." : "Nenhuma mudanÃ§a registrada nesse dia. A primeira captura de cada noite serve de referÃªncia.";
+          return;
         }
         table("histRows",["Captura (Bahia)","Ocupação","Período","Faixa","Nível","Decisão","WEB Standard","WEB Luxo","WEB Suíte"],rows.map(r=>[new Date(r.captura).toLocaleString("pt-BR",{timeZone:"America/Bahia"}),Number(r.ocupacao).toLocaleString("pt-BR",{maximumFractionDigits:2})+"%",r.periodo||"—",r.faixa||"—",r.nivel||"—",r.situacao,...[r.standard,r.luxo,r.suite].map(money)]));
         element("histStatus").textContent=rows.length+" leitura(s) para "+date(night)+".";

@@ -23,6 +23,11 @@ module.exports = async function rms(req, res) {
     }
     if(req.method==="POST" && req.body?.tipo==="historico_plaza"){
       if(!validDate(req.body.noite) || !Number.isSafeInteger(req.body.offset) || req.body.offset<0) return json(res,400,{error:"Noite inválida."});
+      if(req.body.mudancas===true){
+        const {data}=await client.rpc("rms_plaza_mudancas",{dia:req.body.noite})
+          .order("captura").order("noite").range(req.body.offset,req.body.offset+99).throwOnError();
+        return json(res,200,{rows:data});
+      }
       const {data}=await client.from("rms_plaza_historico_simulacao").select("captura,ocupacao,periodo,faixa,nivel,situacao,standard,luxo,suite").eq("noite",req.body.noite).order("captura",{ascending:false}).range(req.body.offset,req.body.offset+99).throwOnError();
       return json(res,200,{rows:data});
     }
