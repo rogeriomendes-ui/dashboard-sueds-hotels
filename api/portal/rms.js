@@ -16,6 +16,11 @@ module.exports = async function rms(req, res) {
     if (!profile) return json(res,401,{error:"Login necessário."});
     if (!profile.rms) return json(res,403,{error:"Acesso restrito."});
     if (!["GET","POST"].includes(req.method)) return json(res,405,{error:"Método inválido."});
+    if (req.method==="POST" && req.body?.tipo==="ocupacao_plaza") {
+      const start=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});
+      const days=await require("../../server").plazaRmsOccupancy(start);
+      return json(res,200,{days});
+    }
     const analysis = JSON.parse(gunzipSync(Buffer.from(process.env.RMS_ANALISE_GZ, "base64")).toString("utf8"));
     analysis.conversaoDeskhotel = JSON.parse(process.env.RMS_CONVERSAO_DESKHOTEL || "{}");
     const today=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});

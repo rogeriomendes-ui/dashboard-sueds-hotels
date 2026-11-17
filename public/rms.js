@@ -116,7 +116,7 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
     const activeRate=own ? rmsRate : bandRate;
     const currentWeb=rates?.web?.[key];
     const proposedWeb=hold ? currentWeb : own ? plazaWebTarget(currentWeb,quote,activeRate)?.web : target.simulated[key];
-    webCells.push(money(currentWeb ?? null),money(activeRate>0 ? proposedWeb ?? null : null));
+    webCells.push(money(currentWeb ?? null),money((!own || activeRate>0) ? proposedWeb ?? null : null));
     if(key==="standard") suggestedStandard=activeRate;
     priceCells.push(money(activeRate ?? null));
   }
@@ -128,7 +128,7 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   const site=rates?.site?.standard;
   const offer=site ? (/^black friday/i.test(site.offer) ? "Black "+site.discount+"%" : site.offer || "Sem oferta") : "Sem confirmação";
   priceCells.splice(2,0,offer,money(brisa),differenceFromBrisa(standard),differenceFromBrisa(suggestedStandard));
-  return [date(night),...priceCells,own ? ownReason : reason,row[7]!=="" ? row[7]+"%" : "—",row[8] || "—",
+  return [date(night),...priceCells,own ? ownReason : reason,row[7]!=="" ? occupancy.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%" : "—",row[8] || "—",
     quotes ?? "—",conversionRate(quotes,sales),row[10] ? date(row[10]) : "—",row[12],row[13] || "—",row[14] || "—",
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—",
     ...webCells,money(rates?.site?.standard?.regular ?? null)];
@@ -250,10 +250,38 @@ async function showHotel(data,hotel) {
   element("plazaNotes").hidden=!isPlaza;
   const competitors=data.competitors.filter(c=>c.hotel_id===hotel.id);
   let currentVersion=version;
+  let occupancyDays;
+  function mapRow(row) {
+    if (!occupancyDays) return row;
+    const day=occupancyDays.get(row[0]), updated=row.slice();
+    updated[7]=day?.rate==null ? "" : String(day.rate).replace(".",",");
+    updated[13]=day?.occupied==null ? "" : String(day.occupied);
+    updated[8]=day?.occupied!=null && row[14]!=="" && row[14]!=null ? String(day.occupied-Number(row[14])) : "";
+    return updated;
+  }
   let dates;
   try {
     if (isPlaza) {
       dates=data.analysis.rows.map(r=>r[0]).filter(d=>d>=data.today);
+      if (!ownModel) {
+        element("hotelNote").textContent="Consultando o Mapa de Ocupação do Plaza…";
+        const response=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"ocupacao_plaza"})});
+        if (version!==analysisVersion) return;
+        if (!response.ok) throw Error("Não foi possível ler o Mapa de Ocupação do Plaza.");
+        const {days}=await response.json();
+        if (version!==analysisVersion) return;
+        occupancyDays=new Map(days.map(d=>[d.date,d]));
+        const stamp=days.map(d=>d.capturedAt).filter(Boolean).sort().at(-1);
+        element("hotelNote").textContent=stamp ? "Última captura do Plaza no Mapa de Ocupação: "+new Date(stamp).toLocaleString("pt-BR",{timeZone:"America/Bahia"})+" (Bahia)." : "Mapa do Plaza sem captura para o período.";
+        const byDate=new Map(data.analysis.rows.map(r=>[r[0],r]));
+        for (const day of days) if (day.rate!=null && !byDate.has(day.date)) {
+          const row=Array(20).fill(""); row[0]=day.date;
+          byDate.set(day.date,row);
+        }
+        const rows=[...byDate.values()].sort((a,b)=>a[0].localeCompare(b[0])).map(mapRow);
+        data={...data,analysis:{...data.analysis,rows}};
+        dates=rows.map(r=>r[0]).filter(d=>d>=data.today);
+      }
       currentVersion=version+1;
       await showPlaza(data,hotel);
     } else {
@@ -319,7 +347,7 @@ async function showHotel(data,hotel) {
             prices=fresh.quotes;
             for (const r of fresh.rows) {
               const cells=analysisCells(rows[i+batch.indexOf(r[0])]);
-              plazaNight(r,data.rates[r[0]],data.analysis.conversaoDeskhotel,data.policies.find(p=>p.hotel_id===hotel.id),data.floors.filter(f=>f.hotel_id===hotel.id),data.periods.filter(p=>p.hotel_id===hotel.id),data.catalog)
+              plazaNight(mapRow(r),data.rates[r[0]],data.analysis.conversaoDeskhotel,data.policies.find(p=>p.hotel_id===hotel.id),data.floors.filter(f=>f.hotel_id===hotel.id),data.periods.filter(p=>p.hotel_id===hotel.id),data.catalog)
                 .forEach((v,k)=>cells[k].textContent=v);
             }
           }

@@ -4628,7 +4628,7 @@ function buildKpiOccupancyMap(sourceRows = [], query = {}) {
     apartments: item.apartments,
     days: biReportsDateKeys(period.start, period.end).map((date) => {
       const reading = readings.get(`${item.label}|${date}`);
-      return reading ? { date, apartments: reading.apartments, occupied: reading.occupied,
+      return reading ? { date, capturedAt: reading.capturedAt, apartments: reading.apartments, occupied: reading.occupied,
         available: reading.available, maintenance: reading.maintenance,
         rate: reading.apartments ? reading.occupied / reading.apartments * 100 : 0 }
         : { date, apartments: null, occupied: null, available: null, maintenance: null, rate: null };
@@ -10370,6 +10370,11 @@ if (require.main === module) {
 }
 
 module.exports = {
+  async plazaRmsOccupancy(start) {
+    const rows = await getSheetValues(KPI_OCCUPANCY_RANGE);
+    const map = buildKpiOccupancyMap(rows, { hotel: "SUEDS PLAZA", start, end: "2027-12-31" });
+    return map.occupancy[0]?.days || [];
+  },
   handleRequest,
   __test: {
     normalizeOperationalOpinion,
