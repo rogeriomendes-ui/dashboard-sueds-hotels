@@ -17,4 +17,13 @@ function plazaLevelComparison(catalog, period, night, occupancy) {
     Object.keys(reference).some(k=>simulated[k]!==reference[k]) ? "Grade alterada" : "Coincide";
   return {level,observation,simulated,reference,status};
 }
-if (typeof module !== "undefined") module.exports = {plazaLevelComparison};
+function beeWebDecision(target,current,hold) {
+  const prices={}, retained=[];
+  for(const room of ["standard","luxo","suite"]){
+    const web=current?.[room], candidate=target.simulated[room];
+    if(web>0 && candidate!=null && candidate<web) retained.push(room);
+    prices[room]=!(web>0) ? null : hold ? web : candidate==null ? null : Math.max(web,candidate);
+  }
+  return {prices,retained};
+}
+if (typeof module !== "undefined") module.exports = {plazaLevelComparison,beeWebDecision};
