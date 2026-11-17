@@ -4,6 +4,14 @@ async function setupFluctuation(hotel,policy,dates,version){
   const box=element("fluct"), all=element("allNights"), apply=element("applyNights"), daily=element("dailyFluct"), msg=element("fluctMsg");
   const plaza=hotel.code==="PLAZA", cols=plaza?[[2,"standard","Standard"],[8,"luxo","Luxo"],[10,"suite","Suíte Master"]]:[[2,"diaria","Diária"]];
   const grid=element("nights"), rows=[], active=()=>version===analysisVersion;
+  const toggle=element("managerToggle"), managerCells=[];
+  toggle.hidden=policy?.modelo==="proprio";
+  function showManager(visible){
+    for(const cell of managerCells) cell.hidden=!visible;
+    toggle.setAttribute("aria-expanded",String(visible));
+    toggle.textContent=visible?"Recolher Tarifa Gestor":"Mostrar Tarifa Gestor";
+  }
+  toggle.onclick=()=>showManager(toggle.getAttribute("aria-expanded")!=="true");
   let ready=false,busy=false,automatic=false;
   function addCell(row,before,label){
     const cell=document.createElement(row.parentNode===grid.tHead?"th":"td");
@@ -11,7 +19,7 @@ async function setupFluctuation(hotel,policy,dates,version){
   }
   const head=grid.tHead.rows[0], orig=analysisCells(head);
   addCell(head,orig[0],"Flutuar");
-  for(const [i,,name] of cols) addCell(head,orig[i+1],name+"\nTarifa Gestor");
+  for(const [i,,name] of cols) managerCells.push(addCell(head,orig[i+1],name+"\nTarifa Gestor"));
   dates.forEach((night,index)=>{
     const row=grid.tBodies[0].rows[index], cells=analysisCells(row);
     const mark=document.createElement("input");mark.type="checkbox";mark.setAttribute("aria-label","Flutuar tarifa em "+date(night));
@@ -19,10 +27,12 @@ async function setupFluctuation(hotel,policy,dates,version){
     const status=document.createElement("small");markCell.append(status);
     const fields=cols.map(([i,key,name])=>{
       const input=document.createElement("input");input.type="number";input.min="0.01";input.max="999999.99";input.step="0.01";input.placeholder="Opcional";input.setAttribute("aria-label","Tarifa Gestor "+name+" em "+date(night));
-      addCell(row,cells[i+1],"").append(input);return {key,input,suggested:cells[i]};
+      const cell=addCell(row,cells[i+1],"");
+      cell.append(input);managerCells.push(cell);return {key,input,suggested:cells[i]};
     });
     rows.push({night,mark,status,fields});mark.onchange=sync;
   });
+  showManager(toggle.hidden);
   function sync(){
     const count=rows.filter(r=>r.mark.checked).length;
     all.checked=count>0 && count===rows.length;all.indeterminate=count>0 && count<rows.length;
@@ -50,11 +60,11 @@ async function setupFluctuation(hotel,policy,dates,version){
     for(const r of selected){
       const tarifas={},gestor={};
       for(const {key,input,suggested} of r.fields){
-        if(!input.validity.valid){input.reportValidity();return;}
+        if(!input.validity.valid){showManager(true);input.reportValidity();return;}
         const v=input.value!==""?input.valueAsNumber:value(suggested.textContent.replace(/[^0-9.,]/g,""));
         if(v>0){tarifas[key]=v;if(input.value!=="")gestor[key]=v;}
       }
-      if(!Object.keys(tarifas).length){msg.textContent="Informe uma Tarifa Gestor ou desmarque a noite de "+date(r.night)+"; ela não tem tarifa sugerida.";r.fields[0].input.focus();return;}
+      if(!Object.keys(tarifas).length){showManager(true);msg.textContent="Informe uma Tarifa Gestor ou desmarque a noite de "+date(r.night)+"; ela não tem tarifa sugerida.";r.fields[0].input.focus();return;}
       noites.push({noite:r.night,tarifas,gestor});
     }
     busy=true;sync();
