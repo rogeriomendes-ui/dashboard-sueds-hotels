@@ -112,8 +112,8 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
     const quote=rates?.site?.[key];
     const current=quote?.final;
     priceCells.push(current ? money(current) : rates?.[key]>0 ? "SITE final não confirmado" : rates?.at ? "Sem oferta" : "Sem cotação");
-    const bandWeb=hold ? rates?.web?.[key] : target.simulated[key];
-    const bandRate=bandWeb>0 ? plazaPrices(bandWeb,quote?.discount)?.final : null;
+    const bandWeb=bee.prices[key];
+    const bandRate=bandWeb>0 && bandWeb===rates?.web?.[key] ? current : bandWeb>0 ? plazaPrices(bandWeb,quote?.discount)?.final : null;
     const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
     const activeRate=own ? rmsRate : bandRate;
     const currentWeb=rates?.web?.[key];
