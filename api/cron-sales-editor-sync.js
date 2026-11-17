@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 const { run } = require('../lib/sales-editor-sync.cjs');
 
-module.exports = async function cronSalesEditorSync(req,res) {
+module.exports = async function cronSalesEditorSync(req,res,recordRms) {
   if(req.method!=='GET') {res.statusCode=405;return res.end();}
   const secret=process.env.CRON_SECRET||'';
   const provided=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
@@ -9,6 +9,11 @@ module.exports = async function cronSalesEditorSync(req,res) {
     &&crypto.timingSafeEqual(Buffer.from(secret),Buffer.from(provided));
   if(!valid) {res.statusCode=401;return res.end();}
   try {
+    if(recordRms){
+      const noites=await recordRms();
+      res.setHeader('content-type','application/json');
+      return res.end(JSON.stringify({ok:true,noites}));
+    }
     const result=await run({apply:true});
     if(result.conflict.length) console.warn('sales-editor-sync: conflicts need review',JSON.stringify(result.conflict));
     res.setHeader('content-type','application/json; charset=utf-8');
