@@ -22,12 +22,24 @@ module.exports = async function rms(req, res) {
     const {quoteNight}=require("../../lib/rms-omnibees");
     const hotels = await client.from("hotels").select("id,code,name").eq("status","active").is("deleted_at",null).order("name");
     if (hotels.error) throw hotels.error;
+    const plaza=hotels.data.find(h=>h.code==="PLAZA");
+    const originalEnd=analysis.rows.at(-1)[0];
+    const plazaRequest=!!plaza && (req.method==="GET" || req.body?.hotel_id===plaza.id || req.body?.tipo==="tarifas_plaza");
+    const source=plazaRequest && (req.method==="GET" || ["concorrentes_painel","tarifas_plaza","flutuacao_aplicar","flutuacao_consultar"].includes(req.body?.tipo))
+      ? await require("../../lib/rms-web-regular").officialSource(client,plaza.id) : null;
+    analysis.originalEnd=originalEnd;
+    for (const night of Object.keys(source?.noites || {}).sort()) {
+      if (night<=originalEnd || night<today || night>"2027-12-31" || !validDate(night)) continue;
+      const row=Array(20).fill("");
+      row[0]=night;
+      row[12]=String(Math.round((Date.parse(night)-Date.parse(today))/86400000));
+      analysis.rows.push(row);
+    }
     if(req.method==="POST" && ["flutuacao_consultar","flutuacao_automatica","flutuacao_aplicar"].includes(req.body?.tipo))
       return await require("../../lib/rms-flutuacao")(client,req.body,hotels.data.find(h=>h.id===req.body.hotel_id),profile,today,analysis.rows.at(-1)[0],validDate,res);
     const competitors = await client.from("rms_concorrentes").select("hotel_id,nome,criterios").order("nome");
     if (competitors.error) throw competitors.error;
     const configs=competitors.data.map(c=>motor.configuration(c,hotels.data));
-    const plaza=hotels.data.find(h=>h.code==="PLAZA");
     const catalog=process.env.RMS_PLAZA_NIVEIS_GZ && plaza
       ? JSON.parse(gunzipSync(Buffer.from(process.env.RMS_PLAZA_NIVEIS_GZ,"base64"))) : null;
     const reference=configs.find(c=>c.hotel_id===plaza?.id && c.nome.trim().toLowerCase()==="brisa da praia" && c.categoria==="Standard Plus");
@@ -55,7 +67,6 @@ module.exports = async function rms(req, res) {
       }
       return json(res,200,{quotes,rows});
     }
-    const source=(live || req.method==="GET") ? await require("../../lib/rms-web-regular").officialSource(client,plaza?.id) : null;
     if (live) {
       const nights=req.body.noites;
       if (!Array.isArray(nights) || !nights.length || nights.length>4 ||

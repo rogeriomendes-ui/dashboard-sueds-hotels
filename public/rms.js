@@ -128,8 +128,8 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   const site=rates?.site?.standard;
   const offer=site ? (/^black friday/i.test(site.offer) ? "Black "+site.discount+"%" : site.offer || "Sem oferta") : "Sem confirmação";
   priceCells.splice(2,0,offer,money(brisa),differenceFromBrisa(standard),differenceFromBrisa(suggestedStandard));
-  return [date(night),...priceCells,own ? ownReason : reason,row[7]+"%",row[8],
-    quotes ?? "—",conversionRate(quotes,sales),date(row[10]),row[12],row[13],row[14],
+  return [date(night),...priceCells,own ? ownReason : reason,row[7]!=="" ? row[7]+"%" : "—",row[8] || "—",
+    quotes ?? "—",conversionRate(quotes,sales),row[10] ? date(row[10]) : "—",row[12],row[13] || "—",row[14] || "—",
     rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—",
     ...webCells,money(rates?.site?.standard?.regular ?? null)];
 }
@@ -243,7 +243,7 @@ async function showHotel(data,hotel) {
       await showPlaza(data,hotel);
     } else {
       const names={CABRALIA:"SUEDS CABRALIA",SEGUNDO_SOL:"SUEDS SEGUNDO SOL",PREMIUM:"SUEDS PREMIUM",TRANCOSO:"SUEDS TRANCOSO",CASAS:"CASAS SUEDS ARRAIAL"};
-      const params=new URLSearchParams({hotel:names[hotel.code] || hotel.name,start:data.today,end:data.analysis.rows.at(-1)[0]});
+      const params=new URLSearchParams({hotel:names[hotel.code] || hotel.name,start:data.today,end:data.analysis.originalEnd || data.analysis.rows.at(-1)[0]});
       const response=await fetch("/api/dashboard/mapa-ocupacao?"+params);
       if (!response.ok) throw Error("Não foi possível consultar o mapa de ocupação deste hotel.");
       const map=await response.json();
