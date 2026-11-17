@@ -202,7 +202,7 @@ module.exports = async function rms(req, res) {
         if(page.data.length<500) break;
       }
     }
-    return json(res,200,{beeHistory:JSON.parse(process.env.RMS_BEEPRICE_HISTORICO || "[]"),catalog,analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data});
+    return json(res,200,{auditoria89:plaza ? JSON.parse(process.env.RMS_PLAZA_AUDITORIA_89 || "[]") : [],beeHistory:JSON.parse(process.env.RMS_BEEPRICE_HISTORICO || "[]"),catalog,analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data});
   } catch {
     return json(res,500,{error:"Falha ao consultar ou salvar dados do RMS."});
   }
