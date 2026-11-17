@@ -234,6 +234,25 @@ async function showHotel(data,hotel) {
   const beeMenu=element("beeMenu");
   beeMenu.hidden=!isPlaza || ownModel;
   if(!beeMenu.hidden){
+    element("histNight").value ||= data.today;
+    let historyVersion=0;
+    element("histSearch").onclick=async()=>{
+      const night=element("histNight").value, version=++historyVersion, rows=[];
+      element("histRows").replaceChildren();
+      element("histStatus").textContent="Consultando…";
+      try {
+        for(let offset=0;;offset+=100){
+          const response=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"historico_plaza",noite:night,offset})});
+          if(!response.ok) throw Error();
+          const page=await response.json();
+          if(version!==historyVersion) return;
+          rows.push(...page.rows);
+          if(page.rows.length<100) break;
+        }
+        table("histRows",["Captura (Bahia)","Ocupação","Período","Faixa","Nível","Decisão","WEB Standard","WEB Luxo","WEB Suíte"],rows.map(r=>[new Date(r.captura).toLocaleString("pt-BR",{timeZone:"America/Bahia"}),Number(r.ocupacao).toLocaleString("pt-BR",{maximumFractionDigits:2})+"%",r.periodo||"—",r.faixa||"—",r.nivel||"—",r.situacao,...[r.standard,r.luxo,r.suite].map(money)]));
+        element("histStatus").textContent=rows.length+" leitura(s) para "+date(night)+".";
+      } catch {if(version===historyVersion) element("histStatus").textContent="Falha ao consultar o histórico.";}
+    };
     const bases=data.catalog?.bases || [];
     table("beeLevels",["Base","CÃ³digo","NÃ­vel","DerivaÃ§Ã£o"],bases.flatMap(base=>base.levels.map(l=>[base.name,l.code,l.name,l.pct+"%"])));
     const bands=[0,50,60,70,80];

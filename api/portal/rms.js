@@ -21,6 +21,11 @@ module.exports = async function rms(req, res) {
       const days=await require("../../server").plazaRmsOccupancy(start);
       return json(res,200,{days});
     }
+    if(req.method==="POST" && req.body?.tipo==="historico_plaza"){
+      if(!validDate(req.body.noite) || !Number.isSafeInteger(req.body.offset) || req.body.offset<0) return json(res,400,{error:"Noite inválida."});
+      const {data}=await client.from("rms_plaza_historico_simulacao").select("captura,ocupacao,periodo,faixa,nivel,situacao,standard,luxo,suite").eq("noite",req.body.noite).order("captura",{ascending:false}).range(req.body.offset,req.body.offset+99).throwOnError();
+      return json(res,200,{rows:data});
+    }
     const analysis = JSON.parse(gunzipSync(Buffer.from(process.env.RMS_ANALISE_GZ, "base64")).toString("utf8"));
     analysis.conversaoDeskhotel = JSON.parse(process.env.RMS_CONVERSAO_DESKHOTEL || "{}");
     const today=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});

@@ -155,6 +155,7 @@
     }
   ],
   "crons": [
+    {"path":"/api/cron/rms-plaza-simulacao","schedule":"*/5 * * * *"},
     {
       "path": "/api/cron/social-snapshot",
       "schedule": "0 9 * * *"
