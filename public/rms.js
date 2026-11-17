@@ -99,6 +99,7 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   const pct=periodAdjustment(period,occupancy);
   const adjust=(current,percent)=>Math.round(Math.round(current*100)*(100+percent)/100)/100;
   const target=plazaLevelComparison(catalog,period,night,occupancy);
+  const bee=beeWebDecision(target,rates?.web,hold);
   const formatPct=n=>n.toLocaleString("pt-BR",{maximumFractionDigits:2})+"%";
   const rmsPercent=Number(row[4]);
   const rmsStandard=ready ? Math.max(floor,adjust(standard,rmsPercent)) : null;
@@ -111,17 +112,18 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
     const quote=rates?.site?.[key];
     const current=quote?.final;
     priceCells.push(current ? money(current) : rates?.[key]>0 ? "SITE final não confirmado" : rates?.at ? "Sem oferta" : "Sem cotação");
-    const bandRate=hold ? current : quote && plazaPrices(target.simulated[key],quote.discount)?.final;
+    const bandRate=bee.prices[key]==null ? null : bee.prices[key]===rates?.web?.[key] ? current : quote && plazaPrices(bee.prices[key],quote.discount)?.final;
     const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
     const activeRate=own ? rmsRate : bandRate;
     const currentWeb=rates?.web?.[key];
-    const proposedWeb=hold ? currentWeb : own ? plazaWebTarget(currentWeb,quote,activeRate)?.web : target.simulated[key];
+    const proposedWeb=hold ? currentWeb : own ? plazaWebTarget(currentWeb,quote,activeRate)?.web : bee.prices[key];
     webCells.push(money(currentWeb ?? null),money((!own || activeRate>0) ? proposedWeb ?? null : null));
     if(key==="standard") suggestedStandard=activeRate;
     priceCells.push(money(activeRate ?? null));
   }
   let reason=!period ? "Sem período BeePrice cadastrado para esta noite." : pct==null ? "Ocupação indisponível." :
     target.level ? period.nome+" · "+target.level.code+" · "+formatPct(pct)+" sobre a base Web com café." : "Sem nível tarifário vinculado.";
+  if(bee.retained.length) reason+=" Manter WEB vigente em "+bee.retained.map(k=>({standard:"Standard",luxo:"Luxo",suite:"Suíte Master"})[k]).join(", ")+": a faixa indicaria redução.";
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
   const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
   const differenceFromBrisa=rate=>rate>0 && brisa>0 ? formatPct(100*(rate/brisa-1)) : "—";
