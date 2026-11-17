@@ -2,7 +2,7 @@
 function analysisCells(row){return Array.from(row.cells).filter(c=>!c.hasAttribute("data-fluct"));}
 async function setupFluctuation(hotel,policy,dates,version){
   const box=element("fluct"), all=element("allNights"), apply=element("applyNights"), daily=element("dailyFluct"), msg=element("fluctMsg");
-  const plaza=hotel.code==="PLAZA", cols=plaza?[[2,"standard","Standard"],[7,"luxo","Luxo"],[9,"suite","Suíte Master"]]:[[2,"diaria","Diária"]];
+  const plaza=hotel.code==="PLAZA", cols=plaza?[[2,"standard","Standard"],[8,"luxo","Luxo"],[10,"suite","Suíte Master"]]:[[2,"diaria","Diária"]];
   const grid=element("nights"), rows=[], active=()=>version===analysisVersion;
   let ready=false,busy=false,automatic=false;
   function addCell(row,before,label){

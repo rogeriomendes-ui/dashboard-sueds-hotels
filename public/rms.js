@@ -89,7 +89,7 @@ function periodAdjustment(period, occupancy) {
 }
 
 function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
-  const night=row[0], brisa=value(row[2]), standard=rates?.standard;
+  const night=row[0], brisa=value(row[2]), standard=rates?.site?.standard?.final;
   const [quotes,sales]=demand[night] || [];
   const floor=nightFloor(night,policy,floors);
   const ready=standard>0 && row[6]!=="Revisar" && row[4]!=="";
@@ -104,14 +104,19 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   const rmsStandard=ready ? Math.max(floor,adjust(standard,rmsPercent)) : null;
   const rmsEffective=ready && rmsStandard>adjust(standard,rmsPercent) ? 100*(rmsStandard/standard-1) : rmsPercent;
   const priceCells=[];
+  const webCells=[];
   let suggestedStandard=null;
   const own=policy?.modelo==="proprio";
   for (const key of ["standard","luxo","suite"]) {
-    const current=rates?.[key];
-    priceCells.push(current ? money(current) : rates?.at ? "Sem oferta" : "Sem cotação");
-    const bandRate=hold ? current : target.simulated[key];
+    const quote=rates?.site?.[key];
+    const current=quote?.final;
+    priceCells.push(current ? money(current) : rates?.[key]>0 ? "SITE final não confirmado" : rates?.at ? "Sem oferta" : "Sem cotação");
+    const bandRate=hold ? current : quote && plazaPrices(target.simulated[key],quote.discount)?.final;
     const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
     const activeRate=own ? rmsRate : bandRate;
+    const currentWeb=rates?.web?.[key];
+    const proposedWeb=hold ? currentWeb : own ? plazaWebTarget(currentWeb,quote,activeRate)?.web : target.simulated[key];
+    webCells.push(money(currentWeb ?? null),money(activeRate>0 ? proposedWeb ?? null : null));
     if(key==="standard") suggestedStandard=activeRate;
     priceCells.push(money(activeRate ?? null));
   }
@@ -120,10 +125,13 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
   const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
   const differenceFromBrisa=rate=>rate>0 && brisa>0 ? formatPct(100*(rate/brisa-1)) : "—";
-  priceCells.splice(2,0,money(brisa),differenceFromBrisa(standard),differenceFromBrisa(suggestedStandard));
+  const site=rates?.site?.standard;
+  const offer=site ? (/^black friday/i.test(site.offer) ? "Black "+site.discount+"%" : site.offer || "Sem oferta") : "Sem confirmação";
+  priceCells.splice(2,0,offer,money(brisa),differenceFromBrisa(standard),differenceFromBrisa(suggestedStandard));
   return [date(night),...priceCells,own ? ownReason : reason,row[7]+"%",row[8],
     quotes ?? "—",conversionRate(quotes,sales),date(row[10]),row[12],row[13],row[14],
-    rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—"];
+    rates?.at ? new Date(rates.at).toLocaleString("pt-BR",{timeZone:"America/Bahia"}) : "—",
+    ...webCells,money(rates?.site?.standard?.regular ?? null)];
 }
 
 function renderCatalog(catalog,hotelId) {
@@ -194,13 +202,13 @@ async function showPlaza(data,plaza) {
   const periods=data.periods.filter(p=>p.hotel_id===plaza.id);
   const render=(r,rates)=>plazaNight(r,rates,data.analysis.conversaoDeskhotel,policy,floors,periods,data.catalog);
   const categories=["Standard","Luxo","Suíte Master"];
-  const priceColumns=categories.flatMap(category=>["Vigente","Sugerida"].map(label=>category+"\n"+label));
-  priceColumns.splice(2,0,"Brisa da Praia\nStandard Plus","Plaza vigente × Brisa\nDiferença (%)","Plaza sugerido × Brisa\nDiferença (%)");
-  table("nights",["Noite",...priceColumns,"Motivo do modelo ativo","Ocupação","ADVP × ano anterior\n(aptos)","Orçamentos","Taxa de conversão","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Consulta Omnibees"],
+  const priceColumns=categories.flatMap(category=>["SITE final","SITE sugerido"].map(label=>category+"\n"+label));
+  priceColumns.splice(2,0,"Oferta aplicada\nSITE Standard","Brisa da Praia\nStandard Plus","Plaza vigente × Brisa\nDiferença (%)","Plaza sugerido × Brisa\nDiferença (%)");
+  table("nights",["Noite",...priceColumns,"Motivo do modelo ativo","Ocupação","ADVP × ano anterior\n(aptos)","Orçamentos","Taxa de conversão","Data comparável","Antecedência","Aptos atuais","Aptos históricos","Leitura do Calendário 360",...categories.flatMap(c=>[c+"\nWEB regular",c+"\nWEB simulado"]),"Standard\nSITE regular"],
     nights.map(r=>render(r,data.rates[r[0]])));
   for(const row of element("nights").rows){
-    row.cells[10].classList.add("reason");
-    for(const start of [1,6,8]) {
+    row.cells[11].classList.add("reason");
+    for(const start of [1,7,9]) {
       row.cells[start].classList.add("category-start");
       row.cells[start+1].classList.add("suggested");
     }
@@ -208,27 +216,7 @@ async function showPlaza(data,plaza) {
   setupFluctuation(plaza,policy,nights.map(r=>r[0]),version);
   element("analysis").hidden=false;
   refreshNightScroll();
-  const pending=nights.filter(r=>!(Date.now()-Date.parse(data.rates[r[0]]?.at)<30*60*1000)).map(r=>r[0]);
-  let failed=0;
-  if (pending.length) element("ratesStatus").textContent="Consultando tarifas para dois adultos na Omnibees…";
-  const rows=new Map(nights.map((r,i)=>[r[0],element("nights").tBodies[0].rows[i]]));
-  while(pending.length && version===analysisVersion) {
-    const batch=pending.splice(0,4);
-    try {
-      const res=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"tarifas_plaza",noites:batch})});
-      if(!res.ok) throw Error();
-      const fresh=await res.json();
-      if(version!==analysisVersion) return;
-      for(const r of fresh.rows) {
-        const rates=fresh.rates[r[0]];
-        if(rates.error){failed++;continue;}
-        data.rates[r[0]]=rates;
-        const cells=analysisCells(rows.get(r[0]));
-        render(r,rates).forEach((v,i)=>cells[i].textContent=v);
-      }
-    } catch {failed+=batch.length;}
-  }
-  if(version===analysisVersion) element("ratesStatus").textContent=failed ? "Falha ao atualizar "+failed+" noite(s). Confira a data da última consulta em cada linha." : "";
+
 }
 
 async function showHotel(data,hotel) {
@@ -298,7 +286,7 @@ async function showHotel(data,hotel) {
     const grid=element("nights"), rows=grid.tBodies[0].rows;
     for (const c of competitors) {
       const isReference=isPlaza && c.nome.trim().toLowerCase()==="brisa da praia" && c.categoria==="Standard Plus";
-      const index=isReference ? 3 : analysisCells(grid.tHead.rows[0]).length;
+      const index=isReference ? 4 : analysisCells(grid.tHead.rows[0]).length;
       if (!isReference) {
         grid.tHead.rows[0].appendChild(document.createElement("th")).textContent=c.nome+" · "+c.categoria;
         for(const row of rows) row.insertCell().textContent="Consultando…";
@@ -308,7 +296,7 @@ async function showHotel(data,hotel) {
         const batch=dates.slice(i,i+4);
         let prices={};
         try {
-          const standard=isPlaza ? Object.fromEntries(batch.map(d=>[d,data.rates[d]?.standard])) : undefined;
+          const standard=isPlaza ? Object.fromEntries(batch.map(d=>[d,data.rates[d]?.site?.standard?.final])) : undefined;
           const res=await fetch("/api/portal/rms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"concorrentes_painel",hotel_id:hotel.id,nome:c.nome,noites:batch,standard})});
           if(res.ok) {
             const fresh=await res.json();
@@ -326,7 +314,7 @@ async function showHotel(data,hotel) {
           const cells=analysisCells(rows[i+j]);
           cells[index].textContent=typeof prices[d]==="number"?money(prices[d]):prices[d]===null?"Sem oferta":"Sem cotação";
           if(isReference && !(prices[d]>0)) {
-            cells[4].textContent="—";
+            cells[6].textContent="—";
             cells[5].textContent="—";
           }
         });
