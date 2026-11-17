@@ -231,6 +231,21 @@ async function showHotel(data,hotel) {
   const policy=data.policies.find(p=>p.hotel_id===hotel.id);
   const ownModel=policy?.modelo==="proprio";
   element("selectedModel").textContent="Modelo ativo: "+(ownModel?"RMS Próprio":"BeePrice");
+  const beeMenu=element("beeMenu");
+  beeMenu.hidden=!isPlaza || ownModel;
+  if(!beeMenu.hidden){
+    const bases=data.catalog?.bases || [];
+    table("beeLevels",["Base","Código","Nível","Derivação"],bases.flatMap(base=>base.levels.map(l=>[base.name,l.code,l.name,l.pct+"%"])));
+    const bands=[0,50,60,70,80];
+    table("beeRules",["Período","Primeira noite","Última noite","Até 50%","Até 60%","Até 70%","Até 80%","Até 100%"],data.periods.filter(p=>p.hotel_id===hotel.id).map(p=>{
+      const base=bases[data.catalog?.periods[p.inicio]];
+      return [p.nome,date(p.inicio),date(p.fim),...bands.map(b=>{
+        const pct=p["pct"+b];
+        return (base?.levels.find(l=>l.pct===Number(pct))?.code || "—")+" · "+pct+"%";
+      })];
+    }));
+    table("beeHistory",["Data da flutuação","Novo nível","Noites atualizadas"],(data.beeHistory || []).map(r=>[r.at,r.level,r.nights.join(", ")]));
+  }
   element("panelHotel").textContent=hotel.name;
   element("plazaNotes").hidden=!isPlaza;
   const competitors=data.competitors.filter(c=>c.hotel_id===hotel.id);
