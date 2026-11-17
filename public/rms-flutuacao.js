@@ -61,7 +61,7 @@ async function setupFluctuation(hotel,policy,dates,version){
       const tarifas={},gestor={};
       for(const {key,input,suggested} of r.fields){
         if(!input.validity.valid){showManager(true);input.reportValidity();return;}
-        const v=input.value!==""?input.valueAsNumber:value(suggested.textContent.replace(/[^0-9.,]/g,""));
+        const v=input.value!==""?input.valueAsNumber:value((suggested.dataset.suggested ?? suggested.textContent).replace(/[^0-9.,]/g,""));
         if(v>0){tarifas[key]=v;if(input.value!=="")gestor[key]=v;}
       }
       if(!Object.keys(tarifas).length){showManager(true);msg.textContent="Informe uma Tarifa Gestor ou desmarque a noite de "+date(r.night)+"; ela não tem tarifa sugerida.";r.fields[0].input.focus();return;}
