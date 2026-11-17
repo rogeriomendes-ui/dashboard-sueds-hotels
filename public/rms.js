@@ -112,18 +112,19 @@ function plazaNight(row, rates, demand, policy, floors, periods, catalog) {
     const quote=rates?.site?.[key];
     const current=quote?.final;
     priceCells.push(current ? money(current) : rates?.[key]>0 ? "SITE final não confirmado" : rates?.at ? "Sem oferta" : "Sem cotação");
-    const bandRate=bee.prices[key]==null ? null : bee.prices[key]===rates?.web?.[key] ? current : quote && plazaPrices(bee.prices[key],quote.discount)?.final;
+    const bandWeb=hold ? rates?.web?.[key] : target.simulated[key];
+    const bandRate=bandWeb>0 ? plazaPrices(bandWeb,quote?.discount)?.final : null;
     const rmsRate=hold ? current : current && ready ? (key==="standard" ? rmsStandard : Math.max(floor,adjust(current,rmsEffective))) : null;
     const activeRate=own ? rmsRate : bandRate;
     const currentWeb=rates?.web?.[key];
-    const proposedWeb=hold ? currentWeb : own ? plazaWebTarget(currentWeb,quote,activeRate)?.web : bee.prices[key];
+    const proposedWeb=hold ? currentWeb : own ? plazaWebTarget(currentWeb,quote,activeRate)?.web : bandWeb;
     webCells.push(money(currentWeb ?? null),money((!own || activeRate>0) ? proposedWeb ?? null : null));
     if(key==="standard") suggestedStandard=activeRate;
     priceCells.push(money(activeRate ?? null));
   }
   let reason=!period ? "Sem período BeePrice cadastrado para esta noite." : pct==null ? "Ocupação indisponível." :
     target.level ? period.nome+" · "+target.level.code+" · "+formatPct(pct)+" sobre a base Web com café." : "Sem nível tarifário vinculado.";
-  if(bee.retained.length) reason+=" Manter WEB vigente em "+bee.retained.map(k=>({standard:"Standard",luxo:"Luxo",suite:"Suíte Master"})[k]).join(", ")+": a faixa indicaria redução.";
+  if(bee.retained.length) reason+=" Na execução, manter WEB vigente em "+bee.retained.map(k=>({standard:"Standard",luxo:"Luxo",suite:"Suíte Master"})[k]).join(", ")+": a faixa indicaria redução.";
   if (hold) reason=occupancy>100 ? "Overbooking. Manter a tarifa vigente." : "Inventário esgotado. Manter a tarifa vigente.";
   const ownReason=hold ? reason : !(standard>0) ? "Sem tarifa Standard vigente para simular." : row[17]+(ready && rmsStandard>adjust(standard,rmsPercent) ? " Mínimo aplicado ao Standard: "+money(floor)+". Ajuste final de "+formatPct(rmsEffective)+"." : "");
   const differenceFromBrisa=rate=>rate>0 && brisa>0 ? formatPct(100*(rate/brisa-1)) : "—";
@@ -218,29 +219,37 @@ async function showPlaza(data,plaza) {
   const references=policy?.modelo==="proprio"?new Map():appliedBeeRates(data.beeHistory,data.catalog);
   const grid=element("nights");
   const headers=Array.from(grid.tHead.rows[0].cells,cell=>cell.textContent);
-  let differences=0;
-  for(const [index,night] of nights.entries()){
-    const reference=references.get(night[0]);
-    if(!reference) continue;
-    const cells=grid.tBodies[0].rows[index].cells;
+  function compareSite(row,night){
+    if(policy?.modelo==="proprio") return;
+    const cells=analysisCells(row), rates=data.rates[night];
+    const reference=references.get(night);
     for(const [room,label] of [["standard","Standard"],["luxo","Luxo"],["suite","Suíte Master"]]){
       const site=cells[headers.indexOf(label+"\nSITE sugerido")];
       const web=cells[headers.indexOf(label+"\nWEB simulado")];
-      const actual=reference.web[room];
-      if(!(actual>0) || !web || web.textContent==="—" || web.textContent===money(actual)) continue;
-      const description="WEB simulada "+web.textContent+" · WEB do nível aplicado pelo BeePrice "+money(actual)+" · "+reference.level+" · "+reference.at;
-      for(const cell of [site,web]){
-        if(!cell || cell.textContent==="—") continue;
-        cell.classList.add("bee-difference");
-        cell.title=description;
-      }
-      differences++;
+      const quote=rates?.site?.[room];
+      const actual=plazaPrices(reference?.web[room],quote?.discount)?.final;
+      const suggested=site.textContent;
+      site.dataset.suggested=suggested;
+      // A projeção pela faixa é independente do WEB já alterado. A fila mantém a regra de não reduzir.
+      if(quote?.final>0 && suggested!=="—" && value(suggested.replace(/[^0-9.,]/g,""))<quote.final)
+        site.dataset.suggested=money(quote.final);
+      const divergent=actual>0 && suggested!=="—" && suggested!==money(actual);
+      site.classList.toggle("bee-difference",divergent);
+      web.classList.toggle("bee-difference",!!divergent);
+      if(divergent){
+        const detail=document.createElement("small");
+        detail.textContent="BeePrice "+money(actual);
+        site.append(detail);
+        site.title=web.title=reference.level+" · "+reference.at;
+      }else{site.removeAttribute("title");web.removeAttribute("title");}
     }
   }
-  element("beeDifferenceNote").hidden=!differences;
+  nights.forEach((r,i)=>compareSite(grid.tBodies[0].rows[i],r[0]));
+  element("beeDifferenceNote").hidden=policy?.modelo==="proprio";
   setupFluctuation(plaza,policy,nights.map(r=>r[0]),version);
   element("analysis").hidden=false;
   refreshNightScroll();
+  return compareSite;
 
 }
 
@@ -321,7 +330,7 @@ async function showHotel(data,hotel) {
     updated[8]=day?.occupied!=null && row[14]!=="" && row[14]!=null ? String(day.occupied-Number(row[14])) : "";
     return updated;
   }
-  let dates;
+  let dates,compareSite;
   try {
     if (isPlaza) {
       dates=data.analysis.rows.map(r=>r[0]).filter(d=>d>=data.today);
@@ -345,7 +354,7 @@ async function showHotel(data,hotel) {
         dates=rows.map(r=>r[0]).filter(d=>d>=data.today);
       }
       currentVersion=version+1;
-      await showPlaza(data,hotel);
+      compareSite=await showPlaza(data,hotel);
     } else {
       const names={CABRALIA:"SUEDS CABRALIA",SEGUNDO_SOL:"SUEDS SEGUNDO SOL",PREMIUM:"SUEDS PREMIUM",TRANCOSO:"SUEDS TRANCOSO",CASAS:"CASAS SUEDS ARRAIAL"};
       const params=new URLSearchParams({hotel:names[hotel.code] || hotel.name,start:data.today,end:data.analysis.originalEnd || data.analysis.rows.at(-1)[0]});
@@ -411,6 +420,7 @@ async function showHotel(data,hotel) {
               const cells=analysisCells(rows[i+batch.indexOf(r[0])]);
               plazaNight(mapRow(r),data.rates[r[0]],data.analysis.conversaoDeskhotel,data.policies.find(p=>p.hotel_id===hotel.id),data.floors.filter(f=>f.hotel_id===hotel.id),data.periods.filter(p=>p.hotel_id===hotel.id),data.catalog)
                 .forEach((v,k)=>cells[k].textContent=v);
+              if(compareSite) compareSite(rows[i+batch.indexOf(r[0])],r[0]);
             }
           }
         } catch {}
