@@ -247,14 +247,14 @@
   #portalHome .direct-sales-total .row-label { font-size: 14px; }
 }
 
-#portalHome .home-tickets-panel { padding: 20px; margin-bottom: 16px; border: 1px solid var(--sales-border); border-radius: 12px; }
-#portalHome .home-tickets-panel .panel-header { flex-wrap: wrap; gap: 12px; }
+#portalHome .home-tickets-panel { min-height: 0; padding: 16px; margin-bottom: 16px; border: 1px solid var(--sales-border); border-radius: 12px; }
+#portalHome .home-tickets-panel .panel-header { flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
 #portalHome .home-tickets-panel h2 { margin: 0 0 8px; font-size: 18px; }
 #portalHome .home-tickets-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-#portalHome .home-ticket-category { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 8px; background: var(--sales-soft); }
+#portalHome .home-ticket-category { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px; background: var(--sales-soft); }
 #portalHome .home-ticket-category h3 { margin: 0; font-size: 14px; line-height: 1.4; }
 #portalHome .home-ticket-category strong { font-size: 20px; }
-#portalHome .home-tickets-total { margin: 16px 0 0; text-align: right; }
+#portalHome .home-tickets-total { margin: 10px 0 0; text-align: right; }
 @media (max-width: 900px) { #portalHome .home-tickets-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 540px) {
   #portalHome .home-tickets-panel { padding: 14px; }
