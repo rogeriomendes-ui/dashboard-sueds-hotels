@@ -207,7 +207,7 @@ async function exportExcel(ticketsOnly = false) {
   const month = monthSelect.value;
   if (byId("freezeRanking")) byId("freezeRanking").disabled = true;
   const date = dateForMonth(month);
-  const url = `/api/dashboard/vendedores?action=${ticketsOnly ? "export-tickets" : "export"}&date=${encodeURIComponent(date)}&month=${encodeURIComponent(month)}`;
+  const url = `/api/dashboard/vendedores?action=${ticketsOnly ? "export-tickets" : "export"}&date=${encodeURIComponent(date)}&month=${encodeURIComponent(month)}${ticketsOnly ? "&ticketScope=all" : ""}`;
   const originalText = button.textContent;
   button.disabled = true;
   button.textContent = "Gerando...";

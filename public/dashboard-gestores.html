@@ -7,7 +7,7 @@
     <script src="manager-auth.js?v=20260901-site-management"></script>
     <link rel="stylesheet" href="styles.css?v=20261113-compact-sales-v2">
     <link rel="stylesheet" href="portal-navigation.css?v=20261010-sino-piscando">
-    <link rel="stylesheet" href="comercial-home.css?v=20261116-metas-mobile">
+    <link rel="stylesheet" href="comercial-home.css?v=20261118-ingressos-compacto">
   </head>
   <body class="portal-shell-page">
     <aside id="portalSidebar" class="portal-sidebar" aria-label="Menu do portal">
@@ -139,6 +139,17 @@
       <section id="homeSalesGoals" class="home-sales-goals" aria-label="Metas de vendas por KPI" aria-live="polite">
         <article class="home-goal-card"><h2 class="home-goal-title">Meta de Vendas</h2><p>Carregando metas…</p></article>
         <article class="home-goal-card"><h2 class="home-goal-title direct">Meta Venda Direta</h2><p>Carregando metas…</p></article>
+      </section>
+
+      <section class="panel home-tickets-panel" aria-labelledby="homeTicketsTitle">
+        <div class="panel-header">
+          <div>
+            <h2 id="homeTicketsTitle">INGRESSOS NATAL / REVEILLON</h2>
+            <p id="homeTicketsPeriod" class="eyebrow">Acumulado de vendas confirmadas até hoje</p>
+          </div>
+          <button id="homeTicketsExport" class="export-excel" type="button">Gerar Excel Ingressos</button>
+        </div>
+        <div id="homeTicketsSummary" aria-live="polite">Carregando ingressos…</div>
       </section>
 
       <section class="dashboard-grid manager-summary-grid">
@@ -347,7 +358,7 @@
       </section>
     </div>
 
-    <script src="gestores.js?v=20261116-metas-mobile"></script>
+    <script src="gestores.js?v=20261118-ingressos-home"></script>
     <script src="portal-navigation.js?v=20261007-icone-universidade"></script>
     <script src="portal-shell.js?v=20261027-observatorio"></script>
   </body>
