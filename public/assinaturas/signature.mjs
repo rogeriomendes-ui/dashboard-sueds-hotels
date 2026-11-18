@@ -18,16 +18,18 @@ export function signatureHtml(data, assetsBase) {
   const logoRows = logos.map(([id, label]) =>
     '<tr><td>' + image(id, label, 120) + '</td></tr>'
   ).join('<tr><td height="12" style="height:12px;font-size:1px;line-height:12px;">&nbsp;</td></tr>');
+  const spacer = '<img src="' + escapeHtml(new URL('spacer.png', assetsBase).href) + '" width="16" height="1" alt="" border="0">';
+  const divider = '<img src="' + escapeHtml(new URL('divider.png', assetsBase).href) + '" width="2" height="112" alt="" border="0">';
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="font-family:Arial,Helvetica,sans-serif;color:#2b3e50;">
     <tr>
       <td valign="middle"><table role="presentation" cellpadding="0" cellspacing="0" border="0">${logoRows}</table></td>
-      <td width="16"></td><td width="2" bgcolor="#caa352" style="width:2px;"></td><td width="18"></td>
+      <td>${spacer}</td><td>${divider}</td><td>${spacer}</td>
       <td valign="middle"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;color:#2b3e50;">
-        <tr><td style="font-size:19px;line-height:24px;"><strong>${escapeHtml(data.name)}</strong></td></tr>
-        <tr><td style="font-size:14px;line-height:22px;color:#617d88;">${escapeHtml(data.role)}</td></tr>
+        <tr><td style="font-size:19px;line-height:24px;"><strong><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.name)}</font></strong></td></tr>
+        <tr><td style="font-size:14px;line-height:22px;color:#617d88;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.role)}</font></td></tr>
         <tr><td height="10"></td></tr>
-        <tr><td style="font-size:13px;line-height:20px;">${escapeHtml(data.email)}</td></tr>
-        <tr><td style="font-size:13px;line-height:20px;">${escapeHtml(data.phone)}</td></tr>
+        <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.email)}</font></td></tr>
+        <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.phone)}</font></td></tr>
       </table></td>
     </tr>
   </table>`;
