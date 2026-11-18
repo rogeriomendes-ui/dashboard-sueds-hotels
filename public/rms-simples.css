@@ -1,0 +1,18 @@
+#simpleGroups{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+#simpleGroups button{background:white;color:#165b60;padding:6px 10px;font-size:13px}
+#simpleGroups button[aria-pressed=true]{background:#165b60;color:white}
+#simpleControls label{display:inline-flex;align-items:center;gap:6px;margin-right:16px}
+#simpleControls input{width:auto}
+#simpleControls p,#simpleCount{font-size:12px;color:#506571}
+#nights.simple-grid{width:max-content;min-width:100%;font-size:12px}
+#nights.simple-grid th{white-space:normal;min-width:145px;max-width:190px}
+#nights.simple-grid :is(th,td):first-child{min-width:70px;width:70px;box-sizing:border-box;left:0;z-index:3;background:#fff}
+#nights.simple-grid :is(th,td):nth-child(2){position:sticky;left:70px;min-width:100px;background:white;z-index:3;border-right:1px solid #c7d9dc}
+#nights.simple-grid th:first-child,#nights.simple-grid th:nth-child(2){background:#e7f1f2;z-index:4}
+#nights.simple-grid .simple-group-title{display:block;margin-bottom:8px;color:#165b60;font-weight:700}
+#nights.simple-grid .simple-prices{min-width:145px}
+#nights.simple-grid .simple-prices div{display:flex;justify-content:space-between;gap:16px;line-height:1.8}
+#nights.simple-grid .simple-prices span{font-size:11px;color:#506571}
+#nights.simple-grid .simple-prices small{display:block;white-space:normal;max-width:160px;margin-top:4px}
+#nights.simple-grid .simple-reason{white-space:normal;min-width:160px;max-width:190px;line-height:1.5}
+#nights.simple-grid input[type=checkbox]{width:auto}

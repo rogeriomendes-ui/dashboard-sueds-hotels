@@ -199,6 +199,8 @@ function renderCatalog(catalog,hotelId) {
 let analysisVersion=0;
 async function showPlaza(data,plaza) {
   const version=++analysisVersion;
+  element("simpleControls").hidden=true;
+  element("nights").classList.remove("simple-grid");
   const policy=data.policies.find(p=>p.hotel_id===plaza?.id);
   const floors=data.floors.filter(f=>f.hotel_id===plaza?.id);
   const nights=data.analysis.rows.filter(r=>r[0]>=data.today);
@@ -255,6 +257,8 @@ async function showPlaza(data,plaza) {
 
 async function showHotel(data,hotel) {
   const version=++analysisVersion;
+  element("simpleControls").hidden=true;
+  element("nights").classList.remove("simple-grid");
   element("fluct").hidden=true;
   element("beeDifferenceNote").hidden=true;
   element("nights").replaceChildren();
@@ -265,6 +269,10 @@ async function showHotel(data,hotel) {
   const isPlaza=hotel.code==="PLAZA";
   const policy=data.policies.find(p=>p.hotel_id===hotel.id);
   const ownModel=policy?.modelo==="proprio";
+  if(policy?.modelo==="simples") {
+    element("selectedModel").textContent="Modelo ativo: RMS Simples";
+    return RmsSimple.show(data,hotel,()=>version===analysisVersion,refreshNightScroll);
+  }
   element("selectedModel").textContent="Modelo ativo: "+(ownModel?"RMS Próprio":"BeePrice");
   const beeMenu=element("beeMenu");
   beeMenu.hidden=!isPlaza || ownModel;
@@ -602,8 +610,9 @@ async function load(options,createdPeriod) {
         const own=model==="proprio";
         radios.forEach(r=>{r.checked=r.value===model;});
         element("models").hidden=false;
-        element("activeModel").textContent="Modelo em uso na simulação deste hotel: "+(active==="proprio"?"RMS Próprio":"Modelo padrão BeePrice")+".";
+        element("activeModel").textContent="Modelo em uso na simulação deste hotel: "+({proprio:"RMS Próprio",beeprice:"Modelo padrão BeePrice",simples:"RMS Simples"}[active])+".";
         activate.hidden=model===active;
+        element("simpleCriteria").hidden=model!=="simples";
         element("competitors").hidden=element("ownCriteria").hidden=!own;
         element("festive").hidden=own;
         element("policy").hidden=element("minimum").hidden=!own;
