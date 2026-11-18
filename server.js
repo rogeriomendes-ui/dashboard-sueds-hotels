@@ -4862,54 +4862,61 @@ function addSalesReportTitle(sheet, title, subtitle, lastColumn) {
 async function buildTicketWorkbook(metrics) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "SUEDS Hotels";
-  const sheet = workbook.addWorksheet("Ingressos", { views: [{ state: "frozen", ySplit: 4 }] });
-  sheet.columns = [
-    { key: "dataVenda", width: 14 }, { key: "codigoReserva", width: 28 },
-    { key: "hotel", width: 30 }, { key: "vendedor", width: 24 }, { key: "cliente", width: 32 },
-    { key: "quantidade", width: 14 }, { key: "valorTotal", width: 18 }, { key: "recebido", width: 18 },
-    { key: "aReceber", width: 18 }, { key: "canal", width: 24 }, { key: "formaPagamento", width: 24 },
-    { key: "parcelas", width: 12 }, { key: "status", width: 16 }, { key: "observacoes", width: 45 },
-    { key: "telefone", width: 20 }, { key: "email", width: 32 }, { key: "mesa", width: 14 },
-    { key: "dificuldadeMobilidade", width: 28 }, { key: "afiliado", width: 26 }
-  ];
-  const periodLabel = metrics.period.ticketScope === "all"
-    ? `Acumulado até ${metrics.period.today.split("-").reverse().join("/")}`
-    : metrics.period.month;
-  addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${periodLabel} • Vendas confirmadas • Valores separados da hospedagem`, "S");
-  sheet.getRow(4).values = ["Data Venda", "Código Reserva", "Ingresso / evento", "Vendedor", "Cliente", "Quantidade", "Valor Total", "Recebido", "A Receber", "Canal", "Forma Pagto", "Parcelas", "Status", "Observações", "Telefone", "Email", "MESA", "DIFICULDADE MOBILIDADE?", "Afiliado"];
-  styleExcelHeader(sheet.getRow(4));
-  const sales = metrics.detailedTickets || [];
-  sales.forEach((sale) => {
-    const row = sheet.addRow({ ...sale, dataVenda: excelDateFromKey(sale.dataVenda) });
-    row.height = 24;
-  });
-  sheet.autoFilter = `A4:S${Math.max(4, 4 + sales.length)}`;
-  sheet.getColumn(1).numFmt = "dd/mm/yyyy";
-  sheet.getColumn(6).numFmt = "#,##0";
-  [7, 8, 9].forEach((column) => { sheet.getColumn(column).numFmt = '"R$" #,##0.00'; });
-  sheet.addRow({ hotel: "TOTAL", quantidade: sum(sales, (sale) => sale.quantidade), valorTotal: sum(sales, (sale) => sale.valorTotal), recebido: sum(sales, (sale) => sale.recebido), aReceber: sum(sales, (sale) => sale.aReceber) }).font = { bold: true };
-  const affiliateSales = sales.filter((sale) => require("./lib/sales-routing").isAffiliate(sale.canal));
-  const affiliates = new Map();
-  affiliateSales.forEach((sale) => {
-    const name = String(sale.afiliado || "").trim() || "Não informado";
-    const key = comparableKey(name);
-    if (!affiliates.has(key)) affiliates.set(key, { afiliado: name, quantidade: 0, valorTotal: 0 });
-    const affiliate = affiliates.get(key);
-    affiliate.quantidade += sale.quantidade;
-    affiliate.valorTotal += sale.valorTotal;
-  });
-  const summary = workbook.addWorksheet("Resumo por afiliado", { views: [{ state: "frozen", ySplit: 4 }] });
-  summary.columns = [{ key: "afiliado", width: 32 }, { key: "quantidade", width: 24 }, { key: "valorTotal", width: 24 }];
-  addSalesReportTitle(summary, "Resumo por afiliado", `Período: ${periodLabel} • Ingressos confirmados do canal AFILIADO`, "C");
-  summary.getRow(4).values = ["Afiliado", "Quantidade de ingressos", "Valor total vendido"];
-  styleExcelHeader(summary.getRow(4));
-  [...affiliates.values()]
-    .sort((a, b) => b.valorTotal - a.valorTotal || a.afiliado.localeCompare(b.afiliado, "pt-BR"))
-    .forEach((affiliate) => { summary.addRow(affiliate).height = 24; });
-  summary.autoFilter = `A4:C${Math.max(4, 4 + affiliates.size)}`;
-  summary.getColumn(2).numFmt = "#,##0";
-  summary.getColumn(3).numFmt = '"R$" #,##0.00';
-  summary.addRow({ afiliado: "TOTAL", quantidade: sum(affiliateSales, (sale) => sale.quantidade), valorTotal: sum(affiliateSales, (sale) => sale.valorTotal) }).font = { bold: true };
+  const allSales = metrics.detailedTickets || [];
+  const reports = metrics.period.ticketScope === "all"
+    ? [
+      { name: "Ingressos mês", summaryName: "Afiliados mês", label: metrics.period.month, sales: allSales.filter((sale) => sale.dataVenda?.slice(0, 7) === metrics.period.month) },
+      { name: "Ingressos acumulado", summaryName: "Resumo por afiliado", label: `Acumulado até ${metrics.period.today.split("-").reverse().join("/")}`, sales: allSales }
+    ]
+    : [{ name: "Ingressos", summaryName: "Resumo por afiliado", label: metrics.period.month, sales: allSales }];
+  for (const report of reports) {
+    const sheet = workbook.addWorksheet(report.name, { views: [{ state: "frozen", ySplit: 4 }] });
+    sheet.columns = [
+      { key: "dataVenda", width: 14 }, { key: "codigoReserva", width: 28 },
+      { key: "hotel", width: 30 }, { key: "vendedor", width: 24 }, { key: "cliente", width: 32 },
+      { key: "quantidade", width: 14 }, { key: "valorTotal", width: 18 }, { key: "recebido", width: 18 },
+      { key: "aReceber", width: 18 }, { key: "canal", width: 24 }, { key: "formaPagamento", width: 24 },
+      { key: "parcelas", width: 12 }, { key: "status", width: 16 }, { key: "observacoes", width: 45 },
+      { key: "telefone", width: 20 }, { key: "email", width: 32 }, { key: "mesa", width: 14 },
+      { key: "dificuldadeMobilidade", width: 28 }, { key: "afiliado", width: 26 }
+    ];
+    const periodLabel = report.label;
+    addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${periodLabel} • Vendas confirmadas • Valores separados da hospedagem`, "S");
+    sheet.getRow(4).values = ["Data Venda", "Código Reserva", "Ingresso / evento", "Vendedor", "Cliente", "Quantidade", "Valor Total", "Recebido", "A Receber", "Canal", "Forma Pagto", "Parcelas", "Status", "Observações", "Telefone", "Email", "MESA", "DIFICULDADE MOBILIDADE?", "Afiliado"];
+    styleExcelHeader(sheet.getRow(4));
+    const sales = report.sales;
+    sales.forEach((sale) => {
+      const row = sheet.addRow({ ...sale, dataVenda: excelDateFromKey(sale.dataVenda) });
+      row.height = 24;
+    });
+    sheet.autoFilter = `A4:S${Math.max(4, 4 + sales.length)}`;
+    sheet.getColumn(1).numFmt = "dd/mm/yyyy";
+    sheet.getColumn(6).numFmt = "#,##0";
+    [7, 8, 9].forEach((column) => { sheet.getColumn(column).numFmt = '"R$" #,##0.00'; });
+    sheet.addRow({ hotel: "TOTAL", quantidade: sum(sales, (sale) => sale.quantidade), valorTotal: sum(sales, (sale) => sale.valorTotal), recebido: sum(sales, (sale) => sale.recebido), aReceber: sum(sales, (sale) => sale.aReceber) }).font = { bold: true };
+    const affiliateSales = sales.filter((sale) => require("./lib/sales-routing").isAffiliate(sale.canal));
+    const affiliates = new Map();
+    affiliateSales.forEach((sale) => {
+      const name = String(sale.afiliado || "").trim() || "Não informado";
+      const key = comparableKey(name);
+      if (!affiliates.has(key)) affiliates.set(key, { afiliado: name, quantidade: 0, valorTotal: 0 });
+      const affiliate = affiliates.get(key);
+      affiliate.quantidade += sale.quantidade;
+      affiliate.valorTotal += sale.valorTotal;
+    });
+    const summary = workbook.addWorksheet(report.summaryName, { views: [{ state: "frozen", ySplit: 4 }] });
+    summary.columns = [{ key: "afiliado", width: 32 }, { key: "quantidade", width: 24 }, { key: "valorTotal", width: 24 }];
+    addSalesReportTitle(summary, "Resumo por afiliado", `Período: ${periodLabel} • Ingressos confirmados do canal AFILIADO`, "C");
+    summary.getRow(4).values = ["Afiliado", "Quantidade de ingressos", "Valor total vendido"];
+    styleExcelHeader(summary.getRow(4));
+    [...affiliates.values()]
+      .sort((a, b) => b.valorTotal - a.valorTotal || a.afiliado.localeCompare(b.afiliado, "pt-BR"))
+      .forEach((affiliate) => { summary.addRow(affiliate).height = 24; });
+    summary.autoFilter = `A4:C${Math.max(4, 4 + affiliates.size)}`;
+    summary.getColumn(2).numFmt = "#,##0";
+    summary.getColumn(3).numFmt = '"R$" #,##0.00';
+    summary.addRow({ afiliado: "TOTAL", quantidade: sum(affiliateSales, (sale) => sale.quantidade), valorTotal: sum(affiliateSales, (sale) => sale.valorTotal) }).font = { bold: true };
+  }
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 

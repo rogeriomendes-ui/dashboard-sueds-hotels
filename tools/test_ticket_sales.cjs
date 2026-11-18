@@ -91,7 +91,14 @@ const sale = (hotel, total, extra = {}) => normalizeRecord({
   assert.equal(accumulated.summary.salesMonth, 0);
   const accumulatedWorkbook = new ExcelJS.Workbook();
   await accumulatedWorkbook.xlsx.load(await buildTicketWorkbook(accumulated));
-  const sheet = accumulatedWorkbook.worksheets[0];
+  assert.equal(accumulatedWorkbook.worksheets.length, 4);
+  const monthlySheet = accumulatedWorkbook.getWorksheet('Ingressos mês');
+  assert.equal(monthlySheet.getCell('B5').value, affiliate.reservationCode);
+  assert.equal(monthlySheet.getCell('F6').value, 3);
+  assert.equal(monthlySheet.getCell('G6').value, 1425);
+  assert.equal(monthlySheet.getCell('H6').value, 1425);
+  assert.deepEqual(accumulatedWorkbook.getWorksheet('Afiliados mês').getRow(6).values.slice(1), ['TOTAL', 3, 1425]);
+  const sheet = accumulatedWorkbook.getWorksheet('Ingressos acumulado');
   assert.match(sheet.getCell('A2').value, /Acumulado até 09\/11\/2026/);
   const affiliateRow = sheet.getRows(5, 3).find(row => row.getCell(2).value === affiliate.reservationCode);
   assert.equal(affiliateRow.getCell(10).value, 'AFILIADO');
