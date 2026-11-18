@@ -10023,6 +10023,21 @@ async function handleRequest(req, res) {
     if (url.pathname === "/api/dashboard/gestores") {
       if (!hasManagerAccess(req, url)) return forbidden(res);
       if (url.searchParams.get("authOnly") === "1") return json(res, 200, { ok: true });
+      if (["tickets-summary", "export-tickets"].includes(url.searchParams.get("action"))) {
+        if (req.method !== "GET") return json(res, 405, { ok: false, error: "method_not_allowed" });
+        const date = todayKey();
+        const tickets = await loadTicketMetrics({ date, month: date.slice(0, 7), ticketScope: "all" });
+        if (url.searchParams.get("action") === "tickets-summary") {
+          return json(res, 200, require("./lib/ticket-sales-summary.cjs").buildTicketSalesSummary(tickets));
+        }
+        const workbook = await buildTicketWorkbook(tickets);
+        res.writeHead(200, {
+          "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "content-disposition": `attachment; filename="relatorio-ingressos-acumulado-ate-${date}.xlsx"`,
+          "cache-control": "no-store"
+        });
+        return res.end(workbook);
+      }
       const metrics = await loadMetrics(periodFromUrl(url));
       return json(res, 200, buildManagerPayload(metrics));
     }

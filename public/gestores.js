@@ -783,6 +783,48 @@ async function loadHomeSalesGoals({ month, day, hotel, channel }) {
   }
 }
 
+async function loadHomeTickets() {
+  const container = byId("homeTicketsSummary");
+  if (!container) return;
+  try {
+    const response = await fetch("/api/dashboard/gestores?action=tickets-summary", { cache: "no-store", signal: AbortSignal.timeout(45000) });
+    if (!response.ok) throw new Error("Falha ao carregar ingressos");
+    const data = await response.json();
+    byId("homeTicketsPeriod").textContent = `Vendas confirmadas • Acumulado até ${data.through.split("-").reverse().join("/")}`;
+    container.innerHTML = `<div class="home-tickets-grid">${data.rows.map(row => `
+      <article class="home-ticket-category"><h3>${escapeHtml(row.label)}</h3>
+        <strong>${number.format(row.quantity)} ingressos</strong><span>${money.format(row.sales)}</span>
+      </article>`).join("")}</div>
+      <p class="home-tickets-total">Total acumulado: <strong>${number.format(data.quantity)} ingressos · ${money.format(data.sales)}</strong></p>`;
+  } catch {
+    container.innerHTML = '<p class="panel-error">Não foi possível carregar o acumulado de ingressos. Tente atualizar a página.</p>';
+  }
+}
+
+byId("homeTicketsExport")?.addEventListener("click", async () => {
+  const button = byId("homeTicketsExport");
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = "Gerando...";
+  try {
+    const response = await fetch("/api/dashboard/gestores?action=export-tickets", { cache: "no-store", signal: AbortSignal.timeout(45000) });
+    if (!response.ok) throw new Error("Falha ao gerar Excel");
+    const fileName = (response.headers.get("content-disposition") || "").match(/filename="([^"]+)"/)?.[1] || "relatorio-ingressos.xlsx";
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    button.textContent = "Excel gerado";
+  } catch {
+    button.textContent = "Falha ao gerar. Tente novamente";
+  } finally {
+    button.disabled = false;
+    setTimeout(() => { if (!button.disabled) button.textContent = "Gerar Excel Ingressos"; }, 2200);
+  }
+});
+
 async function load() {
   const month = byId("monthSelect").value;
   const params = new URLSearchParams({
@@ -813,8 +855,10 @@ setupTvMessageModal();
 setupHotelOpinionModal();
 Promise.resolve(window.suedsManagerAuthReady).then(() => {
   if (!window.suedsPortalAccess?.painel_gestores) return;
+  loadHomeTickets();
   load().catch((error) => {
     byId("sellerRanking").innerHTML = `<div class="panel-error">${error.message}</div>`;
   });
   setInterval(load, 60000);
+  setInterval(loadHomeTickets, 60000);
 });
