@@ -29,6 +29,7 @@ export function signatureHtml(data, assetsBase) {
         <tr><td style="font-size:14px;line-height:22px;color:#617d88;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.role)}</font></td></tr>
         <tr><td height="10"></td></tr>
         <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.email)}</font></td></tr>
+        <tr><td height="6" style="font-size:1px;line-height:6px;"><img src="${escapeHtml(new URL('spacer.png', assetsBase).href)}" width="1" height="6" alt="" border="0"></td></tr>
         <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.phone)}</font></td></tr>
       </table></td>
     </tr>
