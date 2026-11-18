@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <base href="/assinaturas/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Assinaturas de e-mail | Sueds Hotels</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header><img src="assets/hotels.png" alt="Sueds Hotels" width="180"><span>PORTAL SUEDS</span></header>
+  <main>
+    <div class="intro"><p class="eyebrow">IDENTIDADE QUE CONECTA</p><h1>Sua assinatura, pronta.</h1><p>Preencha seus dados, escolha sua unidade e copie para o seu e-mail.</p></div>
+    <div class="workspace">
+      <section class="panel"><h2><span>01</span> Seus dados</h2>
+        <form id="form">
+          <label for="name">Nome</label><input id="name" name="name" autocomplete="name" maxlength="100" placeholder="Seu nome completo" required>
+          <label for="role">Cargo</label><input id="role" name="role" autocomplete="organization-title" maxlength="120" placeholder="Seu cargo" required>
+          <label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email" maxlength="150" placeholder="voce@seudominio.com.br" required>
+          <label for="phone">Telefone</label><input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" placeholder="(73) 00000-0000" required>
+          <label for="unit">Hotel / Beach Club / Unidade</label><select id="unit" name="unit" required><option value="">Selecione sua unidade</option></select>
+          <p class="privacy">Seus dados são usados apenas nesta página e não são enviados ou armazenados.</p>
+        </form>
+      </section>
+      <div><section class="panel preview-panel"><h2><span>02</span> Prévia da assinatura</h2><p class="hint">Confira os dados antes de copiar.</p><div class="signature-wrap"><div id="signature"></div></div>
+        <button type="submit" form="form" id="copy">Copiar assinatura</button><button type="button" id="select" class="secondary">Selecionar para copiar manualmente</button><p id="status" role="status" aria-live="polite"></p>
+      </section>
+      <section class="instructions"><h2>Como usar no webmail</h2><ol><li>Preencha os dados e clique em <strong>Copiar assinatura</strong>.</li><li>No webmail da Locaweb, abra a área de assinatura nas configurações da sua conta.</li><li>Cole com <strong>Ctrl + V</strong> no editor formatado e salve.</li></ol><p>Envie um e-mail de teste para conferir os logos e a formatação. Se a cópia automática não funcionar, use a seleção manual e pressione Ctrl + C.</p></section></div>
+    </div>
+  </main><footer>Sueds Hotels · Assinaturas de e-mail</footer>
+  <script type="module" src="app.js"></script>
+</body></html>

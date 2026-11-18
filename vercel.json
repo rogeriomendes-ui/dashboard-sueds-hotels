@@ -12,6 +12,10 @@
   ],
   "routes": [
     {
+      "src": "/assinaturas/?",
+      "dest": "/public/assinaturas/index.html"
+    },
+    {
       "src": "/login",
       "dest": "/public/portal-login.html"
     },
