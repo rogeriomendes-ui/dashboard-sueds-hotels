@@ -489,7 +489,7 @@ async function getAccessToken(scope = "https://www.googleapis.com/auth/spreadshe
   return payload.access_token;
 }
 
-async function getSheetValues(range, sheetId = SHEET_ID) {
+async function getSheetValues(range, sheetId = SHEET_ID, options = {}) {
   const token = await getAccessToken("https://www.googleapis.com/auth/spreadsheets.readonly");
   const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`);
   url.searchParams.set("majorDimension", "ROWS");
@@ -497,7 +497,8 @@ async function getSheetValues(range, sheetId = SHEET_ID) {
   url.searchParams.set("dateTimeRenderOption", "FORMATTED_STRING");
 
   const response = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` }
+    headers: { authorization: `Bearer ${token}` },
+    signal: options.signal
   });
 
   if (!response.ok) {
@@ -509,7 +510,7 @@ async function getSheetValues(range, sheetId = SHEET_ID) {
   return payload.values || [];
 }
 
-async function getSheetValueRanges(ranges, sheetId = SHEET_ID) {
+async function getSheetValueRanges(ranges, sheetId = SHEET_ID, options = {}) {
   const token = await getAccessToken("https://www.googleapis.com/auth/spreadsheets.readonly");
   const url = new URL(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchGet`);
   ranges.forEach((range) => url.searchParams.append("ranges", range));
@@ -518,7 +519,8 @@ async function getSheetValueRanges(ranges, sheetId = SHEET_ID) {
   url.searchParams.set("dateTimeRenderOption", "FORMATTED_STRING");
 
   const response = await fetch(url, {
-    headers: { authorization: `Bearer ${token}` }
+    headers: { authorization: `Bearer ${token}` },
+    signal: options.signal
   });
 
   if (!response.ok) {
@@ -752,13 +754,14 @@ function readBinaryBody(req, maxBytes = OPINION_UPLOAD_MAX_BYTES) {
   });
 }
 
-async function getFirstAvailableSheetValues(ranges, sheetId = SHEET_ID) {
+async function getFirstAvailableSheetValues(ranges, sheetId = SHEET_ID, options = {}) {
   let lastError = null;
   for (const range of ranges.filter(Boolean)) {
     try {
-      const rows = await getSheetValues(range, sheetId);
+      const rows = await getSheetValues(range, sheetId, options);
       if (rows.length) return rows;
     } catch (error) {
+      if (options.stopOnError && !isMissingSheetError(error)) throw error;
       lastError = error;
     }
   }
@@ -4862,6 +4865,9 @@ function addSalesReportTitle(sheet, title, subtitle, lastColumn) {
 async function buildTicketWorkbook(metrics) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "SUEDS Hotels";
+  const sourceLabel = metrics.ticketData
+    ? ` • Base lida em ${new Date(metrics.ticketData.fetchedAt).toLocaleString("pt-BR", { timeZone: TIME_ZONE })}${metrics.ticketData.stale ? " (última leitura válida; atualização temporariamente indisponível)" : ""}`
+    : "";
   const allSales = metrics.detailedTickets || [];
   const reports = metrics.period.ticketScope === "all"
     ? [
@@ -4880,7 +4886,7 @@ async function buildTicketWorkbook(metrics) {
       { key: "telefone", width: 20 }, { key: "email", width: 32 }, { key: "mesa", width: 14 },
       { key: "dificuldadeMobilidade", width: 28 }, { key: "afiliado", width: 26 }
     ];
-    const periodLabel = report.label;
+    const periodLabel = report.label + sourceLabel;
     addSalesReportTitle(sheet, "Ingressos vendidos", `Período: ${periodLabel} • Vendas confirmadas • Valores separados da hospedagem`, "S");
     sheet.getRow(4).values = ["Data Venda", "Código Reserva", "Ingresso / evento", "Vendedor", "Cliente", "Quantidade", "Valor Total", "Recebido", "A Receber", "Canal", "Forma Pagto", "Parcelas", "Status", "Observações", "Telefone", "Email", "MESA", "DIFICULDADE MOBILIDADE?", "Afiliado"];
     styleExcelHeader(sheet.getRow(4));
@@ -9715,25 +9721,48 @@ async function loadBiKpiReportsDataset(operationalDataset) {
   }
 }
 
+const loadTicketData = require("./lib/ticket-data-cache.cjs").createTicketDataCache({
+  read: async () => {
+    // DeskHotel stores the event product in U, including affiliate sales.
+    // Read only the two sales tabs, with the same contact fields as the export.
+    const options = { signal: AbortSignal.timeout(7000), stopOnError: true };
+    const ticketRange = (range) => `${range.split("!")[0]}!A:Y`;
+    let sellerRows, channelRows;
+    try {
+      [sellerRows, channelRows] = await getSheetValueRanges([
+        ticketRange(SALES_RANGE), ticketRange(OTHER_CHANNELS_RANGE)
+      ], SHEET_ID, options);
+      if (!sellerRows.length) {
+        sellerRows = await getFirstAvailableSheetValues([ticketRange(BASE_RANGE)], SHEET_ID, options);
+      }
+    } catch (error) {
+      // Preserve compatibility with installations where the optional tab is absent.
+      // Quota failures must never trigger a second set of fallback requests.
+      if (!isMissingSheetError(error)) throw error;
+      [sellerRows, channelRows] = await Promise.all([
+        getFirstAvailableSheetValues([ticketRange(SALES_RANGE), ticketRange(BASE_RANGE)], SHEET_ID, options),
+        getSheetValues(ticketRange(OTHER_CHANNELS_RANGE), SHEET_ID, options).catch(error => {
+          if (isMissingSheetError(error)) return [];
+          throw error;
+        })
+      ]);
+    }
+    const { records } = require("./lib/sales-routing").dashboardSources(
+      rowsToObjects(sellerRows).map(normalizeRecord),
+      rowsToObjects(channelRows).map(normalizeRecord)
+    );
+    return records;
+  }
+});
+
 async function loadTicketMetrics(period) {
   if (!SHEET_ID || !getServiceAccount()) {
     return buildMetrics(demoDataset().records, [], period);
   }
-  // DeskHotel stores the event product in U, including affiliate sales.
-  // Read only the two sales tabs, with the same contact fields as the export.
-  const ticketRange = (range) => `${range.split("!")[0]}!A:Y`;
-  const [sellerRows, channelRows] = await Promise.all([
-    getFirstAvailableSheetValues([ticketRange(SALES_RANGE), ticketRange(BASE_RANGE)]),
-    getSheetValues(ticketRange(OTHER_CHANNELS_RANGE)).catch((error) => {
-      if (isMissingSheetError(error)) return [];
-      throw error;
-    })
-  ]);
-  const { records } = require("./lib/sales-routing").dashboardSources(
-    rowsToObjects(sellerRows).map(normalizeRecord),
-    rowsToObjects(channelRows).map(normalizeRecord)
-  );
-  return buildMetrics(records, [], period);
+  const data = await loadTicketData();
+  const metrics = buildMetrics(data.records, [], period);
+  metrics.ticketData = { fetchedAt: new Date(data.fetchedAt).toISOString(), stale: data.stale };
+  return metrics;
 }
 
 async function loadMetrics(period) {

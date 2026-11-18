@@ -791,6 +791,10 @@ async function loadHomeTickets() {
     if (!response.ok) throw new Error("Falha ao carregar ingressos");
     const data = await response.json();
     byId("homeTicketsPeriod").textContent = `Vendas confirmadas • Acumulado até ${data.through.split("-").reverse().join("/")}`;
+    if (data.ticketData) {
+      const sourceTime = new Date(data.ticketData.fetchedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      byId("homeTicketsPeriod").textContent += ` • Base lida em ${sourceTime}${data.ticketData.stale ? " (última leitura válida; atualização temporariamente indisponível)" : ""}`;
+    }
     container.innerHTML = `<div class="home-tickets-grid">${data.rows.map(row => `
       <article class="home-ticket-category"><h3>${escapeHtml(row.label)}</h3>
         <strong>${number.format(row.quantity)} ingressos</strong><span>${money.format(row.sales)}</span>
