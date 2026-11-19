@@ -13,11 +13,12 @@ const RmsBases=(()=>{
   }
   function show(hotel,onSave){
     const current=++version;
-    let rows=[],loaded=false,loading=false,editing=null;
+    let rows=[],loaded=false,loading=false,editing=null,calendar=[];
     const disclosure=el('baseRates').querySelector('details');
     const active=()=>version===current;
     el('baseRates').hidden=false;
     el('baseContent').hidden=true;
+    el('baseMonth').parentElement.hidden=true;
     el('baseExcel').disabled=true;
     el('baseStatus').textContent=hotel?.code==='TRANCOSO'?'Sem tarifas base. Aguardando alimentação por outra fonte.':'Consulte as tarifas base de '+hotel.name+'.';
     el('baseAudit').textContent='';
@@ -63,15 +64,49 @@ const RmsBases=(()=>{
       const plans=[...new Set(rows.filter(r=>r.base===el('baseChoice').value).map(r=>r.plano))].sort();
       el('basePlan').replaceChildren(...plans.map(p=>new Option(regimes[p],p)));draw();
     }
+    function drawCalendar(){
+      const plan=calendar.find(p=>String(p.codigo)===el('baseChoice').value);
+      const grid=el('baseGrid');grid.replaceChildren();
+      const head=grid.createTHead().insertRow();
+      for(const label of ['Noite','Categoria','Ocupação','Tarifa WEB (R$)']){
+        const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th);
+      }
+      const body=grid.createTBody();
+      for(const [night,room,occupancy,cents] of plan.grade){
+        if(!night.startsWith(el('baseMonth').value))continue;
+        const row=body.insertRow();
+        for(const value of [night.split('-').reverse().join('/'),room,occupancy,money(cents/100)])row.insertCell().textContent=value;
+      }
+    }
+    function chooseCalendar(){
+      const plan=calendar.find(p=>String(p.codigo)===el('baseChoice').value);
+      const months=[...new Set(plan.grade.map(row=>row[0].slice(0,7)))].sort();
+      el('baseMonth').replaceChildren(...months.map(month=>new Option(month.split('-').reverse().join('/'),month)));
+      el('basePlan').replaceChildren(new Option('Café da manhã','0'));
+      drawCalendar();
+    }
     async function loadRates(){
       if(loaded||loading||!disclosure.open)return;
       loading=true;el('baseStatus').textContent='Carregando tarifas base...';
       try{
         const data=await (await request('bases_consultar',hotel)).json();if(!active())return;
         rows=data.rows;loaded=true;
+        calendar=data.calendario||[];
+        if(calendar.length){
+          el('baseStatus').textContent='Tarifas WEB publicadas na Omnibees, por noite. A grade importada está disponível para consulta.';
+          el('baseChoice').replaceChildren(...calendar.map(p=>new Option(p.codigo+' · '+p.tarifario,p.codigo)));
+          el('baseMonth').parentElement.hidden=false;
+          el('baseGridHelp').hidden=true;
+          el('baseChoice').onchange=chooseCalendar;
+          el('basePlan').onchange=null;
+          el('baseMonth').onchange=drawCalendar;
+          el('baseContent').hidden=false;el('baseExcel').disabled=false;chooseCalendar();
+          return;
+        }
         el('baseStatus').textContent=rows.length?'':'Sem tarifas base. Aguardando alimenta\u00e7\u00e3o por outra fonte.';
         if(!rows.length)return;
         el('baseChoice').replaceChildren(...[...new Set(rows.map(r=>r.base))].map(b=>new Option(data.codes?.[b]?data.codes[b]+' · '+b:b,b)));
+        el('baseGridHelp').hidden=false;
         el('baseContent').hidden=false;el('baseExcel').disabled=false;chooseBase();
       }catch(error){if(active())el('baseStatus').textContent=error.message;}
       finally{loading=false;}
