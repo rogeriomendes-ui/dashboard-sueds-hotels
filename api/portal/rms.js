@@ -20,6 +20,10 @@ module.exports = async function rms(req, res) {
       if(!/^application\/json\b/i.test(req.headers['content-type'] || '')) return json(res,415,{error:'Envie JSON.'});
       return await require('../../lib/rms-bases').handle(client,req.body,res);
     }
+    if(req.method==='POST' && ['ofertas_consultar','oferta_salvar','oferta_excluir'].includes(req.body?.tipo)){
+      if(!/^application\/json\b/i.test(req.headers['content-type']||''))return json(res,415,{error:'Envie JSON.'});
+      return await require('../../lib/rms-ofertas').handle(client,req.body,res);
+    }
     if (req.method==="POST" && req.body?.tipo==="ocupacao_plaza") {
       const start=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});
       const days=await require("../../server").plazaRmsOccupancy(start);
