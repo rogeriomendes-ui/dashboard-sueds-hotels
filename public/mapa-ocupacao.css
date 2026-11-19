@@ -27,3 +27,8 @@ input, select { width: 100%; padding: 7px 9px; font-size: 13px; }
 .channel-note {font-size:12px;color:var(--muted);line-height:1.5}.channel-key-risk {color:#a22520;margin-right:14px}.channel-key-empty {color:#6b5200}
 @media (max-width:1050px) { .filters {grid-template-columns:repeat(2,minmax(120px,1fr)) minmax(300px,1.5fr)}.availability-options {grid-column:3;grid-row:1/span 2} }
 @media (max-width: 760px) { .occupancy-page { padding: 16px; }.occupancy-header { display: block; }.data-stamp { display: inline-block; margin-top: 12px; }.filters { grid-template-columns: 1fr; }.availability-options {grid-column:auto;grid-row:auto}.filter-actions { justify-content: flex-end; }.occupancy-hotel { padding: 10px; }.occupancy-table th, .occupancy-table td { min-width: 43px; padding: 4px 2px; } }
+
+.occupancy-detail[data-metric="apartments"] { --detail-bg: #e8f2fa; }
+.occupancy-detail[data-metric="occupied"] { --detail-bg: #faeddf; }
+.occupancy-detail[data-metric="available"] { --detail-bg: #e5f3e9; }
+.occupancy-table .occupancy-detail > :is(th, td) { background-color: var(--detail-bg); }

@@ -28,7 +28,7 @@
       const categories = [...new Set(days.flatMap((day) => (day.roomTypes || []).map((type) => type.code)))];
       const names = new Map([["STD", "Standard"], ["LX", "Luxo"], ["MAS", "Suíte"]]);
       const detailRows = (label, metric) => categories.map((code) =>
-        `<tr class="occupancy-detail"><th scope="row" class="occupancy-row-label" title="${safe(names.get(code) || code)}">${label} · ${safe(code)}</th>${
+        `<tr class="occupancy-detail" data-metric="${metric}"><th scope="row" class="occupancy-row-label" title="${safe(names.get(code) || code)}">${label} · ${safe(code)}</th>${
           cells((day) => displayNumber(day.roomTypes?.find((type) => type.code === code)?.[metric]))
         }</tr>`
       ).join("");
