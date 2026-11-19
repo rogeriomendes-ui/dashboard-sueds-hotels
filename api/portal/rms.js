@@ -16,6 +16,10 @@ module.exports = async function rms(req, res) {
     if (!profile) return json(res,401,{error:"Login necessário."});
     if (!profile.rms) return json(res,403,{error:"Acesso restrito."});
     if (!["GET","POST"].includes(req.method)) return json(res,405,{error:"Método inválido."});
+    if(req.method==='POST' && ['bases_consultar','bases_excel','base_salvar'].includes(req.body?.tipo)){
+      if(!/^application\/json\b/i.test(req.headers['content-type'] || '')) return json(res,415,{error:'Envie JSON.'});
+      return await require('../../lib/rms-bases').handle(client,req.body,res);
+    }
     if (req.method==="POST" && req.body?.tipo==="ocupacao_plaza") {
       const start=new Date().toLocaleDateString("en-CA",{timeZone:"America/Bahia"});
       const days=await require("../../server").plazaRmsOccupancy(start);

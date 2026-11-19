@@ -535,6 +535,7 @@ async function load(options,createdPeriod) {
 
     function renderHotel(restoreView) {
       const hotelId=select.value;
+      RmsBases.show(hotels.find(h=>h.id===hotelId),row=>{if(hotels.find(h=>h.id===hotelId)?.code==="PLAZA" && data.catalog){data.catalog.edits[JSON.stringify([row.base,row.plano,row.quarto,row.pax,row.dia])]=Number(row.valor);renderCatalog(data.catalog,hotelId);}});
       const periods=data.periods.filter(p=>p.hotel_id===hotelId).sort((a,b)=>a.inicio.localeCompare(b.inicio));
       element("periodCount").textContent=periods.length ? periods.length+" períodos cadastrados para este hotel." : "Nenhum período BeePrice cadastrado para este hotel.";
       const catalog=hotels.find(h=>h.id===hotelId)?.code==="PLAZA" ? data.catalog : null;
