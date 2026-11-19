@@ -5,39 +5,8 @@ const RmsBases=(()=>{
   const days=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   const rooms={standard:'Standard',luxo:'Luxo',suite:'Suíte'};
   const money=v=>Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  // Períodos inferidos da grade WEB importada do Trancoso.
-  const levelPeriods=[
-    ['FE26','Feriados 2º semestre 2026','2026-11-19','2026-11-22'],
-    ['BT26','Baixa Temporada 2026','2026-11-23','2026-12-17'],
-    ['NT26','Natal 2026','2026-12-18','2026-12-24'],
-    ['RE26','Réveillon 2026','2026-12-25','2027-01-01'],
-    ['TR2701','Transição de Réveillon 2027','2027-01-02','2027-01-02'],
-    ['AT27','Alta Temporada 2027','2027-01-03','2027-02-04'],
-    ['CA27','Carnaval 2027','2027-02-05','2027-02-12'],
-    ['BT127','Baixa Temporada · 1º semestre 2027','2027-02-13','2027-03-24'],
-    ['FE127','Feriados · 1º semestre 2027','2027-03-25','2027-03-28'],
-    ['BT127B','Baixa Temporada · março a maio 2027','2027-03-29','2027-05-25'],
-    ['FE127','Feriados · 1º semestre 2027','2027-05-26','2027-05-30'],
-    ['BT127','Baixa Temporada · 1º semestre 2027','2027-05-31','2027-06-30'],
-    ['JU27','Julho 2027','2027-07-01','2027-07-31'],
-    ['BT227','Baixa Temporada · 2º semestre 2027','2027-08-01','2027-09-02'],
-    ['FE227','Feriados · 2º semestre 2027','2027-09-03','2027-09-07'],
-    ['BT227','Baixa Temporada · 2º semestre 2027','2027-09-08','2027-10-01'],
-    ['SC27','Saco Cheio 2027','2027-10-02','2027-10-17'],
-    ['BT227','Baixa Temporada · 2º semestre 2027','2027-10-18','2027-10-28'],
-    ['FE227','Feriados · 2º semestre 2027','2027-10-29','2027-11-02'],
-    ['BT227','Baixa Temporada · 2º semestre 2027','2027-11-03','2027-11-11'],
-    ['FE227','Feriados · 2º semestre 2027','2027-11-12','2027-11-15'],
-    ['BT227','Baixa Temporada · 2º semestre 2027','2027-11-16','2027-12-17'],
-    ['NT27','Natal 2027','2027-12-18','2027-12-24'],
-    ['RE27','Réveillon 2027','2027-12-25','2028-01-03'],
-    ['AT28','Alta Temporada 2028','2028-01-04','2028-02-04'],
-    ['MT28','Média Temporada 2028','2028-02-05','2028-02-25'],
-    ['CA28','Carnaval 2028','2028-02-26','2028-03-04'],
-    ['BT128','Baixa Temporada · 1º semestre 2028','2028-03-05','2028-04-08']
-  ];
   const formatDate=iso=>iso.split('-').reverse().join('/');
-  const weekday=iso=>(new Date(iso+'T00:00:00Z').getUTCDay()+6)%7;
+  const {weekday,periods:levelPeriods}=RmsTrancoso;
 
   function levelsFor(plan){
     const levels=new Map(),byNight=new Map();
@@ -74,7 +43,7 @@ const RmsBases=(()=>{
   }
   function show(hotel,onSave){
     const current=++version;
-    let rows=[],loaded=false,loading=false,editing=null,calendarLevels=new Map();
+    let rows=[],loaded=false,loading=false,editing=null,calendarLevels=new Map(),calendarPlan=null;
     const disclosure=el('baseRates').querySelector('details');
     const active=()=>version===current;
     el('baseRates').hidden=false;
@@ -84,6 +53,48 @@ const RmsBases=(()=>{
     el('baseStatus').textContent=hotel?.code==='TRANCOSO'?'Sem tarifas base. Aguardando alimentação por outra fonte.':'Consulte as tarifas base de '+hotel.name+'.';
     el('baseAudit').textContent='';
     el('baseGridHelp').textContent='Selecione um valor para editar. Tarifas em reais, por categoria, quantidade de adultos e dia da semana.';
+    function showAudit(row){
+      el('baseAudit').textContent=row.gravado_por
+        ? `Gravado em ${new Date(row.gravado_em).toLocaleString('pt-BR',{timeZone:'America/Bahia'})} · ${row.gravado_por}`
+        : '';
+    }
+    function editCell(td,{label,amount,min,saveRate}){
+      const button=document.createElement('button');button.type='button';
+      function showAmount(){
+        const display=amount==null?'Varia':money(amount);
+        button.textContent=display+' ✎';
+        button.setAttribute('aria-label',`Editar ${label}: ${amount==null?display:'R$ '+display}`);
+      }
+      showAmount();
+      button.onclick=()=>{
+        if(editing)editing();
+        const form=document.createElement('form');form.className='base-cell-edit';
+        const value=document.createElement('input');value.type='number';value.min=min;value.max='99999999.99';value.step='0.01';value.required=true;value.value=amount??'';value.setAttribute('aria-label',button.getAttribute('aria-label'));
+        const save=document.createElement('button');save.type='submit';save.textContent='Salvar';
+        const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';
+        const status=document.createElement('span');status.setAttribute('role','status');
+        const close=()=>{
+          if(editing!==close)return;
+          td.replaceChildren(button);editing=null;
+        };
+        cancel.onclick=()=>{close();button.focus();};editing=close;
+        value.onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();cancel.click();}};
+        form.append(value,save,cancel,status);td.replaceChildren(form);value.focus();value.select();
+        form.onsubmit=async event=>{
+          event.preventDefault();save.disabled=cancel.disabled=value.disabled=true;
+          try{
+            const row=await saveRate(Number(value.value));
+            if(!active())return;
+            amount=row.valor;showAmount();
+            if(editing===close){close();button.focus();}
+            el('baseStatus').textContent='Tarifa salva no Portal.';
+            showAudit(row);
+          }catch(error){if(active()&&editing===close)status.textContent=error.message;}
+          finally{save.disabled=cancel.disabled=value.disabled=false;}
+        };
+      };
+      td.append(button);
+    }
     function draw(){
       editing=null;el('baseAudit').textContent='';
       const filtered=rows.filter(r=>r.base===el('baseChoice').value && r.plano===Number(el('basePlan').value));
@@ -93,29 +104,12 @@ const RmsBases=(()=>{
         const tr=body.insertRow();tr.insertCell().textContent=rooms[room];tr.insertCell().textContent=pax;
         for(let day=0;day<7;day++){
           const td=tr.insertCell(),r=group.find(x=>x.dia===day);if(!r){td.textContent='—';continue;}
-          const button=document.createElement('button');button.type='button';button.textContent=money(r.valor)+' ✎';
-          button.setAttribute('aria-label',`Editar ${rooms[room]}, ${pax} adultos, ${days[day]}: R$ ${money(r.valor)}`);
-          button.onclick=()=>{
-            if(editing)editing();
-            const form=document.createElement('form');form.className='base-cell-edit';
-            const value=document.createElement('input');value.type='number';value.min='0.01';value.max='99999999.99';value.step='0.01';value.required=true;value.value=r.valor;value.setAttribute('aria-label',button.getAttribute('aria-label'));
-            const save=document.createElement('button');save.type='submit';save.textContent='Salvar';
-            const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';
-            const status=document.createElement('span');status.setAttribute('role','status');
-            const close=()=>{td.replaceChildren(button);editing=null;};cancel.onclick=close;editing=close;
-            value.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();close();button.focus();}};
-            form.append(value,save,cancel,status);td.replaceChildren(form);value.focus();value.select();
-            form.onsubmit=async event=>{
-              event.preventDefault();save.disabled=cancel.disabled=value.disabled=true;
-              try{const data=await (await request('base_salvar',hotel,{...r,valor:Number(value.value)})).json();if(!active())return;
-                Object.assign(r,data.row);button.textContent=money(r.valor)+' ✎';button.setAttribute('aria-label',`Editar ${rooms[room]}, ${pax} adultos, ${days[day]}: R$ ${money(r.valor)}`);close();onSave(data.row);button.focus();
-                el('baseStatus').textContent='Tarifa salva no Portal. Nenhuma tarifa enviada aos canais.';
-                el('baseAudit').textContent=`Gravado em ${new Date(r.gravado_em).toLocaleString('pt-BR',{timeZone:'America/Bahia'})} · ${r.gravado_por||''}`;
-              }catch(error){if(active())status.textContent=error.message;}
-              finally{save.disabled=cancel.disabled=value.disabled=false;}
-            };
-          };
-          td.append(button);
+          editCell(td,{label:`${rooms[room]}, ${pax} adultos, ${days[day]}`,amount:r.valor,min:0.01,saveRate:async valor=>{
+            const {row}=await (await request('base_salvar',hotel,{...r,valor})).json();
+            Object.assign(r,row);
+            if(active())onSave(row);
+            return row;
+          }});
         }
       }
     }
@@ -124,11 +118,13 @@ const RmsBases=(()=>{
       el('basePlan').replaceChildren(...plans.map(p=>new Option(regimes[p],p)));draw();
     }
     function drawCalendar(){
+      editing=null;
+      showAudit(calendarPlan);
       const level=calendarLevels.get(el('baseChoice').value);
       if(!level)return;
       const periods=level.periods.map(([start,end])=>start===end?formatDate(start):formatDate(start)+' a '+formatDate(end));
       el('baseGridHelp').hidden=false;
-      el('baseGridHelp').textContent='Vigência: '+periods.join(' · ');
+      el('baseGridHelp').textContent='Vigência: '+periods.join(' · ')+'. A edição vale para o dia da semana dentro dessas datas.';
       const body=gridBody(['Categoria','Adultos / crianças',...days]);
       const grouped=new Map();
       const byDay=new Map();
@@ -149,7 +145,25 @@ const RmsBases=(()=>{
         row.insertCell().textContent=adultCount(occupancy)||occupancy;
         for(let day=0;day<7;day++){
           const cents=rates.get(day);
-          row.insertCell().textContent=cents==null?'—':cents==='varies'?'Varia':money(cents/100);
+          const td=row.insertCell();
+          if(cents==null){td.textContent='—';continue;}
+          editCell(td,{
+            label:`${room}, ${occupancy}, ${days[day]}`,
+            amount:cents==='varies'?null:cents/100,
+            min:adultCount(occupancy)?0.01:0,
+            saveRate:async valor=>{
+              const {row:saved}=await (await request('base_calendario_salvar',hotel,{
+                codigo:calendarPlan.codigo,nivel:level.code,quarto:room,ocupacao:occupancy,dia:day,
+                valor,gravado_em:calendarPlan.gravado_em
+              })).json();
+              Object.assign(calendarPlan,{gravado_em:saved.gravado_em,gravado_por:saved.gravado_por});
+              for(const rate of level.grade){
+                if(rate[1]===room&&rate[2]===occupancy&&byDay.get(rate[0])===day)rate[3]=Math.round(saved.valor*100);
+              }
+              if(active()&&el('baseChoice').value===level.code&&!td.isConnected)drawCalendar();
+              return saved;
+            }
+          });
         }
       }
     }
@@ -162,6 +176,7 @@ const RmsBases=(()=>{
         const calendar=data.calendario||[];
         if(calendar.length){
           const plan=calendar[0];
+          calendarPlan=plan;
           const {levels,pending}=levelsFor(plan);
           calendarLevels=levels;
           el('baseStatus').textContent='Tarifário WEB '+plan.codigo+' da Omnibees · níveis organizados pelos valores publicados.'
