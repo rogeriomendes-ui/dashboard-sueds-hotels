@@ -5,6 +5,67 @@ const RmsBases=(()=>{
   const days=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   const rooms={standard:'Standard',luxo:'Luxo',suite:'Suíte'};
   const money=v=>Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Períodos inferidos da grade WEB importada do Trancoso.
+  const levelPeriods=[
+    ['FE26','Feriados 2º semestre 2026','2026-11-19','2026-11-22'],
+    ['BT26','Baixa Temporada 2026','2026-11-23','2026-12-17'],
+    ['NT26','Natal 2026','2026-12-18','2026-12-24'],
+    ['RE26','Réveillon 2026','2026-12-25','2027-01-01'],
+    ['TR2701','Transição de Réveillon 2027','2027-01-02','2027-01-02'],
+    ['AT27','Alta Temporada 2027','2027-01-03','2027-02-04'],
+    ['CA27','Carnaval 2027','2027-02-05','2027-02-12'],
+    ['BT127','Baixa Temporada · 1º semestre 2027','2027-02-13','2027-03-24'],
+    ['FE127','Feriados · 1º semestre 2027','2027-03-25','2027-03-28'],
+    ['BT127B','Baixa Temporada · março a maio 2027','2027-03-29','2027-05-25'],
+    ['FE127','Feriados · 1º semestre 2027','2027-05-26','2027-05-30'],
+    ['BT127','Baixa Temporada · 1º semestre 2027','2027-05-31','2027-06-30'],
+    ['JU27','Julho 2027','2027-07-01','2027-07-31'],
+    ['BT227','Baixa Temporada · 2º semestre 2027','2027-08-01','2027-09-02'],
+    ['FE227','Feriados · 2º semestre 2027','2027-09-03','2027-09-07'],
+    ['BT227','Baixa Temporada · 2º semestre 2027','2027-09-08','2027-10-01'],
+    ['SC27','Saco Cheio 2027','2027-10-02','2027-10-17'],
+    ['BT227','Baixa Temporada · 2º semestre 2027','2027-10-18','2027-10-28'],
+    ['FE227','Feriados · 2º semestre 2027','2027-10-29','2027-11-02'],
+    ['BT227','Baixa Temporada · 2º semestre 2027','2027-11-03','2027-11-11'],
+    ['FE227','Feriados · 2º semestre 2027','2027-11-12','2027-11-15'],
+    ['BT227','Baixa Temporada · 2º semestre 2027','2027-11-16','2027-12-17'],
+    ['NT27','Natal 2027','2027-12-18','2027-12-24'],
+    ['RE27','Réveillon 2027','2027-12-25','2028-01-03'],
+    ['AT28','Alta Temporada 2028','2028-01-04','2028-02-04'],
+    ['MT28','Média Temporada 2028','2028-02-05','2028-02-25'],
+    ['CA28','Carnaval 2028','2028-02-26','2028-03-04'],
+    ['BT128','Baixa Temporada · 1º semestre 2028','2028-03-05','2028-04-08']
+  ];
+  const formatDate=iso=>iso.split('-').reverse().join('/');
+  const weekday=iso=>(new Date(iso+'T00:00:00Z').getUTCDay()+6)%7;
+
+  function levelsFor(plan){
+    const levels=new Map(),byNight=new Map();
+    for(const row of plan.grade){
+      if(!byNight.has(row[0]))byNight.set(row[0],[]);
+      byNight.get(row[0]).push(row);
+    }
+    for(const [code,name,start,end] of levelPeriods){
+      const nights=[...byNight.keys()].filter(night=>start<=night&&night<=end).sort();
+      if(!nights.length)continue;
+      if(!levels.has(code))levels.set(code,{code,name,periods:[],grade:[]});
+      const level=levels.get(code);
+      level.periods.push([nights[0],nights.at(-1)]);
+      for(const night of nights){
+        level.grade.push(...byNight.get(night));
+        byNight.delete(night);
+      }
+    }
+    return {levels,pending:byNight.size};
+  }
+  function gridBody(labels){
+    const grid=el('baseGrid');grid.replaceChildren();
+    const head=grid.createTHead().insertRow();
+    for(const label of labels){
+      const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th);
+    }
+    return grid.createTBody();
+  }
   let version=0;
   async function request(tipo,hotel,extra={}){
     const response=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,hotel_id:hotel.id,...extra})});
@@ -13,7 +74,7 @@ const RmsBases=(()=>{
   }
   function show(hotel,onSave){
     const current=++version;
-    let rows=[],loaded=false,loading=false,editing=null,calendar=[];
+    let rows=[],loaded=false,loading=false,editing=null,calendarLevels=new Map();
     const disclosure=el('baseRates').querySelector('details');
     const active=()=>version===current;
     el('baseRates').hidden=false;
@@ -22,13 +83,11 @@ const RmsBases=(()=>{
     el('baseExcel').disabled=true;
     el('baseStatus').textContent=hotel?.code==='TRANCOSO'?'Sem tarifas base. Aguardando alimentação por outra fonte.':'Consulte as tarifas base de '+hotel.name+'.';
     el('baseAudit').textContent='';
+    el('baseGridHelp').textContent='Selecione um valor para editar. Tarifas em reais, por categoria, quantidade de adultos e dia da semana.';
     function draw(){
       editing=null;el('baseAudit').textContent='';
-      const grid=el('baseGrid');grid.replaceChildren();
-      const head=grid.createTHead().insertRow();
-      for(const label of ['Categoria','Adultos',...days]){const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th);}
       const filtered=rows.filter(r=>r.base===el('baseChoice').value && r.plano===Number(el('basePlan').value));
-      const body=grid.createTBody();
+      const body=gridBody(['Categoria','Adultos',...days]);
       for(const room of Object.keys(rooms))for(let pax=1;pax<=4;pax++){
         const group=filtered.filter(r=>r.quarto===room && r.pax===pax);if(!group.length)continue;
         const tr=body.insertRow();tr.insertCell().textContent=rooms[room];tr.insertCell().textContent=pax;
@@ -65,25 +124,34 @@ const RmsBases=(()=>{
       el('basePlan').replaceChildren(...plans.map(p=>new Option(regimes[p],p)));draw();
     }
     function drawCalendar(){
-      const plan=calendar.find(p=>String(p.codigo)===el('baseChoice').value);
-      const grid=el('baseGrid');grid.replaceChildren();
-      const head=grid.createTHead().insertRow();
-      for(const label of ['Noite','Categoria','Ocupação','Tarifa WEB (R$)']){
-        const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th);
+      const level=calendarLevels.get(el('baseChoice').value);
+      if(!level)return;
+      const periods=level.periods.map(([start,end])=>start===end?formatDate(start):formatDate(start)+' a '+formatDate(end));
+      el('baseGridHelp').hidden=false;
+      el('baseGridHelp').textContent='Vigência: '+periods.join(' · ');
+      const body=gridBody(['Categoria','Adultos / crianças',...days]);
+      const grouped=new Map();
+      const byDay=new Map();
+      for(const [night,room,occupancy,cents] of level.grade){
+        if(!byDay.has(night))byDay.set(night,weekday(night));
+        const key=JSON.stringify([room,occupancy]);
+        if(!grouped.has(key))grouped.set(key,{room,occupancy,rates:new Map()});
+        const {rates}=grouped.get(key),day=byDay.get(night);
+        rates.set(day,rates.has(day)&&rates.get(day)!==cents?'varies':cents);
       }
-      const body=grid.createTBody();
-      for(const [night,room,occupancy,cents] of plan.grade){
-        if(!night.startsWith(el('baseMonth').value))continue;
+      const adultCount=label=>Number(/^(\d+)\s+Pax$/i.exec(label)?.[1]||0);
+      const groups=[...grouped.values()].sort((a,b)=>a.room.localeCompare(b.room,'pt-BR')||
+        Number(!adultCount(a.occupancy))-Number(!adultCount(b.occupancy))||
+        adultCount(a.occupancy)-adultCount(b.occupancy)||a.occupancy.localeCompare(b.occupancy,'pt-BR'));
+      for(const {room,occupancy,rates} of groups){
         const row=body.insertRow();
-        for(const value of [night.split('-').reverse().join('/'),room,occupancy,money(cents/100)])row.insertCell().textContent=value;
+        row.insertCell().textContent=room;
+        row.insertCell().textContent=adultCount(occupancy)||occupancy;
+        for(let day=0;day<7;day++){
+          const cents=rates.get(day);
+          row.insertCell().textContent=cents==null?'—':cents==='varies'?'Varia':money(cents/100);
+        }
       }
-    }
-    function chooseCalendar(){
-      const plan=calendar.find(p=>String(p.codigo)===el('baseChoice').value);
-      const months=[...new Set(plan.grade.map(row=>row[0].slice(0,7)))].sort();
-      el('baseMonth').replaceChildren(...months.map(month=>new Option(month.split('-').reverse().join('/'),month)));
-      el('basePlan').replaceChildren(new Option('Café da manhã','0'));
-      drawCalendar();
     }
     async function loadRates(){
       if(loaded||loading||!disclosure.open)return;
@@ -91,16 +159,18 @@ const RmsBases=(()=>{
       try{
         const data=await (await request('bases_consultar',hotel)).json();if(!active())return;
         rows=data.rows;loaded=true;
-        calendar=data.calendario||[];
+        const calendar=data.calendario||[];
         if(calendar.length){
-          el('baseStatus').textContent='Tarifas WEB publicadas na Omnibees, por noite. A grade importada está disponível para consulta.';
-          el('baseChoice').replaceChildren(...calendar.map(p=>new Option(p.codigo+' · '+p.tarifario,p.codigo)));
-          el('baseMonth').parentElement.hidden=false;
-          el('baseGridHelp').hidden=true;
-          el('baseChoice').onchange=chooseCalendar;
+          const plan=calendar[0];
+          const {levels,pending}=levelsFor(plan);
+          calendarLevels=levels;
+          el('baseStatus').textContent='Tarifário WEB '+plan.codigo+' da Omnibees · níveis organizados pelos valores publicados.'
+            +(pending?' Há '+pending+' noites fora dos períodos classificados.':'');
+          el('baseChoice').replaceChildren(...[...levels.values()].map(level=>new Option(level.code+' · '+level.name,level.code)));
+          el('basePlan').replaceChildren(new Option('Café da manhã','0'));
+          el('baseChoice').onchange=drawCalendar;
           el('basePlan').onchange=null;
-          el('baseMonth').onchange=drawCalendar;
-          el('baseContent').hidden=false;el('baseExcel').disabled=false;chooseCalendar();
+          el('baseContent').hidden=false;el('baseExcel').disabled=false;drawCalendar();
           return;
         }
         el('baseStatus').textContent=rows.length?'':'Sem tarifas base. Aguardando alimenta\u00e7\u00e3o por outra fonte.';
