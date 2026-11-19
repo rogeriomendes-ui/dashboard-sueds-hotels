@@ -1,9 +1,9 @@
 // Um código pode ser reutilizado em temporadas diferentes. Resolva-o dentro da base do período.
 function plazaLevelComparison(catalog, period, night, occupancy) {
-  const base = catalog?.bases[catalog.periods[period?.inicio]];
-  const threshold = [80,70,60,50].find(n => occupancy > n) ?? 0;
-  const level = occupancy == null ? null : base?.levels.find(l => l.pct === Number(period["pct"+threshold]));
-  const observation = catalog?.calendar[night];
+  const base = period?.base_origem ? catalog?.bases.find(b=>b.name===period.base_origem) : catalog?.bases[catalog.periods[period?.inicio]];
+  const rule=(typeof RmsRules!=="undefined"?RmsRules:require("./rms-rules")).band(period,occupancy);
+  const level = rule ? base?.levels.find(l => l.pct === Number(rule.pct)) : null;
+  const observation = catalog?.calendar?.[night];
   const observed = base?.levels.find(l => l.code === observation?.code);
   const weekday = (new Date(night+"T12:00:00Z").getUTCDay()+6)%7;
   const rates = (l, simulation) => Object.fromEntries(["standard","luxo","suite"].map(room => {
