@@ -4189,8 +4189,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
       const type = comparableKey(goal.type);
       const channel = comparableKey(goal.channel);
       if (tableKey === "sales") return type === comparableKey(HOTEL_TOTAL_GOAL_TYPE);
-      if (tableKey === "direct") return type === comparableKey(HOTEL_DIRECT_GOAL_TYPE)
-        && (!hotel || comparableKey(biReportsHotelLabel(goal.hotel)) === comparableKey(biReportsHotelLabel(hotel)));
+      if (tableKey === "direct") return type === comparableKey(HOTEL_DIRECT_GOAL_TYPE);
       if (tableKey === "site") return type.includes("site") || channel.includes("site");
       if (tableKey === "rds") return type === comparableKey("RDS - Hospedagem")
         && (!hotel || comparableKey(biReportsHotelLabel(goal.hotel)) === comparableKey(biReportsHotelLabel(hotel)));
@@ -4211,10 +4210,7 @@ function buildBiReportsPayload(dataset = {}, query = {}) {
   const monthlyGoalTables = [
     { key: "sales", title: "Meta de Vendas", actualLabel: `Venda ${reportYear}`, previousLabel: `Venda ${reportYear - 1}`, rows: withGoalsAndPrevious("sales", monthlySeries(rows), historicalRows) },
     { key: "rds", title: "META RDS Hospedagem", actualLabel: `RDS ${reportYear}`, previousLabel: `RDS ${reportYear - 1}`, rows: withGoalsAndPrevious("rds", monthlySeries(rdsRows, true, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)), historicalRdsRows, (record) => dateKey(parseDate(record.checkout)).slice(0, 7)) },
-    { key: "direct", title: "Meta Venda Direta", actualLabel: `Venda ${reportYear}`, previousLabel: `Venda ${reportYear - 1}`, rows: withGoalsAndPrevious("direct", monthlySeries(directRows), historicalDirectRows).map((row) => ({
-      ...row,
-      reservations: biReportsReservationCount(directRows.filter((record) => record.dateKey?.slice(0, 7) === row.key))
-    })) },
+    { key: "direct", title: "Meta Venda Direta", actualLabel: `Venda ${reportYear}`, previousLabel: `Venda ${reportYear - 1}`, rows: withGoalsAndPrevious("direct", monthlySeries(directRows), historicalDirectRows) },
     { key: "site", title: "Meta do Site", actualLabel: `Venda ${reportYear}`, previousLabel: `Venda ${reportYear - 1}`, rows: withGoalsAndPrevious("site", monthlySeries(siteRows), historicalSiteRows) }
   ];
   const checkinLabel = (value) => {
