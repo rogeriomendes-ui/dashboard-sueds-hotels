@@ -107,10 +107,27 @@ module.exports = async function rms(req, res) {
     const readPeriods=()=>client.from("rms_faixas_festivas").select("hotel_id,nome,inicio,fim,pct0,pct50,pct60,pct70,pct80,gravado_em,gravado_por,base_origem,precos_duplo,niveis_pct").order("inicio");
     const periods=await readPeriods();
     if(periods.error) throw periods.error;
-    if(catalog) addPeriods(catalog,periods.data,plaza.id);
+    const legacyPeriods=periods.data;
+    if(catalog) addPeriods(catalog,legacyPeriods,plaza.id);
+    const ruleConfigs=await require("../../lib/rms-conjuntos").read(client);
+    if(req.method==="POST" && req.body?.tipo==="conjunto_salvar"){
+      if(!/^application\/json\b/i.test(req.headers["content-type"]||""))return json(res,415,{error:"Envie JSON."});
+      const result=await require("../../lib/rms-conjuntos").save(client,req.body,hotels.data,legacyPeriods,req.body.hotel_id===plaza?.id?catalog:null,ruleConfigs);
+      return json(res,result.status,result.error?{error:result.error}:{row:result.row});
+    }
+    const blocks=await require("../../lib/rms-bloqueios").read(client);
+    if(req.method==="POST" && req.body?.tipo==="bloqueios_salvar"){
+      if(!/^application\/json\b/i.test(req.headers["content-type"]||""))return json(res,415,{error:"Envie JSON."});
+      const result=await require("../../lib/rms-bloqueios").save(client,req.body,hotels.data,blocks);
+      return json(res,result.status,result.error?{error:result.error}:{row:result.row});
+    }
+    const rules=require("../../public/rms-rules");
+    periods.data=rules.withBlocks(rules.overlay(legacyPeriods,ruleConfigs),blocks);
+
     if (req.method === "POST") {
       if (!/^application\/json\b/i.test(req.headers["content-type"] || "")) return json(res,415,{error:"Envie JSON."});
       const body = req.body;
+      if(["novo_periodo","faixa_festiva"].includes(body?.tipo) && ruleConfigs.some(c=>c.hotel_id===body.hotel_id)) return json(res,409,{error:"Use Configurar flutuacoes para editar os conjuntos deste hotel. Recarregue a pagina."});
       if (body?.tipo === "cotacao") {
         if (!validDate(body.noite) || typeof body.nome !== "string" || !hotels.data.some(h=>h.id===body.hotel_id))
           return json(res,400,{error:"Selecione um concorrente e uma noite."});
@@ -206,7 +223,7 @@ module.exports = async function rms(req, res) {
         if(page.data.length<500) break;
       }
     }
-    return json(res,200,{auditoria89:plaza ? JSON.parse(process.env.RMS_PLAZA_AUDITORIA_89 || "[]") : [],beeHistory:JSON.parse(process.env.RMS_BEEPRICE_HISTORICO || "[]"),catalog,analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data});
+    return json(res,200,{auditoria89:plaza ? JSON.parse(process.env.RMS_PLAZA_AUDITORIA_89 || "[]") : [],beeHistory:JSON.parse(process.env.RMS_BEEPRICE_HISTORICO || "[]"),catalog,analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data,bloqueios:blocks});
   } catch {
     return json(res,500,{error:"Falha ao consultar ou salvar dados do RMS."});
   }

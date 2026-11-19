@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const path=require('node:path');
 const ctx=vm.createContext({module:{exports:{}}});
-for(const file of ['rms-plaza-tarifas.js','rms-levels.js','rms-simples.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../public',file),'utf8'),ctx);
+for(const file of ['rms-rules.js','rms-plaza-tarifas.js','rms-levels.js','rms-simples.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../public',file),'utf8'),ctx);
 const simple=ctx.module.exports;
 const hotel={id:'plaza',code:'PLAZA'};
 const day={date:'2027-01-23',rate:65};

@@ -20,10 +20,10 @@ const RmsSimple = (() => {
     const supported = hotel.code === 'PLAZA' && group.endsWith('Café');
     if (!supported) return {current:{}, observed:{}, proposed:{}, offer:'Aguardando captura', observedBand:'—', band:'—', observedReason:'Sem leitura deste tarifário e regime.', reason:'Aguardando grade e derivações confirmadas.'};
     const rates = data.rates[day.date];
-    const period = data.periods.find(p=>p.hotel_id===hotel.id && p.inicio<=day.date && day.date<=p.fim);
+    const period = (typeof RmsRules!=="undefined"?RmsRules:require("./rms-rules")).forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
     const occupancy = Number.isFinite(day.rate) ? day.rate : null;
     const target = plazaLevelComparison(data.catalog,period,day.date,occupancy);
-    const decision = beeWebDecision(target,rates?.web,occupancy>=100);
+    const decision = beeWebDecision(target,rates?.web,occupancy>=100 || !!period?.bloqueado);
     const reference = references.get(day.date);
     const current = project(rates?.web,rates,group);
     const proposed = project(decision.prices,rates,group);
@@ -31,11 +31,11 @@ const RmsSimple = (() => {
     const offer = group === 'SITE Café'
       ? rooms.map(room=>{const q=rates?.site?.[room];return q ? (q.offer || 'Sem oferta')+(q.discount ? ' · '+q.discount+'%' : '') : 'Não conferida';})
       : 'Oferta não conferida; valores regulares';
-    const reason = occupancy==null ? 'Ocupação indisponível.' : occupancy>=100 ? 'Esgotado ou overbooking: manter vigente.' : !target.level ? 'Sem nível vinculado para esta noite.' :
+    const reason = period?.bloqueado ? 'Flutua\u00e7\u00e3o bloqueada neste conjunto. Manter vigente.' : occupancy==null ? 'Ocupação indisponível.' : occupancy>=100 ? 'Esgotado ou overbooking: manter vigente.' : !target.level ? 'Sem nível vinculado para esta noite.' :
       'Ocupação KPI '+occupancy.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%. '+period.nome+' · '+target.level.code+'.'+(decision.retained.length ? ' Mantida a vigente nas categorias em que a faixa seria menor.' : ' Aplicar o nível cadastrado, sem redução.');
     return {current,observed,proposed,offer,
       observedBand:reference?.level || 'Sem aviso importado',
-      band:occupancy>=100 ? 'Manter' : target.level ? '+'+target.level.pct+'% sobre a base' : '—',
+      band:occupancy>=100 || period?.bloqueado ? 'Manter' : target.level ? '+'+target.level.pct+'% sobre a base' : '—',
       observedReason:reference ? 'Aviso '+reference.at+'. Valores reconstruídos da grade importada, com a oferta da leitura atual; não são comprovação da gravação na Omnibees.' : 'Nenhum aviso importado para esta noite.',
       reason,at:rates?.at};
   }
