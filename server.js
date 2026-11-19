@@ -17,7 +17,7 @@ const BI_OTHER_CHANNELS_RANGE = process.env.GOOGLE_BI_OTHER_CHANNELS_RANGE || "'
 const BI_HISTORICAL_CHANNELS_RANGE = process.env.GOOGLE_BI_HISTORICAL_CHANNELS_RANGE || "'Historico_Canais_AA'!A:S";
 const BI_KPI_2025_RANGE = process.env.GOOGLE_BI_KPI_2025_RANGE || "'base kpi 2025'!A:X";
 const BI_KPI_2026_RANGE = process.env.GOOGLE_BI_KPI_2026_RANGE || "'base kpi 2026'!A:Y";
-const KPI_OCCUPANCY_RANGE = process.env.GOOGLE_KPI_OCCUPANCY_RANGE || "'KPI Ocupacao Diaria'!A:F";
+const KPI_OCCUPANCY_RANGE = process.env.GOOGLE_KPI_OCCUPANCY_RANGE || "'KPI Ocupacao Diaria'!A:G";
 const BI_KPI_CACHE_TTL_MS = Number(process.env.BI_KPI_CACHE_TTL_SECONDS || 300) * 1000;
 const KPI_CAPTURED_AT_METADATA_KEY = "sueds.kpi.full.last_captured_at";
 const METAS_RANGE = process.env.GOOGLE_METAS_RANGE || "Metas!A:H";
@@ -4604,6 +4604,24 @@ function buildCachedBiKpiReportsPayload(dataset = {}, query = {}) {
   return payload;
 }
 
+// Optional column G stores the categories from the same hotel/day capture.
+function parseOccupancyRoomTypes(value) {
+  if (!value) return [];
+  try {
+    const roomTypes = JSON.parse(value);
+    if (!Array.isArray(roomTypes)) return [];
+    return roomTypes.filter((type) => type && typeof type.code === "string" && type.code.trim()
+      && Number.isInteger(type.apartments) && type.apartments >= 0
+      && (type.occupied === null || (Number.isInteger(type.occupied) && type.occupied >= 0))
+      && (type.available === null || Number.isInteger(type.available)))
+      .map(({ code, apartments, occupied, available }) => ({
+        code: code.trim().toUpperCase(), apartments, occupied, available
+      }));
+  } catch {
+    return [];
+  }
+}
+
 function buildKpiOccupancyMap(sourceRows = [], query = {}) {
   const period = biReportsDateRange(query, biReportsDefaultKpiPeriod());
   const requestedHotel = comparableKey(biReportsHotelLabel(query.hotel || ""));
@@ -4619,7 +4637,8 @@ function buildKpiOccupancyMap(sourceRows = [], query = {}) {
       || apartments <= 0 || occupied < 0 || occupied + available > apartments || !/^\d{4}-\d{2}-\d{2}T/.test(capturedAt)) continue;
     const key = `${inventory.label}|${date}`;
     if (!readings.has(key) || capturedAt > readings.get(key).capturedAt) {
-      readings.set(key, { apartments, occupied, available, maintenance: apartments - occupied - available, capturedAt });
+      readings.set(key, { apartments, occupied, available, maintenance: apartments - occupied - available,
+        capturedAt, roomTypes: parseOccupancyRoomTypes(row[6]) });
     }
   }
   const selected = hotels.filter((item) => !requestedHotel || comparableKey(item.label) === requestedHotel);
@@ -4628,8 +4647,9 @@ function buildKpiOccupancyMap(sourceRows = [], query = {}) {
     apartments: item.apartments,
     days: biReportsDateKeys(period.start, period.end).map((date) => {
       const reading = readings.get(`${item.label}|${date}`);
-      return reading ? { date, capturedAt: reading.capturedAt, apartments: reading.apartments, occupied: reading.occupied,
+      return reading ? { date, apartments: reading.apartments, occupied: reading.occupied,
         available: reading.available, maintenance: reading.maintenance,
+        ...(reading.roomTypes.length ? { roomTypes: reading.roomTypes } : {}),
         rate: reading.apartments ? reading.occupied / reading.apartments * 100 : 0 }
         : { date, apartments: null, occupied: null, available: null, maintenance: null, rate: null };
     })
