@@ -264,6 +264,7 @@ function comparableLabel(value) {
 
 function bars(items, options = {}) {
   const formatLabel = options.formatLabel || ((value) => value);
+  const formatPercent = options.formatPercent || pct;
   const rowClass = options.rowClass ? ` ${options.rowClass}` : "";
   return items
     .map((item) => `
@@ -272,8 +273,8 @@ function bars(items, options = {}) {
         <strong data-label="Reservas">${number.format(item.reservations || 0)}</strong>
         <strong data-label="Venda">${money.format(item.value)}</strong>
         <strong data-label="Meta">${money.format(item.monthlyGoal || 0)}</strong>
-        <strong data-label="ICM" class="icm-value ${icmClass(item.monthlyGoalPct)}">${pct(item.monthlyGoalPct)}</strong>
-        <strong data-label="Projeção" class="icm-value ${icmClass(item.projectionPct)}">${pct(item.projectionPct)}</strong>
+        <strong data-label="ICM" class="icm-value ${icmClass(item.monthlyGoalPct)}">${formatPercent(item.monthlyGoalPct)}</strong>
+        <strong data-label="Projeção" class="icm-value ${icmClass(item.projectionPct)}">${formatPercent(item.projectionPct)}</strong>
       </div>
     `)
     .join("");
@@ -552,8 +553,8 @@ function render(data) {
     : "Equipe + Site + Robô";
   byId("salesTodayLabel").textContent = `${hasDayFilter ? "Vendas no dia" : "Vendas hoje"} (Equipe SUEDS)`;
   const directSalesLabel = hasGlobalFilter
-    ? `Vendas Direta no recorte (${salesScopeLabel})`
-    : "Vendas Direta (Equipe + Site + Robô)";
+    ? `Comercial no recorte (${salesScopeLabel})`
+    : "Comercial (Equipe + Site + Robô)";
   byId("hotelSalesLabel").textContent = "Vendas Direta ( Equipe + Site + Robô )";
   byId("otherHotelSalesLabel").textContent = "Vendas Operadoras + OTAs";
   byId("combinedHotelSalesLabel").textContent = "Venda Direta + Operadoras + OTAs";
@@ -718,6 +719,35 @@ function exportDetailedSales() {
 
 let homeSalesGoalsController = null;
 
+function renderKpiDirectSales(payload) {
+  const rows = (payload.monthlyGoalTables || []).find((table) => table.key === "direct")?.rows || [];
+  if (!rows.some((row) => row.actual != null)) {
+    byId("kpiDirectSales").innerHTML = "<p>Sem vendas KPI para o período e os filtros selecionados.</p>";
+    return;
+  }
+  const value = rows.reduce((total, row) => total + Number(row.actual || 0), 0);
+  const monthlyGoal = rows.reduce((total, row) => total + Number(row.target || 0), 0);
+  const reservations = rows.reduce((total, row) => total + Number(row.reservations || 0), 0);
+  const projectedSales = rows.reduce((total, row) => {
+    const days = lastDayOfMonth(row.key);
+    const first = payload.period.start.startsWith(row.key) ? Number(payload.period.start.slice(8, 10)) : 1;
+    const last = payload.period.end.startsWith(row.key) ? Number(payload.period.end.slice(8, 10)) : days;
+    return total + Number(row.actual || 0) / (last - first + 1) * days;
+  }, 0);
+  const item = {
+    label: "Venda Direta consolidada (KPI)", value, reservations, monthlyGoal,
+    monthlyGoalPct: monthlyGoal ? value / monthlyGoal * 100 : null,
+    projectionPct: monthlyGoal ? projectedSales / monthlyGoal * 100 : null
+  };
+  byId("kpiDirectSales").innerHTML = performanceTable([], "Indicador", {
+    leadingRow: bars([item], {
+      rowClass: "direct-sales-total",
+      formatPercent: (amount) => amount == null ? "—" : `${percentage.format(amount)}%`,
+      formatLabel: (label) => `${escapeHtml(label)}<small>Meta por hotel · Ticket médio ${money.format(reservations ? value / reservations : 0)}</small>`
+    })
+  });
+}
+
 function renderHomeSalesGoals(payload) {
   const year = Number(payload.period.start.slice(0, 4));
   const { start, end } = payload.period;
@@ -768,15 +798,20 @@ async function loadHomeSalesGoals({ month, day, hotel, channel }) {
     params.set("channel", ["site", "site sueds", "central de reservas"].includes(key) ? "Reserva Direta" : channel);
   }
   byId("homeSalesGoals").setAttribute("aria-busy", "true");
+  byId("kpiDirectSales").innerHTML = "<p>Carregando vendas KPI…</p>";
   const timeout = setTimeout(() => controller.abort(), 45000);
   try {
     const response = await fetch(`/api/dashboard/bi-relatorios-kpi?${params.toString()}`, { signal: controller.signal });
     if (!response.ok) throw new Error("Falha ao carregar metas");
     const payload = await response.json();
-    if (homeSalesGoalsController === controller) renderHomeSalesGoals(payload);
+    if (homeSalesGoalsController === controller) {
+      renderHomeSalesGoals(payload);
+      renderKpiDirectSales(payload);
+    }
   } catch (error) {
     if (homeSalesGoalsController !== controller) return;
     byId("homeSalesGoals").innerHTML = '<p class="panel-error">Não foi possível carregar as metas por KPI. Tente atualizar a página.</p>';
+    byId("kpiDirectSales").innerHTML = '<p class="panel-error">Não foi possível carregar as vendas KPI. Tente atualizar a página.</p>';
   } finally {
     clearTimeout(timeout);
     if (homeSalesGoalsController === controller) byId("homeSalesGoals").setAttribute("aria-busy", "false");
