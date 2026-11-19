@@ -75,8 +75,16 @@ const RmsRuleEditor=(()=>{
       const audit=node('p',g.gravado_em?`Última gravação: ${new Date(g.gravado_em).toLocaleString('pt-BR')} · ${g.gravado_por||''}`:'Configuração importada. Alterações somente no Portal.');form.append(audit);
       if(copy)form.append(node('p','Altere as datas da cópia para não sobrepor o conjunto original.'));
       if(remove)form.append(node('p','A exclusão retira o conjunto da simulação do Portal. Os registros importados e o BeePrice serão preservados.'));
-      const msg=node('p');msg.setAttribute('role','status');const save=node('button',remove?'Confirmar exclusão no Portal':'Salvar no Portal');save.type='submit';form.append(msg,save,button('Cancelar',()=>el('ruleDialog').close()));
-      form.onsubmit=async e=>{e.preventDefault();save.disabled=true;msg.textContent='Salvando…';
+      const msg=node('p');msg.setAttribute('role','status');
+      const save=node('button',remove?'Confirmar exclusão no Portal':'Salvar no Portal');
+      save.type='submit';
+      const actions=node('div');actions.className='rule-editor-actions';
+      actions.append(save,button('Cancelar',()=>el('ruleDialog').close()));
+      form.append(msg,actions);
+      form.onsubmit=async e=>{
+        e.preventDefault();
+        if(save.disabled||(!remove&&!window.confirm('Deseja mesmo salvar?')))return;
+        save.disabled=true;msg.textContent='Salvando…';
         try{const payload={tipo:'conjunto_salvar',hotel_id:hotel.id,id:g.id||null,gravado_em:g.gravado_em||null,origens:g.origens,nome:name.value,base_origem:base.value,periodos:g.periodos,faixas:g.faixas,bloqueado:blocked.checked,excluido:remove};
           const response=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const result=await response.json();if(!response.ok)throw Error(result.error||'Falha ao salvar.');
           if(version!==token)return;el('ruleDialog').close();await reload();el('ruleMessage').textContent='Conjunto salvo no Portal. Nenhuma tarifa enviada aos canais.';
