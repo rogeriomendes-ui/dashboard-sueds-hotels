@@ -6,6 +6,7 @@
     inclusao_comunicados: { url: "/comunicados/admin", permission: "inclusao_comunicados", title: "Inclusão de Comunicados" },
     treinamentos: { url: "/Treinamentos", permission: "treinamentos", title: "Centro de Conhecimentos" },
     treinamentos_historico: { url: "/Treinamentos/Historico", permission: "treinamentos", title: "Meu histórico" },
+    assinaturas: { url: "/assinaturas", permission: "treinamentos", title: "Assinatura e-mail" },
     treinamentos_relatorios: { url: "/Treinamentos/Relatorios", permission: "treinamentos_editor", title: "Relatórios" },
     treinamentos_publicar: { url: "/Treinamentos/Publicar", permission: "treinamentos_editor", title: "Publicar Conteúdo" },
     treinamentos_modulos: { url: "/Treinamentos/Modulos", permission: "treinamentos_editor", title: "Gerenciar módulos" },

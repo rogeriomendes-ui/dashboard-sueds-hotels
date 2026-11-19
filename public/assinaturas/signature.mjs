@@ -9,7 +9,17 @@ export const units = [
 export function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
+export function whatsappUrl(value) {
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && ['wa.me', 'api.whatsapp.com', 'web.whatsapp.com', 'chat.whatsapp.com', 'www.whatsapp.com', 'whatsapp.com'].includes(url.hostname) && !url.username && !url.password ? url.href : '';
+  } catch {
+    return '';
+  }
+}
 export function signatureHtml(data, assetsBase) {
+  const whatsapp = whatsappUrl(data.whatsapp);
   const selected = units.find(([id]) => id === data.unit);
   const image = (id, label, width) => `<img src="${escapeHtml(new URL(id + '.png', assetsBase).href)}" alt="${escapeHtml(label)}" width="${width}" border="0" style="display:block;width:${width}px;height:auto;border:0;">`;
   const logos = selected && selected[0] !== 'hotels'
@@ -31,6 +41,7 @@ export function signatureHtml(data, assetsBase) {
         <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.email)}</font></td></tr>
         <tr><td height="6" style="font-size:1px;line-height:6px;"><img src="${escapeHtml(new URL('spacer.png', assetsBase).href)}" width="1" height="6" alt="" border="0"></td></tr>
         <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.phone)}</font></td></tr>
+        ${whatsapp ? `<tr><td height="6" style="font-size:1px;line-height:6px;"><img src="${escapeHtml(new URL('spacer.png', assetsBase).href)}" width="1" height="6" alt="" border="0"></td></tr><tr><td><a href="${escapeHtml(whatsapp)}" title="Conversar pelo WhatsApp" style="color:#238347;text-decoration:none;"><img src="${escapeHtml(new URL('whatsapp.png', assetsBase).href)}" width="18" height="18" alt="WhatsApp" border="0" style="vertical-align:middle;">&nbsp;<font face="Arial, Helvetica, sans-serif" size="2" color="#238347">Clique aqui</font></a></td></tr>` : ''}
       </table></td>
     </tr>
   </table>`;
