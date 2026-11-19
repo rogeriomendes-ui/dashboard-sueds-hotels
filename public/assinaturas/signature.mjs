@@ -40,8 +40,7 @@ export function signatureHtml(data, assetsBase) {
         <tr><td height="10"></td></tr>
         <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.email)}</font></td></tr>
         <tr><td height="6" style="font-size:1px;line-height:6px;"><img src="${escapeHtml(new URL('spacer.png', assetsBase).href)}" width="1" height="6" alt="" border="0"></td></tr>
-        <tr><td style="font-size:13px;line-height:20px;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.phone)}</font></td></tr>
-        ${whatsapp ? `<tr><td height="6"></td></tr><tr><td><a href="${escapeHtml(whatsapp)}" style="color:#238347;text-decoration:none;"><img src="${escapeHtml(new URL('whatsapp.png', assetsBase).href)}" width="18" height="18" alt="WhatsApp" border="0" style="vertical-align:middle;">&nbsp;<font face="Arial, Helvetica, sans-serif" size="2" color="#238347">WhatsApp</font></a></td></tr>` : ''}
+        <tr><td nowrap style="font-size:13px;line-height:20px;white-space:nowrap;"><font face="Arial, Helvetica, sans-serif">${escapeHtml(data.phone)}</font>${whatsapp ? `&nbsp;&nbsp;<a href="${escapeHtml(whatsapp)}" title="Conversar pelo WhatsApp" style="text-decoration:none;"><img src="${escapeHtml(new URL('whatsapp.png', assetsBase).href)}" width="18" height="18" alt="WhatsApp" border="0" style="vertical-align:middle;"></a>` : ''}</td></tr>
       </table></td>
     </tr>
   </table>`;
