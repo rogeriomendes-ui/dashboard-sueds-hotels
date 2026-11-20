@@ -16,11 +16,11 @@ const RmsSimple = (() => {
     }
     return result;
   }
-  function night(data, hotel, day, group, references) {
+  function night(data, hotel, day, group) {
     const [channel, meal]=group.split(' ');
     const plan=['Café','MAP','PC'].indexOf(meal);
     const regime=['CAFÉ DA MANHÃ','MEIA PENSÃO','PENSÃO COMPLETA'][plan];
-    if(hotel.code!=='PLAZA')return {current:{},observed:{},proposed:{},offer:'Aguardando captura',observedBand:'—',band:'—',observedReason:'Sem aviso.',reason:'Aguardando grade.'};
+    if(hotel.code!=='PLAZA')return {current:{},proposed:{},offer:'Aguardando captura',levelLabel:'—',band:'—',reason:'Aguardando grade.'};
     const rates=data.rates[day.date];
     const rules=typeof RmsRules!=='undefined'?RmsRules:require('./rms-rules');
     const period=rules.forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
@@ -28,7 +28,6 @@ const RmsSimple = (() => {
     const target=plazaLevelComparison(data.catalog,period,day.date,occupancy,plan);
     const hold=period?.bloqueado||occupancy>=100;
     const currentWeb=plan===0?rates?.web:null;
-    const reference=references.get(day.date);
     const tariff=(channel==='NET'?'Tarifa Net':'Tarifário '+channel)+' - '+regime;
     const weekday=(new Date(day.date+'T12:00:00Z').getUTCDay()+6)%7;
     const covers=(periods,date)=>periods==null||periods.some(([start,end])=>start<=date&&date<=end);
@@ -55,10 +54,9 @@ const RmsSimple = (() => {
     const reason=hold?(period?.bloqueado?'Flutuação bloqueada.':'Esgotado ou em overbooking.')+' Manter a tarifa vigente quando capturada.':
       occupancy==null?'Ocupação indisponível.':!target.level?'Sem nível vinculado para esta noite.':
       'Ocupação '+occupancy.toLocaleString('pt-BR')+'%. '+period.nome+' · '+target.level.code+' · '+target.level.pct+'% sobre a base WEB de '+regime.toLowerCase()+'.';
-    return {current:channelPrices(vigenteWeb,0),observed:channelPrices(plan===0?reference?.web:null,discount),
+    return {current:channelPrices(vigenteWeb,0),
       proposed:channelPrices(vigenteWeb,discount),offer:offer?offer.nome+' · '+offer.desconto+'%':'Sem oferta elegível',
-      observedBand:reference?.level||'Sem aviso importado',band:hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—',
-      observedReason:reference?'Aviso '+reference.at+(plan===0?'. Valores reconstruídos com a oferta vigente.':'. Sem valor capturado para este regime.'):'Nenhum aviso importado para esta noite.',
+      levelLabel:hold?'Manter':target.level?target.level.code+' · +'+target.level.pct+'%':'—',band:hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—',
       reason,at:rates?.at};
   }
   async function show(data,hotel,isCurrent,refresh) {
@@ -92,7 +90,6 @@ const RmsSimple = (() => {
       el('hotelNote').textContent=stamp ? 'Ocupação lida em '+new Date(stamp).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+' (Bahia).' : 'Horário da leitura de ocupação não informado.';
       const captures=hotel.code==='PLAZA'?Object.values(data.rates).map(r=>r.at).filter(Boolean).sort():[];
       el('ratesStatus').textContent=captures.length ? 'Última captura tarifária: '+new Date(captures.at(-1)).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+'. Projeção por nível tarifário para dois adultos. Valores com a oferta elegível. MAP e PC exibem a proposta quando há base cadastrada.' : 'Aguardando captura dos tarifários deste hotel.';
-      const references=hotel.code==='PLAZA'?appliedBeeRates(data.beeHistory,data.catalog):new Map();
       const selected=new Set();let group='WEB Café';
       const tabs=el('simpleGroups');tabs.replaceChildren();
       for(const label of [...groups,'Todos os grupos']) {const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>{group=label;draw();};tabs.append(button);}
@@ -109,8 +106,7 @@ const RmsSimple = (() => {
         const body=table.createTBody();
         for(const day of days){const tr=body.insertRow(),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(day.date);check.setAttribute('aria-label','Selecionar '+day.date);check.onchange=()=>{check.checked?selected.add(day.date):selected.delete(day.date);count();};tr.insertCell().append(check);tr.insertCell().textContent=day.date.split('-').reverse().join('/');
           tr.insertCell().textContent=Number.isFinite(day.rate)?day.rate.toLocaleString('pt-BR')+'%':'—';
-          for(const g of chosen){const n=night(data,hotel,day,g,references),cells=labels.map(()=>tr.insertCell());triple(cells[0],n.current);cells[1].textContent=Array.isArray(n.offer)?[...new Set(n.offer)].length===1?n.offer[0]:n.offer.map((o,i)=>['STD','Luxo','Suíte'][i]+': '+o).join(' · '):n.offer;cells[2].textContent=n.observedBand;triple(cells[3],n.observed);cells[4].textContent=n.band;triple(cells[5],n.proposed);cells[6].textContent=n.reason;[1,2,4,6].forEach(i=>cells[i].classList.add('simple-reason'));
-            if(rooms.some(k=>Number.isFinite(n.observed[k])&&Number.isFinite(n.proposed[k])&&Math.round(n.observed[k]*100)!==Math.round(n.proposed[k]*100))){cells[5].classList.add('bee-difference');const badge=document.createElement('small');badge.textContent='Diverge do aviso importado';cells[5].append(badge);}
+          for(const g of chosen){const n=night(data,hotel,day,g),cells=labels.map(()=>tr.insertCell());triple(cells[0],n.current);cells[1].textContent=Array.isArray(n.offer)?[...new Set(n.offer)].length===1?n.offer[0]:n.offer.map((o,i)=>['STD','Luxo','Suíte'][i]+': '+o).join(' · '):n.offer;cells[2].textContent=n.levelLabel;triple(cells[3],n.proposed);cells[4].textContent=n.band;triple(cells[5],n.proposed);cells[6].textContent=n.reason;[1,2,4,6].forEach(i=>cells[i].classList.add('simple-reason'));
           }
         }
         count();refresh?.();
