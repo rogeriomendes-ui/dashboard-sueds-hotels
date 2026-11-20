@@ -21,6 +21,13 @@ const RmsSimple = (() => {
     const channelAvailability = Math.floor(Math.max(0, day.available) * 4 / 5);
     return (day.apartments - channelAvailability) / day.apartments * 100;
   }
+  function levelDescription(level) {
+    if (!level) return '—';
+    const parts=[level.code,level.name].filter(Boolean);
+    const percentages=(level.name || '').matchAll(/(\d+(?:[.,]\d+)?)\s*%/g);
+    if (!Array.from(percentages).some(match=>Number(match[1].replace(',','.'))===Number(level.pct))) parts.push('+'+level.pct+'%');
+    return parts.join(' · ');
+  }
   function night(data, hotel, day, group) {
     const [channel, meal]=group.split(' ');
     const plan=['Café','MAP','PC'].indexOf(meal);
@@ -61,7 +68,7 @@ const RmsSimple = (() => {
       period.nome+' · '+target.level.code;
     return {current:channelPrices(vigenteWeb,0),
       proposed:channelPrices(vigenteWeb,discount),offer:offer?(Array.from(offer.nome.matchAll(/(\d+(?:[.,]\d+)?)\s*%/g)).some(m=>Number(m[1].replace(',','.'))===offer.desconto)?offer.nome:offer.nome+' · '+offer.desconto+'%'):'Sem oferta elegível',
-      levelLabel:hold?'Manter':target.level?target.level.code+' · +'+target.level.pct+'%':'—',band:hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—',
+      levelLabel:hold?'Manter':levelDescription(target.level),band:hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—',
       reason,at:rates?.at};
   }
   async function show(data,hotel,isCurrent,refresh) {

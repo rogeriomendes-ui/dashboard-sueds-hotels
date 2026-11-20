@@ -38,8 +38,9 @@ test('WEB vigente vem do nível e SITE e NET derivam do WEB com o maior desconto
 });
 test('simula o nível Omnibees pela ocupação mesmo com aviso anterior diferente',()=>{
   const data=fixture();
+  data.catalog.bases[0].levels.at(-1).name='Derivada feriados 30%';
   data.beeHistory=[{level:'L30',nights:[day.date]}];
-  for(const [rate,label] of [[35,'L0 · +0%'],[55,'L15 · +15%'],[90,'L30 · +30%'],[99,'Manter'],[100,'Manter'],[null,'—']]){
+  for(const [rate,label] of [[35,'L0 · Nível 0 · +0%'],[55,'L15 · Nível 15 · +15%'],[90,'L30 · Derivada feriados 30%'],[99,'Manter'],[100,'Manter'],[null,'—']]){
     assert.equal(simple.night(data,hotel,kpiDay(rate),'WEB Café').levelLabel,label);
   }
 });
