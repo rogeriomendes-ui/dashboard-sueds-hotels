@@ -1,11 +1,9 @@
-import { indexarOmnibees } from "./inventario-kpi.mjs";
 import { properties } from "./inventario-regra.mjs";
 const form = document.querySelector("#periodo");
 const result = document.querySelector("#resultado");
 const send = document.querySelector("#enviar");
 const status = document.querySelector("#estado");
 const progress = document.querySelector("#andamento");
-const file = document.querySelector("#canal");
 const endpoint = "/api/portal/inventario-pontual";
 const today = new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date());
 const stamp = new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Sao_Paulo"});
@@ -25,18 +23,17 @@ function invalidate() {
   result.replaceChildren();
   status.textContent = "";
 }
-function render(plan, snapshot) {
+function render(plan) {
   const table = document.createElement("table");
   table.className = "occupancy-table";
   const cell = (row,tag,value) => { const el = document.createElement(tag); el.textContent = value ?? "—"; row.append(el); };
   const header = table.createTHead().insertRow();
-  const compare = snapshot ? indexarOmnibees(snapshot) : null;
-  for (const name of ["Noite","Apartamento","Capacidade","Disponíveis no Portal","Disponíveis após envio","Ocupados a lançar","Captura (Brasília)",...(compare?["Captura Omnibees"]:[])]) cell(header,"th",name);
+  for (const name of ["Noite","Apartamento","Capacidade","Disponíveis no Portal","Disponíveis após envio","Ocupados a lançar","Captura (Brasília)"]) cell(header,"th",name);
   const body = table.createTBody();
   for (const r of plan.rows) {
     const row = body.insertRow(), time = Date.parse(r.capturedAt);
     for (const value of [br(r.date),properties[plan.hotel]?.rooms[r.code] || r.code,r.capacity,r.available,r.targetAvailable,r.targetOccupied,
-      Number.isFinite(time)?stamp.format(time):null,...(compare?[compare(r)]:[])]) cell(row,"td",value);
+      Number.isFinite(time)?stamp.format(time):null]) cell(row,"td",value);
   }
   const section = document.createElement("section");
   section.className = "occupancy-hotel occupancy-scroll";
@@ -46,7 +43,6 @@ function render(plan, snapshot) {
   result.replaceChildren(section);
 }
 form.addEventListener("input",invalidate);
-file.addEventListener("change",invalidate);
 form.addEventListener("submit",async event => {
   event.preventDefault(); invalidate();
   const current = version;
@@ -54,10 +50,9 @@ form.addEventListener("submit",async event => {
   if (scope.end < scope.start) { status.textContent="Confira as datas do período."; return; }
   status.textContent="Preparando prévia da captura do Portal…";
   try {
-    const snapshot = file.files[0] ? JSON.parse(await file.files[0].text()) : null;
     const plan = await request(endpoint,{action:"preview",...scope});
     if (current !== version) return;
-    render(plan,snapshot);
+    render(plan);
     preview=plan;
     send.hidden=!plan.id;
     send.disabled=false;
