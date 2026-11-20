@@ -17,26 +17,48 @@ const RmsSimple = (() => {
     return result;
   }
   function night(data, hotel, day, group, references) {
-    const supported = hotel.code === 'PLAZA' && group.endsWith('Café');
-    if (!supported) return {current:{}, observed:{}, proposed:{}, offer:'Aguardando captura', observedBand:'—', band:'—', observedReason:'Sem leitura deste tarifário e regime.', reason:'Aguardando grade e derivações confirmadas.'};
-    const rates = data.rates[day.date];
-    const period = (typeof RmsRules!=="undefined"?RmsRules:require("./rms-rules")).forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
-    const occupancy = Number.isFinite(day.rate) ? day.rate : null;
-    const target = plazaLevelComparison(data.catalog,period,day.date,occupancy);
-    const decision = beeWebDecision(target,rates?.web,occupancy>=100 || !!period?.bloqueado);
-    const reference = references.get(day.date);
-    const current = project(rates?.web,rates,group);
-    const proposed = project(decision.prices,rates,group);
-    const observed = project(reference?.web,rates,group);
-    const offer = group === 'SITE Café'
-      ? rooms.map(room=>{const q=rates?.site?.[room];return q ? (q.offer || 'Sem oferta')+(q.discount ? ' · '+q.discount+'%' : '') : 'Não conferida';})
-      : 'Oferta não conferida; valores regulares';
-    const reason = period?.bloqueado ? 'Flutua\u00e7\u00e3o bloqueada neste conjunto. Manter vigente.' : occupancy==null ? 'Ocupação indisponível.' : occupancy>=100 ? 'Esgotado ou overbooking: manter vigente.' : !target.level ? 'Sem nível vinculado para esta noite.' :
-      'Ocupação KPI '+occupancy.toLocaleString('pt-BR',{maximumFractionDigits:2})+'%. '+period.nome+' · '+target.level.code+'.'+(decision.retained.length ? ' Mantida a vigente nas categorias em que a faixa seria menor.' : ' Aplicar o nível cadastrado, sem redução.');
-    return {current,observed,proposed,offer,
-      observedBand:reference?.level || 'Sem aviso importado',
-      band:occupancy>=100 || period?.bloqueado ? 'Manter' : target.level ? '+'+target.level.pct+'% sobre a base' : '—',
-      observedReason:reference ? 'Aviso '+reference.at+'. Valores reconstruídos da grade importada, com a oferta da leitura atual; não são comprovação da gravação na Omnibees.' : 'Nenhum aviso importado para esta noite.',
+    const [channel, meal]=group.split(' ');
+    const plan=['Café','MAP','PC'].indexOf(meal);
+    const regime=['CAFÉ DA MANHÃ','MEIA PENSÃO','PENSÃO COMPLETA'][plan];
+    if(hotel.code!=='PLAZA')return {current:{},observed:{},proposed:{},offer:'Aguardando captura',observedBand:'—',band:'—',observedReason:'Sem aviso.',reason:'Aguardando grade.'};
+    const rates=data.rates[day.date];
+    const rules=typeof RmsRules!=='undefined'?RmsRules:require('./rms-rules');
+    const period=rules.forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
+    const occupancy=Number.isFinite(day.rate)?day.rate:null;
+    const target=plazaLevelComparison(data.catalog,period,day.date,occupancy,plan);
+    const hold=period?.bloqueado||occupancy>=100;
+    const currentWeb=plan===0?rates?.web:null;
+    const reference=references.get(day.date);
+    const tariff=(channel==='NET'?'Tarifa Net':'Tarifário '+channel)+' - '+regime;
+    const weekday=(new Date(day.date+'T12:00:00Z').getUTCDay()+6)%7;
+    const covers=(periods,date)=>periods==null||periods.some(([start,end])=>start<=date&&date<=end);
+    const norm=value=>value.trim().toLocaleUpperCase('pt-BR');
+    const eligible=data.offers.filter(o=>{
+      const hours=o.horario_reserva;
+      const withinHours=!hours||(hours[0]<=hours[1]?hours[0]<=data.saleTime&&data.saleTime<=hours[1]:data.saleTime>=hours[0]||data.saleTime<=hours[1]);
+      return o.tipo==='Desconto'&&Number.isFinite(o.desconto)&&!o.noites_gratis&&!(o.noites>1)&&withinHours&&
+        covers(o.reserva,data.today)&&covers(o.estadia,day.date)&&(!o.dias_estadia||o.dias_estadia.includes(weekday))&&
+        o.tarifarios.some(t=>norm(t)===norm(tariff));
+    });
+    const offer=eligible.reduce((best,o)=>!best||o.desconto>best.desconto?o:best,null);
+    const vigenteWeb=hold?currentWeb:target.simulated;
+    function channelPrices(web,discount){
+      return Object.fromEntries(rooms.map(room=>{
+        const price=web?.[room];
+        if(!(price>0))return [room,null];
+        const cents=Math.round(Math.round(price*100)*(100-discount)/100);
+        const derived=cents===0?0:plazaPrices(cents/100,0,regime)?.[channel.toLowerCase()];
+        return [room,derived??null];
+      }));
+    }
+    const discount=offer?.desconto??0;
+    const reason=hold?(period?.bloqueado?'Flutuação bloqueada.':'Esgotado ou em overbooking.')+' Manter a tarifa vigente quando capturada.':
+      occupancy==null?'Ocupação indisponível.':!target.level?'Sem nível vinculado para esta noite.':
+      'Ocupação '+occupancy.toLocaleString('pt-BR')+'%. '+period.nome+' · '+target.level.code+' · '+target.level.pct+'% sobre a base WEB de '+regime.toLowerCase()+'.';
+    return {current:channelPrices(vigenteWeb,0),observed:channelPrices(plan===0?reference?.web:null,discount),
+      proposed:channelPrices(vigenteWeb,discount),offer:offer?offer.nome+' · '+offer.desconto+'%':'Sem oferta elegível',
+      observedBand:reference?.level||'Sem aviso importado',band:hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—',
+      observedReason:reference?'Aviso '+reference.at+(plan===0?'. Valores reconstruídos com a oferta vigente.':'. Sem valor capturado para este regime.'):'Nenhum aviso importado para esta noite.',
       reason,at:rates?.at};
   }
   async function show(data,hotel,isCurrent,refresh) {
@@ -53,6 +75,9 @@ const RmsSimple = (() => {
         const response=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:'ocupacao_plaza'})});
         if(!response.ok) throw Error('Não foi possível consultar a ocupação.');
         days=(await response.json()).days;
+        const offers=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:'ofertas_consultar',hotel_id:hotel.id})});
+        if(!offers.ok)throw Error('Não foi possível consultar as ofertas do Plaza.');
+        data={...data,offers:(await offers.json()).ofertas.map(row=>row.detalhes),saleTime:new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit'})};
       } else {
         const params=new URLSearchParams({hotel:names[hotel.code]||hotel.name,start:data.today,end:'2027-12-31'});
         const response=await fetch('/api/dashboard/mapa-ocupacao?'+params);
@@ -66,7 +91,7 @@ const RmsSimple = (() => {
       const stamp=days.map(d=>d.capturedAt).filter(Boolean).sort().at(-1);
       el('hotelNote').textContent=stamp ? 'Ocupação lida em '+new Date(stamp).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+' (Bahia).' : 'Horário da leitura de ocupação não informado.';
       const captures=hotel.code==='PLAZA'?Object.values(data.rates).map(r=>r.at).filter(Boolean).sort():[];
-      el('ratesStatus').textContent=captures.length ? 'Última captura tarifária: '+new Date(captures.at(-1)).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+'. MAP e PC aguardam captura. WEB e NET exibem valores regulares; ofertas confirmadas apenas no SITE Café.' : 'Aguardando captura dos tarifários deste hotel.';
+      el('ratesStatus').textContent=captures.length ? 'Última captura tarifária: '+new Date(captures.at(-1)).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+'. Projeção por nível tarifário para dois adultos. Valores com a oferta elegível. MAP e PC exibem a proposta quando há base cadastrada.' : 'Aguardando captura dos tarifários deste hotel.';
       const references=hotel.code==='PLAZA'?appliedBeeRates(data.beeHistory,data.catalog):new Map();
       const selected=new Set();let group='WEB Café';
       const tabs=el('simpleGroups');tabs.replaceChildren();
@@ -79,7 +104,7 @@ const RmsSimple = (() => {
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
         const head=table.createTHead().insertRow();
         for(const label of ['Selecionar','Noite'])head.appendChild(document.createElement('th')).textContent=label;
-        const labels=['Tarifas vigentes','Oferta aplicada','Flutuação Omnibees','Novo valor Omnibees','Motivo da flutuação Omnibees','Flutuação RMS','Novo valor RMS','Motivo da flutuação RMS'];
+        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Novo valor Omnibees','Motivo da flutuação Omnibees','Flutuação RMS','Tarifa com oferta aplicada','Motivo da flutuação RMS'];
         for(const g of chosen) for(const label of labels){const th=document.createElement('th'),title=document.createElement('span');title.className='simple-group-title';title.textContent=g;th.append(title,document.createTextNode(label));head.append(th);}
         const body=table.createTBody();
         for(const day of days){const tr=body.insertRow(),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(day.date);check.setAttribute('aria-label','Selecionar '+day.date);check.onchange=()=>{check.checked?selected.add(day.date):selected.delete(day.date);count();};tr.insertCell().append(check);tr.insertCell().textContent=day.date.split('-').reverse().join('/');
