@@ -1,6 +1,7 @@
 /* Simulação independente: não chama endpoints de aplicação de tarifas. */
 const RmsSimple = (() => {
   const rooms = ['standard','luxo','suite'];
+  const standardOnlyHotels = new Set(['CABRALIA','PREMIUM','SEGUNDO_SOL']);
   const groups = ['WEB Café','WEB MAP','WEB PC','SITE Café','SITE MAP','SITE PC','NET Café','NET MAP','NET PC'];
   const baseAliases = {
     PREMIUM: {
@@ -179,14 +180,15 @@ const RmsSimple = (() => {
       el('ratesStatus').textContent=captures.length ? 'Última captura tarifária: '+new Date(captures.at(-1)).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+'. Projeção por nível tarifário para dois adultos.' :
         hotel.code==='TRANCOSO'?'Grade WEB cadastrada para dois adultos. Flutuação desligada.':
         data.hotelBases?.bases.size?'Projeção para dois adultos com os níveis e as ofertas cadastrados no Portal.':'Sem grade tarifária cadastrada para dois adultos.';
-      const selected=new Set();let group='WEB Café';
+      let group='WEB Café';
       const tabs=el('simpleGroups');tabs.replaceChildren();
       for(const label of [...groups,'Todos os grupos']) {const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>{group=label;draw();};tabs.append(button);}
       const format=n=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
-      function count(){el('simpleCount').textContent=selected.size+' noites selecionadas';el('simpleAll').checked=days.length>0&&selected.size===days.length;el('simpleAll').indeterminate=selected.size>0&&selected.size<days.length;}
-      function triple(cell,values){
+      function renderPrices(cell,values){
         cell.classList.add('simple-prices');
-        const keys=hotel.code==='TRANCOSO'?Object.keys(values):rooms;
+        let keys=rooms;
+        if(hotel.code==='TRANCOSO') keys=Object.keys(values);
+        if(standardOnlyHotels.has(hotel.code)) keys=['standard'];
         if(!keys.length) cell.textContent='—';
         keys.forEach(key=>{
           const row=document.createElement('div'),label=document.createElement('span'),price=document.createElement('strong');
@@ -198,7 +200,7 @@ const RmsSimple = (() => {
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
         const head=table.createTHead().insertRow();
-        for(const label of ['Selecionar','Noite'])head.appendChild(document.createElement('th')).textContent=label;
+        head.appendChild(document.createElement('th')).textContent='Noite';
         const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
         for(const g of chosen){
           for(const label of labels){
@@ -213,10 +215,12 @@ const RmsSimple = (() => {
           }
         }
         const body=table.createTBody();
-        for(const day of days){const tr=body.insertRow(),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(day.date);check.setAttribute('aria-label','Selecionar '+day.date);check.onchange=()=>{check.checked?selected.add(day.date):selected.delete(day.date);count();};tr.insertCell().append(check);tr.insertCell().textContent=day.date.split('-').reverse().join('/');
+        for(const day of days){
+          const tr=body.insertRow();
+          tr.insertCell().textContent=day.date.split('-').reverse().join('/');
           for(const g of chosen){
             const n=night(data,hotel,day,g);
-            triple(tr.insertCell(),n.current);
+            renderPrices(tr.insertCell(),n.current);
             if(g===chosen[0]){
               const channelRate=omnibeesOccupancy(day);
               tr.insertCell().textContent=channelRate===null?'—':Math.round(channelRate)+'%';
@@ -227,15 +231,15 @@ const RmsSimple = (() => {
               cell.classList.add('simple-reason');
               cell.textContent=value;
             }
-            triple(tr.insertCell(),n.proposed);
+            renderPrices(tr.insertCell(),n.proposed);
             const reason=tr.insertCell();
             reason.classList.add('simple-reason');
             reason.textContent=n.reason;
           }
         }
-        count();refresh?.();
+        refresh?.();
       }
-      el('simpleAll').onchange=e=>{selected.clear();if(e.target.checked)days.forEach(d=>selected.add(d.date));draw();};draw();
+      draw();
     }catch(error){if(isCurrent())el('hotelNote').textContent=error.message;}
   }
   return {show,night,project,groups,indexBases};

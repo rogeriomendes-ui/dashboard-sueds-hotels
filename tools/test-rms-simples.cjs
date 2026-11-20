@@ -81,7 +81,7 @@ test('API bloqueia aplicação e automação para RMS Simples sem escrever',asyn
   const client={from(name){assert.equal(name,'rms_politicas');return {select(){return {eq(){return {maybeSingle:async()=>({data:{modelo:'simples'}})}}}}}}};
   for(const tipo of ['flutuacao_aplicar','flutuacao_automatica']){const result=await sandbox.module.exports(client,{tipo},hotel,{},'', '',()=>true,{});assert.equal(result.status,409);}
 });
-test('painel renderiza nove grupos, repete títulos e conserva seleção local',async()=>{
+test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   class Element {
     constructor(tag='div'){this.tag=tag;this.children=[];this.classList={add(){},remove(){}};this.attributes={};this.textContent='';}
     append(...items){this.children.push(...items);} appendChild(item){this.append(item);return item;}
@@ -96,18 +96,17 @@ test('painel renderiza nove grupos, repete títulos e conserva seleção local',
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
   const table=ids.get('nights');
   const columns=()=>table.children[0].children[0].children.map(cell=>cell.children.at(-1)?.textContent||cell.textContent);
-  const expected=['Selecionar','Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
+  const expected=['Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
   assert.deepEqual(columns(),expected);
   tabs.children.at(-1).onclick();
   const row=table.children[1].children[0];
-  assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[2],...expected.slice(5)])));
+  assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[1],...expected.slice(4)])));
   assert.equal(row.children.length,columns().length);
-  assert.equal(row.children[2].children.length,3);
-  assert.equal(row.children[3].textContent,'64%');
-  assert.equal(row.children[4].textContent,'55%');
-  assert.doesNotMatch(row.children[8].textContent,/ocupação|64%/i);
-  assert.equal(row.children[8].textContent,"Janeiro · L15");
-  ids.get('simpleAll').onchange({target:{checked:true}});
-  assert.equal(ids.get('simpleCount').textContent,'1 noites selecionadas');
+  assert.equal(row.children[0].textContent,'23/01/2027');
+  assert.equal(row.children[1].children.length,3);
+  assert.equal(row.children[2].textContent,'64%');
+  assert.equal(row.children[3].textContent,'55%');
+  assert.doesNotMatch(row.children[7].textContent,/ocupação|64%/i);
+  assert.equal(row.children[7].textContent,"Janeiro · L15");
 });
 
