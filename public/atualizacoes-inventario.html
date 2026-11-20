@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR" data-required-environment="mapa_ocupacao" class="manager-auth-pending">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atualizações de inventário | Portal SUEDS</title>
+  <script src="/manager-auth.js"></script>
+  <link rel="stylesheet" href="/mapa-ocupacao.css">
+</head>
+<body>
+<main class="occupancy-page">
+  <header class="occupancy-header"><div><p class="eyebrow">Comercial</p><h1>Atualizações de inventário</h1><p>O Portal usa a captura diária já disponível. A oferta é 80% do saldo de cada categoria, arredondado para baixo.</p></div></header>
+  <form id="periodo" class="filters">
+    <label>Data inicial<input type="date" name="start" required></label>
+    <label>Data final<input type="date" name="end" required></label>
+    <label>Hotel<select name="hotel" required><option value="">Selecione o hotel</option></select></label>
+    <div class="filter-actions"><button class="button primary" type="submit">Gerar prévia</button></div>
+  </form>
+  <section class="occupancy-hotel"><h2>Omnibees</h2>
+    <label>Captura da Omnibees para comparação (JSON opcional) <input id="canal" type="file" accept=".json,application/json"></label>
+    <p>Envio pontual pelo notebook. Rotina diária desligada.</p>
+
+
+  </section>
+  <p id="estado" role="status"></p>
+  <div id="resultado"></div>
+  <button id="enviar" class="button primary" type="button" hidden>Confirmar e enviar à Omnibees</button>
+  <p id="andamento" role="status"></p>
+</main>
+<script type="module" src="/atualizacoes-inventario.mjs"></script>
+</body>
+</html>

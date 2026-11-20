@@ -143,6 +143,7 @@ const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
@@ -4647,7 +4648,7 @@ function buildKpiOccupancyMap(sourceRows = [], query = {}) {
     apartments: item.apartments,
     days: biReportsDateKeys(period.start, period.end).map((date) => {
       const reading = readings.get(`${item.label}|${date}`);
-      return reading ? { date, apartments: reading.apartments, occupied: reading.occupied,
+      return reading ? { date, capturedAt: reading.capturedAt, apartments: reading.apartments, occupied: reading.occupied,
         available: reading.available, maintenance: reading.maintenance,
         ...(reading.roomTypes.length ? { roomTypes: reading.roomTypes } : {}),
         rate: reading.apartments ? reading.occupied / reading.apartments * 100 : 0 }
@@ -10412,6 +10413,10 @@ if (require.main === module) {
 }
 
 module.exports = {
+  async inventoryOccupancy(start, end, hotel) {
+    const rows = await getSheetValues(KPI_OCCUPANCY_RANGE);
+    return buildKpiOccupancyMap(rows, { start, end, hotel });
+  },
   async plazaRmsOccupancy(start) {
     const rows = await getSheetValues(KPI_OCCUPANCY_RANGE);
     const map = buildKpiOccupancyMap(rows, { hotel: "SUEDS PLAZA", start, end: "2027-12-31" });

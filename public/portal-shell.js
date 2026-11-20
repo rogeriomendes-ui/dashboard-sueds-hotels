@@ -17,6 +17,7 @@
     bi_relatorios_kpi: { url: "/bi-relatorios-kpi.html?v=20261006-kpi-desktop-panels", permission: "bi_relatorios_kpi", title: "BI - Relatórios by KPI" },
     rms: { url: "/rms.html", permission: "rms", title: "RMS" },
     rms_pisos: { url: "/rms.html?aba=pisos", permission: "rms", title: "Configurações RMS" },
+    inventario: { url: "/atualizacoes-inventario.html", permission: "mapa_ocupacao", title: "Atualizações de inventário" },
     mapa_ocupacao: { url: "/mapa-ocupacao.html?v=20261008-ocupacao-diaria", permission: "mapa_ocupacao", title: "Mapa de ocupação" },
     mesas_vip_reveillon: { url: "/mesas-vip-reveillon", permission: "mesas_vip_reveillon", title: "Mesas VIP Réveillon" },
     opinarios_rede: { url: "/dashboard-operacional-tv.html", permission: "opinarios_rede", title: "Opinários de todos os hotéis" },
