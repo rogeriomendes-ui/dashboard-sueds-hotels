@@ -173,12 +173,12 @@ module.exports = async function rms(req, res) {
         const changed=periods.data.find(p=>p.inicio===body.inicio && p.hotel_id===body.hotel_id);
         if(changed) Object.assign(changed,saved.data);
       } else if (body?.tipo === "modelo") {
-        if (!hotels.data.some(h=>h.id===body.hotel_id) || !["proprio","beeprice","simples"].includes(body.modelo))
+        if (!hotels.data.some(h=>h.id===body.hotel_id) || !["proprio","simples"].includes(body.modelo))
           return json(res,400,{error:"Hotel ou modelo inválido."});
         const saved=await client.from("rms_politicas").upsert({hotel_id:body.hotel_id,modelo:body.modelo},{onConflict:"hotel_id"});
         if(saved.error) throw saved.error;
       } else if (body?.tipo === "politica") {
-        if (body.modelo!==undefined && !["beeprice","proprio","simples"].includes(body.modelo))
+        if (body.modelo!==undefined && !["proprio","simples"].includes(body.modelo))
           return json(res,400,{error:"Modelo indisponível para este hotel."});
         const fields = ["piso","pct50","pct60","pct70","pct80","pct90"];
         if (!hotels.data.some(h=>h.id===body.hotel_id) || !fields.every(key=>{
