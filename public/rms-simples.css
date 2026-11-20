@@ -2,15 +2,16 @@
 #simpleGroups button{background:white;color:#165b60;padding:6px 10px;font-size:13px}
 #simpleGroups button[aria-pressed=true]{background:#165b60;color:white}
 #simpleControls p{font-size:12px;color:#506571}
-#nights.simple-grid{width:max-content;min-width:100%;font-size:12px}
-#nights.simple-grid th{white-space:normal;min-width:145px;max-width:190px}
-#nights.simple-grid :is(th,td):first-child{min-width:100px;background:white;z-index:3}
+#nights.simple-grid{width:100%;font-size:12px}
+#nights.simple-grid th{white-space:normal;min-width:120px;max-width:190px}
+#nights.simple-grid :is(th,td):first-child{min-width:85px;width:85px;background:white;z-index:3}
 #nights.simple-grid th:first-child{background:#e7f1f2;z-index:4}
-#nights.simple-grid .simple-group-title{display:block;margin-bottom:8px;color:#165b60;font-weight:700}
-#nights.simple-grid .simple-prices{min-width:145px}
-#nights.simple-grid .simple-prices div{display:flex;justify-content:space-between;gap:16px;line-height:1.8}
+#nights.simple-grid .simple-group-title{display:block;margin-bottom:4px;color:#165b60;font-weight:700}
+#nights.simple-grid .simple-prices{min-width:120px}
+#nights.simple-grid .simple-price-list{display:inline-grid;grid-template-columns:max-content max-content;align-items:baseline;column-gap:8px;line-height:1.6}
 #nights.simple-grid .simple-prices span{font-size:11px;color:#506571}
+#nights.simple-grid .simple-price-list strong{text-align:right;font-variant-numeric:tabular-nums}
 #nights.simple-grid .simple-prices small{display:block;white-space:normal;max-width:160px;margin-top:4px}
-#nights.simple-grid .simple-reason{white-space:normal;min-width:160px;max-width:190px;line-height:1.5}
+#nights.simple-grid .simple-reason{white-space:normal;min-width:130px;max-width:190px;line-height:1.5}
 #nights.simple-grid :is(th,td):is(:nth-child(3),:nth-child(4)){box-sizing:border-box;min-width:0;width:85px;max-width:85px;padding-inline:4px;text-align:center;white-space:normal}
 #nights.simple-grid th:is(:nth-child(3),:nth-child(4)){white-space:pre}

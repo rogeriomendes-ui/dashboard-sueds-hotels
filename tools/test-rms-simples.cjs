@@ -103,7 +103,8 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[1],...expected.slice(4)])));
   assert.equal(row.children.length,columns().length);
   assert.equal(row.children[0].textContent,'23/01/2027');
-  assert.equal(row.children[1].children.length,3);
+  assert.deepEqual(row.children[1].children[0].children.map(item=>item.textContent),
+    ['STD','1.150,00','Luxo','1.380,00','Suíte','1.725,00']);
   assert.equal(row.children[2].textContent,'64%');
   assert.equal(row.children[3].textContent,'55%');
   assert.doesNotMatch(row.children[7].textContent,/ocupação|64%/i);

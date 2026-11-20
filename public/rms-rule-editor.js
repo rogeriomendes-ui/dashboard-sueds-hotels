@@ -57,12 +57,13 @@ const RmsRuleEditor=(()=>{
       if(copy){g.id=null;g.origens=[];g.gravado_em=null;g.nome+=' — cópia';}
       el('ruleDialogTitle').textContent=remove?'Excluir conjunto da simulação':source&&!copy?'Edição de conjunto de flutuação':'Novo conjunto de flutuação';
       const form=el('ruleSetForm');form.replaceChildren();
+      const fields=node('div');fields.className='rule-editor-fields';
       const name=input('text',g.nome);name.maxLength=120;
       const base=node('select');base.required=true;base.add(new Option('Selecione a base original',''));baseNames.forEach(n=>base.add(new Option(n,n)));base.value=g.base_origem;
-      form.append(field('Descrição',name),field('Tarifário base WEB',base));
+      fields.append(field('Descrição',name),field('Tarifário base WEB',base));
       const dates=node('fieldset');dates.append(node('legend','Datas e dias da semana'));const dateRows=node('div');dates.append(dateRows);
       function renderDates(){dateRows.replaceChildren();for(const p of g.periodos){const row=node('div');row.className='rule-date';const start=input('date',p.inicio),end=input('date',p.fim);start.onchange=()=>p.inicio=start.value;end.onchange=()=>p.fim=end.value;row.append(field('Válida de',start),field('Até',end));const days=node('div');days.className='rule-week';week.forEach((day,d)=>{const c=node('input');c.type='checkbox';c.checked=p.dias.includes(d);c.setAttribute('aria-label',day);c.onchange=()=>{p.dias=Array.from(days.querySelectorAll('input')).flatMap((n,i)=>n.checked?[i]:[]);};const l=field(day[0],c);l.title=day;days.append(l);});row.append(days,button('Remover período',()=>{g.periodos=g.periodos.filter(x=>x!==p);renderDates();}));dateRows.append(row);}}
-      dates.append(button('+ Adicionar período',()=>{g.periodos.push({inicio:'',fim:'',dias:[0,1,2,3,4,5,6]});renderDates();}));renderDates();form.append(dates);
+      dates.append(button('+ Adicionar período',()=>{g.periodos.push({inicio:'',fim:'',dias:[0,1,2,3,4,5,6]});renderDates();}));renderDates();fields.append(dates);
       const bands=node('fieldset');bands.append(node('legend','Faixa de ocupação e nível tarifário'));const bandRows=node('div');bands.append(bandRows);
       function levels(){const b=catalog?.bases.find(b=>b.name===base.value);return b?b.levels:[...new Set([0,...groups.flatMap(x=>x.faixas.map(f=>f.pct)),...g.faixas.map(f=>f.pct)])].sort((a,b)=>a-b).map(pct=>({pct,name:pct?base.value+' +'+pct+'%':base.value+' · Base'}));}
       function renderBands(){
@@ -70,17 +71,17 @@ const RmsRuleEditor=(()=>{
         g.faixas.forEach((f,i)=>{f.de=from;from=Math.round(f.ate*10+1)/10;const row=node('div');row.className='rule-band';const low=input('number',f.de);low.readOnly=true;const high=input('number',f.ate);high.min=f.de;high.max=100;high.step='.1';high.readOnly=i===g.faixas.length-1;high.onchange=()=>{f.ate=Number(high.value);renderBands();};const level=node('select');level.required=true;level.add(new Option('Selecione um nível',''));levels().forEach(l=>level.add(new Option(l.name,l.pct)));level.value=f.pct;level.onchange=()=>f.pct=Number(level.value);row.append(field('De (%)',low),field('Até (%)',high),field('Preço / nível',level),button('Remover faixa',()=>{g.faixas.splice(i,1);if(g.faixas.length)g.faixas.at(-1).ate=100;renderBands();}));bandRows.append(row);});
       }
       base.onchange=renderBands;
-      bands.append(button('+ Adicionar faixa',()=>{const last=g.faixas.at(-1);if(last){if(last.de>=99.9)return;last.ate=Math.round((last.de+100)/2*10)/10;}g.faixas.push({de:last?last.ate+.1:0,ate:100,pct:0});renderBands();}));renderBands();form.append(bands);
-      const blocked=node('input');blocked.type='checkbox';blocked.checked=g.bloqueado;form.append(field('Bloquear flutuação deste conjunto na simulação (manter tarifa vigente)',blocked));
-      const audit=node('p',g.gravado_em?`Última gravação: ${new Date(g.gravado_em).toLocaleString('pt-BR')} · ${g.gravado_por||''}`:'Configuração importada. Alterações somente no Portal.');form.append(audit);
-      if(copy)form.append(node('p','Altere as datas da cópia para não sobrepor o conjunto original.'));
-      if(remove)form.append(node('p','A exclusão retira o conjunto da simulação do Portal. Os registros importados e o BeePrice serão preservados.'));
+      bands.append(button('+ Adicionar faixa',()=>{const last=g.faixas.at(-1);if(last){if(last.de>=99.9)return;last.ate=Math.round((last.de+100)/2*10)/10;}g.faixas.push({de:last?last.ate+.1:0,ate:100,pct:0});renderBands();}));renderBands();fields.append(bands);
+      const blocked=node('input');blocked.type='checkbox';blocked.checked=g.bloqueado;fields.append(field('Bloquear flutuação deste conjunto na simulação (manter tarifa vigente)',blocked));
+      const audit=node('p',g.gravado_em?`Última gravação: ${new Date(g.gravado_em).toLocaleString('pt-BR')} · ${g.gravado_por||''}`:'Configuração importada. Alterações somente no Portal.');fields.append(audit);
+      if(copy)fields.append(node('p','Altere as datas da cópia para não sobrepor o conjunto original.'));
+      if(remove)fields.append(node('p','A exclusão retira o conjunto da simulação do Portal. Os registros importados e o BeePrice serão preservados.'));
       const msg=node('p');msg.setAttribute('role','status');
       const save=node('button',remove?'Confirmar exclusão no Portal':'Salvar no Portal');
       save.type='submit';
       const actions=node('div');actions.className='rule-editor-actions';
-      actions.append(save,button('Cancelar',()=>el('ruleDialog').close()));
-      form.append(msg,actions);
+      actions.append(button('Cancelar',()=>el('ruleDialog').close()),save);
+      form.append(fields,msg,actions);
       form.onsubmit=async e=>{
         e.preventDefault();
         if(save.disabled||(!remove&&!window.confirm('Deseja mesmo salvar?')))return;

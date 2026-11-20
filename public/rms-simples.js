@@ -189,12 +189,19 @@ const RmsSimple = (() => {
         let keys=rooms;
         if(hotel.code==='TRANCOSO') keys=Object.keys(values);
         if(standardOnlyHotels.has(hotel.code)) keys=['standard'];
-        if(!keys.length) cell.textContent='—';
+        if(!keys.length) {
+          cell.textContent='—';
+          return;
+        }
+        const prices=document.createElement('div');
+        prices.className='simple-price-list';
         keys.forEach(key=>{
-          const row=document.createElement('div'),label=document.createElement('span'),price=document.createElement('strong');
+          const label=document.createElement('span'),price=document.createElement('strong');
           label.textContent=({standard:'STD',luxo:'Luxo',suite:'Suíte'})[key] || key;
-          price.textContent=format(values[key]);row.append(label,price);cell.append(row);
+          price.textContent=format(values[key]);
+          prices.append(label,price);
         });
+        cell.append(prices);
       }
       function draw(){
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
