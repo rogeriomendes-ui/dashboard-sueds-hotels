@@ -30,3 +30,33 @@ export function revisar(rows, hotel, start, end) {
   const nights = 1 + (Date.parse(end) - Date.parse(start)) / 86400000;
   return seen.size === nights * expected.size ? "" : "Cobertura incompleta do período.";
 }
+
+export function planoAssistido(pedido) {
+  const { hotel, start, end, rows } = pedido;
+  if (start !== end) throw Error("O modo assistido atende uma noite por pedido.");
+  const issue = revisar(rows, hotel, start, end);
+  if (issue) throw Error(issue);
+  const property = properties[hotel];
+  return {
+    hotel: property.name, date: start,
+    rooms: rows.map(({ code, capacity, targetOccupied, targetAvailable }) => ({
+      name: property.rooms[code], capacity, occupied: targetOccupied, available: targetAvailable
+    }))
+  };
+}
+
+export function conferirLeitura(plano, leitura) {
+  const normalizar = s => typeof s === "string" ? s.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase() : "";
+  if (normalizar(leitura?.hotel) !== normalizar(plano.hotel)) return "A propriedade aberta diverge do pedido.";
+  if (leitura.date !== plano.date) return "A noite aberta diverge do pedido.";
+  if (!Array.isArray(leitura.rooms) || leitura.rooms.length !== plano.rooms.length) return "Confira as categorias da grade.";
+  for (const expected of plano.rooms) {
+    const matches = leitura.rooms.filter(room => room?.name === expected.name);
+    if (matches.length !== 1) return "Categoria ausente ou repetida na grade: " + expected.name + ".";
+    const [actual] = matches;
+    if (actual.capacity !== expected.capacity || actual.occupied !== expected.occupied || actual.available !== expected.available)
+      return expected.name + " na grade: " + actual.occupied + " ocupados e " + actual.available +
+        " disponíveis. Esperado: " + expected.occupied + " ocupados e " + expected.available + " disponíveis, com capacidade " + expected.capacity + ".";
+  }
+  return "";
+}

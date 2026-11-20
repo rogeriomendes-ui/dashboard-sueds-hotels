@@ -49,12 +49,24 @@ module.exports = async function inventory(req, res) {
   try {
     const user = req.portalProfile;
     const isAdmin = user.roles.includes("admin_geral");
-    const { properties, validPeriod, revisar } = await import("../../public/inventario-regra.mjs");
+    const { properties, validPeriod, revisar, planoAssistido, conferirLeitura } = await import("../../public/inventario-regra.mjs");
     if (req.method === "GET") {
-      const id = new URL(req.url, "https://portal.invalid").searchParams.get("id");
-      if (!id) return json(res,200,{ hotels: Object.keys(properties), canSend: isAdmin });
+      const params = new URL(req.url, "https://portal.invalid").searchParams;
+      const id = params.get("id");
+      if (!id) {
+        let pending = null;
+        if (isAdmin && params.get("retomar") === "assistido")
+          pending = await one(table().select("id").eq("source",source).eq("payload->>owner",user.id)
+            .eq("payload->>state","assisted").order("id",{ascending:false}).limit(1));
+        return json(res,200,{ hotels:Object.keys(properties), canSend:isAdmin, pendingId:pending?.id || null });
+      }
       const job = await one(query().eq("id",id).eq("payload->>owner",user.id));
       if (!job) throw fail(404,"Pedido não encontrado.");
+      if (params.get("modo") === "assistido") {
+        if (!isAdmin) throw fail(403,"A conferência exige perfil de administrador.");
+        if (job.payload.state !== "assisted") throw fail(409,"Selecione um pedido confirmado para ajuste assistido.");
+        return json(res,200,{ id:job.id, ...planoAssistido(job.payload) });
+      }
       return json(res,200,summary(job));
     }
     if (req.method !== "POST") throw fail(405,"Método inválido.");
@@ -91,11 +103,28 @@ module.exports = async function inventory(req, res) {
     const job = await one(query().eq("id",b.id));
     if (!job) throw fail(404,"Pedido não encontrado.");
     const p = job.payload;
-    if (b.action === "confirm") {
+    if (b.action === "conferirAssistido") {
+      if (p.owner !== user.id) throw fail(403,"Pedido de outro usuário.");
+      if (p.mode !== "assisted" || !["assisted","finish"].includes(p.state)) throw fail(409,"Este pedido não está em ajuste assistido.");
+      const issue = conferirLeitura(planoAssistido(p),b.leitura);
+      if (issue) throw fail(409,issue);
+      if (p.state === "finish") return json(res,200,summary(job));
+      const saved = await update(job,{state:"finish",done:1,activeDay:p.start,verifiedAt:new Date().toISOString(),
+        message:"Grade conferida pela extensão após o ajuste manual."});
+      if (!saved) throw fail(409,"O pedido mudou. Consulte o andamento no Portal.");
+      return json(res,200,summary(saved));
+    }
+    if (b.action === "confirm" || b.action === "confirmarAssistido") {
       if (p.owner !== user.id) throw fail(403,"Prévia de outro usuário.");
-      if (p.state !== "preview") return json(res,200,summary(job));
+      const assisted = b.action === "confirmarAssistido";
+      if (assisted) {
+        if (p.state === "assisted") return json(res,200,summary(job));
+        if (!["preview","queued"].includes(p.state)) throw fail(409,"O pedido já está em execução ou foi encerrado.");
+        if (p.start !== p.end) throw fail(400,"Escolha uma única noite para o ajuste assistido.");
+        planoAssistido(p);
+      } else if (p.state !== "preview") return json(res,200,summary(job));
       if (p.start < new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date())) throw fail(409,"O período já começou no passado.");
-      const saved = await update(job,{state:"queued"});
+      const saved = await update(job,assisted ? {state:"assisted",mode:"assisted"} : {state:"queued"});
       if (!saved) throw fail(409,"O pedido já foi alterado. Consulte o andamento.");
       return json(res,200,summary(saved));
     }

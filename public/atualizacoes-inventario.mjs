@@ -2,6 +2,8 @@ import { properties } from "./inventario-regra.mjs";
 const form = document.querySelector("#periodo");
 const result = document.querySelector("#resultado");
 const send = document.querySelector("#enviar");
+const assisted = document.querySelector("#assistido");
+const adopt = document.querySelector("#assumir");
 const status = document.querySelector("#estado");
 const progress = document.querySelector("#andamento");
 const endpoint = "/api/portal/inventario-pontual";
@@ -20,6 +22,7 @@ function invalidate() {
   version++;
   preview = null;
   send.hidden = true;
+  assisted.hidden = true;
   result.replaceChildren();
   status.textContent = "";
 }
@@ -55,33 +58,59 @@ form.addEventListener("submit",async event => {
     render(plan);
     preview=plan;
     send.hidden=!plan.id;
-    send.disabled=false;
-    status.textContent=plan.issue || (plan.canSend?"Revise os ocupados a lançar antes de confirmar o envio.":"Consulta disponível. O envio exige perfil de administrador.");
+    assisted.hidden=!plan.id || plan.start!==plan.end;
+    assisted.disabled=send.disabled=false;
+    status.textContent=plan.issue || (plan.canSend ?
+      (plan.start===plan.end ? "Revise os ocupados a lançar. No Chrome normal, você salva os valores e a extensão confere." : "O ajuste no Chrome normal atende uma noite por pedido.") :
+      "Consulta disponível. O envio exige perfil de administrador.");
   } catch (e) { if(current===version) status.textContent=e.message; }
 });
 async function track(id) {
   clearTimeout(timer);
   sessionStorage.setItem("inventario.ultimo",id);
+  adopt.hidden=true;
   try {
     const j=await request(endpoint+"?id="+encodeURIComponent(id));
     if (String(id)!==sessionStorage.getItem("inventario.ultimo")) return;
-    const labels={queued:"Aguardando o robô do notebook",running:"Em execução",finish:"Conferido na Omnibees",failed:"Interrompido"};
-    progress.textContent=j.hotel+" · "+br(j.start)+" a "+br(j.end)+" · "+(labels[j.state]||j.state)+" · "+j.done+" noite(s) conferida(s). "+(j.message||"");
-    if (!["running","queued"].includes(j.state)) return;
-  } catch (e) { progress.textContent="Tentando consultar o andamento. "+e.message; }
+    const labels={queued:"Aguardando o robô do notebook",running:"Em execução",assisted:"Abra a extensão Inventário Sueds nesta aba e carregue o pedido.",finish:"Conferido na Omnibees",failed:"Interrompido"};
+    progress.textContent="Pedido "+j.id+" · "+j.hotel+" · "+br(j.start)+" a "+br(j.end)+" · "+(labels[j.state]||j.state)+" · "+j.done+" noite(s) conferida(s). "+(j.message||"");
+    adopt.hidden=j.state!=="queued" || j.start!==j.end;
+    adopt.dataset.id=j.id;
+    if (!["running","queued","assisted"].includes(j.state)) return;
+  } catch (e) {
+    if (String(id)!==sessionStorage.getItem("inventario.ultimo")) return;
+    progress.textContent="Tentando consultar o andamento. "+e.message;
+  }
   timer=setTimeout(()=>track(id),6000);
 }
-send.addEventListener("click",async () => {
+async function confirmPreview(manual) {
   const plan=preview;
-  if (!plan?.id || send.disabled) return;
-  if (!window.confirm("Enviar os ocupados exibidos para "+plan.hotel+" de "+br(plan.start)+" a "+br(plan.end)+"?")) return;
-  send.disabled=true;
+  if (!plan?.id || send.disabled || (manual && plan.start!==plan.end)) return;
+  const prompt=manual ? "Confirmar o ajuste manual de "+plan.hotel+" em "+br(plan.start)+"?" :
+    "Enviar os ocupados exibidos pelo robô dedicado para "+plan.hotel+" de "+br(plan.start)+" a "+br(plan.end)+"?";
+  if (!window.confirm(prompt)) return;
+  assisted.disabled=send.disabled=true;
   try {
-    const job=await request(endpoint,{action:"confirm",id:plan.id});
-    if (plan===preview) {send.hidden=true;status.textContent="Envio confirmado.";}
+    const job=await request(endpoint,{action:manual?"confirmarAssistido":"confirm",id:plan.id});
+    if (plan===preview) {assisted.hidden=send.hidden=true;status.textContent="Pedido confirmado.";}
     await track(job.id);
-  } catch(e) { if(plan===preview){status.textContent=e.message;send.disabled=false;} }
+  } catch(e) { if(plan===preview){status.textContent=e.message;assisted.disabled=send.disabled=false;} }
+}
+assisted.addEventListener("click",()=>confirmPreview(true));
+send.addEventListener("click",()=>confirmPreview(false));
+adopt.addEventListener("click",async () => {
+  const id=Number(adopt.dataset.id);
+  if (!id || !window.confirm("Retirar o pedido "+id+" da fila do robô dedicado e ajustar manualmente na Omnibees?")) return;
+  adopt.disabled=true;
+  try {
+    const job=await request(endpoint,{action:"confirmarAssistido",id});
+    await track(job.id);
+  } catch(e) {status.textContent=e.message;}
+  finally {adopt.disabled=false;}
 });
-request(endpoint).then(({hotels})=>{for(const h of hotels) form.elements.hotel.add(new Option(h,h));}).catch(e=>status.textContent=e.message);
 const last=sessionStorage.getItem("inventario.ultimo");
+request(last ? endpoint : endpoint+"?retomar=assistido").then(({hotels,pendingId})=>{
+  for (const h of hotels) form.elements.hotel.add(new Option(h,h));
+  if (pendingId && !sessionStorage.getItem("inventario.ultimo")) track(pendingId);
+}).catch(e=>status.textContent=e.message);
 if(last) track(last);

@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "minimum_chrome_version": "116",
+  "name": "Inventário Sueds",
+  "version": "1.0.0",
+  "description": "Consulta o pedido de uma noite do Portal Sueds e confere a grade após o ajuste manual na Omnibees.",
+  "permissions": ["sidePanel", "scripting"],
+  "host_permissions": ["https://portalsueds.com.br/*", "https://myhotel2.omnibees.com/*"],
+  "action": { "default_title": "Inventário Sueds" },
+  "background": { "service_worker": "abrir.js" },
+  "side_panel": { "default_path": "painel.html" }
+}

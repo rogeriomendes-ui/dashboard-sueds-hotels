@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventário Sueds</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; color: #183448; margin: 18px; }
+  h1 { font-size: 21px; } h2 { font-size: 17px; }
+  button { font: inherit; border: 1px solid #286374; border-radius: 6px; color: #fff; background: #155566; padding: 8px 12px; cursor: pointer; }
+  button:disabled { opacity: .6; }
+  table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+  th, td { text-align: right; padding: 6px 3px; border-bottom: 1px solid #d2dce0; }
+  th:first-child, td:first-child { text-align: left; }
+</style>
+<main>
+  <h1>Inventário Sueds</h1>
+  <p>Na aba de atualizações do Portal, confirme a prévia de uma noite e carregue o pedido aqui.</p>
+  <button id="carregar">Carregar pedido desta aba</button>
+  <section id="pedido" hidden>
+    <h2 id="hotel"></h2>
+    <p id="identificador"></p>
+    <table>
+      <thead><tr><th>Categoria</th><th>Ocupados a lançar</th><th>Disponíveis esperados</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p>Na aba da Omnibees, abra o inventário do hotel nessa noite, salve os ocupados e confira a grade aqui.</p>
+    <button id="conferir">Conferir grade e dar baixa</button>
+  </section>
+  <p id="mensagem" role="status"></p>
+</main>
+<script type="module" src="painel.mjs"></script>
+</html>

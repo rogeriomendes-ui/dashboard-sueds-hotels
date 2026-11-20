@@ -1,4 +1,6 @@
 import { properties, revisar } from "../../public/inventario-regra.mjs";
+import { parseGrade } from "../extensao-inventario/grade.mjs";
+export { parseGrade };
 const exact = (page,text) => page.getByText(text,{exact:true}).filter({visible:true});
 const pause = ms => new Promise(resolve=>setTimeout(resolve,ms));
 const br = iso => iso.split("-").reverse().join("/");
@@ -85,24 +87,6 @@ async function selectDate(page,date) {
     await until(async()=>String(await headings.allTextContents())!==String(labels),"O calendário não avançou");
   }
   throw Error("Data fora do calendário suportado.");
-}
-export function parseGrade(text, names) {
-  const lines=text.split(/\n|\t/).map(x=>x.trim()).filter(Boolean);
-  const namesSeen=[];
-  const rows={};
-  for(const name of names) {
-    const idx=lines.lastIndexOf(name);
-    if(idx<0) throw Error("Categoria ausente: "+name);
-    const tail=lines.slice(idx+1);
-    const occupied=tail.indexOf("Ocupados"),available=tail.indexOf("Total de Disponíveis");
-    if(occupied<1 || available!==occupied+2 || !tail.slice(0,occupied).some(s=>s.startsWith("Total de Apartamentos"))) throw Error("Grade inesperada para "+name);
-    const parse=s=>/^\d+$/.test(s||"")?Number(s):NaN;
-    const row={capacity:parse(tail[occupied-1]),occupied:parse(tail[occupied+1]),available:parse(tail[available+1])};
-    if(!Number.isSafeInteger(row.capacity)||row.occupied+row.available!==row.capacity) throw Error("Totais da grade inválidos para "+name);
-    namesSeen.push([name,idx]); rows[name]=row;
-  }
-  if(lines.filter(s=>s==="Ocupados").length!==names.length) throw Error("Categorias da grade divergentes.");
-  return {rows,order:namesSeen.sort((a,b)=>a[1]-b[1]).map(([name])=>name)};
 }
 async function openEditor(page,name,index) {
   const label=exact(page,"Ocupados").nth(index);
