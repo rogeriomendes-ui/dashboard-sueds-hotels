@@ -58,9 +58,9 @@ const RmsSimple = (() => {
     const discount=offer?.desconto??0;
     const reason=hold?(period?.bloqueado?'Flutuação bloqueada.':'Esgotado ou em overbooking.')+' Manter a tarifa vigente quando capturada.':
       occupancy==null?'Ocupação indisponível.':!target.level?'Sem nível vinculado para esta noite.':
-      period.nome+' · '+target.level.code+' · '+target.level.pct+'% sobre a base WEB de '+regime.toLowerCase()+'.';
+      period.nome+' · '+target.level.code;
     return {current:channelPrices(vigenteWeb,0),
-      proposed:channelPrices(vigenteWeb,discount),offer:offer?offer.nome+' · '+offer.desconto+'%':'Sem oferta elegível',
+      proposed:channelPrices(vigenteWeb,discount),offer:offer?(Array.from(offer.nome.matchAll(/(\d+(?:[.,]\d+)?)\s*%/g)).some(m=>Number(m[1].replace(',','.'))===offer.desconto)?offer.nome:offer.nome+' · '+offer.desconto+'%'):'Sem oferta elegível',
       levelLabel:hold?'Manter':target.level?target.level.code+' · +'+target.level.pct+'%':'—',band:hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—',
       reason,at:rates?.at};
   }
@@ -115,7 +115,7 @@ const RmsSimple = (() => {
             th.append(title,document.createTextNode(label));
             head.append(th);
             if(g===chosen[0] && label===labels[0]){
-              for(const name of ['Tx. Ocupação Omnibees','Tx. Ocupação KPI'])head.appendChild(document.createElement('th')).textContent=name;
+              for(const name of ['Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI'])head.appendChild(document.createElement('th')).textContent=name;
             }
           }
         }
@@ -126,8 +126,8 @@ const RmsSimple = (() => {
             triple(tr.insertCell(),n.current);
             if(g===chosen[0]){
               const channelRate=omnibeesOccupancy(day);
-              tr.insertCell().textContent=channelRate===null?'—':channelRate.toLocaleString('pt-BR')+'%';
-              tr.insertCell().textContent=Number.isFinite(day.rate)?day.rate.toLocaleString('pt-BR')+'%':'—';
+              tr.insertCell().textContent=channelRate===null?'—':format(channelRate)+'%';
+              tr.insertCell().textContent=Number.isFinite(day.rate)?format(day.rate)+'%':'—';
             }
             for(const value of [n.offer,n.levelLabel]){
               const cell=tr.insertCell();
