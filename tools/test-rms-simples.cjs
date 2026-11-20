@@ -65,7 +65,7 @@ test('painel renderiza nove grupos, repete títulos e conserva seleção local',
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
   const table=ids.get('nights');
   const columns=()=>table.children[0].children[0].children.map(cell=>cell.children.at(-1)?.textContent||cell.textContent);
-  const expected=['Selecionar','Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Motivo da flutuação'];
+  const expected=['Selecionar','Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
   assert.deepEqual(columns(),expected);
   tabs.children.at(-1).onclick();
   const row=table.children[1].children[0];

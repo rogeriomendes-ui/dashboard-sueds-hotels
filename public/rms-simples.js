@@ -113,7 +113,7 @@ const RmsSimple = (() => {
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
         const head=table.createTHead().insertRow();
         for(const label of ['Selecionar','Noite'])head.appendChild(document.createElement('th')).textContent=label;
-        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Motivo da flutuação'];
+        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
         for(const g of chosen){
           for(const label of labels){
             const th=document.createElement('th'),title=document.createElement('span');
