@@ -71,8 +71,8 @@ test('painel renderiza nove grupos, repete títulos e conserva seleção local',
   assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[2],...expected.slice(5)])));
   assert.equal(row.children.length,columns().length);
   assert.equal(row.children[2].children.length,3);
-  assert.equal(row.children[3].textContent,'64,00%');
-  assert.equal(row.children[4].textContent,'55,00%');
+  assert.equal(row.children[3].textContent,'64%');
+  assert.equal(row.children[4].textContent,'55%');
   assert.doesNotMatch(row.children[8].textContent,/ocupação|64%/i);
   assert.equal(row.children[8].textContent,"Janeiro · L15");
   ids.get('simpleAll').onchange({target:{checked:true}});

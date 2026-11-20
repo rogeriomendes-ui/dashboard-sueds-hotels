@@ -126,8 +126,8 @@ const RmsSimple = (() => {
             triple(tr.insertCell(),n.current);
             if(g===chosen[0]){
               const channelRate=omnibeesOccupancy(day);
-              tr.insertCell().textContent=channelRate===null?'—':format(channelRate)+'%';
-              tr.insertCell().textContent=Number.isFinite(day.rate)?format(day.rate)+'%':'—';
+              tr.insertCell().textContent=channelRate===null?'—':Math.round(channelRate)+'%';
+              tr.insertCell().textContent=Number.isFinite(day.rate)?Math.round(day.rate)+'%':'—';
             }
             for(const value of [n.offer,n.levelLabel]){
               const cell=tr.insertCell();
