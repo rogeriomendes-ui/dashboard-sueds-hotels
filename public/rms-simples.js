@@ -103,13 +103,14 @@ const RmsSimple = (() => {
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
         const head=table.createTHead().insertRow();
-        for(const label of ['Selecionar','Noite'])head.appendChild(document.createElement('th')).textContent=label;
-        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Novo valor Omnibees','Motivo da flutuação Omnibees','Flutuação RMS','Tarifa com oferta aplicada','Motivo da flutuação RMS'];
+        for(const label of ['Selecionar','Noite','Ocupação (%)'])head.appendChild(document.createElement('th')).textContent=label;
+        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Novo valor Omnibees','Flutuação RMS','Tarifa com oferta aplicada','Motivo da flutuação RMS'];
         for(const g of chosen) for(const label of labels){const th=document.createElement('th'),title=document.createElement('span');title.className='simple-group-title';title.textContent=g;th.append(title,document.createTextNode(label));head.append(th);}
         const body=table.createTBody();
         for(const day of days){const tr=body.insertRow(),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(day.date);check.setAttribute('aria-label','Selecionar '+day.date);check.onchange=()=>{check.checked?selected.add(day.date):selected.delete(day.date);count();};tr.insertCell().append(check);tr.insertCell().textContent=day.date.split('-').reverse().join('/');
-          for(const g of chosen){const n=night(data,hotel,day,g,references),cells=labels.map(()=>tr.insertCell());triple(cells[0],n.current);cells[1].textContent=Array.isArray(n.offer)?[...new Set(n.offer)].length===1?n.offer[0]:n.offer.map((o,i)=>['STD','Luxo','Suíte'][i]+': '+o).join(' · '):n.offer;cells[2].textContent=n.observedBand;triple(cells[3],n.observed);cells[4].textContent=n.observedReason;cells[5].textContent=n.band;triple(cells[6],n.proposed);cells[7].textContent=n.reason;[1,2,4,5,7].forEach(i=>cells[i].classList.add('simple-reason'));
-            if(rooms.some(k=>Number.isFinite(n.observed[k])&&Number.isFinite(n.proposed[k])&&Math.round(n.observed[k]*100)!==Math.round(n.proposed[k]*100))){cells[6].classList.add('bee-difference');const badge=document.createElement('small');badge.textContent='Diverge do aviso importado';cells[6].append(badge);}
+          tr.insertCell().textContent=Number.isFinite(day.rate)?day.rate.toLocaleString('pt-BR')+'%':'—';
+          for(const g of chosen){const n=night(data,hotel,day,g,references),cells=labels.map(()=>tr.insertCell());triple(cells[0],n.current);cells[1].textContent=Array.isArray(n.offer)?[...new Set(n.offer)].length===1?n.offer[0]:n.offer.map((o,i)=>['STD','Luxo','Suíte'][i]+': '+o).join(' · '):n.offer;cells[2].textContent=n.observedBand;triple(cells[3],n.observed);cells[4].textContent=n.band;triple(cells[5],n.proposed);cells[6].textContent=n.reason;[1,2,4,6].forEach(i=>cells[i].classList.add('simple-reason'));
+            if(rooms.some(k=>Number.isFinite(n.observed[k])&&Number.isFinite(n.proposed[k])&&Math.round(n.observed[k]*100)!==Math.round(n.proposed[k]*100))){cells[5].classList.add('bee-difference');const badge=document.createElement('small');badge.textContent='Diverge do aviso importado';cells[5].append(badge);}
           }
         }
         count();refresh?.();

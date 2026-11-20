@@ -57,10 +57,12 @@ test('painel renderiza nove grupos, repete títulos e conserva seleção local',
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
   tabs.children.at(-1).onclick();
   const table=ids.get('nights'),header=table.children[0].children[0],row=table.children[1].children[0];
-  assert.equal(header.children.length,74);assert.equal(row.children.length,74);
-  assert.equal(header.children[2].children[0].textContent,'WEB Café');
+  assert.equal(header.children.length,66);assert.equal(row.children.length,66);
+  assert.equal(header.children[3].children[0].textContent,'WEB Café');
   assert.equal(header.children[10].children[0].textContent,'WEB MAP');
-  assert.equal(row.children[2].children.length,3);
+  assert.equal(header.children[2].textContent,'Ocupação (%)');
+  assert.equal(row.children[2].textContent,day.rate.toLocaleString('pt-BR')+'%');
+  assert.equal(row.children[3].children.length,3);
   ids.get('simpleAll').onchange({target:{checked:true}});
   assert.equal(ids.get('simpleCount').textContent,'1 noites selecionadas');
 });
