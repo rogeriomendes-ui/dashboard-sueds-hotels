@@ -4,7 +4,7 @@ const vm=require('node:vm');
 const fs=require('node:fs');
 const path=require('node:path');
 const ctx=vm.createContext({module:{exports:{}}});
-for(const file of ['rms-rules.js','rms-plaza-tarifas.js','rms-levels.js','rms-simples.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../public',file),'utf8'),ctx);
+for(const file of ['rms-rules.js','rms-plaza-tarifas.js','rms-levels.js','rms-trancoso.js','rms-simples.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../public',file),'utf8'),ctx);
 const simple=ctx.module.exports;
 const hotel={id:'plaza',code:'PLAZA'};
 const kpiDay=rate=>({date:'2027-01-23',rate,apartments:100,available:rate===null?null:100-rate});
@@ -14,7 +14,38 @@ test('usa a mesma faixa e não acumula desconto de 40%',()=>{const n=simple.nigh
 test('calcula a proposta pela base mesmo com vigente acima da faixa',()=>{const data=fixture();data.rates[day.date].web.standard=1400;const n=simple.night(data,hotel,kpiDay(35),'SITE Café');assert.equal(n.current.standard,750);assert.equal(n.proposed.standard,450);assert.equal(n.reason,"Janeiro · L0");});
 test('esgotado e overbooking mantêm valores',()=>{for(const rate of [100,110]){const n=simple.night(fixture(),hotel,kpiDay(rate),'WEB Café');assert.equal(n.proposed.standard,1000);assert.equal(n.band,'Manter');}});
 test('oferta SITE não é aplicada no WEB ou NET',()=>{const data=fixture();assert.equal(simple.night(data,hotel,day,'WEB Café').proposed.standard,1150);assert.equal(simple.night(data,hotel,day,'NET Café').proposed.standard,690);});
-test('não inventa tarifas de MAP, PC ou outro hotel',()=>{assert.equal(simple.night(fixture(),hotel,day,'WEB MAP').proposed.standard,null);assert.equal(Object.keys(simple.night(fixture(),{id:'other',code:'PREMIUM'},day,'WEB Café').current).length,0);});
+test('não inventa tarifas onde não há grade cadastrada',()=>{
+  assert.equal(simple.night(fixture(),hotel,day,'WEB MAP').proposed.standard,null);
+  assert.equal(simple.night(fixture(),{id:'other',code:'PREMIUM'},day,'WEB Café').current.standard,null);
+});
+test('usa a grade por hotel, dia da semana e regime e aplica ofertas do Portal',()=>{
+  const cabralia={id:'cabralia',code:'CABRALIA'};
+  const base='FERIADOS 1º E 2º SEM 2026';
+  const date='2026-11-20';
+  const data={today:date,hotelBases:simple.indexBases({rows:[
+    {base,plano:0,quarto:'standard',pax:2,dia:4,valor:800},
+    {base,plano:0,quarto:'standard',pax:2,dia:5,valor:900},
+    {base,plano:1,quarto:'standard',pax:2,dia:4,valor:1000}
+  ]}),periods:[{hotel_id:cabralia.id,nome:base,inicio:date,fim:date,pct50:10}],
+  offers:[{tipo:'Desconto',nome:'Promoção',desconto:20,tarifarios:['Tarifa WEB - Café da Manhã','TARIFARIO SITE CAFÉ DA MANHÃ']}]};
+  const occupancy={date,apartments:100,available:57};
+  for(const [group,regular,final] of [['WEB Café',880,704],['WEB MAP',1100,1100],['SITE Café',660,528],['NET Café',528,528]]){
+    const result=simple.night(data,cabralia,occupancy,group);
+    assert.equal(result.current.standard,regular);
+    assert.equal(result.proposed.standard,final);
+  }
+  assert.equal(simple.night(data,cabralia,occupancy,'WEB PC').current.standard,null);
+});
+test('Trancoso usa a grade por noite e categoria real com flutuação desligada',()=>{
+  const trancoso={id:'trancoso',code:'TRANCOSO'};
+  const data={today:day.date,periods:[{hotel_id:trancoso.id,inicio:day.date,fim:day.date,pct80:30}],
+    hotelBases:simple.indexBases({calendario:[{grade:[[day.date,'Suite Junior','2 Pax',100000],[day.date,'Suite Junior','3 Pax',130000]]}]}),
+    offers:[{tipo:'Desconto',nome:'Promoção',desconto:40,tarifarios:['Tarifa Net - Café da Manhã']}]};
+  const result=simple.night(data,trancoso,kpiDay(99),'NET Café');
+  assert.equal(result.levelLabel,'Desligada');
+  assert.equal(result.current['Suite Junior'],600);
+  assert.equal(result.proposed['Suite Junior'],360);
+});
 test('recalcula as faixas sobre a base editada da meia pensão e aplica a melhor oferta elegível uma vez',()=>{
   const d=fixture(),base=d.catalog.bases[0];base.name='Janeiro';base.grids.push({standard:[0,900]});
   d.catalog.edits={'["Janeiro",1,"standard",2,5]':1000};
