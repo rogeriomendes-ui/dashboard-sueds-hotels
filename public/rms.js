@@ -267,7 +267,7 @@ async function showHotel(data,hotel) {
   const isPlaza=hotel.code==="PLAZA";
   const policy=data.policies.find(p=>p.hotel_id===hotel.id);
   const ownModel=policy?.modelo==="proprio";
-  if(policy?.modelo==="simples") {
+  if(!ownModel) {
     element("selectedModel").textContent="Modelo ativo: RMS Simples";
     return RmsSimple.show(data,hotel,()=>version===analysisVersion,refreshNightScroll);
   }
@@ -600,14 +600,14 @@ async function load(options,createdPeriod) {
       }
       choice.onchange=()=>{for(const [start,card] of editors) card.hidden=start!==choice.value;};
       const policy=data.policies.find(p=>p.hotel_id===hotelId);
-      const active=policy?.modelo || "beeprice";
+      const active=policy?.modelo==="proprio"?"proprio":"simples";
       const radios=[...document.querySelectorAll("input[name=viewModel]")];
       const activate=element("activateModel");
       function view(model) {
         const own=model==="proprio";
         radios.forEach(r=>{r.checked=r.value===model;});
         element("models").hidden=false;
-        element("activeModel").textContent="Modelo em uso na simulação deste hotel: "+({proprio:"RMS Próprio",beeprice:"Modelo padrão BeePrice",simples:"RMS Simples"}[active])+".";
+        element("activeModel").textContent="Modelo em uso na simulação deste hotel: "+({proprio:"RMS Próprio",simples:"RMS Simples"}[active])+".";
         activate.hidden=model===active;
         element("simpleCriteria").hidden=model!=="simples";
         element("competitors").hidden=element("ownCriteria").hidden=!own;
