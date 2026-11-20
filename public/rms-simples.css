@@ -16,3 +16,6 @@
 #nights.simple-grid .simple-prices small{display:block;white-space:normal;max-width:160px;margin-top:4px}
 #nights.simple-grid .simple-reason{white-space:normal;min-width:160px;max-width:190px;line-height:1.5}
 #nights.simple-grid input[type=checkbox]{width:auto}
+
+#nights.simple-grid :is(th,td):is(:nth-child(4),:nth-child(5)){box-sizing:border-box;min-width:0;width:85px;max-width:85px;padding-inline:4px;text-align:center;white-space:normal}
+#nights.simple-grid th:is(:nth-child(4),:nth-child(5)){white-space:pre}

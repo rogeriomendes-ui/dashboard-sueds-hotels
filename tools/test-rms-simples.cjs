@@ -11,7 +11,7 @@ const kpiDay=rate=>({date:'2027-01-23',rate,apartments:100,available:rate===null
 const day=kpiDay(55);
 function fixture(){return {today:'2027-01-23',offers:[{tipo:'Desconto',nome:'Black Friday',desconto:40,tarifarios:['TARIFÁRIO SITE - CAFÉ DA MANHÃ']}],rates:{[day.date]:{web:{standard:1000,luxo:1200,suite:1500},site:Object.fromEntries(['standard','luxo','suite'].map(k=>[k,{discount:40,offer:'Black Friday',divergence:false}]))}},periods:[{hotel_id:'plaza',inicio:'2027-01-01',fim:'2027-01-31',nome:'Janeiro',pct0:0,pct50:10,pct60:15,pct70:20,pct80:30}],catalog:{bases:[{levels:[0,10,15,20,30].map(pct=>({pct,code:'L'+pct,name:'Nível '+pct})),grids:[{standard:[0,1000],luxo:[0,1200],suite:[0,1500]}]}],periods:{'2027-01-01':0},calendar:{}}};}
 test('usa a mesma faixa e não acumula desconto de 40%',()=>{const n=simple.night(fixture(),hotel,day,'SITE Café');assert.equal(n.current.standard,862.5);assert.equal(n.proposed.standard,517.5);assert.equal(n.proposed.luxo,621);assert.equal(n.proposed.suite,776.25);assert.match(n.band,/15%/);});
-test('calcula a proposta pela base mesmo com vigente acima da faixa',()=>{const data=fixture();data.rates[day.date].web.standard=1400;const n=simple.night(data,hotel,kpiDay(35),'SITE Café');assert.equal(n.current.standard,750);assert.equal(n.proposed.standard,450);assert.match(n.reason,/sobre a base WEB/);});
+test('calcula a proposta pela base mesmo com vigente acima da faixa',()=>{const data=fixture();data.rates[day.date].web.standard=1400;const n=simple.night(data,hotel,kpiDay(35),'SITE Café');assert.equal(n.current.standard,750);assert.equal(n.proposed.standard,450);assert.equal(n.reason,"Janeiro · L0");});
 test('esgotado e overbooking mantêm valores',()=>{for(const rate of [100,110]){const n=simple.night(fixture(),hotel,kpiDay(rate),'WEB Café');assert.equal(n.proposed.standard,1000);assert.equal(n.band,'Manter');}});
 test('oferta SITE não é aplicada no WEB ou NET',()=>{const data=fixture();assert.equal(simple.night(data,hotel,day,'WEB Café').proposed.standard,1150);assert.equal(simple.night(data,hotel,day,'NET Café').proposed.standard,690);});
 test('não inventa tarifas de MAP, PC ou outro hotel',()=>{assert.equal(simple.night(fixture(),hotel,day,'WEB MAP').proposed.standard,null);assert.equal(Object.keys(simple.night(fixture(),{id:'other',code:'PREMIUM'},day,'WEB Café').current).length,0);});
@@ -64,7 +64,7 @@ test('painel renderiza nove grupos, repete títulos e conserva seleção local',
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
   const table=ids.get('nights');
   const columns=()=>table.children[0].children[0].children.map(cell=>cell.children.at(-1)?.textContent||cell.textContent);
-  const expected=['Selecionar','Noite','Vigente após flutuação','Tx. Ocupação Omnibees','Tx. Ocupação KPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Motivo da flutuação'];
+  const expected=['Selecionar','Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Motivo da flutuação'];
   assert.deepEqual(columns(),expected);
   tabs.children.at(-1).onclick();
   const row=table.children[1].children[0];
@@ -72,9 +72,9 @@ test('painel renderiza nove grupos, repete títulos e conserva seleção local',
   assert.equal(row.children.length,columns().length);
   assert.equal(row.children[2].children.length,3);
   assert.equal(row.children[3].textContent,'64%');
-  assert.equal(row.children[4].textContent,day.rate.toLocaleString('pt-BR')+'%');
+  assert.equal(row.children[4].textContent,'55%');
   assert.doesNotMatch(row.children[8].textContent,/ocupação|64%/i);
-  assert.match(row.children[8].textContent,/15% sobre a base/);
+  assert.equal(row.children[8].textContent,"Janeiro · L15");
   ids.get('simpleAll').onchange({target:{checked:true}});
   assert.equal(ids.get('simpleCount').textContent,'1 noites selecionadas');
 });
