@@ -16,6 +16,11 @@ const RmsSimple = (() => {
     }
     return result;
   }
+  function omnibeesOccupancy(day) {
+    if (!Number.isInteger(day.available) || !Number.isInteger(day.apartments) || day.apartments <= 0) return null;
+    const channelAvailability = Math.floor(Math.max(0, day.available) * 4 / 5);
+    return (day.apartments - channelAvailability) / day.apartments * 100;
+  }
   function night(data, hotel, day, group) {
     const [channel, meal]=group.split(' ');
     const plan=['Café','MAP','PC'].indexOf(meal);
@@ -24,7 +29,7 @@ const RmsSimple = (() => {
     const rates=data.rates[day.date];
     const rules=typeof RmsRules!=='undefined'?RmsRules:require('./rms-rules');
     const period=rules.forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
-    const occupancy=Number.isFinite(day.rate)?day.rate:null;
+    const occupancy=omnibeesOccupancy(day);
     const target=plazaLevelComparison(data.catalog,period,day.date,occupancy,plan);
     const hold=period?.bloqueado||occupancy>=100;
     const currentWeb=plan===0?rates?.web:null;
@@ -53,7 +58,7 @@ const RmsSimple = (() => {
     const discount=offer?.desconto??0;
     const reason=hold?(period?.bloqueado?'Flutuação bloqueada.':'Esgotado ou em overbooking.')+' Manter a tarifa vigente quando capturada.':
       occupancy==null?'Ocupação indisponível.':!target.level?'Sem nível vinculado para esta noite.':
-      'Ocupação '+occupancy.toLocaleString('pt-BR')+'%. '+period.nome+' · '+target.level.code+' · '+target.level.pct+'% sobre a base WEB de '+regime.toLowerCase()+'.';
+      period.nome+' · '+target.level.code+' · '+target.level.pct+'% sobre a base WEB de '+regime.toLowerCase()+'.';
     return {current:channelPrices(vigenteWeb,0),
       proposed:channelPrices(vigenteWeb,discount),offer:offer?offer.nome+' · '+offer.desconto+'%':'Sem oferta elegível',
       levelLabel:hold?'Manter':target.level?target.level.code+' · +'+target.level.pct+'%':'—',band:hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—',
@@ -100,13 +105,39 @@ const RmsSimple = (() => {
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
         const head=table.createTHead().insertRow();
-        for(const label of ['Selecionar','Noite','Ocupação (%)'])head.appendChild(document.createElement('th')).textContent=label;
-        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Novo valor Omnibees','Flutuação RMS','Tarifa com oferta aplicada','Motivo da flutuação RMS'];
-        for(const g of chosen) for(const label of labels){const th=document.createElement('th'),title=document.createElement('span');title.className='simple-group-title';title.textContent=g;th.append(title,document.createTextNode(label));head.append(th);}
+        for(const label of ['Selecionar','Noite'])head.appendChild(document.createElement('th')).textContent=label;
+        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Motivo da flutuação'];
+        for(const g of chosen){
+          for(const label of labels){
+            const th=document.createElement('th'),title=document.createElement('span');
+            title.className='simple-group-title';
+            title.textContent=g;
+            th.append(title,document.createTextNode(label));
+            head.append(th);
+            if(g===chosen[0] && label===labels[0]){
+              for(const name of ['Tx. Ocupação Omnibees','Tx. Ocupação KPI'])head.appendChild(document.createElement('th')).textContent=name;
+            }
+          }
+        }
         const body=table.createTBody();
         for(const day of days){const tr=body.insertRow(),check=document.createElement('input');check.type='checkbox';check.checked=selected.has(day.date);check.setAttribute('aria-label','Selecionar '+day.date);check.onchange=()=>{check.checked?selected.add(day.date):selected.delete(day.date);count();};tr.insertCell().append(check);tr.insertCell().textContent=day.date.split('-').reverse().join('/');
-          tr.insertCell().textContent=Number.isFinite(day.rate)?day.rate.toLocaleString('pt-BR')+'%':'—';
-          for(const g of chosen){const n=night(data,hotel,day,g),cells=labels.map(()=>tr.insertCell());triple(cells[0],n.current);cells[1].textContent=Array.isArray(n.offer)?[...new Set(n.offer)].length===1?n.offer[0]:n.offer.map((o,i)=>['STD','Luxo','Suíte'][i]+': '+o).join(' · '):n.offer;cells[2].textContent=n.levelLabel;triple(cells[3],n.proposed);cells[4].textContent=n.band;triple(cells[5],n.proposed);cells[6].textContent=n.reason;[1,2,4,6].forEach(i=>cells[i].classList.add('simple-reason'));
+          for(const g of chosen){
+            const n=night(data,hotel,day,g);
+            triple(tr.insertCell(),n.current);
+            if(g===chosen[0]){
+              const channelRate=omnibeesOccupancy(day);
+              tr.insertCell().textContent=channelRate===null?'—':channelRate.toLocaleString('pt-BR')+'%';
+              tr.insertCell().textContent=Number.isFinite(day.rate)?day.rate.toLocaleString('pt-BR')+'%':'—';
+            }
+            for(const value of [n.offer,n.levelLabel]){
+              const cell=tr.insertCell();
+              cell.classList.add('simple-reason');
+              cell.textContent=value;
+            }
+            triple(tr.insertCell(),n.proposed);
+            const reason=tr.insertCell();
+            reason.classList.add('simple-reason');
+            reason.textContent=n.reason;
           }
         }
         count();refresh?.();
