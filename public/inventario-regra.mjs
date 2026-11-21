@@ -31,6 +31,26 @@ export function revisar(rows, hotel, start, end) {
   return seen.size === nights * expected.size ? "" : "Cobertura incompleta do período.";
 }
 
+export function revisarPorNoite(rows,hotel,start,end) {
+  const dates=[], skipped=[];
+  if (!properties[hotel]?.rooms || rows.some(r=>r.hotel!==hotel || !validPeriod(r.date,r.date) || r.date<start || r.date>end))
+    return {dates,skipped,issue:"Confira o hotel, o período e o mapeamento das categorias."};
+  const groups=new Map();
+  for (const row of rows) {
+    if (!groups.has(row.date)) groups.set(row.date,[]);
+    groups.get(row.date).push(row);
+  }
+  for (let time=Date.parse(start);time<=Date.parse(end);time+=86400000) {
+    const date=new Date(time).toISOString().slice(0,10);
+    const day=groups.get(date) || [];
+    if (day.some(r=>r.status==="Conferir totais e categorias")) {skipped.push(date);continue;}
+    const issue=revisar(day,hotel,date,date);
+    if (issue) return {dates,skipped,issue:issue+" Noite: "+date};
+    dates.push(date);
+  }
+  return {dates,skipped,issue:dates.length ? "" : "Todas as noites do período têm divergência."};
+}
+
 export function planoAssistido(pedido) {
   const { hotel, start, end, rows } = pedido;
   if (start !== end) throw Error("O modo assistido atende uma noite por pedido.");
