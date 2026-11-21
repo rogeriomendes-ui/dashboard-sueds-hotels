@@ -52,7 +52,24 @@ async function act(action) {
     status.textContent+=" "+e.message+" Confira o andamento antes de continuar.";
   } finally {start.disabled=save.disabled=stop.disabled=false;}
 }
-start.addEventListener("click",()=>act("iniciarCodex"));
+start.addEventListener("click",async event=>{
+  if (start.disabled || job?.state!=="codex_pendente") return;
+  // A extensão 1.4.0 aciona este controle com button.click() após o comando no painel.
+  if (!event.isTrusted) return act("iniciarCodex");
+  start.disabled=true;
+  try {
+    await api("confirmarCodex");
+    const destino=new URL(location.href);
+    destino.hash="abrir-extensao";
+    if (window===window.top) {
+      history.replaceState(null,"",destino);
+      location.reload();
+    } else window.top.location.href=destino.href;
+  } catch(e) {
+    status.textContent=e.message;
+    start.disabled=false;
+  }
+});
 save.addEventListener("click",()=>act("registrarNoiteCodex"));
 stop.addEventListener("click",()=>{
   if (window.confirm("Interromper o pedido "+id+"? Confirme que a gravação parou. As noites já salvas permanecem na Omnibees."))

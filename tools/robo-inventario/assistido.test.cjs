@@ -215,7 +215,12 @@ test("clique no Portal abre o pedido confirmado para a extensão",{
   await module.locator("#codex").click();
   const detail=page;
   await detail.waitForURL(origin+"/pedido-inventario-codex.html?id=7#abrir-extensao");
-  await detail.getByRole("button",{name:"Assumir este pedido"}).click();
+  const open=detail.getByRole("button",{name:"Abrir pedido na extensão"});
+  await Promise.all([detail.waitForEvent("domcontentloaded"),open.click()]);
+  await open.waitFor();
+  assert.equal(api.job.payload.state,"codex_pendente");
+  // Reproduz o clique programático da extensão após a confirmação no painel.
+  await open.evaluate(button=>button.click());
   await detail.locator("#registrar").waitFor();
   assert.deepEqual(await detail.locator("tbody tr td:nth-child(2)").allTextContents(),rows.map(r=>String(r.targetOccupied)));
   await detail.locator("#registrar").click();
