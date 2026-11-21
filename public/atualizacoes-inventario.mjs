@@ -47,6 +47,14 @@ function render(plan) {
   const title = document.createElement("h2");
   title.textContent = plan.hotel + " · " + br(plan.start) + " a " + br(plan.end);
   section.append(title);
+  const differences=new Map(plan.rows.filter(row=>row.categoryAvailable!=null).map(row=>[row.date,row]));
+  if (differences.size) {
+    const warning=document.createElement("p");
+    warning.setAttribute("role","status");
+    const details=Array.from(differences.values(),row=>br(row.date)+" ("+row.categoryAvailable+" por categoria, "+(row.hotelAvailable ?? "—")+" no hotel)");
+    warning.textContent="Divergência na disponibilidade: "+details.join("; ")+". O cálculo usa o saldo de cada categoria.";
+    section.append(warning);
+  }
   if (plan.skipped?.length) {
     const warning=document.createElement("p");
     warning.setAttribute("role","status");

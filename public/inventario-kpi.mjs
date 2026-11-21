@@ -8,8 +8,8 @@ export function linhasInventario(occupancy) {
       const complete = types.length > 0 && codes.size === types.length &&
         types.every(type => Number.isInteger(type.available) && type.available >= 0 &&
           type.available <= type.apartments) &&
-        types.reduce((sum, type) => sum + type.apartments, 0) === day.apartments &&
-        types.reduce((sum, type) => sum + type.available, 0) === day.available;
+        types.reduce((sum, type) => sum + type.apartments, 0) === day.apartments;
+      const categoryAvailable = complete ? types.reduce((sum, type) => sum + type.available, 0) : null;
       const stamp = day.capturedAt || null;
       const status = !types.length ? "Sem captura por categoria" :
         !complete ? "Conferir totais e categorias" : !stamp ? "Captura sem horário" : "Captura disponível";
@@ -18,7 +18,8 @@ export function linhasInventario(occupancy) {
           capacity: type?.apartments ?? null, available: type?.available ?? null,
           targetAvailable: complete && stamp ? Math.floor(type.available * 4 / 5) : null,
           targetOccupied: complete && stamp ? type.apartments - Math.floor(type.available * 4 / 5) : null,
-          capturedAt: stamp, status });
+          capturedAt: stamp, status,
+          ...(complete && categoryAvailable !== day.available ? {categoryAvailable,hotelAvailable:day.available} : {}) });
       }
     }
   }

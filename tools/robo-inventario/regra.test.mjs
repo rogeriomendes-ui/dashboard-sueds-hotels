@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {linhasInventario} from "../../public/inventario-kpi.mjs";
-import {revisar,validPeriod} from "../../public/inventario-regra.mjs";
+import {revisar,revisarPorNoite,validPeriod} from "../../public/inventario-regra.mjs";
 import {parseGrade} from "./omnibees.mjs";
 
 const hotel="SUEDS PLAZA",date="2027-02-20";
@@ -23,6 +23,17 @@ test("distingue saldo zero de captura ausente e bloqueia divergência",()=>{
   day.roomTypes[2].available=null;
   assert.ok(revisar(linhasInventario(data),hotel,date,date));
   assert.ok(!validPeriod("2027-02-30","2027-03-03"));
+});
+test("31 de março do Plaza usa os saldos das categorias e sinaliza a diferença do hotel",()=>{
+  const data=dados(),day=data[0].days[0];
+  day.date="2027-03-31";
+  day.available=108;
+  day.roomTypes[0].available=64;
+  day.roomTypes[2].available=7;
+  const rows=linhasInventario(data);
+  assert.deepEqual(rows.map(r=>[r.targetAvailable,r.targetOccupied]),[[51,38],[15,5],[5,2]]);
+  assert.deepEqual([rows[0].categoryAvailable,rows[0].hotelAvailable],[90,108]);
+  assert.deepEqual(revisarPorNoite(rows,hotel,day.date,day.date),{dates:[day.date],skipped:[],issue:""});
 });
 test("confere a grade da noite e rejeita valores ambíguos",()=>{
   const grid="Apartamento Standard\nTotal de Apartamentos 89\n89\nOcupados\n41\nTotal de Disponíveis\n48";
