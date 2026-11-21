@@ -3,6 +3,9 @@ const form = document.querySelector("#periodo");
 const result = document.querySelector("#resultado");
 const send = document.querySelector("#enviar");
 const assisted = document.querySelector("#assistido");
+const codex = document.querySelector("#codex");
+const retryCodex = document.querySelector("#entregar-codex");
+const viewCodex = document.querySelector("#ver-codex");
 const adopt = document.querySelector("#assumir");
 const status = document.querySelector("#estado");
 const progress = document.querySelector("#andamento");
@@ -23,6 +26,7 @@ function invalidate() {
   preview = null;
   send.hidden = true;
   assisted.hidden = true;
+  codex.hidden = true;
   result.replaceChildren();
   status.textContent = "";
 }
@@ -57,11 +61,13 @@ form.addEventListener("submit",async event => {
     if (current !== version) return;
     render(plan);
     preview=plan;
+    codex.hidden=!plan.id;
+    codex.disabled=false;
     send.hidden=!plan.id;
     assisted.hidden=!plan.id || plan.start!==plan.end;
     assisted.disabled=send.disabled=false;
     status.textContent=plan.issue || (plan.canSend ?
-      (plan.start===plan.end ? "Revise os ocupados a lançar. No Chrome normal, você salva os valores e a extensão confere." : "O ajuste no Chrome normal atende uma noite por pedido.") :
+      "Confira as datas e os ocupados antes de confirmar a gravação." :
       "Consulta disponível. O envio exige perfil de administrador.");
   } catch (e) { if(current===version) status.textContent=e.message; }
 });
@@ -72,11 +78,16 @@ async function track(id) {
   try {
     const j=await request(endpoint+"?id="+encodeURIComponent(id));
     if (String(id)!==sessionStorage.getItem("inventario.ultimo")) return;
-    const labels={queued:"Aguardando o robô do notebook",running:"Em execução",assisted:"Abra a extensão Inventário Sueds nesta aba e carregue o pedido.",finish:"Conferido na Omnibees",failed:"Interrompido"};
-    progress.textContent="Pedido "+j.id+" · "+j.hotel+" · "+br(j.start)+" a "+br(j.end)+" · "+(labels[j.state]||j.state)+" · "+j.done+" noite(s) conferida(s). "+(j.message||"");
+    const labels={queued:"Aguardando o robô do notebook",running:"Em execução",assisted:"Abra a extensão Inventário Sueds nesta aba e carregue o pedido.",finish:"Conferido na Omnibees",failed:"Interrompido",
+      codex_pendente:"Aguardando o Codex assumir",codex_ativo:"Gravação em andamento",codex_salvo:"Gravação confirmada na Omnibees"};
+    progress.textContent="Pedido "+j.id+" · "+j.hotel+" · "+br(j.start)+" a "+br(j.end)+" · "+(labels[j.state]||j.state)+" · "+j.done+(j.mode==="codex"?" noite(s) gravada(s). ":" noite(s) conferida(s). ")+(j.message||"");
+    retryCodex.hidden=j.state!=="codex_pendente";
+    retryCodex.dataset.id=j.id;
+    viewCodex.hidden=j.mode!=="codex";
+    viewCodex.href="/pedido-inventario-codex.html?id="+encodeURIComponent(j.id);
     adopt.hidden=j.state!=="queued" || j.start!==j.end;
     adopt.dataset.id=j.id;
-    if (!["running","queued","assisted"].includes(j.state)) return;
+    if (!["running","queued","assisted","codex_pendente","codex_ativo"].includes(j.state)) return;
   } catch (e) {
     if (String(id)!==sessionStorage.getItem("inventario.ultimo")) return;
     progress.textContent="Tentando consultar o andamento. "+e.message;
@@ -89,13 +100,42 @@ async function confirmPreview(manual) {
   const prompt=manual ? "Confirmar o ajuste manual de "+plan.hotel+" em "+br(plan.start)+"?" :
     "Enviar os ocupados exibidos pelo robô dedicado para "+plan.hotel+" de "+br(plan.start)+" a "+br(plan.end)+"?";
   if (!window.confirm(prompt)) return;
-  assisted.disabled=send.disabled=true;
+  codex.disabled=assisted.disabled=send.disabled=true;
   try {
     const job=await request(endpoint,{action:manual?"confirmarAssistido":"confirm",id:plan.id});
-    if (plan===preview) {assisted.hidden=send.hidden=true;status.textContent="Pedido confirmado.";}
+    if (plan===preview) {codex.hidden=assisted.hidden=send.hidden=true;status.textContent="Pedido confirmado.";}
     await track(job.id);
-  } catch(e) { if(plan===preview){status.textContent=e.message;assisted.disabled=send.disabled=false;} }
+  } catch(e) { if(plan===preview){status.textContent=e.message;codex.disabled=assisted.disabled=send.disabled=false;} }
 }
+async function entregarCodex(id,plan) {
+  const local = "http://127.0.0.1:41857";
+  codex.disabled=assisted.disabled=send.disabled=retryCodex.disabled=true;
+  let confirmado=false;
+  try {
+    let health;
+    try {health=await fetch(local+"/status",{cache:"no-store",credentials:"omit",signal:AbortSignal.timeout(45000)});}
+    catch {throw Error("Conector indisponível. Confira se está ligado neste notebook e permita o acesso do Portal à rede local no Chrome.");}
+    if (!health.ok || (await health.json()).service!=="sueds-inventario") throw Error("Conector do notebook indisponível.");
+    if (plan && preview!==plan) return;
+    const job=await request(endpoint,{action:"confirmarCodex",id});
+    confirmado=true;
+    sessionStorage.setItem("inventario.ultimo",id);
+    if (plan && plan===preview) codex.hidden=assisted.hidden=send.hidden=true;
+    const response=await fetch(local+"/pedido",{method:"POST",headers:{"Content-Type":"application/json"},
+      credentials:"omit",body:JSON.stringify({id:job.id,recibo:job.recibo}),signal:AbortSignal.timeout(25000)});
+    const delivery=await response.json();
+    if (!response.ok) throw Error(delivery.error || "Falha ao entregar ao Codex.");
+    status.textContent="Pedido recebido pelo conector. Acompanhe a gravação abaixo.";
+  } catch(e) {
+    status.textContent=confirmado ? "Pedido confirmado. "+e.message+" Consulte o andamento deste mesmo pedido." : e.message;
+  } finally {
+    if (confirmado || !plan) await track(id);
+    if (!plan || plan===preview) codex.disabled=assisted.disabled=send.disabled=false;
+    retryCodex.disabled=false;
+  }
+}
+codex.addEventListener("click",()=>{if (preview?.id && !codex.disabled) entregarCodex(preview.id,preview);});
+retryCodex.addEventListener("click",()=>entregarCodex(Number(retryCodex.dataset.id)));
 assisted.addEventListener("click",()=>confirmPreview(true));
 send.addEventListener("click",()=>confirmPreview(false));
 adopt.addEventListener("click",async () => {
@@ -109,7 +149,7 @@ adopt.addEventListener("click",async () => {
   finally {adopt.disabled=false;}
 });
 const last=sessionStorage.getItem("inventario.ultimo");
-request(last ? endpoint : endpoint+"?retomar=assistido").then(({hotels,pendingId})=>{
+request(last ? endpoint : endpoint+"?retomar=inventario").then(({hotels,pendingId})=>{
   for (const h of hotels) form.elements.hotel.add(new Option(h,h));
   if (pendingId && !sessionStorage.getItem("inventario.ultimo")) track(pendingId);
 }).catch(e=>status.textContent=e.message);
