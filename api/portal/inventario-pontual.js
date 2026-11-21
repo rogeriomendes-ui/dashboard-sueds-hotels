@@ -6,6 +6,8 @@ const { inventoryOccupancy } = require("../../server");
 const source = "inventario_pontual_v1";
 // The existing partial unique index permits one active writer for this source.
 const writerSlot = "1970-01-01";
+const prazoEntrega = 30 * 60000;
+const hoje = () => new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date());
 const fail = (status, message) => Object.assign(new Error(message), { status });
 function table() {
   const secret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -28,8 +30,8 @@ async function update(job, changes, slot = null) {
     .eq("payload->>revision",job.payload.revision).select("id,payload"));
 }
 function summary(job) {
-  const { state, hotel, start, end, done, message, activeDay } = job.payload;
-  return { id: job.id, state, hotel, start, end, done, message, activeDay };
+  const { state, mode, hotel, start, end, done, message, activeDay } = job.payload;
+  return { id: job.id, state, mode, hotel, start, end, done, message, activeDay };
 }
 async function bodyOf(req) {
   let body = req.body;
@@ -58,10 +60,17 @@ module.exports = async function inventory(req, res) {
         if (isAdmin && params.get("retomar") === "assistido")
           pending = await one(table().select("id").eq("source",source).eq("payload->>owner",user.id)
             .eq("payload->>state","assisted").order("id",{ascending:false}).limit(1));
+        if (isAdmin && params.get("retomar") === "inventario")
+          pending = await one(table().select("id").eq("source",source).eq("payload->>owner",user.id)
+            .in("payload->>state",["assisted","codex_pendente","codex_ativo"]).order("id",{ascending:false}).limit(1));
         return json(res,200,{ hotels:Object.keys(properties), canSend:isAdmin, pendingId:pending?.id || null });
       }
       const job = await one(query().eq("id",id).eq("payload->>owner",user.id));
       if (!job) throw fail(404,"Pedido não encontrado.");
+      if (params.get("modo") === "codex") {
+        if (!isAdmin || job.payload.mode !== "codex") throw fail(403,"Pedido indisponível para o Codex.");
+        return json(res,200,{...summary(job),rows:job.payload.rows});
+      }
       if (params.get("modo") === "assistido") {
         if (!isAdmin) throw fail(403,"A conferência exige perfil de administrador.");
         if (job.payload.state !== "assisted") throw fail(409,"Selecione um pedido confirmado para ajuste assistido.");
@@ -91,6 +100,7 @@ module.exports = async function inventory(req, res) {
     if (!isAdmin) throw fail(403,"Apenas administradores podem enviar.");
     if (b.action === "claim") {
       const busy = await one(query().eq("period_date",writerSlot));
+      if (busy?.payload.mode === "codex") return json(res,200,{job:null});
       if (busy && Date.now()-Date.parse(busy.payload.heartbeat) < 15*60000) return json(res,200,{job:null});
       if (busy) await update(busy,{state:"failed",token:null,message:"O notebook interrompeu a execução. Confira a grade antes de um novo envio."});
       const job = await one(query().eq("payload->>state","queued").order("id").limit(1));
@@ -103,6 +113,41 @@ module.exports = async function inventory(req, res) {
     const job = await one(query().eq("id",b.id));
     if (!job) throw fail(404,"Pedido não encontrado.");
     const p = job.payload;
+    if (b.action === "confirmarCodex") {
+      if (p.owner !== user.id) throw fail(403,"Prévia de outro usuário.");
+      if (!["preview","codex_pendente"].includes(p.state)) throw fail(409,"Este pedido já teve outro encaminhamento.");
+      if (!validPeriod(p.start,p.end) || p.start < hoje() || revisar(p.rows,p.hotel,p.start,p.end))
+        throw fail(409,"Gere uma nova prévia válida para esse período.");
+      let atual = job;
+      if (p.state === "preview" || Date.now() >= p.entregarAte) {
+        atual = await update(job,{mode:"codex",state:"codex_pendente",recibo:crypto.randomUUID(),entregarAte:Date.now()+prazoEntrega});
+        if (!atual) throw fail(409,"O pedido mudou. Consulte o andamento.");
+      }
+      return json(res,200,{...summary(atual),recibo:atual.payload.recibo});
+    }
+    if (["iniciarCodex","registrarNoiteCodex","interromperCodex"].includes(b.action)) {
+      if (p.owner !== user.id || p.mode !== "codex") throw fail(403,"Pedido indisponível para o Codex.");
+      let changes, slot = null;
+      if (b.action === "iniciarCodex") {
+        if (p.state !== "codex_pendente" || Date.now() >= p.entregarAte || p.start < hoje())
+          throw fail(409,"Pedido já assumido, encerrado ou com confirmação vencida.");
+        changes = {state:"codex_ativo",token:crypto.randomUUID(),recibo:null};
+        slot = writerSlot;
+      } else if (b.action === "interromperCodex") {
+        if (!["codex_ativo","codex_pendente"].includes(p.state)) throw fail(409,"Pedido já encerrado.");
+        changes = {state:"failed",token:null,recibo:null,message:"Execução interrompida. Confira a última noite antes de outro pedido."};
+      } else {
+        if (p.state !== "codex_ativo" || !p.token || b.token !== p.token) throw fail(409,"A execução desta aba já encerrou.");
+        const data = new Date(Date.parse(p.start)+p.done*86400000).toISOString().slice(0,10);
+        if (data !== b.date) throw fail(409,"A noite já foi registrada ou está fora de ordem.");
+        const terminou = data === p.end;
+        changes = {state:terminou?"codex_salvo":p.state, activeDay:data, done:p.done+1, token:terminou?null:p.token};
+        slot = terminou ? null : writerSlot;
+      }
+      const saved = await update(job,changes,slot);
+      if (!saved) throw fail(409,"O andamento mudou. Consulte o pedido antes de continuar.");
+      return json(res,200,{...summary(saved),...(b.action === "iniciarCodex" ? {token:saved.payload.token} : {})});
+    }
     if (b.action === "conferirAssistido") {
       if (p.owner !== user.id) throw fail(403,"Pedido de outro usuário.");
       if (p.mode !== "assisted" || !["assisted","finish"].includes(p.state)) throw fail(409,"Este pedido não está em ajuste assistido.");
@@ -139,4 +184,19 @@ module.exports = async function inventory(req, res) {
     if (!saved) throw fail(409,"Execução alterada.");
     return json(res,200,summary(saved));
   } catch (err) { return json(res,err.status || 503,{error:err.status ? err.message : "O Portal não conseguiu concluir o pedido."}); }
+};
+
+// Posse do recibo confirma apenas que um clique autenticado aguarda entrega.
+// Os valores e as ações de execução continuam no endpoint com sessão de administrador.
+module.exports.validarRecibo = async (req,res) => {
+  try {
+    if (req.method !== "POST") throw fail(405,"Método inválido.");
+    const b = await bodyOf(req);
+    if (!Number.isSafeInteger(b?.id) || b.id < 1 || typeof b.recibo !== "string" ||
+        !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(b.recibo)) throw fail(400,"Recibo inválido.");
+    const job = await one(table().select("id,expires:payload->>entregarAte").eq("source",source).eq("id",b.id)
+      .eq("payload->>state","codex_pendente").eq("payload->>recibo",b.recibo));
+    if (!job || !(Number(job.expires) > Date.now())) throw fail(404,"Recibo indisponível.");
+    return json(res,200,{id:job.id});
+  } catch (err) { return json(res,err.status || 503,{error:err.status ? err.message : "Falha ao validar a entrega."}); }
 };
