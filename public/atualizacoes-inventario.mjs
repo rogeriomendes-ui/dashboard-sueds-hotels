@@ -95,7 +95,7 @@ async function track(id) {
     const j=await request(endpoint+"?id="+encodeURIComponent(id));
     if (String(id)!==sessionStorage.getItem("inventario.ultimo")) return;
     const labels={queued:"Aguardando o robô do notebook",running:"Em execução",assisted:"Abra a extensão Inventário Sueds nesta aba e carregue o pedido.",finish:"Conferido na Omnibees",failed:"Interrompido",
-      codex_pendente:"Aguardando o Codex assumir",codex_ativo:"Gravação em andamento",codex_salvo:"Gravação confirmada na Omnibees"};
+      codex_pendente:"Aguardando a extensão Ocupação Omnibees",codex_ativo:"Gravação em andamento",codex_salvo:"Gravação confirmada na Omnibees"};
     progress.textContent="Pedido "+j.id+" · "+j.hotel+" · "+br(j.start)+" a "+br(j.end)+" · "+(labels[j.state]||j.state)+" · "+j.done+(j.mode==="codex"?" noite(s) gravada(s). ":" noite(s) conferida(s). ")+(j.message||"");
     retryCodex.hidden=j.state!=="codex_pendente";
     retryCodex.dataset.id=j.id;
@@ -123,25 +123,16 @@ async function confirmPreview(manual) {
     await track(job.id);
   } catch(e) { if(plan===preview){status.textContent=e.message;codex.disabled=assisted.disabled=send.disabled=false;} }
 }
-async function entregarCodex(id,plan) {
-  const local = "http://127.0.0.1:41857";
+async function abrirNaExtensao(id,plan) {
   codex.disabled=assisted.disabled=send.disabled=retryCodex.disabled=true;
   let confirmado=false;
   try {
-    let health;
-    try {health=await fetch(local+"/status",{cache:"no-store",credentials:"omit",signal:AbortSignal.timeout(45000)});}
-    catch {throw Error("Conector indisponível. Confira se está ligado neste notebook e permita o acesso do Portal à rede local no Chrome.");}
-    if (!health.ok || (await health.json()).service!=="sueds-inventario") throw Error("Conector do notebook indisponível.");
     if (plan && preview!==plan) return;
     const job=await request(endpoint,{action:"confirmarCodex",id});
     confirmado=true;
     sessionStorage.setItem("inventario.ultimo",id);
     if (plan && plan===preview) codex.hidden=assisted.hidden=send.hidden=true;
-    const response=await fetch(local+"/pedido",{method:"POST",headers:{"Content-Type":"application/json"},
-      credentials:"omit",body:JSON.stringify({id:job.id,recibo:job.recibo}),signal:AbortSignal.timeout(25000)});
-    const delivery=await response.json();
-    if (!response.ok) throw Error(delivery.error || "Falha ao entregar ao Codex.");
-    status.textContent="Pedido recebido pelo conector. Acompanhe a gravação abaixo.";
+    window.top.location.href="/pedido-inventario-codex.html?id="+encodeURIComponent(job.id)+"#abrir-extensao";
   } catch(e) {
     status.textContent=confirmado ? "Pedido confirmado. "+e.message+" Consulte o andamento deste mesmo pedido." : e.message;
   } finally {
@@ -150,8 +141,8 @@ async function entregarCodex(id,plan) {
     retryCodex.disabled=false;
   }
 }
-codex.addEventListener("click",()=>{if (preview?.id && !codex.disabled) entregarCodex(preview.id,preview);});
-retryCodex.addEventListener("click",()=>entregarCodex(Number(retryCodex.dataset.id)));
+codex.addEventListener("click",()=>{if (preview?.id && !codex.disabled) abrirNaExtensao(preview.id,preview);});
+retryCodex.addEventListener("click",()=>abrirNaExtensao(Number(retryCodex.dataset.id)));
 assisted.addEventListener("click",()=>confirmPreview(true));
 send.addEventListener("click",()=>confirmPreview(false));
 adopt.addEventListener("click",async () => {

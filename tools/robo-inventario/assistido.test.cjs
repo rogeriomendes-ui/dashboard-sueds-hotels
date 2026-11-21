@@ -177,37 +177,22 @@ test("recibo vencido ou pedido interrompido não inicia uma gravação",async t=
   assert.equal((await call("iniciarCodex")).status,409);
 });
 
-test("clique no Portal entrega ao conector e a tela do pedido registra o resultado",{
+test("clique no Portal abre o pedido confirmado para a extensão",{
   skip:!process.env.INVENTARIO_CHROME_TESTE,timeout:45000
 },async t=>{
   const {chromium}=require("playwright-core");
-  const {readFile,mkdtemp,rm}=require("node:fs/promises");
-  const {resolve,join}=require("node:path");
-  const {once}=require("node:events");
-  const {tmpdir}=require("node:os");
-  const {servidor}=await import("./conector-codex.mjs");
+  const {readFile}=require("node:fs/promises");
+  const {resolve}=require("node:path");
   const api=fixture(); t.after(()=>api.close());
-  const pasta=await mkdtemp(join(tmpdir(),"sueds-clique-")); t.after(()=>rm(pasta,{recursive:true,force:true}));
-  const msgs=[];
-  const server=servidor({pasta,validar:async p=>assert.equal((await api.recibo(p)).status,200),enfileirar:async msg=>msgs.push(msg)});
-  server.listen(41857,"127.0.0.1"); await once(server,"listening");
-  t.after(()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();}));
   const browser=await chromium.launch({executablePath:process.env.INVENTARIO_CHROME_TESTE,headless:true});
   t.after(()=>browser.close());
   const ctx=await browser.newContext({serviceWorkers:"block"});
   const origin="https://portalsueds.com.br";
   const page=await ctx.newPage();
-  const erros=[];
-  page.on("console",msg=>{if(msg.type()==="error") erros.push(msg.text());});
-  page.on("requestfailed",req=>erros.push(req.url()+" "+req.failure()?.errorText));
-  const cdp=await ctx.newCDPSession(page);
-  const {targetInfo}=await cdp.send("Target.getTargetInfo");
-  await cdp.send("Browser.setPermission",{permission:{name:"loopback-network"},setting:"granted",origin,browserContextId:targetInfo.browserContextId});
   const assets=new Set(["atualizacoes-inventario.html","atualizacoes-inventario.mjs","inventario-regra.mjs",
     "pedido-inventario-codex.html","pedido-inventario-codex.mjs"]);
   await ctx.route("**/*",async route=>{
     const url=new URL(route.request().url());
-    if (url.origin==="http://127.0.0.1:41857") return route.continue();
     if (url.origin!==origin) return route.abort();
     if (url.pathname==="/gestores") return route.fulfill({contentType:"text/html",body:'<iframe src="/atualizacoes-inventario.html"></iframe>'});
     if (url.pathname==="/manager-auth.js") return route.fulfill({contentType:"text/javascript",body:'window.suedsManagerAuthReady=Promise.resolve(true)'});
@@ -227,19 +212,12 @@ test("clique no Portal entrega ao conector e a tela do pedido registra o resulta
   for (const key of ["start","end"]) await module.locator("[name="+key+"]").fill(date);
   await module.getByText("Gerar prévia").click();
   await module.locator("#codex").waitFor();
-  assert.equal(msgs.length,0);
   await module.locator("#codex").click();
-  try {await module.getByText(/Pedido recebido pelo conector/).waitFor({timeout:12000});}
-  catch(e) {throw Error("Entrega pelo Chrome: "+await module.locator("#estado").innerText()+" "+erros.join(" / "),{cause:e});}
-  assert.equal(msgs.length,1);
-  await module.locator("#entregar-codex").click();
-  await module.getByText(/Pedido recebido pelo conector/).waitFor();
-  const detail=await ctx.newPage();
-  await detail.goto(msgs[0].match(/https:\/\/[^ ]+/)[0]);
+  const detail=page;
+  await detail.waitForURL(origin+"/pedido-inventario-codex.html?id=7#abrir-extensao");
   await detail.getByRole("button",{name:"Assumir este pedido"}).click();
   await detail.locator("#registrar").waitFor();
   assert.deepEqual(await detail.locator("tbody tr td:nth-child(2)").allTextContents(),rows.map(r=>String(r.targetOccupied)));
-  assert.equal(msgs.length,1);
   await detail.locator("#registrar").click();
   await detail.getByText(/Gravação confirmada na Omnibees/).waitFor();
   assert.equal(api.job.payload.state,"codex_salvo");
