@@ -140,6 +140,31 @@ test("Codex recebe só a prévia confirmada, assume uma vez e registra as noites
   assert.equal(api.job.period_date,null);
   assert.equal((await api.request(confirm)).status,409);
 });
+test("pedido parcial ignora divergências no início, meio e fim",async t=>{
+  const api=fixture(); t.after(()=>api.close());
+  const {revisarPorNoite}=await import("../../public/inventario-regra.mjs");
+  const p=api.job.payload;
+  const days=["08","09","10","11","12"].map(day=>date.slice(0,8)+day);
+  p.end=days.at(-1);
+  p.rows=days.flatMap((date,i)=>rows.map(r=>({...r,date,status:i%2?r.status:"Conferir totais e categorias"})));
+  const review=revisarPorNoite(p.rows,hotel,p.start,p.end);
+  assert.equal(review.issue,"");
+  assert.deepEqual(review.dates,[days[1],days[3]]);
+  assert.deepEqual(review.skipped,[days[0],days[2],days[4]]);
+  assert.ok(revisarPorNoite(p.rows.slice(0,3),hotel,p.start,p.start).issue);
+  Object.assign(p,{dates:review.dates,skipped:review.skipped});
+  const call=(action,data={})=>api.request({action,id:7,...data});
+  assert.equal((await call("confirm")).status,409);
+  assert.equal((await call("confirmarCodex")).status,200);
+  const {token}=(await call("iniciarCodex")).data;
+  const mark=date=>call("registrarNoiteCodex",{date,token});
+  assert.equal((await mark(days[0])).status,409);
+  assert.equal((await mark(days[1])).data.done,1);
+  assert.equal((await mark(days[2])).status,409);
+  assert.equal((await mark(days[3])).data.state,"codex_salvo");
+  assert.equal(api.job.payload.done,2);
+});
+
 test("recibo vencido ou pedido interrompido não inicia uma gravação",async t=>{
   const api=fixture(); t.after(()=>api.close());
   const call=action=>api.request({id:7,action});

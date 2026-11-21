@@ -31,7 +31,7 @@ async function update(job, changes, slot = null) {
 }
 function summary(job) {
   const { state, mode, hotel, start, end, done, message, activeDay } = job.payload;
-  return { id: job.id, state, mode, hotel, start, end, done, message, activeDay };
+  return { id: job.id, state, mode, hotel, start, end, done, message, activeDay, dates:job.payload.dates, skipped:job.payload.skipped };
 }
 async function bodyOf(req) {
   let body = req.body;
@@ -51,7 +51,7 @@ module.exports = async function inventory(req, res) {
   try {
     const user = req.portalProfile;
     const isAdmin = user.roles.includes("admin_geral");
-    const { properties, validPeriod, revisar, planoAssistido, conferirLeitura } = await import("../../public/inventario-regra.mjs");
+    const { properties, validPeriod, revisarPorNoite, planoAssistido, conferirLeitura } = await import("../../public/inventario-regra.mjs");
     if (req.method === "GET") {
       const params = new URL(req.url, "https://portal.invalid").searchParams;
       const id = params.get("id");
@@ -88,14 +88,15 @@ module.exports = async function inventory(req, res) {
       const map = await inventoryOccupancy(start,end,hotel);
       const { linhasInventario } = await import("../../public/inventario-kpi.mjs");
       const rows = linhasInventario(map.occupancy);
-      const issue = revisar(rows,hotel,start,end);
+      const {issue,dates,skipped}=revisarPorNoite(rows,hotel,start,end);
       let id = null;
       if (isAdmin && !issue) {
-        const payload = { owner: user.id, revision: crypto.randomUUID(), state:"preview", hotel,start,end,rows,done:0 };
+        const payload = { owner: user.id, revision: crypto.randomUUID(), state:"preview", hotel,start,end,rows,done:0,
+          ...(skipped.length ? {dates,skipped} : {}) };
         const job = await one(table().insert({source,period_month:start.slice(0,7),payload}).select("id,payload"));
         id = job.id;
       }
-      return json(res,200,{ id,hotel,start,end,rows,issue,canSend:isAdmin });
+      return json(res,200,{ id,hotel,start,end,rows,issue,dates,skipped,canSend:isAdmin });
     }
     if (!isAdmin) throw fail(403,"Apenas administradores podem enviar.");
     if (b.action === "claim") {
@@ -116,7 +117,9 @@ module.exports = async function inventory(req, res) {
     if (b.action === "confirmarCodex") {
       if (p.owner !== user.id) throw fail(403,"Prévia de outro usuário.");
       if (!["preview","codex_pendente"].includes(p.state)) throw fail(409,"Este pedido já teve outro encaminhamento.");
-      if (!validPeriod(p.start,p.end) || p.start < hoje() || revisar(p.rows,p.hotel,p.start,p.end))
+      const review=revisarPorNoite(p.rows,p.hotel,p.start,p.end);
+      if (!validPeriod(p.start,p.end) || p.start < hoje() || review.issue ||
+          (review.skipped.length && JSON.stringify(p.dates)!==JSON.stringify(review.dates)))
         throw fail(409,"Gere uma nova prévia válida para esse período.");
       let atual = job;
       if (p.state === "preview" || Date.now() >= p.entregarAte) {
@@ -138,9 +141,9 @@ module.exports = async function inventory(req, res) {
         changes = {state:"failed",token:null,recibo:null,message:"Execução interrompida. Confira a última noite antes de outro pedido."};
       } else {
         if (p.state !== "codex_ativo" || !p.token || b.token !== p.token) throw fail(409,"A execução desta aba já encerrou.");
-        const data = new Date(Date.parse(p.start)+p.done*86400000).toISOString().slice(0,10);
+        const data = p.dates ? p.dates[p.done] : new Date(Date.parse(p.start)+p.done*86400000).toISOString().slice(0,10);
         if (data !== b.date) throw fail(409,"A noite já foi registrada ou está fora de ordem.");
-        const terminou = data === p.end;
+        const terminou = p.dates ? p.done+1===p.dates.length : data === p.end;
         changes = {state:terminou?"codex_salvo":p.state, activeDay:data, done:p.done+1, token:terminou?null:p.token};
         slot = terminou ? null : writerSlot;
       }
@@ -160,6 +163,7 @@ module.exports = async function inventory(req, res) {
       return json(res,200,summary(saved));
     }
     if (b.action === "confirm" || b.action === "confirmarAssistido") {
+      if (p.skipped?.length) throw fail(409,"Use o envio pelo Codex para processar somente as noites válidas.");
       if (p.owner !== user.id) throw fail(403,"Prévia de outro usuário.");
       const assisted = b.action === "confirmarAssistido";
       if (assisted) {

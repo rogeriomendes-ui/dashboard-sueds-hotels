@@ -46,7 +46,15 @@ function render(plan) {
   section.className = "occupancy-hotel occupancy-scroll";
   const title = document.createElement("h2");
   title.textContent = plan.hotel + " · " + br(plan.start) + " a " + br(plan.end);
-  section.append(title,table);
+  section.append(title);
+  if (plan.skipped?.length) {
+    const warning=document.createElement("p");
+    warning.setAttribute("role","status");
+    warning.textContent="Noites excluídas por divergência: "+plan.skipped.map(br).join(", ")+
+      ". Noites válidas para envio: "+(plan.issue ? 0 : plan.dates.length)+".";
+    section.append(warning);
+  }
+  section.append(table);
   result.replaceChildren(section);
 }
 form.addEventListener("input",invalidate);
@@ -63,7 +71,7 @@ form.addEventListener("submit",async event => {
     preview=plan;
     codex.hidden=!plan.id;
     codex.disabled=false;
-    send.hidden=!plan.id;
+    send.hidden=!plan.id || Boolean(plan.skipped?.length);
     assisted.hidden=!plan.id || plan.start!==plan.end;
     assisted.disabled=send.disabled=false;
     status.textContent=plan.issue || (plan.canSend ?
