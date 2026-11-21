@@ -1,8 +1,6 @@
 import { properties } from "./inventario-regra.mjs";
 const form = document.querySelector("#periodo");
 const result = document.querySelector("#resultado");
-const send = document.querySelector("#enviar");
-const assisted = document.querySelector("#assistido");
 const codex = document.querySelector("#codex");
 const retryCodex = document.querySelector("#entregar-codex");
 const viewCodex = document.querySelector("#ver-codex");
@@ -24,8 +22,6 @@ async function request(url, data) {
 function invalidate() {
   version++;
   preview = null;
-  send.hidden = true;
-  assisted.hidden = true;
   codex.hidden = true;
   result.replaceChildren();
   status.textContent = "";
@@ -79,9 +75,6 @@ form.addEventListener("submit",async event => {
     preview=plan;
     codex.hidden=!plan.id;
     codex.disabled=false;
-    send.hidden=!plan.id || Boolean(plan.skipped?.length);
-    assisted.hidden=!plan.id || plan.start!==plan.end;
-    assisted.disabled=send.disabled=false;
     status.textContent=plan.issue || (plan.canSend ?
       "Confira as datas e os ocupados antes de confirmar a gravação." :
       "Consulta disponível. O envio exige perfil de administrador.");
@@ -110,41 +103,26 @@ async function track(id) {
   }
   timer=setTimeout(()=>track(id),6000);
 }
-async function confirmPreview(manual) {
-  const plan=preview;
-  if (!plan?.id || send.disabled || (manual && plan.start!==plan.end)) return;
-  const prompt=manual ? "Confirmar o ajuste manual de "+plan.hotel+" em "+br(plan.start)+"?" :
-    "Enviar os ocupados exibidos pelo robô dedicado para "+plan.hotel+" de "+br(plan.start)+" a "+br(plan.end)+"?";
-  if (!window.confirm(prompt)) return;
-  codex.disabled=assisted.disabled=send.disabled=true;
-  try {
-    const job=await request(endpoint,{action:manual?"confirmarAssistido":"confirm",id:plan.id});
-    if (plan===preview) {codex.hidden=assisted.hidden=send.hidden=true;status.textContent="Pedido confirmado.";}
-    await track(job.id);
-  } catch(e) { if(plan===preview){status.textContent=e.message;codex.disabled=assisted.disabled=send.disabled=false;} }
-}
 async function abrirNaExtensao(id,plan) {
-  codex.disabled=assisted.disabled=send.disabled=retryCodex.disabled=true;
+  codex.disabled=retryCodex.disabled=true;
   let confirmado=false;
   try {
     if (plan && preview!==plan) return;
     const job=await request(endpoint,{action:"confirmarCodex",id});
     confirmado=true;
     sessionStorage.setItem("inventario.ultimo",id);
-    if (plan && plan===preview) codex.hidden=assisted.hidden=send.hidden=true;
+    if (plan && plan===preview) codex.hidden=true;
     window.top.location.href="/pedido-inventario-codex.html?id="+encodeURIComponent(job.id)+"#abrir-extensao";
   } catch(e) {
     status.textContent=confirmado ? "Pedido confirmado. "+e.message+" Consulte o andamento deste mesmo pedido." : e.message;
   } finally {
     if (confirmado || !plan) await track(id);
-    if (!plan || plan===preview) codex.disabled=assisted.disabled=send.disabled=false;
+    if (!plan || plan===preview) codex.disabled=false;
     retryCodex.disabled=false;
   }
 }
 codex.addEventListener("click",()=>{if (preview?.id && !codex.disabled) abrirNaExtensao(preview.id,preview);});
 retryCodex.addEventListener("click",()=>abrirNaExtensao(Number(retryCodex.dataset.id)));
-assisted.addEventListener("click",()=>confirmPreview(true));
-send.addEventListener("click",()=>confirmPreview(false));
 adopt.addEventListener("click",async () => {
   const id=Number(adopt.dataset.id);
   if (!id || !window.confirm("Retirar o pedido "+id+" da fila do robô dedicado e ajustar manualmente na Omnibees?")) return;

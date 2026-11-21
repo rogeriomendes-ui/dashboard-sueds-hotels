@@ -79,11 +79,16 @@ test("extensão instalada lê as duas abas e confere um único pedido", {timeout
   // Fixed historical fixture for the extension contract, independent of the machine date.
   await frame.locator("form").evaluate(el=>{el.noValidate=true;});
   await frame.getByText("Gerar prévia").click();
-  await frame.locator("#enviar").waitFor({state:"visible"});
-  assert.equal(await frame.locator("#assistido").isVisible(),false);
+  await frame.locator("#codex").waitFor({state:"visible"});
+  assert.equal(await frame.locator("#enviar, #assistido").count(),0);
   await frame.locator("input[name=end]").fill(date);
   await frame.getByText("Gerar prévia").click();
-  await frame.locator("#assistido").click();
+  await frame.locator("#codex").waitFor({state:"visible"});
+  // Retoma um pedido legado já enfileirado para testar a extensão assistida.
+  state = "queued";
+  await page.evaluate(id=>sessionStorage.setItem("inventario.ultimo",id),String(id));
+  await page.reload();
+  await frame.locator("#assumir").click();
   await frame.locator("#andamento").filter({hasText:/Abra a extensão/}).waitFor();
   await page.bringToFront();
   // Click the side panel document without changing the foreground tab, as Chrome does with its side panel.
