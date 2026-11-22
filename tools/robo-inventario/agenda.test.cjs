@@ -75,3 +75,32 @@ test("cancelamento durante a grade protege a execução e preserva o progresso",
     await assert.rejects(act("agendaNoite"),/mudou/);
   }
 });
+
+test("retoma a execução antiga na primeira noite pendente e preserva o plano nos próximos cancelamentos",async()=>{
+  const rules=await import("../../public/inventario-regra.mjs");
+  const day=new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date());
+  const hotels=["SUEDS CABRALIA","SUEDS PREMIUM"],start="2027-10-01",end="2027-10-03",date="2027-10-02";
+  let row={id:9,payload:{revision:"initial",lastDay:day,config:{...config,hotels,start,end,period:"fixed",mode:"auto"},
+    history:[{state:"Cancelado",day,done:4,total:6}],run:null}};
+  const calls=[],builder={eq(){return this;}};
+  const device=randomUUID();
+  const act=(action,extra={})=>schedule({...rules,body:{id:9,action,revision:row.payload.revision,device,...extra},
+    query:()=>builder,one:()=>row,update:async(_,changes)=>{row={...row,payload:{...row.payload,...changes,revision:randomUUID()}};return row;},
+    inventoryOccupancy:async(s,e,h)=>{calls.push([s,e,h]);return {occupancy:[{hotel:h,days:[date,end].map(date=>({date,apartments:10,available:8,
+      capturedAt:new Date().toISOString(),roomTypes:[{code:"STD",apartments:10,available:8}]}))}]};}});
+  const args={day,date,hotel:hotels[1],confirmedOrder:true};
+  await assert.rejects(act("agendaRetomarHoje",{...args,confirmedOrder:false}));
+  await assert.rejects(act("agendaRetomarHoje",{...args,date:start}));
+  const first=await act("agendaRetomarHoje",args);
+  assert.equal(first.run.done,4);
+  assert.deepEqual(calls,[[date,end,hotels[1]]]);
+  await assert.rejects(act("agendaRetomarHoje",args));
+  const {night}=await act("agendaNoite");
+  assert.deepEqual([night.hotel,night.date],["Sueds Premium",date]);
+  await act("agendaRegistrar",night);
+  await act("agendaCancelar",{day});await act("agendaCategoria");
+  const restored=await act("agendaRetomarHoje",{day,date:end,hotel:night.hotel});
+  assert.equal(restored.run.done,5);
+  assert.equal((await act("agendaNoite")).night.date,end);
+  assert.equal(calls.length,1);
+});

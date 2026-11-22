@@ -62,6 +62,15 @@ function show(item) {
   box.append(text("h3",c.hotels.map(h=>properties[h].name).join(", ")),
     text("p",c.days.map(d=>days[d]).join(", ")+" · "+c.time+" (Brasília) · "+(c.period==="month"?"Até o fim do mês":br(c.start)+" a "+br(c.end))+" · "+(c.mode==="review"?"Com aprovação":"Automático")+" · "+(c.enabled?"Ativo":"Pausado")));
   if(!run) button(box,"Editar",()=>edit(item));
+  if(item.resume) {
+    const {day,date,hotel,done,total,legacy}=item.resume;
+    box.append(text("p",done+" de "+total+" noites confirmadas. Próxima: "+hotel+" · "+br(date)+"."));
+    button(box,"Retomar hoje",()=>{
+      const original=legacy?"Confirme que o período original era "+br(c.start)+" a "+br(c.end)+" e a ordem era "+c.hotels.join(", ")+". ":"";
+      if(confirm(original+"Retomar em "+hotel+" em "+br(date)+", preservando as "+done+" noites confirmadas?"))
+        return change(item,"agendaRetomarHoje",{day,date,hotel,confirmedOrder:!!legacy});
+    });
+  }
   else {
     box.append(text("p",states[run.state]+" · "+run.done+"/"+run.total+" noites por hotel"+(run.message?" · "+run.message:"")));
     if(run.state==="review") {
