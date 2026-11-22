@@ -1,15 +1,22 @@
 import {properties} from "./inventario-regra.mjs";
 
-const id=Number(new URLSearchParams(location.search).get("id"));
+let id=Number(new URLSearchParams(location.search).get("id"));
 const endpoint="/api/portal/inventario-pontual";
 const el=selector=>document.querySelector(selector);
 const status=el("#estado"), start=el("#iniciar"), save=el("#registrar"), stop=el("#interromper");
+const next=el("#proximo-hotel");
 const br=date=>date.split("-").reverse().join("/");
 let job, token, date;
+let queue=[];
+try {
+  const stored=JSON.parse(sessionStorage.getItem("inventario.lote"));
+  if (Array.isArray(stored) && stored.every(n=>Number.isSafeInteger(n) && n>0)) queue=stored;
+} catch {}
 
-async function api(action) {
+async function api(action,requestId=id) {
   const response=action ? await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({id,action,token,date})}) : await fetch(endpoint+"?modo=codex&id="+id,{cache:"no-store"});
+    body:JSON.stringify(requestId===id?{id,action,token,date}:{id:requestId,action})}) :
+    await fetch(endpoint+"?modo=codex&id="+requestId,{cache:"no-store"});
   const result=await response.json();
   if (!response.ok) throw Error(result.error || "Pedido indisponível.");
   return result;
@@ -20,6 +27,11 @@ function render() {
   start.hidden=!pending;
   save.hidden=!ownerOfRun;
   stop.hidden=!pending && !active;
+  const index=queue.indexOf(id);
+  const nextId=index<0?undefined:queue[index+1];
+  next.disabled=job.state!=="codex_salvo" || !token || !nextId;
+  next.dataset.id=next.disabled?"":String(nextId);
+  if (job.state==="codex_salvo" && token && index>=0 && !nextId) sessionStorage.removeItem("inventario.lote");
   el("#noite").hidden=!ownerOfRun;
   el("#escopo").textContent="Pedido "+id+" · "+properties[job.hotel].name+" · "+br(job.start)+" a "+br(job.end);
   if (job.skipped?.length) el("#escopo").textContent+=" · Noites excluídas por divergência: "+job.skipped.map(br).join(", ");
@@ -71,6 +83,28 @@ start.addEventListener("click",async event=>{
   }
 });
 save.addEventListener("click",()=>act("registrarNoiteCodex"));
+next.addEventListener("click",async event=>{
+  if (event.isTrusted || next.disabled || job?.state!=="codex_salvo" || !token) return;
+  const nextId=Number(next.dataset.id);
+  next.disabled=true;
+  try {
+    await api("confirmarCodex",nextId);
+    const nextJob=await api(undefined,nextId);
+    if (nextJob.state!=="codex_pendente" || nextJob.id!==nextId) throw Error("O próximo pedido não está pendente.");
+    const url=new URL(location.href);
+    url.searchParams.set("id",nextId);
+    url.hash="";
+    history.replaceState(null,"",url);
+    sessionStorage.setItem("inventario.ultimo",nextId);
+    id=nextId;
+    job=nextJob;
+    token=date=undefined;
+    render();
+  } catch(e) {
+    status.textContent+=" "+e.message+" O lote foi pausado.";
+    next.disabled=false;
+  }
+});
 stop.addEventListener("click",()=>{
   if (window.confirm("Interromper o pedido "+id+"? Confirme que a gravação parou. As noites já salvas permanecem na Omnibees."))
     act("interromperCodex");

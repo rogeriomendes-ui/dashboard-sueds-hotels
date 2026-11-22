@@ -43,6 +43,11 @@ function render(plan) {
   const title = document.createElement("h2");
   title.textContent = plan.hotel + " · " + br(plan.start) + " a " + br(plan.end);
   section.append(title);
+  if (plan.issue) {
+    const warning=document.createElement("p");
+    warning.textContent=plan.issue;
+    section.append(warning);
+  }
   const differences=new Map(plan.rows.filter(row=>row.categoryAvailable!=null).map(row=>[row.date,row]));
   if (differences.size) {
     const warning=document.createElement("p");
@@ -59,25 +64,31 @@ function render(plan) {
     section.append(warning);
   }
   section.append(table);
-  result.replaceChildren(section);
+  result.append(section);
 }
 form.addEventListener("input",invalidate);
 form.addEventListener("submit",async event => {
   event.preventDefault(); invalidate();
   const current = version;
-  const scope = Object.fromEntries(new FormData(form));
+  const fields = new FormData(form);
+  const hotels = fields.getAll("hotel");
+  const scope = {start:fields.get("start"),end:fields.get("end")};
   if (scope.end < scope.start) { status.textContent="Confira as datas do período."; return; }
   status.textContent="Preparando prévia da captura do Portal…";
   try {
-    const plan = await request(endpoint,{action:"preview",...scope});
+    const results = await Promise.allSettled(hotels.map(hotel=>request(endpoint,{action:"preview",...scope,hotel})));
     if (current !== version) return;
-    render(plan);
-    preview=plan;
-    codex.hidden=!plan.id;
+    const plans=results.map((entry,index)=>entry.status==="fulfilled"?entry.value:
+      {...scope,hotel:hotels[index],rows:[],issue:entry.reason.message});
+    plans.forEach(render);
+    preview=plans.filter(plan=>plan.id);
+    codex.hidden=!preview.length;
     codex.disabled=false;
-    status.textContent=plan.issue || (plan.canSend ?
-      "Confira as datas e os ocupados antes de confirmar a gravação." :
-      "Consulta disponível. O envio exige perfil de administrador.");
+    codex.textContent=preview.length>1?"Confirmar envio de "+preview.length+" hotéis à extensão":
+      "Confirmar e abrir na extensão Ocupação Omnibees";
+    status.textContent=preview.length ?
+      "Confira as datas e os ocupados. Hotéis prontos para enviar: "+preview.length+" de "+plans.length+"." :
+      "Nenhum hotel da prévia está disponível para envio.";
   } catch (e) { if(current===version) status.textContent=e.message; }
 });
 async function track(id) {
@@ -103,25 +114,32 @@ async function track(id) {
   }
   timer=setTimeout(()=>track(id),6000);
 }
-async function abrirNaExtensao(id,plan) {
+async function abrirNaExtensao(id,plans) {
   codex.disabled=retryCodex.disabled=true;
   let confirmado=false;
   try {
-    if (plan && preview!==plan) return;
+    if (plans && preview!==plans) return;
     const job=await request(endpoint,{action:"confirmarCodex",id});
     confirmado=true;
     sessionStorage.setItem("inventario.ultimo",id);
-    if (plan && plan===preview) codex.hidden=true;
+    if (plans && plans===preview) {
+      codex.hidden=true;
+      sessionStorage.setItem("inventario.lote",JSON.stringify(plans.map(plan=>plan.id)));
+      sessionStorage.setItem("inventario.inicioConfirmado",JSON.stringify({id:String(job.id),expiresAt:Date.now()+60000}));
+    } else if (plans) {
+      status.textContent="A seleção mudou. Gere uma nova prévia para o período escolhido.";
+      return;
+    }
     window.top.location.href="/pedido-inventario-codex.html?id="+encodeURIComponent(job.id)+"#abrir-extensao";
   } catch(e) {
     status.textContent=confirmado ? "Pedido confirmado. "+e.message+" Consulte o andamento deste mesmo pedido." : e.message;
   } finally {
-    if (confirmado || !plan) await track(id);
-    if (!plan || plan===preview) codex.disabled=false;
+    if (confirmado || !plans) await track(id);
+    if (!plans || plans===preview) codex.disabled=false;
     retryCodex.disabled=false;
   }
 }
-codex.addEventListener("click",()=>{if (preview?.id && !codex.disabled) abrirNaExtensao(preview.id,preview);});
+codex.addEventListener("click",()=>{if (preview?.length && !codex.disabled) abrirNaExtensao(preview[0].id,preview);});
 retryCodex.addEventListener("click",()=>abrirNaExtensao(Number(retryCodex.dataset.id)));
 adopt.addEventListener("click",async () => {
   const id=Number(adopt.dataset.id);

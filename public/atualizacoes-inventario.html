@@ -13,7 +13,8 @@
   <form id="periodo" class="filters">
     <label>Data inicial<input type="date" name="start" required></label>
     <label>Data final<input type="date" name="end" required></label>
-    <label>Hotel<select name="hotel" required><option value="">Selecione o hotel</option></select></label>
+    <label>Hotéis<select name="hotel" multiple required aria-describedby="ajuda-hoteis"></select>
+      <small id="ajuda-hoteis">Use Ctrl ou ⌘ para selecionar mais de um hotel.</small></label>
     <div class="filter-actions"><button class="button primary" type="submit">Gerar prévia</button></div>
   </form>
   <p id="estado" role="status"></p>
@@ -24,6 +25,6 @@
   <a id="ver-codex" hidden>Ver pedido de inventário</a>
   <button id="assumir" class="button" type="button" hidden>Ajustar este pedido no Chrome normal</button>
 </main>
-<script type="module" src="/atualizacoes-inventario.mjs"></script>
+<script type="module" src="/atualizacoes-inventario.mjs?v=145"></script>
 </body>
 </html>
