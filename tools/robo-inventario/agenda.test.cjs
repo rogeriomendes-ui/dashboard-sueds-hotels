@@ -45,3 +45,33 @@ test("revisa, aprova, espera login, confere e registra uma única vez",async()=>
   assert.deepEqual(configuration({...c,hotels:["SUEDS TRANCOSO"]},rules.properties,rules.validPeriod,today).hotels,["SUEDS TRANCOSO"]);
   assert.throws(()=>configuration({...c,hotels:["CASAS SUEDS ARRAIAL"]},rules.properties,rules.validPeriod,today));
 });
+
+test("cancelamento durante a grade protege a execução e preserva o progresso",async()=>{
+  const {createHash}=require("node:crypto");
+  const day="2026-11-22",device=randomUUID(),otherDevice=randomUUID();
+  const night={hotel:"Sueds Cabralia",date:"2027-10-02",rows:[{room:"Apartamento Standard",quantity:"6"}]};
+  const base={id:940,payload:{revision:"v2",config,history:[],lastDay:day,run:{day,done:1,state:"running",
+    device:createHash("sha256").update(device).digest("hex"),nights:[{...night,date:"2027-10-01"},night,{...night,date:"2027-10-03"}]}}};
+  for(const finishingNight of [false,true]){
+    let row=structuredClone(base),slot="locked";
+    const builder={eq(){return this;}};
+    const act=(action,extra={})=>schedule({query:()=>builder,one:async()=>row,writerSlot:"locked",
+      update:async(current,changes,newSlot)=>{slot=newSlot;row={...current,payload:{...current.payload,...changes,revision:randomUUID()}};return row;},
+      body:{action,id:940,revision:"v2",device,...extra}});
+    await assert.rejects(act("agendaCancelar",{day:"2026-11-15",revision:"v1"}),/mudou/);
+    assert.equal((await act("agendaCancelar",{day,revision:"v1"})).run.state,"canceling");
+    assert.equal(slot,"locked");
+    await assert.rejects(act("agendaCategoria",{device:otherDevice}),/outro Chrome/);
+    if(finishingNight){
+      await assert.rejects(act("agendaRegistrar",{...night,rows:[]}),/Grade diferente/);
+      await act("agendaRegistrar",night);
+    }else await act("agendaCategoria");
+    assert.equal(row.payload.run,null);
+    assert.equal(row.payload.history[0].done,finishingNight?2:1);
+    assert.equal(row.payload.history[0].state,"Cancelado");
+    assert.equal(row.payload.lastDay,day);
+    assert.deepEqual(row.payload.config,config);
+    assert.equal(slot,null);
+    await assert.rejects(act("agendaNoite"),/mudou/);
+  }
+});

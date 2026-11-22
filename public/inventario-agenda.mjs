@@ -3,7 +3,7 @@ const endpoint="/api/portal/inventario-pontual";
 const el=id=>document.getElementById(id);
 const panel=el("agendamentos"), form=el("editar-agenda"), list=el("lista-agendas"), message=el("agenda-estado");
 const days=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-const states={review:"Aguardando aprovação da prévia",ready:"Aguardando a extensão",login:"Aguardando login na Omnibees",running:"Conferindo a grade",error:"Aguardando revisão"};
+const states={review:"Aguardando aprovação da prévia",ready:"Aguardando a extensão",login:"Aguardando login na Omnibees",running:"Conferindo a grade",canceling:"Cancelamento solicitado. Aguardando a extensão encerrar a etapa atual",error:"Aguardando revisão"};
 let editing,loading=false;
 const br=value=>value.split("-").reverse().join("/");
 function text(tag,value) { const node=document.createElement(tag); node.textContent=value; return node; }
@@ -75,7 +75,10 @@ function show(item) {
       box.append(table);button(box,"Aprovar esta prévia",()=>change(item,"agendaAprovar"));
     }
     if(run.state==="error") button(box,"Retomar conferência",()=>change(item,"agendaRetomar"));
-    if(run.state!=="running") button(box,"Cancelar esta execução",()=>{if(confirm("Cancelar as noites pendentes desta execução?")) return change(item,"agendaCancelar");});
+    if(run.state!=="canceling") button(box,"Cancelar esta execução",()=>{
+      if(confirm("Cancelar esta execução de "+br(run.day)+"? Uma categoria em andamento pode terminar. As gravações já feitas serão preservadas."))
+        return change(item,"agendaCancelar",{day:run.day});
+    });
   }
   if(item.history?.length) {
     const log=document.createElement("details");log.append(text("summary","Histórico de execuções"));
