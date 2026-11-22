@@ -71,7 +71,7 @@ function show(item) {
         return change(item,"agendaRetomarHoje",{day,date,hotel,confirmedOrder:!!legacy});
     });
   }
-  else {
+  if(run) {
     box.append(text("p",states[run.state]+" · "+run.done+"/"+run.total+" noites por hotel"+(run.message?" · "+run.message:"")));
     if(run.state==="review") {
       const table=document.createElement("table"),header=table.createTHead().insertRow();
