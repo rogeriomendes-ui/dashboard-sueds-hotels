@@ -6,7 +6,7 @@
   <title>Atualizações de inventário | Portal SUEDS</title>
   <script src="/manager-auth.js"></script>
   <link rel="stylesheet" href="/mapa-ocupacao.css">
-</head>
+<link rel="stylesheet" href="/inventario-agenda.css"></head>
 <body>
 <main class="occupancy-page">
   <header class="occupancy-header"><div><p class="eyebrow">Comercial</p><h1>Atualizações de inventário</h1><p>O Portal usa a captura diária já disponível. A oferta é 80% do saldo de cada categoria, arredondado para baixo.</p></div></header>
@@ -23,7 +23,23 @@
   <button id="entregar-codex" class="button" type="button" hidden>Abrir pedido na extensão</button>
   <a id="ver-codex" hidden>Ver pedido de inventário</a>
   <button id="assumir" class="button" type="button" hidden>Ajustar este pedido no Chrome normal</button>
+<details id="agendamentos" hidden>
+  <summary>Agendamentos</summary>
+  <div id="lista-agendas"></div>
+  <button type="button" class="button" id="nova-agenda">Novo agendamento</button>
+  <form id="editar-agenda" hidden>
+    <fieldset class="availability-options" id="agenda-hoteis"><legend>Hotéis</legend></fieldset>
+    <fieldset class="availability-options" id="agenda-dias"><legend>Dias da semana</legend></fieldset>
+    <label>Horário de Brasília<input type="time" name="time" required></label>
+    <label>Período do inventário<select name="period"><option value="month">De hoje até o fim do mês</option><option value="fixed">Datas fixas</option></select></label>
+    <div id="agenda-datas" hidden><label>Data inicial<input name="start" type="date"></label><label>Data final<input name="end" type="date"></label></div>
+    <label>Execução<select name="mode"><option value="review">Aprovar a prévia antes de gravar</option><option value="auto">Gravar automaticamente</option></select></label>
+    <label class="availability-filter"><input type="checkbox" name="enabled"> Agendamento ativo</label>
+    <div><button class="button primary" type="submit">Salvar agendamento</button> <button class="button" type="button" id="fechar-agenda">Cancelar edição</button></div>
+  </form>
+  <p id="agenda-estado" role="status"></p>
+</details>
 </main>
 <script type="module" src="/atualizacoes-inventario.mjs?v=146"></script>
-</body>
+<script type="module" src="/inventario-agenda.mjs"></script></body>
 </html>

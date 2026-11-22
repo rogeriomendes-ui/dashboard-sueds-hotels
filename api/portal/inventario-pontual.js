@@ -52,8 +52,14 @@ module.exports = async function inventory(req, res) {
     const user = req.portalProfile;
     const isAdmin = user.roles.includes("admin_geral");
     const { properties, validPeriod, revisarPorNoite, planoAssistido, conferirLeitura } = await import("../../public/inventario-regra.mjs");
+    const agenda=async (body,details=false)=>{
+      if (!isAdmin) throw fail(403,"Agendamentos exigem perfil de administrador.");
+      const {schedule}=require("../../lib/inventario-agenda");
+      return json(res,200,await schedule({body,details,owner:user.id,table,query,one,update,source,writerSlot,inventoryOccupancy,properties,validPeriod,revisarPorNoite}));
+    };
     if (req.method === "GET") {
       const params = new URL(req.url, "https://portal.invalid").searchParams;
+      if (params.has("agenda")) return await agenda(null,params.get("agenda")==="painel");
       const id = params.get("id");
       if (!id) {
         let pending = null;
@@ -66,7 +72,7 @@ module.exports = async function inventory(req, res) {
         return json(res,200,{ hotels:Object.keys(properties), canSend:isAdmin, pendingId:pending?.id || null });
       }
       const job = await one(query().eq("id",id).eq("payload->>owner",user.id));
-      if (!job) throw fail(404,"Pedido não encontrado.");
+      if (!job || job.payload.kind) throw fail(404,"Pedido não encontrado.");
       if (params.get("modo") === "codex") {
         if (!isAdmin || job.payload.mode !== "codex") throw fail(403,"Pedido indisponível para o Codex.");
         return json(res,200,{...summary(job),rows:job.payload.rows});
@@ -82,6 +88,7 @@ module.exports = async function inventory(req, res) {
     if (req.headers.origin !== "https://" + req.headers.host || !req.headers["content-type"]?.startsWith("application/json"))
       throw fail(403,"Origem inválida.");
     const b = await bodyOf(req);
+    if (typeof b?.action==="string" && b.action.startsWith("agenda")) return await agenda(b);
     if (b?.action === "preview") {
       const { hotel, start, end } = b;
       if (!Object.hasOwn(properties, hotel) || !validPeriod(start,end)) throw fail(400,"Escolha um hotel e um período válido.");
@@ -112,7 +119,7 @@ module.exports = async function inventory(req, res) {
     }
     if (!Number.isSafeInteger(b.id) || b.id < 1) throw fail(400,"Pedido inválido.");
     const job = await one(query().eq("id",b.id));
-    if (!job) throw fail(404,"Pedido não encontrado.");
+    if (!job || job.payload.kind) throw fail(404,"Pedido não encontrado.");
     const p = job.payload;
     if (b.action === "confirmarCodex") {
       if (p.owner !== user.id) throw fail(403,"Prévia de outro usuário.");

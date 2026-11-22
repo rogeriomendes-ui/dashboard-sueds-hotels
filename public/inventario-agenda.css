@@ -1,0 +1,9 @@
+#agendamentos {margin:18px 0;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+#agendamentos summary {cursor:pointer;font-weight:700}
+#editar-agenda:not([hidden]) {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:14px;align-items:start;margin:14px 0}
+#editar-agenda > label,#agenda-datas label {display:grid;gap:4px}
+#editar-agenda label.availability-filter {display:flex;gap:6px;align-items:center}
+#lista-agendas section {padding:10px 0;border-bottom:1px solid var(--line);margin-bottom:10px}
+#lista-agendas button {margin:4px}
+#lista-agendas table {border-collapse:collapse}
+#lista-agendas th,#lista-agendas td {padding:4px 8px;text-align:left}
