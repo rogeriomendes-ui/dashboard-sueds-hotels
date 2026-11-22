@@ -17,7 +17,7 @@ async function chooseHotel(page, property) {
   const header = page.locator('[id="sh-context"],[id="context-sh-context"],header,[role="banner"]').filter({hasText:/SUEDS/i}).filter({visible:true});
   const active = async()=>header.getByText(property,{exact:true}).filter({visible:true}).count()===1;
   if (!await active()) {
-    const list=Object.values(properties).filter(Boolean).map(p=>p.name).concat(["Sueds Trancoso"]);
+    const list=Object.values(properties).filter(Boolean).map(p=>p.name);
     let current;
     for(const name of list) {
       const item=header.getByText(name,{exact:true}).filter({visible:true});

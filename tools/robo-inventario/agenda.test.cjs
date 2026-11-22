@@ -41,5 +41,6 @@ test("revisa, aprova, espera login, confere e registra uma única vez",async()=>
   assert.equal(slot,null);
   assert.equal(stored.payload.history[0].done,1);
   await assert.rejects(act("agendaPreparar"),/prevista/);
-  assert.throws(()=>configuration({...c,hotels:["SUEDS TRANCOSO"]},rules.properties,rules.validPeriod,today));
+  assert.deepEqual(configuration({...c,hotels:["SUEDS TRANCOSO"]},rules.properties,rules.validPeriod,today).hotels,["SUEDS TRANCOSO"]);
+  assert.throws(()=>configuration({...c,hotels:["CASAS SUEDS ARRAIAL"]},rules.properties,rules.validPeriod,today));
 });

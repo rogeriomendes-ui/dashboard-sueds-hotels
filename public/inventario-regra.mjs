@@ -3,7 +3,9 @@ export const properties = {
   "SUEDS CABRALIA": { name: "Sueds Cabralia", rooms: { STD: "Apartamento Standard" } },
   "SUEDS PREMIUM": { name: "Sueds Premium", rooms: { STD: "Standard" } },
   "SUEDS SEGUNDO SOL": { name: "Sueds Segundo Sol", rooms: { STD: "Apartamento Standard" } },
-  "SUEDS TRANCOSO": null,
+  "SUEDS TRANCOSO": { name: "Sueds Trancoso", rooms: {
+    JNR: "Suite Junior", STD: "Suite Standard", DLX: "Suite Deluxe", QDL: "Suite Deluxe Quádrupla"
+  } },
   "CASAS SUEDS ARRAIAL": null
 };
 export function validPeriod(start, end) {
