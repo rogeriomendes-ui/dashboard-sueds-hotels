@@ -91,6 +91,6 @@ async function refresh() {
 panel.ontoggle=()=>{if(panel.open) refresh().catch(e=>message.textContent=e.message);};
 await window.suedsManagerAuthReady;
 refresh().catch(e=>{if(!/administrador/.test(e.message)){panel.hidden=false;message.textContent=e.message;}});
-setInterval(async()=>{if(!panel.open || document.hidden || !form.hidden || loading) return;loading=true;
+setInterval(async()=>{if(!panel.open || document.hidden || loading) return;loading=true;
   try{await refresh();}catch(e){message.textContent=e.message;}finally{loading=false;}
 },30000);

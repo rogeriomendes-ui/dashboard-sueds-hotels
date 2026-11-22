@@ -37,7 +37,8 @@ test("revisa, aprova, espera login, confere e registra uma única vez",async()=>
   await act("agendaLogin");
   assert.equal((await act("agendaNoite")).run.done,0);
   await assert.rejects(act("agendaRegistrar",{...night,revision}),/mudou/);
-  await act("agendaRegistrar",night);
+  await assert.rejects(act("agendaRegistrar",{...night,rows:night.rows.map(r=>({...r,quantity:"0"}))}),/Grade diferente/);
+  await act("agendaRegistrar",{...night,rows:night.rows.map(({room,quantity})=>({quantity,room}))});
   assert.equal(slot,null);
   assert.equal(stored.payload.history[0].done,1);
   await assert.rejects(act("agendaPreparar"),/prevista/);
