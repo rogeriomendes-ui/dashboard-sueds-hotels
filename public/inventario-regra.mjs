@@ -24,7 +24,8 @@ export function revisar(rows, hotel, start, end) {
         r.status !== "Captura disponível" || !Number.isFinite(Date.parse(r.capturedAt)) ||
         !Number.isSafeInteger(r.capacity) || r.capacity < 0 ||
         !Number.isSafeInteger(r.available) || r.available < 0 || r.available > r.capacity ||
-        r.targetAvailable !== Math.floor(r.available * 4 / 5) || r.targetOccupied !== r.capacity - r.targetAvailable) {
+        !Number.isInteger(r.percentualOmnibees ?? 80) || (r.percentualOmnibees ?? 80)<0 || (r.percentualOmnibees ?? 80)>100 ||
+        r.targetAvailable !== Math.floor(r.available * (r.percentualOmnibees ?? 80) / 100) || r.targetOccupied !== r.capacity - r.targetAvailable) {
       return "Confira a captura e as categorias em " + r.date + ".";
     }
     seen.add(key);

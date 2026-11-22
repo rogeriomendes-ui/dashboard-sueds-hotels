@@ -52,10 +52,19 @@ module.exports = async function inventory(req, res) {
     const user = req.portalProfile;
     const isAdmin = user.roles.includes("admin_geral");
     const { properties, validPeriod, revisarPorNoite, planoAssistido, conferirLeitura } = await import("../../public/inventario-regra.mjs");
+    const {padrao,percentuaisValidos}=await import("../../public/inventario-kpi.mjs");
+    const configSource="inventario_percentuais";
+    const configRow=()=>one(table().select("id,payload").eq("source",configSource).eq("period_date",writerSlot));
+    async function loadPercentuais() {
+      const row=await configRow();
+      if (!row) return padrao;
+      if (!percentuaisValidos(row.payload.percentuais)) throw fail(503,"Configuração de inventário inválida.");
+      return row.payload.percentuais;
+    }
     const agenda=async (body,details=false)=>{
       if (!isAdmin) throw fail(403,"Agendamentos exigem perfil de administrador.");
       const {schedule}=require("../../lib/inventario-agenda");
-      return json(res,200,await schedule({body,details,owner:user.id,table,query,one,update,source,writerSlot,inventoryOccupancy,properties,validPeriod,revisarPorNoite}));
+      return json(res,200,await schedule({body,details,owner:user.id,table,query,one,update,source,writerSlot,inventoryOccupancy,properties,validPeriod,revisarPorNoite,loadPercentuais}));
     };
     if (req.method === "GET") {
       const params = new URL(req.url, "https://portal.invalid").searchParams;
@@ -69,7 +78,7 @@ module.exports = async function inventory(req, res) {
         if (isAdmin && params.get("retomar") === "inventario")
           pending = await one(table().select("id").eq("source",source).eq("payload->>owner",user.id)
             .in("payload->>state",["assisted","codex_pendente","codex_ativo"]).order("id",{ascending:false}).limit(1));
-        return json(res,200,{ hotels:Object.keys(properties), canSend:isAdmin, pendingId:pending?.id || null });
+        return json(res,200,{ hotels:Object.keys(properties), canSend:isAdmin, percentuais:await loadPercentuais(), pendingId:pending?.id || null });
       }
       const job = await one(query().eq("id",id).eq("payload->>owner",user.id));
       if (!job || job.payload.kind) throw fail(404,"Pedido não encontrado.");
@@ -89,12 +98,27 @@ module.exports = async function inventory(req, res) {
       throw fail(403,"Origem inválida.");
     const b = await bodyOf(req);
     if (typeof b?.action==="string" && b.action.startsWith("agenda")) return await agenda(b);
+    if (b?.action === "salvarPercentuais") {
+      if (!isAdmin) throw fail(403,"Apenas administradores podem alterar a distribuição.");
+      if (!percentuaisValidos(b.percentuais)) throw fail(400,"Informe um percentual inteiro de 0 a 100 para cada canal.");
+      const atual=await configRow();
+      const anterior=atual?.payload.percentuais || padrao;
+      if (Object.keys(padrao).some(k=>anterior[k]!==b.anterior?.[k])) throw fail(409,"A distribuição mudou. Recarregue a página.");
+      const {omnibees,juniper,cvc}=b.percentuais;
+      const payload={percentuais:{omnibees,juniper,cvc},revision:crypto.randomUUID()};
+      const op=atual ? table().update({payload}).eq("id",atual.id).eq("payload->>revision",atual.payload.revision) :
+        table().insert({source:configSource,period_month:"1970-01",period_date:writerSlot,payload});
+      const saved=await op.select("id").maybeSingle();
+      if (saved.error && saved.error.code!=="23505") throw fail(503,"Falha ao salvar a distribuição.");
+      if (!saved.data) throw fail(409,"A distribuição mudou. Recarregue a página.");
+      return json(res,200,payload.percentuais);
+    }
     if (b?.action === "preview") {
       const { hotel, start, end } = b;
       if (!Object.hasOwn(properties, hotel) || !validPeriod(start,end)) throw fail(400,"Escolha um hotel e um período válido.");
       const map = await inventoryOccupancy(start,end,hotel);
       const { linhasInventario } = await import("../../public/inventario-kpi.mjs");
-      const rows = linhasInventario(map.occupancy);
+      const rows = linhasInventario(map.occupancy,await loadPercentuais());
       const {issue,dates,skipped}=revisarPorNoite(rows,hotel,start,end);
       let id = null;
       if (isAdmin && !issue) {

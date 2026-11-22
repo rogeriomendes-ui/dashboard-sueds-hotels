@@ -24,6 +24,18 @@ test("distingue saldo zero de captura ausente e bloqueia divergência",()=>{
   assert.ok(revisar(linhasInventario(data),hotel,date,date));
   assert.ok(!validPeriod("2027-02-30","2027-03-03"));
 });
+test("distribui o saldo de cada categoria pelos percentuais salvos",()=>{
+  const p={omnibees:65,juniper:25,cvc:10};
+  const rows=linhasInventario(dados(),p);
+  assert.deepEqual(rows.map(r=>[r.targetAvailable,r.juniper,r.cvc]),[[39,15,6],[12,4,1],[3,1,0]]);
+  assert.equal(revisar(rows,hotel,date,date),"");
+  const integrais=linhasInventario(dados(),{omnibees:100,juniper:100,cvc:100});
+  for (const r of integrais) assert.deepEqual([r.targetAvailable,r.juniper,r.cvc],[r.available,r.available,r.available]);
+  assert.equal(revisar(integrais,hotel,date,date),"");
+  assert.throws(()=>linhasInventario(dados(),{...p,cvc:101}));
+  assert.throws(()=>linhasInventario(dados(),{...p,cvc:-1}));
+  assert.equal(linhasInventario(dados(),{omnibees:0,juniper:0,cvc:0})[0].targetOccupied,89);
+});
 test("31 de março do Plaza usa os saldos das categorias e sinaliza a diferença do hotel",()=>{
   const data=dados(),day=data[0].days[0];
   day.date="2027-03-31";

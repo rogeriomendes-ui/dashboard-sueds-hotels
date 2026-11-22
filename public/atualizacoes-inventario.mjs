@@ -31,11 +31,11 @@ function render(plan) {
   table.className = "occupancy-table";
   const cell = (row,tag,value) => { const el = document.createElement(tag); el.textContent = value ?? "—"; row.append(el); };
   const header = table.createTHead().insertRow();
-  for (const name of ["Noite","Apartamento","Capacidade","Disponíveis no Portal","Disponíveis após envio","Ocupados a lançar","Captura (Brasília)"]) cell(header,"th",name);
+  for (const name of ["Noite","Apartamento","Capacidade","Disponíveis no KPI","Disponíveis Omnibees","Disponíveis Juniper","Disponíveis CVC","Ocupados a lançar","Captura (Brasília)"]) cell(header,"th",name);
   const body = table.createTBody();
   for (const r of plan.rows) {
     const row = body.insertRow(), time = Date.parse(r.capturedAt);
-    for (const value of [br(r.date),properties[plan.hotel]?.rooms[r.code] || r.code,r.capacity,r.available,r.targetAvailable,r.targetOccupied,
+    for (const value of [br(r.date),properties[plan.hotel]?.rooms[r.code] || r.code,r.capacity,r.available,r.targetAvailable,r.juniper,r.cvc,r.targetOccupied,
       Number.isFinite(time)?stamp.format(time):null]) cell(row,"td",value);
   }
   const section = document.createElement("section");
@@ -157,7 +157,26 @@ adopt.addEventListener("click",async () => {
   finally {adopt.disabled=false;}
 });
 const last=sessionStorage.getItem("inventario.ultimo");
-request(last ? endpoint : endpoint+"?retomar=inventario").then(({hotels,pendingId})=>{
+const configForm=document.querySelector("#percentuais");
+const configStatus=document.querySelector("#config-estado");
+let savedPercentuais;
+configForm.onsubmit=async event=>{
+  event.preventDefault();
+  const values=Object.fromEntries([...new FormData(configForm)].map(([k,v])=>[k,Number(v)]));
+  const button=configForm.querySelector("button");
+  button.disabled=true;
+  try {
+    savedPercentuais=await request(endpoint,{action:"salvarPercentuais",percentuais:values,anterior:savedPercentuais});
+    invalidate();
+    configStatus.textContent="Percentuais salvos para novas prévias e execuções.";
+  } catch(e) {configStatus.textContent=e.message;}
+  finally {button.disabled=false;}
+};
+request(last ? endpoint : endpoint+"?retomar=inventario").then(({hotels,pendingId,percentuais,canSend})=>{
+  savedPercentuais=percentuais;
+  for(const [key,value] of Object.entries(percentuais)) configForm.elements[key].value=value;
+  document.querySelector("#distribuicao").hidden=false;
+  for(const control of configForm.elements) control.disabled=!canSend;
   const group = document.querySelector("#hoteis");
   for (const hotel of hotels) {
     const label = document.createElement("label");

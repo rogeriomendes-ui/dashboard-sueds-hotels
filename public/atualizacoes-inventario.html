@@ -9,7 +9,17 @@
 <link rel="stylesheet" href="/inventario-agenda.css"></head>
 <body>
 <main class="occupancy-page">
-  <header class="occupancy-header"><div><p class="eyebrow">Comercial</p><h1>Atualizações de inventário</h1><p>O Portal usa a captura diária já disponível. A oferta é 80% do saldo de cada categoria, arredondado para baixo.</p></div></header>
+  <header class="occupancy-header"><div><p class="eyebrow">Comercial</p><h1>Atualizações de inventário</h1><p>O Portal usa a captura diária já disponível. A disponibilidade de cada canal é calculada sobre o saldo da categoria e arredondada para baixo.</p></div></header>
+  <details id="distribuicao" hidden>
+    <summary>Configurações de distribuição do inventário</summary>
+    <form id="percentuais" class="filters">
+      <label>Omnibees (%)<input name="omnibees" type="number" min="0" max="100" required></label>
+      <label>Juniper (%)<input name="juniper" type="number" min="0" max="100" required></label>
+      <label>CVC (%)<input name="cvc" type="number" min="0" max="100" required></label>
+      <button class="button primary">Salvar percentuais</button>
+    </form>
+    <p role="status" id="config-estado"></p>
+  </details>
   <form id="periodo" class="filters">
     <label>Data inicial<input type="date" name="start" required></label>
     <label>Data final<input type="date" name="end" required></label>
@@ -40,6 +50,6 @@
   <p id="agenda-estado" role="status"></p>
 </details>
 </main>
-<script type="module" src="/atualizacoes-inventario.mjs?v=146"></script>
+<script type="module" src="/atualizacoes-inventario.mjs?v=147"></script>
 <script type="module" src="/inventario-agenda.mjs"></script></body>
 </html>

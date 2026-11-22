@@ -1,4 +1,9 @@
-export function linhasInventario(occupancy) {
+export const padrao = Object.freeze({omnibees:80,juniper:10,cvc:10});
+export function percentuaisValidos(p) {
+  return !!p && Object.keys(padrao).every(k=>Number.isInteger(p[k]) && p[k]>=0 && p[k]<=100);
+}
+export function linhasInventario(occupancy, percentuais=padrao) {
+  if (!percentuaisValidos(percentuais)) throw Error("Percentuais de inventário inválidos.");
   if (!Array.isArray(occupancy)) throw Error("Resposta do mapa de ocupação inválida.");
   const rows = [];
   for (const { hotel, days } of occupancy) {
@@ -16,8 +21,11 @@ export function linhasInventario(occupancy) {
       for (const type of types.length ? types : [null]) {
         rows.push({ hotel, date: day.date, code: type?.code ?? null,
           capacity: type?.apartments ?? null, available: type?.available ?? null,
-          targetAvailable: complete && stamp ? Math.floor(type.available * 4 / 5) : null,
-          targetOccupied: complete && stamp ? type.apartments - Math.floor(type.available * 4 / 5) : null,
+          percentualOmnibees:percentuais.omnibees,
+          juniper: complete && stamp ? Math.floor(type.available * percentuais.juniper / 100) : null,
+          cvc: complete && stamp ? Math.floor(type.available * percentuais.cvc / 100) : null,
+          targetAvailable: complete && stamp ? Math.floor(type.available * percentuais.omnibees / 100) : null,
+          targetOccupied: complete && stamp ? type.apartments - Math.floor(type.available * percentuais.omnibees / 100) : null,
           capturedAt: stamp, status,
           ...(complete && categoryAvailable !== day.available ? {categoryAvailable,hotelAvailable:day.available} : {}) });
       }
