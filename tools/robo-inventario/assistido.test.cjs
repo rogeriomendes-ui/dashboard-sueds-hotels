@@ -208,7 +208,7 @@ test("clique no Portal abre o pedido confirmado para a extensão",{
   });
   await page.goto(origin+"/gestores");
   const module=page.frameLocator("iframe");
-  await module.locator("[name=hotel]").selectOption(hotel);
+  await module.getByRole("checkbox",{name:hotel,exact:true}).check();
   for (const key of ["start","end"]) await module.locator("[name="+key+"]").fill(date);
   await module.getByText("Gerar prévia").click();
   await module.locator("#codex").waitFor();

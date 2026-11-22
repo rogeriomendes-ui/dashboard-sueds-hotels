@@ -72,6 +72,11 @@ form.addEventListener("submit",async event => {
   const current = version;
   const fields = new FormData(form);
   const hotels = fields.getAll("hotel");
+  if (!hotels.length) {
+    status.textContent="Selecione pelo menos um hotel.";
+    form.querySelector('input[name="hotel"]')?.focus();
+    return;
+  }
   const scope = {start:fields.get("start"),end:fields.get("end")};
   if (scope.end < scope.start) { status.textContent="Confira as datas do período."; return; }
   status.textContent="Preparando prévia da captura do Portal…";
@@ -153,7 +158,17 @@ adopt.addEventListener("click",async () => {
 });
 const last=sessionStorage.getItem("inventario.ultimo");
 request(last ? endpoint : endpoint+"?retomar=inventario").then(({hotels,pendingId})=>{
-  for (const h of hotels) form.elements.hotel.add(new Option(h,h));
+  const group = document.querySelector("#hoteis");
+  for (const hotel of hotels) {
+    const label = document.createElement("label");
+    label.className = "availability-filter";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = "hotel";
+    checkbox.value = hotel;
+    label.append(checkbox, hotel);
+    group.append(label);
+  }
   if (pendingId && !sessionStorage.getItem("inventario.ultimo")) track(pendingId);
 }).catch(e=>status.textContent=e.message);
 if(last) track(last);

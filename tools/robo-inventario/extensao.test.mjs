@@ -73,7 +73,7 @@ test("extensão instalada lê as duas abas e confere um único pedido", {timeout
   await page.goto(portal+shell);
   page.on("dialog",d=>d.accept());
   const frame = page.frameLocator("iframe");
-  await frame.locator("select").selectOption(hotel);
+  await frame.getByRole("checkbox",{name:hotel,exact:true}).check();
   await frame.locator("input[name=start]").fill(date);
   await frame.locator("input[name=end]").fill("2027-03-09");
   // Fixed historical fixture for the extension contract, independent of the machine date.
