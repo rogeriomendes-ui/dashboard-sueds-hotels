@@ -25,6 +25,8 @@ function parseIds(values, type) {
 
 async function catalog(supabase) {
   const biEnvironments = await supabase.from("portal_environments").upsert([
+    { slug: "rms", name: "RMS", description: "Painel e configurações de simulação de tarifas no Comercial.", sort_order: 49, status: "active" },
+    { slug: "inventario", name: "Atualizações de inventário", description: "Acesso às atualizações de inventário dos hotéis.", sort_order: 50, status: "active" },
     { slug: "status_integracoes", name: "Status integrações", description: "Conferência das reservas confirmadas nos canais versus as capturas do KPI.", sort_order: 49, status: "active" },
     {
       slug: "bi_relatorios",

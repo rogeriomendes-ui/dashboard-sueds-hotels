@@ -42,7 +42,7 @@ module.exports = async function api(req, res) {
   if (pathname === "/api/auth/first-access") return firstAccess(req, res);
   if (pathname === "/api/auth/recover") return recover(req, res);
   if (pathname === "/api/auth/site-preview") return sitePreview(req, res);
-  if (pathname === "/api/portal/inventario-pontual") return withPortalEnvironment(require("./portal/inventario-pontual"), "mapa_ocupacao")(req,res);
+  if (pathname === "/api/portal/inventario-pontual") return withPortalEnvironment(require("./portal/inventario-pontual"), "inventario")(req,res);
   if (pathname === "/api/portal/inventario-codex/recibo") return require("./portal/inventario-pontual").validarRecibo(req,res);
   if (pathname === "/api/portal/captures") return require("./portal/captures")(req, res);
   if (pathname === "/api/portal/omnibees-import") return require("./portal/omnibees-import")(req, res);
