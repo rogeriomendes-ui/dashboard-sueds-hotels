@@ -121,7 +121,7 @@ async function track(id) {
     const labels={queued:"Aguardando o robô do notebook",running:"Em execução",assisted:"Abra a extensão Inventário Sueds nesta aba e carregue o pedido.",finish:"Conferido na Omnibees",failed:"Interrompido",
       codex_pendente:"Aguardando a extensão Ocupação Omnibees",codex_ativo:"Gravação em andamento",codex_salvo:"Gravação confirmada na Omnibees"};
     progress.textContent="Pedido "+j.id+" · "+j.hotel+" · "+br(j.start)+" a "+br(j.end)+" · "+(labels[j.state]||j.state)+" · "+j.done+(j.mode==="codex"?" noite(s) gravada(s). ":" noite(s) conferida(s). ")+(j.message||"");
-    retryCodex.hidden=j.state!=="codex_pendente";
+    retryCodex.hidden=j.state!=="codex_pendente" || Boolean(document.querySelector("#execucao-inventario"));
     retryCodex.dataset.id=j.id;
     viewCodex.hidden=j.mode!=="codex";
     viewCodex.href="/pedido-inventario-codex.html?id="+encodeURIComponent(j.id);
@@ -139,6 +139,8 @@ async function abrirNaExtensao(id,plans) {
   let confirmado=false;
   try {
     if (plans && preview!==plans) return;
+    if (document.documentElement.dataset.inventarioDireto!=="1") throw Error("Recarregue a extensão 1.8.1 e esta página para iniciar pelo Portal.");
+    if (document.querySelector("#execucao-inventario")) throw Error("Já existe uma execução aberta nesta página.");
     const extras=plans?.canais?.filter(c=>c!=="omnibees") || [];
     let lote=null;
     if(extras.length) {
@@ -150,7 +152,8 @@ async function abrirNaExtensao(id,plans) {
     }
     if(lote && !lote.ids.length) {
       sessionStorage.setItem("inventario.canais",JSON.stringify(lote));
-      window.top.location.href="/atualizacoes-inventario.html#lote-canais="+lote.key;
+      document.dispatchEvent(new Event("inventario-iniciar-canais"));
+      codex.hidden=true;
       return;
     }
     const job=await request(endpoint,{action:"confirmarCodex",id});
@@ -161,12 +164,21 @@ async function abrirNaExtensao(id,plans) {
       else sessionStorage.removeItem("inventario.canais");
       codex.hidden=true;
       sessionStorage.setItem("inventario.lote",JSON.stringify(plans.map(plan=>plan.id)));
-      sessionStorage.setItem("inventario.inicioConfirmado",JSON.stringify({id:String(job.id),expiresAt:Date.now()+60000}));
     } else if (plans) {
       status.textContent="A seleção mudou. Gere uma nova prévia para o período escolhido.";
       return;
     }
-    window.top.location.href="/pedido-inventario-codex.html?id="+encodeURIComponent(job.id)+"#abrir-extensao";
+    const destino="/pedido-inventario-codex.html?id="+encodeURIComponent(job.id)+"#abrir-extensao";
+    sessionStorage.setItem("inventario.inicioConfirmado",JSON.stringify({id:String(job.id),expiresAt:Date.now()+60000}));
+    const frame=document.createElement("iframe");
+    frame.id="execucao-inventario";
+    frame.tabIndex=-1;
+    frame.setAttribute("aria-hidden","true");
+    frame.title="Execução do pedido "+job.id;
+    frame.style.cssText="position:absolute;left:-10000px;width:800px;height:600px;border:0;pointer-events:none";
+    frame.src=destino;
+    document.body.append(frame);
+    status.textContent="Pedido "+job.id+" confirmado. Mantenha esta tela aberta durante a atualização.";
   } catch(e) {
     status.textContent=confirmado ? "Pedido confirmado. "+e.message+" Consulte o andamento deste mesmo pedido." : e.message;
   } finally {
