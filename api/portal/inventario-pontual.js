@@ -115,13 +115,16 @@ module.exports = async function inventory(req, res) {
     }
     if (b?.action === "preview") {
       const { hotel, start, end } = b;
+      const canais=b.canais===undefined ? ["omnibees"] : b.canais;
+      if (!Array.isArray(canais) || !canais.length || canais.some(c=>!["omnibees","cvc","juniper"].includes(c)))
+        throw fail(400,"Selecione os canais de inventário.");
       if (!Object.hasOwn(properties, hotel) || !validPeriod(start,end)) throw fail(400,"Escolha um hotel e um período válido.");
       const map = await inventoryOccupancy(start,end,hotel);
       const { linhasInventario } = await import("../../public/inventario-kpi.mjs");
       const rows = linhasInventario(map.occupancy,await loadPercentuais());
       const {issue,dates,skipped}=revisarPorNoite(rows,hotel,start,end);
       let id = null;
-      if (isAdmin && !issue) {
+      if (isAdmin && !issue && canais.includes("omnibees")) {
         const payload = { owner: user.id, revision: crypto.randomUUID(), state:"preview", hotel,start,end,rows,done:0,
           ...(skipped.length ? {dates,skipped} : {}) };
         const job = await one(table().insert({source,period_month:start.slice(0,7),payload}).select("id,payload"));

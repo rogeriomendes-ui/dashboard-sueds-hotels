@@ -26,16 +26,20 @@ function invalidate() {
   result.replaceChildren();
   status.textContent = "";
 }
-function render(plan) {
+function render(plan, canais) {
   const table = document.createElement("table");
   table.className = "occupancy-table";
   const cell = (row,tag,value) => { const el = document.createElement(tag); el.textContent = value ?? "—"; row.append(el); };
   const header = table.createTHead().insertRow();
-  for (const name of ["Noite","Apartamento","Capacidade","Disponíveis no KPI","Disponíveis Omnibees","Disponíveis Juniper","Disponíveis CVC","Ocupados a lançar","Captura (Brasília)"]) cell(header,"th",name);
+  const columns=[];
+  if(canais.includes("omnibees")) columns.push(["Disponíveis Omnibees","targetAvailable"],["Ocupados a lançar","targetOccupied"]);
+  if(canais.includes("cvc")) columns.push(["Disponíveis CVC","cvc"]);
+  if(canais.includes("juniper")) columns.push(["Disponíveis Juniper","juniper"]);
+  for (const name of ["Noite","Apartamento","Capacidade","Disponíveis no KPI",...columns.map(([name])=>name),"Captura (Brasília)"]) cell(header,"th",name);
   const body = table.createTBody();
   for (const r of plan.rows) {
     const row = body.insertRow(), time = Date.parse(r.capturedAt);
-    for (const value of [br(r.date),properties[plan.hotel]?.rooms[r.code] || r.code,r.capacity,r.available,r.targetAvailable,r.juniper,r.cvc,r.targetOccupied,
+    for (const value of [br(r.date),properties[plan.hotel]?.rooms[r.code] || r.code,r.capacity,r.available,...columns.map(([,key])=>r[key]),
       Number.isFinite(time)?stamp.format(time):null]) cell(row,"td",value);
   }
   const section = document.createElement("section");
@@ -77,7 +81,13 @@ form.addEventListener("submit",async event => {
     form.querySelector('input[name="hotel"]')?.focus();
     return;
   }
-  const scope = {start:fields.get("start"),end:fields.get("end")};
+  const canais=fields.getAll("canal");
+  if (!canais.length) {
+    status.textContent="Selecione pelo menos um canal.";
+    form.querySelector('[name="canal"]').focus();
+    return;
+  }
+  const scope = {start:fields.get("start"),end:fields.get("end"),canais};
   if (scope.end < scope.start) { status.textContent="Confira as datas do período."; return; }
   status.textContent="Preparando prévia da captura do Portal…";
   try {
@@ -85,15 +95,17 @@ form.addEventListener("submit",async event => {
     if (current !== version) return;
     const plans=results.map((entry,index)=>entry.status==="fulfilled"?entry.value:
       {...scope,hotel:hotels[index],rows:[],issue:entry.reason.message});
-    plans.forEach(render);
+    plans.forEach(plan=>render(plan,canais));
     preview=plans.filter(plan=>plan.id);
     codex.hidden=!preview.length;
     codex.disabled=false;
-    codex.textContent=preview.length>1?"Confirmar envio de "+preview.length+" hotéis à extensão":
-      "Confirmar e abrir na extensão Ocupação Omnibees";
-    status.textContent=preview.length ?
+    codex.textContent=preview.length>1?"Confirmar envio de "+preview.length+" hotéis à Omnibees":
+      "Confirmar e iniciar atualização na Omnibees";
+    status.textContent=!canais.includes("omnibees") ? "" : preview.length ?
       "Confira as datas e os ocupados. Hotéis prontos para enviar: "+preview.length+" de "+plans.length+"." :
       "Nenhum hotel da prévia está disponível para envio.";
+    if(canais.includes("juniper")) status.textContent+=" Para atualizar Sueds Plaza · Standard, abra Disponibilidade na Juniper pela extensão com a prévia aberta.";
+    if(canais.includes("cvc")) status.textContent+=" Para atualizar o Sueds Plaza, abra Disponibilidade na CVC pela extensão com a prévia aberta.";
   } catch (e) { if(current===version) status.textContent=e.message; }
 });
 async function track(id) {

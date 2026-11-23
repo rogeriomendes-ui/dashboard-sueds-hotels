@@ -35,7 +35,7 @@ function render() {
   el("#noite").hidden=!ownerOfRun;
   el("#escopo").textContent="Pedido "+id+" · "+properties[job.hotel].name+" · "+br(job.start)+" a "+br(job.end);
   if (job.skipped?.length) el("#escopo").textContent+=" · Noites excluídas por divergência: "+job.skipped.map(br).join(", ");
-  const labels={codex_pendente:"Pedido confirmado. Abra Ocupação Omnibees no Chrome para iniciar.",
+  const labels={codex_pendente:"Pedido pendente de início na Omnibees.",
     codex_ativo:ownerOfRun?"Registre cada noite após a confirmação da Omnibees.":"Este pedido já foi assumido.",
     codex_salvo:"Gravação confirmada na Omnibees.",failed:"Pedido interrompido."};
   status.textContent=(labels[job.state] || job.state)+" Noites gravadas: "+job.done+".";
@@ -73,6 +73,7 @@ start.addEventListener("click",async event=>{
     await api("confirmarCodex");
     const destino=new URL(location.href);
     destino.hash="abrir-extensao";
+    sessionStorage.setItem("inventario.inicioConfirmado",JSON.stringify({id:String(id),expiresAt:Date.now()+60000}));
     if (window===window.top) {
       history.replaceState(null,"",destino);
       location.reload();
