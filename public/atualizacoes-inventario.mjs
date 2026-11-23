@@ -8,6 +8,7 @@ const adopt = document.querySelector("#assumir");
 const status = document.querySelector("#estado");
 const progress = document.querySelector("#andamento");
 const endpoint = "/api/portal/inventario-pontual";
+const hoteisJuniper=new Set(["SUEDS PLAZA","SUEDS CABRALIA","SUEDS PREMIUM","SUEDS SEGUNDO SOL"]);
 const today = new Intl.DateTimeFormat("sv-SE",{timeZone:"America/Sao_Paulo"}).format(new Date());
 const stamp = new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Sao_Paulo"});
 const br = date => date.split("-").reverse().join("/");
@@ -97,15 +98,19 @@ form.addEventListener("submit",async event => {
       {...scope,hotel:hotels[index],rows:[],issue:entry.reason.message});
     plans.forEach(plan=>render(plan,canais));
     const omni=canais.includes("omnibees");
-    preview=plans.filter(plan=>plan.canSend && !plan.issue && (omni ? plan.id : canais.includes("cvc") || plan.hotel==="SUEDS PLAZA"));
-    const plaza=preview.find(plan=>plan.hotel==="SUEDS PLAZA");
-    const etapas=["omnibees","juniper","cvc"].filter(c=>canais.includes(c) && (c!=="juniper" || plaza));
+    preview=plans.filter(plan=>plan.canSend && !plan.issue && (omni ? plan.id : canais.includes("cvc") || hoteisJuniper.has(plan.hotel)));
+    const juniper=preview.filter(plan=>hoteisJuniper.has(plan.hotel));
+    const etapas=["omnibees","juniper","cvc"].filter(c=>canais.includes(c) && (c!=="juniper" || juniper.length));
     const nomes={omnibees:"Omnibees",juniper:"Juniper",cvc:"CVC"};
     codex.hidden=!preview.length;
     codex.disabled=false;
     codex.textContent="Confirmar e iniciar "+etapas.map(c=>nomes[c]).join(" → ");
     status.textContent=omni ? "Hotéis prontos na Omnibees: "+preview.length+" de "+plans.length+". " : "";
-    if(canais.includes("juniper")) status.textContent+="Juniper: Sueds Plaza, Standard. ";
+    if(canais.includes("juniper")) {
+      status.textContent+="Juniper · Standard: "+(juniper.map(p=>p.hotel).join(", ") || "nenhum hotel pronto")+". ";
+      const fora=hotels.filter(h=>!hoteisJuniper.has(h));
+      if(fora.length) status.textContent+="Sem cadastro Juniper: "+fora.join(", ")+". ";
+    }
     if(canais.includes("cvc")) status.textContent+="Hotéis prontos na CVC: "+preview.map(p=>p.hotel).join(", ")+". ";
     preview.canais=etapas;
   } catch (e) { if(current===version) status.textContent=e.message; }
@@ -145,10 +150,11 @@ async function abrirNaExtensao(id,plans) {
     if(extras.length) {
       if(!document.documentElement.hasAttribute("data-inventario-sequencial")) throw Error("Recarregue a extensão 1.8.0 e a página do inventário.");
       if(extras.includes("cvc") && document.documentElement.dataset.inventarioCvcHoteis!=="1") throw Error("Recarregue a extensão 1.9.0 e esta página para iniciar a CVC.");
-      const rows=plans.filter(p=>extras.includes("cvc") || p.hotel==="SUEDS PLAZA").flatMap(p=>
+      if(extras.includes("juniper") && document.documentElement.dataset.inventarioJuniperHoteis!=="1") throw Error("Recarregue a extensão 1.10.0 e a página do Portal para iniciar a Juniper.");
+      const rows=plans.filter(p=>extras.includes("cvc") || hoteisJuniper.has(p.hotel)).flatMap(p=>
         p.rows.filter(r=>p.dates.includes(r.date)).map(({code,date,available,juniper,cvc})=>({hotel:p.hotel,code,date,available,juniper,cvc})));
       if(!rows.length) throw Error("Não há noites válidas na prévia.");
-      lote={key:crypto.randomUUID(),ids:plans.map(p=>p.id).filter(Boolean),extras,rows};
+      lote={key:crypto.randomUUID(),ids:plans.map(p=>p.id).filter(Boolean),extras,rows,juniperMulti:extras.includes("juniper")};
     }
     if(lote && !lote.ids.length) {
       clearTimeout(timer);
