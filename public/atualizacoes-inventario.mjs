@@ -96,16 +96,19 @@ form.addEventListener("submit",async event => {
     const plans=results.map((entry,index)=>entry.status==="fulfilled"?entry.value:
       {...scope,hotel:hotels[index],rows:[],issue:entry.reason.message});
     plans.forEach(plan=>render(plan,canais));
-    preview=plans.filter(plan=>plan.id);
+    const omni=canais.includes("omnibees");
+    preview=plans.filter(plan=>plan.canSend && !plan.issue && (omni ? plan.id : plan.hotel==="SUEDS PLAZA"));
+    const plaza=preview.find(plan=>plan.hotel==="SUEDS PLAZA");
+    const etapas=["omnibees","juniper","cvc"].filter(c=>canais.includes(c) && (c==="omnibees" || plaza));
+    const nomes={omnibees:"Omnibees",juniper:"Juniper",cvc:"CVC"};
     codex.hidden=!preview.length;
     codex.disabled=false;
-    codex.textContent=preview.length>1?"Confirmar envio de "+preview.length+" hotéis à Omnibees":
-      "Confirmar e iniciar atualização na Omnibees";
-    status.textContent=!canais.includes("omnibees") ? "" : preview.length ?
-      "Confira as datas e os ocupados. Hotéis prontos para enviar: "+preview.length+" de "+plans.length+"." :
-      "Nenhum hotel da prévia está disponível para envio.";
-    if(canais.includes("juniper")) status.textContent+=" Para atualizar Sueds Plaza · Standard, abra Disponibilidade na Juniper pela extensão com a prévia aberta.";
-    if(canais.includes("cvc")) status.textContent+=" Para atualizar o Sueds Plaza, abra Disponibilidade na CVC pela extensão com a prévia aberta.";
+    codex.textContent="Confirmar e iniciar "+etapas.map(c=>nomes[c]).join(" → ");
+    status.textContent=omni ? "Hotéis prontos na Omnibees: "+preview.length+" de "+plans.length+". " : "";
+    if(canais.includes("juniper")) status.textContent+="Juniper: Sueds Plaza, Standard. ";
+    if(canais.includes("cvc")) status.textContent+="CVC: Sueds Plaza, Luxo, Suíte Master e Standard. ";
+    if(!plaza && canais.some(c=>c!=="omnibees")) status.textContent+="Os canais do Plaza estão fora deste envio.";
+    preview.canais=etapas;
   } catch (e) { if(current===version) status.textContent=e.message; }
 });
 async function track(id) {
@@ -136,10 +139,26 @@ async function abrirNaExtensao(id,plans) {
   let confirmado=false;
   try {
     if (plans && preview!==plans) return;
+    const extras=plans?.canais?.filter(c=>c!=="omnibees") || [];
+    let lote=null;
+    if(extras.length) {
+      if(!document.documentElement.hasAttribute("data-inventario-sequencial")) throw Error("Recarregue a extensão 1.8.0 e a página do inventário.");
+      const plaza=plans.find(plan=>plan.hotel==="SUEDS PLAZA");
+      const rows=plaza.rows.filter(r=>plaza.dates.includes(r.date)).map(({code,date,available,juniper,cvc})=>({code,date,available,juniper,cvc}));
+      if(!rows.length) throw Error("Não há noites válidas do Plaza na prévia.");
+      lote={key:crypto.randomUUID(),ids:plans.map(p=>p.id).filter(Boolean),extras,rows};
+    }
+    if(lote && !lote.ids.length) {
+      sessionStorage.setItem("inventario.canais",JSON.stringify(lote));
+      window.top.location.href="/atualizacoes-inventario.html#lote-canais="+lote.key;
+      return;
+    }
     const job=await request(endpoint,{action:"confirmarCodex",id});
     confirmado=true;
     sessionStorage.setItem("inventario.ultimo",id);
     if (plans && plans===preview) {
+      if(lote) sessionStorage.setItem("inventario.canais",JSON.stringify(lote));
+      else sessionStorage.removeItem("inventario.canais");
       codex.hidden=true;
       sessionStorage.setItem("inventario.lote",JSON.stringify(plans.map(plan=>plan.id)));
       sessionStorage.setItem("inventario.inicioConfirmado",JSON.stringify({id:String(job.id),expiresAt:Date.now()+60000}));
