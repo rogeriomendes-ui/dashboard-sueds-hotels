@@ -63,8 +63,10 @@ const RmsSimple = (() => {
   function levelDescription(level) {
     if (!level) return '—';
     const parts=[level.code,level.name].filter(Boolean);
+    const pct=Number(level.pct);
+    if (!Number.isFinite(pct) || pct===0) return parts.join(' · ');
     const percentages=(level.name || '').matchAll(/(\d+(?:[.,]\d+)?)\s*%/g);
-    if (!Array.from(percentages).some(match=>Number(match[1].replace(',','.'))===Number(level.pct))) parts.push('+'+level.pct+'%');
+    if (!Array.from(percentages).some(match=>Number(match[1].replace(',','.'))===pct)) parts.push('+'+level.pct+'%');
     return parts.join(' · ');
   }
   const plazaCodes = {standard:'STD', luxo:'LX', suite:'MAS'};
@@ -351,7 +353,7 @@ const RmsSimple = (() => {
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
         const head=table.createTHead().insertRow();
         head.appendChild(document.createElement('th')).textContent='Noite';
-        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
+        const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada'];
         for(const g of chosen){
           for(const label of labels){
             const th=document.createElement('th'),title=document.createElement('span');
@@ -393,10 +395,6 @@ const RmsSimple = (() => {
               else cell.textContent=value;
             }
             renderPrices(tr.insertCell(),n.proposed);
-            const reason=tr.insertCell();
-            reason.classList.add('simple-reason');
-            if (occupancyByRoom) renderPrices(reason,n.reason,String);
-            else reason.textContent=n.reason;
           }
           for (const channel of channels) {
             const cell = tr.insertCell();

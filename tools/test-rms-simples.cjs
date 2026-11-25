@@ -132,7 +132,7 @@ test('simula o nível Omnibees pela ocupação mesmo com aviso anterior diferent
   const data=fixture();
   data.catalog.bases[0].levels.at(-1).name='Derivada feriados 30%';
   data.beeHistory=[{level:'L30',nights:[day.date]}];
-  for(const [rate,label] of [[35,'L0 · Nível 0 · +0%'],[55,'L15 · Nível 15 · +15%'],[90,'L30 · Derivada feriados 30%'],[99,'Manter'],[100,'Manter'],[null,'—']]){
+  for(const [rate,label] of [[35,'L0 · Nível 0'],[55,'L15 · Nível 15 · +15%'],[90,'L30 · Derivada feriados 30%'],[99,'Manter'],[100,'Manter'],[null,'—']]){
     assert.equal(simple.night(data,hotel,kpiDay(rate),'WEB Café').levelLabel.standard,label);
   }
 });
@@ -160,7 +160,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
   const table=ids.get('nights');
   const columns=()=>table.children[0].children[0].children.map(cell=>cell.children.at(-1)?.textContent||cell.textContent);
-  const expected=['Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
+  const expected=['Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada'];
   const channels=['DeskHotel','Omnibees','CVC','Juniper'];
   assert.deepEqual(columns(),expected.concat(channels));
   tabs.children.at(-1).onclick();
@@ -172,8 +172,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
     ['STD','1.150,00','Luxo','1.380,00','Suíte','1.725,00']);
   assert.equal(row.children[2].children[0].children[1].textContent,'64%');
   assert.equal(row.children[3].children[0].children[1].textContent,'55%');
-  assert.doesNotMatch(row.children[7].textContent,/ocupação|64%/i);
-  assert.equal(row.children[7].children[0].children[1].textContent,"Janeiro · L15");
+  assert.match(row.children[5].children[0].children[1].textContent,/L15/);
   tabs.children[3].onclick();
   await new Promise(resolve=>setImmediate(resolve));
   const siteRow=table.children[1].children[0];
