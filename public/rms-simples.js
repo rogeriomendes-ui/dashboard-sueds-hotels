@@ -241,7 +241,7 @@ const RmsSimple = (() => {
         cell.append(button);
         button.onclick = async () => {
           const heading = document.createElement('h3');
-          heading.textContent = 'Plaza · SITE Café · ' + day.date.split('-').reverse().join('/');
+          heading.textContent = hotel.name + ' · SITE Café · ' + day.date.split('-').reverse().join('/');
           const message = document.createElement('p');
           message.setAttribute('role','status');
           message.textContent = 'Consultando DeskHotel…';
@@ -258,7 +258,7 @@ const RmsSimple = (() => {
           try {
             const response = await fetch('/api/portal/rms', {
               method:'POST', headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({tipo:'deskhotel_previa',noite:day.date})
+              body:JSON.stringify({tipo:'deskhotel_previa',noite:day.date,hotel:hotel.code})
             });
             const result = await response.json();
             if (!response.ok) throw Error(result.error || 'Falha ao consultar DeskHotel.');
@@ -272,23 +272,32 @@ const RmsSimple = (() => {
             }
             const body = table.createTBody();
             let matches = 0;
-            for (const room of rooms) {
-              const cents = Math.round(expected[room] * 100);
-              const targets = [cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)];
+            let total = 0;
+            const expectedRooms = standardOnlyHotels.has(hotel.code) ? ['standard'] : Object.keys(expected);
+            const categories = new Map(expectedRooms.map(key=>[normalize(key),{key,price:expected[key]}]));
+            for (const [key,prices] of Object.entries(result.prices)) {
+              const category = categories.get(normalize(key)) || {key};
+              category.prices = prices;
+              categories.set(normalize(key),category);
+            }
+            for (const {key:room,price,prices} of categories.values()) {
+              const cents = Math.round(price * 100);
+              const targets = [cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)].slice(0,prices?.length ?? 4);
+              total += targets.length;
               targets.forEach((target, index) => {
-                const actual = result.prices[room]?.[index];
+                const actual = prices?.[index];
                 const known = Number.isSafeInteger(target) && target > 0 && Number.isSafeInteger(actual);
                 const equal = known && actual === target;
                 if (equal) matches++;
                 const row = body.insertRow();
-                for (const value of [{standard:'Standard',luxo:'Luxo',suite:'Suíte'}[room],index+1,
+                for (const value of [{standard:'Standard',luxo:'Luxo',suite:'Suíte'}[room] || room,index+1,
                   brl(target > 0 ? target : null),brl(actual),equal?'OK':known?'Difere':'Sem tarifa']) row.insertCell().textContent = value;
               });
             }
             const time = new Date(result.checkedAt).toLocaleString('pt-BR',{timeZone:'America/Bahia'});
-            message.textContent = matches + ' de 12 tarifas conferem · ' + time + ' (Bahia)';
+            message.textContent = matches + ' de ' + total + ' tarifas conferem · ' + time + ' (Bahia)';
             modal.insertBefore(table, close);
-            const label = matches === 12 ? 'OK' : 'Ver diferenças';
+            const label = total > 0 && matches === total ? 'OK' : 'Ver diferenças';
             confirmations.set(day.date,{label,time});
             button.textContent = label;
             button.title = 'Conferido em ' + time + ' (Bahia)';
@@ -350,7 +359,7 @@ const RmsSimple = (() => {
           }
           for (const channel of channels) {
             const cell = tr.insertCell();
-            if (channel === 'DeskHotel' && hotel.code === 'PLAZA' && siteCafe) {
+            if (channel === 'DeskHotel' && ['PLAZA','SEGUNDO_SOL','CABRALIA','PREMIUM','TRANCOSO'].includes(hotel.code) && siteCafe) {
               if (chosen.length > 1) {
                 const label = document.createElement('span');
                 label.className = 'simple-group-title';
@@ -358,6 +367,9 @@ const RmsSimple = (() => {
                 cell.append(label);
               }
               previewButton(cell,day,siteCafe);
+            } else if (channel === 'DeskHotel' && hotel.code === 'CASAS' && siteCafe) {
+              cell.textContent = 'Não se aplica';
+              cell.title = 'Casas Sued’s Arraial oferece somente hospedagem (meal=0).';
             } else {
               cell.textContent = '—';
               cell.title = 'Sem confirmação de atualização para este canal e regime.';

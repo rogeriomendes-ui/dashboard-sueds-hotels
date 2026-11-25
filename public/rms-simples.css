@@ -13,5 +13,8 @@
 #nights.simple-grid .simple-price-list strong{text-align:right;font-variant-numeric:tabular-nums}
 #nights.simple-grid .simple-prices small{display:block;white-space:normal;max-width:160px;margin-top:4px}
 #nights.simple-grid .simple-reason{white-space:normal;min-width:130px;max-width:190px;line-height:1.5}
+#nights.simple-grid .simple-reason.simple-prices{min-width:15rem;max-width:20rem}
+#nights.simple-grid .simple-reason .simple-price-list{display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:baseline;row-gap:2px}
+#nights.simple-grid .simple-reason .simple-price-list strong{text-align:left;overflow-wrap:anywhere;font-weight:500}
 #nights.simple-grid :is(th,td):is(:nth-child(3),:nth-child(4)){box-sizing:border-box;min-width:0;width:85px;max-width:85px;padding-inline:4px;text-align:center;white-space:normal}
 #nights.simple-grid th:is(:nth-child(3),:nth-child(4)){white-space:pre}

@@ -137,7 +137,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   }));
   ctx.fetch=async(url,options)=>{
     assert.equal(url,'/api/portal/rms');
-    assert.deepEqual(JSON.parse(options.body),{tipo:'deskhotel_previa',noite:day.date});
+    assert.deepEqual(JSON.parse(options.body),{tipo:'deskhotel_previa',noite:day.date,hotel:'PLAZA'});
     return {ok:true,json:async()=>({prices,checkedAt:'2027-01-23T12:00:00Z'})};
   };
   await button.onclick();

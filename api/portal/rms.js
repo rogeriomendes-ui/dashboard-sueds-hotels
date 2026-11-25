@@ -18,7 +18,7 @@ module.exports = async function rms(req, res) {
     if (!["GET","POST"].includes(req.method)) return json(res,405,{error:"Método inválido."});
     if (req.method === 'POST' && req.body?.tipo === 'deskhotel_previa') {
       if (!validDate(req.body.noite)) return json(res,400,{error:'Data incorreta.'});
-      return await require('../../lib/rms-deskhotel').preview(client,req.body.noite,res);
+      return await require('../../lib/rms-deskhotel').preview(client,req.body.noite,res,req.body.hotel);
     }
     if(req.method==='POST' && ['bases_consultar','bases_excel','base_salvar','base_calendario_salvar'].includes(req.body?.tipo)){
       if(!/^application\/json\b/i.test(req.headers['content-type'] || '')) return json(res,415,{error:'Envie JSON.'});
