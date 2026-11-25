@@ -1,3 +1,5 @@
+.rms-channel-actions{display:flex;flex-wrap:wrap;gap:6px}
+.rms-channel-actions button:disabled{background:#e7f1f2;color:#506571;border-color:#beced0;cursor:not-allowed}
 #simpleGroups{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 #simpleGroups button{background:white;color:#165b60;padding:6px 10px;font-size:13px}
 #simpleGroups button[aria-pressed=true]{background:#165b60;color:white}
