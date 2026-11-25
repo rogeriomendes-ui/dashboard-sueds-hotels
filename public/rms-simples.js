@@ -1,5 +1,5 @@
 /* Simulação independente: não chama endpoints de aplicação de tarifas. */
-const RmsSimple = (() => {
+const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
   const rooms = ['standard','luxo','suite'];
   const standardOnlyHotels = new Set(['CABRALIA','PREMIUM','SEGUNDO_SOL']);
   const groups = ['WEB Café','WEB MAP','WEB PC','SITE Café','SITE MAP','SITE PC','NET Café','NET MAP','NET PC'];
@@ -49,8 +49,8 @@ const RmsSimple = (() => {
       if (group === 'WEB Café') result[room] = price;
       else if (group === 'SITE Café') {
         const quote = rates?.site?.[room];
-        result[room] = quote && !quote.divergence ? plazaPrices(price,quote.discount)?.final ?? null : null;
-      } else if (group === 'NET Café') result[room] = plazaPrices(price,0)?.net ?? null;
+        result[room] = quote && !quote.divergence ? derivePrice(price,quote.discount)?.final ?? null : null;
+      } else if (group === 'NET Café') result[room] = derivePrice(price,0)?.net ?? null;
       else result[room] = null;
     }
     return result;
@@ -98,8 +98,8 @@ const RmsSimple = (() => {
     const offer=eligible.reduce((best,o)=>!best||o.desconto>best.desconto?o:best,null);
     let vigenteWeb,levelLabel,band,reason;
     if(trancoso) {
-      const code=RmsTrancoso.levelFor(day.date);
-      const name=RmsTrancoso.periods.find(([key])=>key===code)?.[1];
+      const code=trancosoRules.levelFor(day.date);
+      const name=trancosoRules.periods.find(([key])=>key===code)?.[1];
       vigenteWeb=plan===0?data.hotelBases?.calendar.get(day.date):null;
       levelLabel='Desligada';
       reason=vigenteWeb&&name?`${code} · ${name}`:'Sem tarifa cadastrada para esta noite e regime.';
@@ -111,7 +111,7 @@ const RmsSimple = (() => {
       const byRoom = plazaOccupancy(day);
       for (const room of rooms) {
         const rate = byRoom[room];
-        const target = plazaLevelComparison(data.catalog,period,day.date,rate,plan);
+        const target = compareLevel(data.catalog,period,day.date,rate,plan);
         const keep = period?.bloqueado || rate >= 100;
         const recorded = currentWeb?.[room] > 0 ? currentWeb[room] : target.reference[room];
         vigenteWeb[room] = keep && (period?.bloqueado || recorded > 0)
@@ -153,7 +153,7 @@ const RmsSimple = (() => {
         const price=web?.[room];
         if(!(price>0))return [room,null];
         const cents=Math.round(Math.round(price*100)*(100-discount)/100);
-        const derived=cents===0?0:plazaPrices(cents/100,0,regime)?.[channel.toLowerCase()];
+        const derived=cents===0?0:derivePrice(cents/100,0,regime)?.[channel.toLowerCase()];
         return [room,derived??null];
       }));
     }
@@ -173,29 +173,40 @@ const RmsSimple = (() => {
     const names={PLAZA:'SUEDS PLAZA',CABRALIA:'SUEDS CABRALIA',SEGUNDO_SOL:'SUEDS SEGUNDO SOL',PREMIUM:'SUEDS PREMIUM',TRANCOSO:'SUEDS TRANCOSO',CASAS:'CASAS SUEDS ARRAIAL'};
     let days;
     try {
-      if(hotel.code==='PLAZA') {
-        const response=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:'ocupacao_plaza'})});
-        if(!response.ok) throw Error('Não foi possível consultar a ocupação.');
-        days=(await response.json()).days;
-      } else {
-        const params=new URLSearchParams({hotel:names[hotel.code]||hotel.name,start:data.today,end:'2027-12-31'});
-        const response=await fetch('/api/dashboard/mapa-ocupacao?'+params);
-        if(!response.ok) throw Error('Não foi possível consultar a ocupação.');
-        const map=await response.json();days=map.occupancy.find(h=>h.hotel===map.selected.hotel)?.days || [];
+      let published;
+      if(data.cloudSnapshots){
+        const response=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({tipo:'simulacao_publicada',hotel_id:hotel.id})});
+        if(!response.ok) throw Error('Não foi possível carregar o cálculo publicado pelo RMS.');
+        published=await response.json();
       }
-      const readHotel=async tipo=>{
-        const result=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,hotel_id:hotel.id})});
-        if(!result.ok) throw Error('Não foi possível consultar os cadastros do hotel.');
-        return result.json();
-      };
-      const [offers,bases]=await Promise.all([
-        readHotel('ofertas_consultar'),hotel.code==='PLAZA'?null:readHotel('bases_consultar')
-      ]);
-      data={...data,offers:offers.ofertas.map(row=>row.detalhes),hotelBases:bases?indexBases(bases):null,
-        saleTime:new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit'})};
+      if(published){
+        days=published.days;
+      } else {
+        if(hotel.code==='PLAZA') {
+          const response=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:'ocupacao_plaza'})});
+          if(!response.ok) throw Error('Não foi possível consultar a ocupação.');
+          days=(await response.json()).days;
+        } else {
+          const params=new URLSearchParams({hotel:names[hotel.code]||hotel.name,start:data.today,end:'2027-12-31'});
+          const response=await fetch('/api/dashboard/mapa-ocupacao?'+params);
+          if(!response.ok) throw Error('Não foi possível consultar a ocupação.');
+          const map=await response.json();days=map.occupancy.find(h=>h.hotel===map.selected.hotel)?.days || [];
+        }
+        const readHotel=async tipo=>{
+          const result=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,hotel_id:hotel.id})});
+          if(!result.ok) throw Error('Não foi possível consultar os cadastros do hotel.');
+          return result.json();
+        };
+        const [offers,bases]=await Promise.all([
+          readHotel('ofertas_consultar'),hotel.code==='PLAZA'?null:readHotel('bases_consultar')
+        ]);
+        data={...data,offers:offers.ofertas.map(row=>row.detalhes),hotelBases:bases?indexBases(bases):null,
+          saleTime:new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit'})};
+      }
       if(!isCurrent()) return;
       const byDate=new Map(days.map(d=>[d.date,d]));
-      if(hotel.code==='PLAZA') for(const day of Object.keys(data.rates)) if(!byDate.has(day))byDate.set(day,{date:day,rate:null});
+      if(!published && hotel.code==='PLAZA') for(const day of Object.keys(data.rates)) if(!byDate.has(day))byDate.set(day,{date:day,rate:null});
       for(const day of data.hotelBases?.calendar.keys() || []) if(!byDate.has(day))byDate.set(day,{date:day,rate:null});
       days=[...byDate.values()].filter(d=>d.date>=data.today&&d.date<='2027-12-31').sort((a,b)=>a.date.localeCompare(b.date));
       const stamp=days.map(d=>d.capturedAt).filter(Boolean).sort().at(-1);
@@ -203,6 +214,8 @@ const RmsSimple = (() => {
       el('ratesStatus').textContent=hotel.code==='PLAZA' ? 'Projeção por nível tarifário para dois adultos.' :
         hotel.code==='TRANCOSO'?'Grade WEB cadastrada para dois adultos. Flutuação desligada.':
         data.hotelBases?.bases.size?'Projeção para dois adultos com os níveis e as ofertas cadastrados no Portal.':'Sem grade tarifária cadastrada para dois adultos.';
+      if(published) el('ratesStatus').textContent='Tarifas calculadas após a atualização do mapa KPI.';
+      const simulated=(day,g)=>published?day.tariffs[g]:night(data,hotel,day,g);
       let group='WEB Café';
       const tabs=el('simpleGroups');tabs.replaceChildren();
       for(const label of [...groups,'Todos os grupos']) {const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>{group=label;draw();};tabs.append(button);}
@@ -299,7 +312,7 @@ const RmsSimple = (() => {
             }
             const body=table.createTBody();
             for (const day of days.filter(d=>d.date>=start && d.date<=end)) {
-              const n=night(data,hotel,day,'SITE Café'), values={};
+              const n=simulated(day,'SITE Café'), values={};
               for(const room of categoryKeys(n.proposed)){
                 const price=n.proposed[room], cents=Math.round(price*100);
                 const band=typeof n.band==='object'?n.band[room]:n.band;
@@ -368,7 +381,7 @@ const RmsSimple = (() => {
           let siteCafe,nightPrices;
           const occupancyByRoom = hotel.code === 'PLAZA' ? plazaOccupancy(day) : null;
           for(const g of chosen){
-            const n=night(data,hotel,day,g);
+            const n=simulated(day,g);
             nightPrices=n.proposed;
             if (g === 'SITE Café') siteCafe = n.proposed;
             renderPrices(tr.insertCell(),n.current);
@@ -416,5 +429,9 @@ const RmsSimple = (() => {
     }catch(error){if(isCurrent())el('hotelNote').textContent=error.message;}
   }
   return {show,night,project,groups,indexBases};
-})();
+})(
+  typeof plazaLevelComparison==='function'?plazaLevelComparison:require('./rms-levels').plazaLevelComparison,
+  typeof plazaPrices==='function'?plazaPrices:require('./rms-plaza-tarifas').plazaPrices,
+  typeof RmsTrancoso!=='undefined'?RmsTrancoso:require('./rms-trancoso')
+);
 if(typeof module!=='undefined')module.exports=RmsSimple;

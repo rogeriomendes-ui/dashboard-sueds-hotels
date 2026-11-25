@@ -15,6 +15,19 @@ module.exports = async function rms(req, res) {
     const profile = await getProfileFromClient(client);
     if (!profile) return json(res,401,{error:"Login necessário."});
     if (!profile.rms) return json(res,403,{error:"Acesso restrito."});
+    if(req.method==="POST" && req.body?.tipo==="simulacao_publicada"){
+      return await require("../../lib/rms-publicacao").serve(req.body.hotel_id,res);
+    }
+    return await processRms(client,profile,req,res);
+  } catch {
+    return json(res,500,{error:"Falha ao consultar o RMS."});
+  }
+};
+
+module.exports.readForPublication = (client,res)=>processRms(client,null,{method:"GET"},res);
+
+async function processRms(client,profile,req,res) {
+  try {
     if (!["GET","POST"].includes(req.method)) return json(res,405,{error:"Método inválido."});
     if (req.method === 'POST' && ['deskhotel_previa','deskhotel_status','deskhotel_atualizar'].includes(req.body?.tipo)) {
       if (!validDate(req.body.noite)) return json(res,400,{error:'Data incorreta.'});
@@ -236,7 +249,7 @@ module.exports = async function rms(req, res) {
         if(page.data.length<500) break;
       }
     }
-    return json(res,200,{auditoria89:plaza ? JSON.parse(process.env.RMS_PLAZA_AUDITORIA_89 || "[]") : [],beeHistory:JSON.parse(process.env.RMS_BEEPRICE_HISTORICO || "[]"),catalog,analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data,bloqueios:blocks});
+    return json(res,200,{cloudSnapshots:true,auditoria89:plaza ? JSON.parse(process.env.RMS_PLAZA_AUDITORIA_89 || "[]") : [],beeHistory:JSON.parse(process.env.RMS_BEEPRICE_HISTORICO || "[]"),catalog,analysis,rates,today,hotels:hotels.data,floors:floors.data,policies:policies.data,competitors:configs,periods:periods.data,bloqueios:blocks});
   } catch {
     return json(res,500,{error:"Falha ao consultar ou salvar dados do RMS."});
   }
