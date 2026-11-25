@@ -8,7 +8,7 @@ for(const file of ['rms-rules.js','rms-plaza-tarifas.js','rms-levels.js','rms-tr
 const simple=ctx.module.exports;
 const hotel={id:'plaza',code:'PLAZA'};
 const kpiDay=rate=>({date:'2027-01-23',rate,apartments:100,available:rate===null?null:100-rate,roomTypes:['STD','LX','MAS'].map(code=>({code,apartments:100,occupied:rate,available:rate===null?null:100-rate}))});
-const day=kpiDay(55);
+const day=kpiDay(65);
 test('DeskHotel exige gravação identificada no café, preserva regras e evita reenvio confirmado',async()=>{
   const date=day.date, code='PLAZA', result=(status,body)=>({status,body});
   const row={roomId:'2463',meal:'1',rate_id:null,maxAdt:4,origin:'importacao',minimumStay:3,chd1:50,
@@ -56,17 +56,17 @@ test('esgotamento conserva a tarifa registrada ou exibe a projeção da própria
   assert.equal(premium.levelLabel,'Manter');
   assert.equal(premium.proposed.luxo,null);
 });
-test('Plaza flutua cada categoria pela sua disponibilidade e aceita captura parcial',()=>{
+test('Plaza flutua cada categoria pela ocupação KPI e aceita captura parcial',()=>{
   const reading={...day,roomTypes:[
-    {code:'STD',apartments:89,occupied:36,available:53},
+    {code:'STD',apartments:89,occupied:46,available:53},
     {code:'LX',apartments:20,occupied:6,available:14},
     {code:'MAS',apartments:7,occupied:3,available:4}
   ]};
   const simulate=()=>simple.night(fixture(),hotel,reading,'WEB Café');
-  assert.deepEqual({...simulate().proposed},{standard:1100,luxo:1200,suite:1650});
+  assert.deepEqual({...simulate().proposed},{standard:1100,luxo:1200,suite:1500});
   reading.roomTypes[0].available=0;
   reading.roomTypes.pop();
-  assert.deepEqual({...simulate().proposed},{standard:1000,luxo:1200,suite:null});
+  assert.deepEqual({...simulate().proposed},{standard:1100,luxo:1200,suite:null});
   delete reading.roomTypes;
   assert.deepEqual({...simulate().proposed},{standard:null,luxo:null,suite:null});
 });
@@ -89,7 +89,7 @@ test('usa a grade por hotel, dia da semana e regime e aplica ofertas do Portal',
     {base,plano:1,quarto:'standard',pax:2,dia:4,valor:1000}
   ]}),periods:[{hotel_id:cabralia.id,nome:base,inicio:date,fim:date,pct50:10}],
   offers:[{tipo:'Desconto',nome:'Promoção',desconto:20,tarifarios:['Tarifa WEB - Café da Manhã','TARIFARIO SITE CAFÉ DA MANHÃ']}]};
-  const occupancy={date,apartments:100,available:57};
+  const occupancy={date,rate:52,apartments:100,available:57};
   for(const [group,regular,final] of [['WEB Café',880,704],['WEB MAP',1100,1100],['SITE Café',660,528],['NET Café',528,528]]){
     const result=simple.night(data,cabralia,occupancy,group);
     assert.equal(result.current.standard,regular);
@@ -112,7 +112,7 @@ test('recalcula as faixas sobre a base editada da meia pensão e aplica a melhor
   d.catalog.edits={'["Janeiro",1,"standard",2,5]':1000};
   const offer={nome:'MAP 40%',tipo:'Desconto',desconto:40,tarifarios:['Tarifário WEB - Meia Pensão'],dias_estadia:[5]};
   d.offers=[offer,{...offer,desconto:10},{...offer,desconto:99,estadia:[['2027-01-24','2027-01-31']]}];
-  for(const [rate,expected] of [[45,660],[55,690],[null,null]]){
+  for(const [rate,expected] of [[45,600],[55,660],[null,null]]){
     assert.equal(simple.night(d,hotel,kpiDay(rate),'WEB MAP').proposed.standard,expected);
   }
   assert.equal(d.catalog.edits['["Janeiro",1,"standard",2,5]'],1000);
@@ -132,7 +132,7 @@ test('simula o nível Omnibees pela ocupação mesmo com aviso anterior diferent
   const data=fixture();
   data.catalog.bases[0].levels.at(-1).name='Derivada feriados 30%';
   data.beeHistory=[{level:'L30',nights:[day.date]}];
-  for(const [rate,label] of [[35,'L0 · Nível 0'],[55,'L15 · Nível 15 · +15%'],[90,'L30 · Derivada feriados 30%'],[99,'Manter'],[100,'Manter'],[null,'—']]){
+  for(const [rate,label] of [[35,'L0 · Nível 0'],[55,'L10 · Nível 10 · +10%'],[90,'L30 · Derivada feriados 30%'],[99,'L30 · Derivada feriados 30%'],[100,'Manter'],[null,'—']]){
     assert.equal(simple.night(data,hotel,kpiDay(rate),'WEB Café').levelLabel.standard,label);
   }
 });
@@ -160,19 +160,18 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
   const table=ids.get('nights');
   const columns=()=>table.children[0].children[0].children.map(cell=>cell.children.at(-1)?.textContent||cell.textContent);
-  const expected=['Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada'];
+  const expected=['Noite','Vigente após flutuação','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada'];
   const channels=['DeskHotel','Omnibees','CVC','Juniper'];
   assert.deepEqual(columns(),expected.concat(channels));
   tabs.children.at(-1).onclick();
   const row=table.children[1].children[0];
-  assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[1],...expected.slice(4)]),channels));
+  assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[1],...expected.slice(3)]),channels));
   assert.equal(row.children.length,columns().length);
   assert.equal(row.children[0].textContent,'23/01/2027');
   assert.deepEqual(row.children[1].children[0].children.map(item=>item.textContent),
     ['STD','1.150,00','Luxo','1.380,00','Suíte','1.725,00']);
-  assert.equal(row.children[2].children[0].children[1].textContent,'64%');
-  assert.equal(row.children[3].children[0].children[1].textContent,'55%');
-  assert.match(row.children[5].children[0].children[1].textContent,/L15/);
+  assert.equal(row.children[2].children[0].children[1].textContent,'65%');
+  assert.match(row.children[4].children[0].children[1].textContent,/L15/);
   tabs.children[3].onclick();
   await new Promise(resolve=>setImmediate(resolve));
   const siteRow=table.children[1].children[0];

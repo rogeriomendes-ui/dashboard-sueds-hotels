@@ -55,11 +55,6 @@ const RmsSimple = (() => {
     }
     return result;
   }
-  function omnibeesOccupancy(day) {
-    if (!Number.isInteger(day.available) || !Number.isInteger(day.apartments) || day.apartments <= 0) return null;
-    const channelAvailability = Math.floor(Math.max(0, day.available) * 4 / 5);
-    return (day.apartments - channelAvailability) / day.apartments * 100;
-  }
   function levelDescription(level) {
     if (!level) return '—';
     const parts=[level.code,level.name].filter(Boolean);
@@ -76,7 +71,7 @@ const RmsSimple = (() => {
       const type = matches.length === 1 ? matches[0] : {};
       const kpi = type.apartments > 0 && Number.isInteger(type.occupied)
         ? type.occupied / type.apartments * 100 : null;
-      return [room, {kpi, channel:omnibeesOccupancy(type)}];
+      return [room, kpi];
     }));
   }
   function night(data, hotel, day, group) {
@@ -86,7 +81,7 @@ const RmsSimple = (() => {
     const rates=data.rates?.[day.date];
     const rules=typeof RmsRules!=='undefined'?RmsRules:require('./rms-rules');
     const period=rules.forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
-    const occupancy=omnibeesOccupancy(day);
+    const occupancy=Number.isFinite(day.rate)?day.rate:null;
     const trancoso=hotel.code==='TRANCOSO';
     const hold=!trancoso&&(period?.bloqueado||occupancy>=100);
     const currentWeb=plan===0?rates?.web:null;
@@ -115,7 +110,7 @@ const RmsSimple = (() => {
       reason = {};
       const byRoom = plazaOccupancy(day);
       for (const room of rooms) {
-        const rate = byRoom[room].channel;
+        const rate = byRoom[room];
         const target = plazaLevelComparison(data.catalog,period,day.date,rate,plan);
         const keep = period?.bloqueado || rate >= 100;
         const recorded = currentWeb?.[room] > 0 ? currentWeb[room] : target.reference[room];
@@ -205,8 +200,7 @@ const RmsSimple = (() => {
       days=[...byDate.values()].filter(d=>d.date>=data.today&&d.date<='2027-12-31').sort((a,b)=>a.date.localeCompare(b.date));
       const stamp=days.map(d=>d.capturedAt).filter(Boolean).sort().at(-1);
       el('hotelNote').textContent=stamp ? 'Ocupação lida em '+new Date(stamp).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+' (Bahia).' : 'Horário da leitura de ocupação não informado.';
-      const captures=hotel.code==='PLAZA'?Object.values(data.rates).map(r=>r.at).filter(Boolean).sort():[];
-      el('ratesStatus').textContent=captures.length ? 'Última captura tarifária: '+new Date(captures.at(-1)).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+'. Projeção por nível tarifário para dois adultos.' :
+      el('ratesStatus').textContent=hotel.code==='PLAZA' ? 'Projeção por nível tarifário para dois adultos.' :
         hotel.code==='TRANCOSO'?'Grade WEB cadastrada para dois adultos. Flutuação desligada.':
         data.hotelBases?.bases.size?'Projeção para dois adultos com os níveis e as ofertas cadastrados no Portal.':'Sem grade tarifária cadastrada para dois adultos.';
       let group='WEB Café';
@@ -362,7 +356,7 @@ const RmsSimple = (() => {
             th.append(title,document.createTextNode(label));
             head.append(th);
             if(g===chosen[0] && label===labels[0]){
-              for(const name of ['Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI'])head.appendChild(document.createElement('th')).textContent=name;
+              head.appendChild(document.createElement('th')).textContent='Tx. Ocupação\nKPI';
             }
           }
         }
@@ -379,13 +373,8 @@ const RmsSimple = (() => {
             if (g === 'SITE Café') siteCafe = n.proposed;
             renderPrices(tr.insertCell(),n.current);
             if(g===chosen[0] && occupancyByRoom){
-              for (const metric of ['channel','kpi']) {
-                const values = Object.fromEntries(rooms.map(room=>[room,occupancyByRoom[room][metric]]));
-                renderPrices(tr.insertCell(), values, rate=>Number.isFinite(rate)?Math.round(rate)+'%':'—');
-              }
+              renderPrices(tr.insertCell(), occupancyByRoom, rate=>Number.isFinite(rate)?Math.round(rate)+'%':'—');
             } else if(g===chosen[0]){
-              const channelRate=omnibeesOccupancy(day);
-              tr.insertCell().textContent=channelRate===null?'—':Math.round(channelRate)+'%';
               tr.insertCell().textContent=Number.isFinite(day.rate)?Math.round(day.rate)+'%':'—';
             }
             for(const value of [n.offer,n.levelLabel]){
