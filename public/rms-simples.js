@@ -67,6 +67,16 @@ const RmsSimple = (() => {
     if (!Array.from(percentages).some(match=>Number(match[1].replace(',','.'))===Number(level.pct))) parts.push('+'+level.pct+'%');
     return parts.join(' · ');
   }
+  const plazaCodes = {standard:'STD', luxo:'LX', suite:'MAS'};
+  function plazaOccupancy(day) {
+    return Object.fromEntries(rooms.map(room => {
+      const matches = (day.roomTypes || []).filter(type => type.code === plazaCodes[room]);
+      const type = matches.length === 1 ? matches[0] : {};
+      const kpi = type.apartments > 0 && Number.isInteger(type.occupied)
+        ? type.occupied / type.apartments * 100 : null;
+      return [room, {kpi, channel:omnibeesOccupancy(type)}];
+    }));
+  }
   function night(data, hotel, day, group) {
     const [channel, meal]=group.split(' ');
     const plan=['Café','MAP','PC'].indexOf(meal);
@@ -96,12 +106,26 @@ const RmsSimple = (() => {
       vigenteWeb=plan===0?data.hotelBases?.calendar.get(day.date):null;
       levelLabel='Desligada';
       reason=vigenteWeb&&name?`${code} · ${name}`:'Sem tarifa cadastrada para esta noite e regime.';
+    } else if (hotel.code === 'PLAZA') {
+      vigenteWeb = {};
+      levelLabel = {};
+      band = {};
+      reason = {};
+      const byRoom = plazaOccupancy(day);
+      for (const room of rooms) {
+        const rate = byRoom[room].channel;
+        const target = plazaLevelComparison(data.catalog,period,day.date,rate,plan);
+        const keep = period?.bloqueado || rate >= 100;
+        vigenteWeb[room] = keep ? currentWeb?.[room] : target.simulated[room];
+        levelLabel[room] = keep ? 'Manter' : levelDescription(target.level);
+        band[room] = keep ? 'Manter' : target.level ? '+'+target.level.pct+'% sobre a base' : '—';
+        reason[room] = keep ? (period?.bloqueado ? 'Flutuação bloqueada.' : 'Categoria esgotada ou em overbooking.')
+          : rate == null ? 'Ocupação indisponível.' : !target.level ? 'Sem nível vinculado para esta noite.'
+          : (target.base?.name || period.nome)+' · '+(target.base?.code || target.level.code);
+      }
     } else {
       let target;
-      if(hotel.code==='PLAZA') {
-        target=plazaLevelComparison(data.catalog,period,day.date,occupancy,plan);
-        vigenteWeb=hold?currentWeb:target.simulated;
-      } else {
+      {
         const baseName=period?.base_origem || baseAliases[hotel.code]?.[period?.nome] || period?.nome;
         const base=baseName&&data.hotelBases?.bases.get(normalize(baseName));
         const rule=rules.band(period,occupancy);
@@ -184,7 +208,7 @@ const RmsSimple = (() => {
       const tabs=el('simpleGroups');tabs.replaceChildren();
       for(const label of [...groups,'Todos os grupos']) {const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>{group=label;draw();};tabs.append(button);}
       const format=n=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
-      function renderPrices(cell,values){
+      function renderPrices(cell,values,formatter=format){
         cell.classList.add('simple-prices');
         let keys=rooms;
         if(hotel.code==='TRANCOSO') keys=Object.keys(values);
@@ -198,7 +222,7 @@ const RmsSimple = (() => {
         keys.forEach(key=>{
           const label=document.createElement('span'),price=document.createElement('strong');
           label.textContent=({standard:'STD',luxo:'Luxo',suite:'Suíte'})[key] || key;
-          price.textContent=format(values[key]);
+          price.textContent=formatter(values[key]);
           prices.append(label,price);
         });
         cell.append(prices);
@@ -297,11 +321,17 @@ const RmsSimple = (() => {
           const tr=body.insertRow();
           tr.insertCell().textContent=day.date.split('-').reverse().join('/');
           let siteCafe;
+          const occupancyByRoom = hotel.code === 'PLAZA' ? plazaOccupancy(day) : null;
           for(const g of chosen){
             const n=night(data,hotel,day,g);
             if (g === 'SITE Café') siteCafe = n.proposed;
             renderPrices(tr.insertCell(),n.current);
-            if(g===chosen[0]){
+            if(g===chosen[0] && occupancyByRoom){
+              for (const metric of ['channel','kpi']) {
+                const values = Object.fromEntries(rooms.map(room=>[room,occupancyByRoom[room][metric]]));
+                renderPrices(tr.insertCell(), values, rate=>Number.isFinite(rate)?Math.round(rate)+'%':'—');
+              }
+            } else if(g===chosen[0]){
               const channelRate=omnibeesOccupancy(day);
               tr.insertCell().textContent=channelRate===null?'—':Math.round(channelRate)+'%';
               tr.insertCell().textContent=Number.isFinite(day.rate)?Math.round(day.rate)+'%':'—';
@@ -309,12 +339,14 @@ const RmsSimple = (() => {
             for(const value of [n.offer,n.levelLabel]){
               const cell=tr.insertCell();
               cell.classList.add('simple-reason');
-              cell.textContent=value;
+              if (typeof value === 'object') renderPrices(cell,value,String);
+              else cell.textContent=value;
             }
             renderPrices(tr.insertCell(),n.proposed);
             const reason=tr.insertCell();
             reason.classList.add('simple-reason');
-            reason.textContent=n.reason;
+            if (occupancyByRoom) renderPrices(reason,n.reason,String);
+            else reason.textContent=n.reason;
           }
           for (const channel of channels) {
             const cell = tr.insertCell();
