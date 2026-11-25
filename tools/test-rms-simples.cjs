@@ -86,6 +86,9 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
     constructor(tag='div'){this.tag=tag;this.children=[];this.classList={add(){},remove(){}};this.attributes={};this.textContent='';}
     append(...items){this.children.push(...items);} appendChild(item){this.append(item);return item;}
     replaceChildren(...items){this.children=items;} setAttribute(k,v){this.attributes[k]=v;}
+    showModal(){this.open=true;} close(){this.open=false;}
+    contains(item){return this.children.includes(item);}
+    insertBefore(item,before){this.children.splice(this.children.indexOf(before),0,item);}
     createTHead(){const e=new Element('thead');this.append(e);return e;} createTBody(){const e=new Element('tbody');this.append(e);return e;}
     insertRow(){const e=new Element('tr');this.append(e);return e;} insertCell(){const e=new Element('td');this.append(e);return e;}
   }
@@ -97,10 +100,11 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   const table=ids.get('nights');
   const columns=()=>table.children[0].children[0].children.map(cell=>cell.children.at(-1)?.textContent||cell.textContent);
   const expected=['Noite','Vigente após flutuação','Tx. Ocupação\nOmnibees','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada','Nível Tarifário'];
-  assert.deepEqual(columns(),expected);
+  const channels=['DeskHotel','Omnibees','CVC','Juniper'];
+  assert.deepEqual(columns(),expected.concat(channels));
   tabs.children.at(-1).onclick();
   const row=table.children[1].children[0];
-  assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[1],...expected.slice(4)])));
+  assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[1],...expected.slice(4)]),channels));
   assert.equal(row.children.length,columns().length);
   assert.equal(row.children[0].textContent,'23/01/2027');
   assert.deepEqual(row.children[1].children[0].children.map(item=>item.textContent),
@@ -109,5 +113,27 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   assert.equal(row.children[3].textContent,'55%');
   assert.doesNotMatch(row.children[7].textContent,/ocupação|64%/i);
   assert.equal(row.children[7].textContent,"Janeiro · L15");
+  tabs.children[3].onclick();
+  const siteRow=table.children[1].children[0];
+  const button=siteRow.children.at(-4).children[0];
+  const proposed=simple.night({...data,offers:[]},hotel,day,'SITE Café').proposed;
+  const prices=Object.fromEntries(Object.entries(proposed).map(([room,value])=>{
+    const cents=Math.round(value*100);
+    return [room,[cents,cents,Math.round(cents*1.4),Math.round(cents*1.8)]];
+  }));
+  ctx.fetch=async(url,options)=>{
+    assert.equal(url,'/api/portal/rms');
+    assert.deepEqual(JSON.parse(options.body),{tipo:'deskhotel_previa',noite:day.date});
+    return {ok:true,json:async()=>({prices,checkedAt:'2027-01-23T12:00:00Z'})};
+  };
+  await button.onclick();
+  assert.equal(button.textContent,'OK');
+  prices.standard[3]--;
+  await button.onclick();
+  assert.equal(button.textContent,'Ver diferenças');
+  delete prices.standard;
+  await button.onclick();
+  assert.equal(button.textContent,'Ver diferenças');
+  assert.deepEqual(siteRow.children.slice(-3).map(cell=>cell.textContent),['—','—','—']);
 });
 

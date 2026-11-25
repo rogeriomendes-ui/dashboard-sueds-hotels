@@ -203,6 +203,76 @@ const RmsSimple = (() => {
         });
         cell.append(prices);
       }
+      const confirmations = new Map();
+      const channels = ['DeskHotel', 'Omnibees', 'CVC', 'Juniper'];
+      const modal = el('deskhotelPreview');
+      if (modal.open) modal.close();
+      const brl = cents => Number.isInteger(cents) ? format(cents / 100) : '—';
+      function previewButton(cell, day, expected) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        const previous = confirmations.get(day.date);
+        button.textContent = previous?.label || 'Conferir';
+        button.title = previous?.time || 'Comparar SITE Café com o DeskHotel';
+        cell.append(button);
+        button.onclick = async () => {
+          const heading = document.createElement('h3');
+          heading.textContent = 'Plaza · SITE Café · ' + day.date.split('-').reverse().join('/');
+          const message = document.createElement('p');
+          message.setAttribute('role','status');
+          message.textContent = 'Consultando DeskHotel…';
+          const close = document.createElement('button');
+          close.type = 'button';
+          close.textContent = 'Fechar';
+          close.onclick = () => modal.close();
+          modal.replaceChildren(heading, message, close);
+          modal.setAttribute('aria-label', heading.textContent);
+          modal.showModal();
+          confirmations.delete(day.date);
+          button.textContent = 'Conferir';
+          button.title = 'Comparar SITE Café com o DeskHotel';
+          try {
+            const response = await fetch('/api/portal/rms', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({tipo:'deskhotel_previa',noite:day.date})
+            });
+            const result = await response.json();
+            if (!response.ok) throw Error(result.error || 'Falha ao consultar DeskHotel.');
+            if (!isCurrent() || !modal.contains(message)) return;
+            const table = document.createElement('table');
+            const header = table.createTHead().insertRow();
+            for (const label of ['Categoria','Adultos','RMS (R$)','DeskHotel (R$)','Conferência']) {
+              const th = document.createElement('th');
+              th.textContent = label;
+              header.append(th);
+            }
+            const body = table.createTBody();
+            let matches = 0;
+            for (const room of rooms) {
+              const cents = Math.round(expected[room] * 100);
+              const targets = [cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)];
+              targets.forEach((target, index) => {
+                const actual = result.prices[room]?.[index];
+                const known = Number.isSafeInteger(target) && target > 0 && Number.isSafeInteger(actual);
+                const equal = known && actual === target;
+                if (equal) matches++;
+                const row = body.insertRow();
+                for (const value of [{standard:'Standard',luxo:'Luxo',suite:'Suíte'}[room],index+1,
+                  brl(target > 0 ? target : null),brl(actual),equal?'OK':known?'Difere':'Sem tarifa']) row.insertCell().textContent = value;
+              });
+            }
+            const time = new Date(result.checkedAt).toLocaleString('pt-BR',{timeZone:'America/Bahia'});
+            message.textContent = matches + ' de 12 tarifas conferem · ' + time + ' (Bahia)';
+            modal.insertBefore(table, close);
+            const label = matches === 12 ? 'OK' : 'Ver diferenças';
+            confirmations.set(day.date,{label,time});
+            button.textContent = label;
+            button.title = 'Conferido em ' + time + ' (Bahia)';
+          } catch (error) {
+            message.textContent = error.message;
+          }
+        };
+      }
       function draw(){
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
@@ -221,12 +291,15 @@ const RmsSimple = (() => {
             }
           }
         }
+        for (const channel of channels) head.appendChild(document.createElement('th')).textContent = channel;
         const body=table.createTBody();
         for(const day of days){
           const tr=body.insertRow();
           tr.insertCell().textContent=day.date.split('-').reverse().join('/');
+          let siteCafe;
           for(const g of chosen){
             const n=night(data,hotel,day,g);
+            if (g === 'SITE Café') siteCafe = n.proposed;
             renderPrices(tr.insertCell(),n.current);
             if(g===chosen[0]){
               const channelRate=omnibeesOccupancy(day);
@@ -242,6 +315,21 @@ const RmsSimple = (() => {
             const reason=tr.insertCell();
             reason.classList.add('simple-reason');
             reason.textContent=n.reason;
+          }
+          for (const channel of channels) {
+            const cell = tr.insertCell();
+            if (channel === 'DeskHotel' && hotel.code === 'PLAZA' && siteCafe) {
+              if (chosen.length > 1) {
+                const label = document.createElement('span');
+                label.className = 'simple-group-title';
+                label.textContent = 'SITE Café';
+                cell.append(label);
+              }
+              previewButton(cell,day,siteCafe);
+            } else {
+              cell.textContent = '—';
+              cell.title = 'Sem confirmação de atualização para este canal e regime.';
+            }
           }
         }
         refresh?.();
