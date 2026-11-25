@@ -16,9 +16,14 @@ module.exports = async function rms(req, res) {
     if (!profile) return json(res,401,{error:"Login necessário."});
     if (!profile.rms) return json(res,403,{error:"Acesso restrito."});
     if (!["GET","POST"].includes(req.method)) return json(res,405,{error:"Método inválido."});
-    if (req.method === 'POST' && req.body?.tipo === 'deskhotel_previa') {
+    if (req.method === 'POST' && ['deskhotel_previa','deskhotel_status','deskhotel_atualizar'].includes(req.body?.tipo)) {
       if (!validDate(req.body.noite)) return json(res,400,{error:'Data incorreta.'});
-      return await require('../../lib/rms-deskhotel').preview(client,req.body.noite,res,req.body.hotel);
+      const end=req.body.fim ?? req.body.noite;
+      if (!validDate(end) || end<req.body.noite || Date.parse(end)-Date.parse(req.body.noite)>30*86400000)
+        return json(res,400,{error:'Periodo invalido.'});
+      if (req.body.tipo==='deskhotel_atualizar' && (!/^application\/json\b/i.test(req.headers['content-type'] || '') || !req.body.hotel || end!==req.body.noite))
+        return json(res,400,{error:'Envio invalido.'});
+      return await require('../../lib/rms-deskhotel').preview(client,req.body.noite,res,req.body.hotel,req.body.tipo,end,req.body.valores);
     }
     if(req.method==='POST' && ['bases_consultar','bases_excel','base_salvar','base_calendario_salvar'].includes(req.body?.tipo)){
       if(!/^application\/json\b/i.test(req.headers['content-type'] || '')) return json(res,415,{error:'Envie JSON.'});

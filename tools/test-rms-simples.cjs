@@ -9,6 +9,50 @@ const simple=ctx.module.exports;
 const hotel={id:'plaza',code:'PLAZA'};
 const kpiDay=rate=>({date:'2027-01-23',rate,apartments:100,available:rate===null?null:100-rate,roomTypes:['STD','LX','MAS'].map(code=>({code,apartments:100,occupied:rate,available:rate===null?null:100-rate}))});
 const day=kpiDay(55);
+test('DeskHotel exige gravação identificada no café, preserva regras e evita reenvio confirmado',async()=>{
+  const date=day.date, code='PLAZA', result=(status,body)=>({status,body});
+  const row={roomId:'2463',meal:'1',rate_id:null,maxAdt:4,origin:'importacao',minimumStay:3,chd1:50,
+    pax1:468,pax2:468,pax3:655.2,pax4:842.4};
+  const map={...row,rate_id:'2475',meal:'3',origin:'portal-sueds'};
+  const posts=[];
+  const sandbox=vm.createContext({module:{exports:{}},process:{env:{CR_API_LOGIN:'test',CR_API_PASSWORD:'test',
+    CR_HOTEL_ID:'0557',CR_HOTEL_KEY:'test',CR_PARTNER_ORIGIN:'test'}},URL,URLSearchParams,Buffer,AbortSignal,
+    require:()=>({json:(_res,status,body)=>result(status,body)}),fetch:async(_url,options)=>{
+      if(options.method==='POST')posts.push(JSON.parse(options.body));
+      return {ok:true,json:async()=>({hotelId:'0557',rates:{[date]:[row,map]}})};
+    }});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../lib/rms-deskhotel.js'),'utf8'),sandbox);
+  const client={from(){return this},select(){return this},eq(){return this},is(){return this},maybeSingle(){return {data:{id:'hotel'}}}};
+  const call=action=>sandbox.module.exports.preview(client,date,{setHeader(){}},code,action,date,{STANDARD:46800});
+  assert.equal((await call('deskhotel_status')).body.confirmed[date].STANDARD,undefined);
+  assert.equal((await call('deskhotel_atualizar')).body.queued,1);
+  assert.equal(posts[0].length,1);
+  const item=posts[0][0];
+  assert.equal(item.roomId,'2463');
+  assert.equal(item.minimumStay,3);
+  assert.equal(item.chd1,50);
+  assert.deepEqual([item.pax1,item.pax2,item.pax3,item.pax4],[468,468,655.2,842.4]);
+  assert.equal((await call('deskhotel_status')).body.confirmed[date].STANDARD,undefined);
+  Object.assign(row,item);
+  assert.deepEqual(Array.from((await call('deskhotel_status')).body.confirmed[date].STANDARD),[46800,46800,65520,84240]);
+  assert.equal((await call('deskhotel_atualizar')).body.queued,0);
+  assert.equal(posts.length,1);
+});
+test('esgotamento conserva a tarifa registrada ou exibe a projeção da própria grade com oferta',()=>{
+  const d=fixture(), over=kpiDay(110);
+  delete d.rates[day.date];
+  const plaza=simple.night(d,hotel,over,'SITE Café');
+  assert.equal(plaza.current.standard,975);
+  assert.equal(plaza.proposed.standard,585);
+  assert.equal(plaza.levelLabel.standard,'Manter');
+  d.hotelBases=simple.indexBases({rows:[{base:'Janeiro',plano:0,quarto:'standard',pax:2,dia:5,valor:800}]});
+  d.periods[0].hotel_id='premium';
+  const premium=simple.night(d,{code:'PREMIUM',id:'premium'},over,'SITE Café');
+  assert.equal(premium.current.standard,780);
+  assert.equal(premium.proposed.standard,468);
+  assert.equal(premium.levelLabel,'Manter');
+  assert.equal(premium.proposed.luxo,null);
+});
 test('Plaza flutua cada categoria pela sua disponibilidade e aceita captura parcial',()=>{
   const reading={...day,roomTypes:[
     {code:'STD',apartments:89,occupied:36,available:53},
@@ -107,7 +151,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
     insertRow(){const e=new Element('tr');this.append(e);return e;} insertCell(){const e=new Element('td');this.append(e);return e;}
   }
   const ids=new Map(),document={getElementById(id){if(!ids.has(id))ids.set(id,new Element());return ids.get(id)},createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
-  ctx.document=document;ctx.fetch=async(_url,options)=>{if(JSON.parse(options.body).tipo==='ofertas_consultar')return {ok:true,json:async()=>({ofertas:[]})};assert.equal(JSON.parse(options.body).tipo,'ocupacao_plaza');return {ok:true,json:async()=>({days:[day]})}};
+  ctx.document=document;ctx.fetch=async(_url,options)=>{if(JSON.parse(options.body).tipo==='deskhotel_status')return {ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86250,86250,120750,155250]}}})};if(JSON.parse(options.body).tipo==='ofertas_consultar')return {ok:true,json:async()=>({ofertas:[]})};assert.equal(JSON.parse(options.body).tipo,'ocupacao_plaza');return {ok:true,json:async()=>({days:[day]})}};
   const data={...fixture(),today:'2027-01-23',beeHistory:[]};
   await simple.show(data,hotel,()=>true,()=>{});
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
@@ -128,26 +172,13 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   assert.doesNotMatch(row.children[7].textContent,/ocupação|64%/i);
   assert.equal(row.children[7].children[0].children[1].textContent,"Janeiro · L15");
   tabs.children[3].onclick();
+  await new Promise(resolve=>setImmediate(resolve));
   const siteRow=table.children[1].children[0];
-  const button=siteRow.children.at(-4).children[0];
-  const proposed=simple.night({...data,offers:[]},hotel,day,'SITE Café').proposed;
-  const prices=Object.fromEntries(Object.entries(proposed).map(([room,value])=>{
-    const cents=Math.round(value*100);
-    return [room,[cents,cents,Math.round(cents*1.4),Math.round(cents*1.8)]];
-  }));
-  ctx.fetch=async(url,options)=>{
-    assert.equal(url,'/api/portal/rms');
-    assert.deepEqual(JSON.parse(options.body),{tipo:'deskhotel_previa',noite:day.date,hotel:'PLAZA'});
-    return {ok:true,json:async()=>({prices,checkedAt:'2027-01-23T12:00:00Z'})};
-  };
-  await button.onclick();
-  assert.equal(button.textContent,'OK');
-  prices.standard[3]--;
-  await button.onclick();
-  assert.equal(button.textContent,'Ver diferenças');
-  delete prices.standard;
-  await button.onclick();
-  assert.equal(button.textContent,'Ver diferenças');
-  assert.deepEqual(siteRow.children.slice(-3).map(cell=>cell.textContent),['—','—','—']);
+  const statuses=cell=>cell.children.map(line=>line.textContent);
+  assert.deepEqual(statuses(siteRow.children.at(-4)),['OK','Pendente','Pendente']);
+  for(const cell of siteRow.children.slice(-3))assert.deepEqual(statuses(cell),['Pendente','Pendente','Pendente']);
+  const update=ids.get('updateDeskhotel');
+  assert.equal(update.hidden,false);
+  update.onclick();
+  assert.equal(ids.get('deskhotelPreview').open,true);
 });
-

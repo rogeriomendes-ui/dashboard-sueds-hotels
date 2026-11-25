@@ -2,6 +2,10 @@
 #simpleGroups button{background:white;color:#165b60;padding:6px 10px;font-size:13px}
 #simpleGroups button[aria-pressed=true]{background:#165b60;color:white}
 #simpleControls p{font-size:12px;color:#506571}
+#nights.simple-grid .channel-status{line-height:1.6}
+#deskhotelPreview{max-width:min(48rem,90vw);max-height:80vh;overflow:auto}
+#deskhotelPreview label{display:inline-grid;margin:0 1rem .75rem 0}
+#deskhotelPreview button{margin-right:.5rem}
 #nights.simple-grid{width:100%;font-size:12px}
 #nights.simple-grid th{white-space:normal;min-width:120px;max-width:190px}
 #nights.simple-grid :is(th,td):first-child{min-width:85px;width:85px;background:white;z-index:3}

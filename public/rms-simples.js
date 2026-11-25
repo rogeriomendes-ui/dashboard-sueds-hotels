@@ -116,10 +116,13 @@ const RmsSimple = (() => {
         const rate = byRoom[room].channel;
         const target = plazaLevelComparison(data.catalog,period,day.date,rate,plan);
         const keep = period?.bloqueado || rate >= 100;
-        vigenteWeb[room] = keep ? currentWeb?.[room] : target.simulated[room];
+        const recorded = currentWeb?.[room] > 0 ? currentWeb[room] : target.reference[room];
+        vigenteWeb[room] = keep && (period?.bloqueado || recorded > 0)
+          ? recorded : target.simulated[room];
         levelLabel[room] = keep ? 'Manter' : levelDescription(target.level);
         band[room] = keep ? 'Manter' : target.level ? '+'+target.level.pct+'% sobre a base' : '—';
-        reason[room] = keep ? (period?.bloqueado ? 'Flutuação bloqueada.' : 'Categoria esgotada ou em overbooking.')
+        reason[room] = keep ? (period?.bloqueado ? 'Flutuação bloqueada.' : 'Categoria esgotada ou em overbooking.' +
+          (!(recorded > 0) && vigenteWeb[room] > 0 ? ' Tarifa projetada pela grade do RMS.' : ''))
           : rate == null ? 'Ocupação indisponível.' : !target.level ? 'Sem nível vinculado para esta noite.'
           : (target.base?.name || period.nome)+' · '+(target.base?.code || target.level.code);
       }
@@ -135,7 +138,7 @@ const RmsSimple = (() => {
           name:base.name,pct
         }:null;
         target={level,base};
-        if(level&&!hold) vigenteWeb=Object.fromEntries(rooms.map(room=>{
+        if(level&&!period?.bloqueado) vigenteWeb=Object.fromEntries(rooms.map(room=>{
           const price=base.prices.get(`${plan}|${weekday}|${room}`);
           return [room,price>0?Math.round(price*(100+pct))/100:null];
         }));
@@ -143,7 +146,7 @@ const RmsSimple = (() => {
       levelLabel=hold?'Manter':levelDescription(target.level);
       band=hold?'Manter':target.level?'+'+target.level.pct+'% sobre a base':'—';
       reason=hold?(period?.bloqueado?'Flutuação bloqueada.':'Esgotado ou em overbooking.')+
-        (vigenteWeb?' Manter a tarifa vigente.':' Tarifa vigente indisponível no Portal.'):
+        (vigenteWeb?' Tarifa projetada pela grade do RMS.':' Tarifa indisponível na grade do RMS.'):
         occupancy==null?'Ocupação indisponível.':!target.level?'Sem nível vinculado para esta noite.':
         (target.base?.name || period.nome)+(target.base?.code || target.level.code?' · '+(target.base?.code || target.level.code):'');
     }
@@ -229,84 +232,118 @@ const RmsSimple = (() => {
       }
       const confirmations = new Map();
       const channels = ['DeskHotel', 'Omnibees', 'CVC', 'Juniper'];
-      const modal = el('deskhotelPreview');
+      const enabled = ['PLAZA','SEGUNDO_SOL','CABRALIA','PREMIUM','TRANCOSO'].includes(hotel.code);
+      const modal = el('deskhotelPreview'), update = el('updateDeskhotel');
       if (modal.open) modal.close();
-      const brl = cents => Number.isInteger(cents) ? format(cents / 100) : '—';
-      function previewButton(cell, day, expected) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        const previous = confirmations.get(day.date);
-        button.textContent = previous?.label || 'Conferir';
-        button.title = previous?.time || 'Comparar SITE Café com o DeskHotel';
-        cell.append(button);
-        button.onclick = async () => {
-          const heading = document.createElement('h3');
-          heading.textContent = hotel.name + ' · SITE Café · ' + day.date.split('-').reverse().join('/');
-          const message = document.createElement('p');
-          message.setAttribute('role','status');
-          message.textContent = 'Consultando DeskHotel…';
-          const close = document.createElement('button');
-          close.type = 'button';
-          close.textContent = 'Fechar';
-          close.onclick = () => modal.close();
-          modal.replaceChildren(heading, message, close);
-          modal.setAttribute('aria-label', heading.textContent);
-          modal.showModal();
-          confirmations.delete(day.date);
-          button.textContent = 'Conferir';
-          button.title = 'Comparar SITE Café com o DeskHotel';
-          try {
-            const response = await fetch('/api/portal/rms', {
-              method:'POST', headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({tipo:'deskhotel_previa',noite:day.date,hotel:hotel.code})
-            });
-            const result = await response.json();
-            if (!response.ok) throw Error(result.error || 'Falha ao consultar DeskHotel.');
-            if (!isCurrent() || !modal.contains(message)) return;
-            const table = document.createElement('table');
-            const header = table.createTHead().insertRow();
-            for (const label of ['Categoria','Adultos','RMS (R$)','DeskHotel (R$)','Conferência']) {
-              const th = document.createElement('th');
-              th.textContent = label;
-              header.append(th);
-            }
-            const body = table.createTBody();
-            let matches = 0;
-            let total = 0;
-            const expectedRooms = standardOnlyHotels.has(hotel.code) ? ['standard'] : Object.keys(expected);
-            const categories = new Map(expectedRooms.map(key=>[normalize(key),{key,price:expected[key]}]));
-            for (const [key,prices] of Object.entries(result.prices)) {
-              const category = categories.get(normalize(key)) || {key};
-              category.prices = prices;
-              categories.set(normalize(key),category);
-            }
-            for (const {key:room,price,prices} of categories.values()) {
-              const cents = Math.round(price * 100);
-              const targets = [cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)].slice(0,prices?.length ?? 4);
-              total += targets.length;
-              targets.forEach((target, index) => {
-                const actual = prices?.[index];
-                const known = Number.isSafeInteger(target) && target > 0 && Number.isSafeInteger(actual);
-                const equal = known && actual === target;
-                if (equal) matches++;
-                const row = body.insertRow();
-                for (const value of [{standard:'Standard',luxo:'Luxo',suite:'Suíte'}[room] || room,index+1,
-                  brl(target > 0 ? target : null),brl(actual),equal?'OK':known?'Difere':'Sem tarifa']) row.insertCell().textContent = value;
-              });
-            }
-            const time = new Date(result.checkedAt).toLocaleString('pt-BR',{timeZone:'America/Bahia'});
-            message.textContent = matches + ' de ' + total + ' tarifas conferem · ' + time + ' (Bahia)';
-            modal.insertBefore(table, close);
-            const label = total > 0 && matches === total ? 'OK' : 'Ver diferenças';
-            confirmations.set(day.date,{label,time});
-            button.textContent = label;
-            button.title = 'Conferido em ' + time + ' (Bahia)';
-          } catch (error) {
-            message.textContent = error.message;
-          }
-        };
+      update.hidden = !enabled || !days.length;
+      update.disabled = false;
+      const categoryNames = {standard:'Standard',luxo:'Luxo',suite:'Suíte'};
+      const categoryKeys = values => standardOnlyHotels.has(hotel.code) ? ['standard'] : Object.keys(values);
+      const cellUpdates = new Map();
+      function isConfirmed(date,room,price) {
+        const read = confirmations.get(date)?.[normalize(room)];
+        const cents = Math.round(price*100);
+        const target = [cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)];
+        return cents>0 && read?.length>0 && read.length<=4 && read.every((v,i)=>v===target[i]);
       }
+      async function request(tipo,body) {
+        const response=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({tipo,hotel:hotel.code,...body})});
+        const result=await response.json();
+        if (!response.ok) throw Error(result.error || 'Falha ao consultar o DeskHotel.');
+        return result;
+      }
+      let writing=false, revision=0;
+      async function readStatus(first,last) {
+        const version=revision;
+        const result=await request('deskhotel_status',{noite:first,fim:last});
+        if (!isCurrent() || version!==revision) return;
+        for (const day of days) {
+          if (day.date<first || day.date>last) continue;
+          confirmations.set(day.date,result.confirmed[day.date] || {});
+          cellUpdates.get(day.date)?.();
+        }
+      }
+      async function loadStatuses() {
+        if (!enabled) return;
+        for (let i=0;i<days.length && isCurrent();) {
+          const first=days[i].date;
+          let last=first;
+          while(i<days.length && Date.parse(days[i].date)-Date.parse(first)<=30*86400000) last=days[i++].date;
+          try { await readStatus(first,last); }
+          catch { /* Sem confirmação de leitura, a coluna permanece pendente. */ }
+        }
+      }
+      update.onclick=()=>{
+        if (writing || !enabled || !isCurrent()) return;
+        const heading=document.createElement('h3');
+        heading.textContent=hotel.name+' · SITE Café';
+        const dates=['De','Até'].map(label=>{
+          const wrapper=document.createElement('label'),input=document.createElement('input');
+          input.type='date'; input.min=days[0].date; input.max=days.at(-1).date; input.value=days[0].date;
+          wrapper.append(label,input); return {wrapper,input};
+        });
+        const detail=document.createElement('div'), message=document.createElement('p');
+        message.setAttribute('role','status');
+        const send=document.createElement('button'), close=document.createElement('button');
+        send.type=close.type='button'; send.textContent='Enviar tarifas pendentes'; close.textContent='Fechar';
+        close.onclick=()=>modal.close();
+        modal.oncancel=event=>{if(writing)event.preventDefault();};
+        let selection=[];
+        function preview() {
+          detail.replaceChildren(); selection=[];
+          const [start,end]=dates.map(d=>d.input.value);
+          if (start && end && start<=end) {
+            const table=document.createElement('table'), header=table.createTHead().insertRow();
+            for(const name of ['Noite','Categoria','Tarifa SITE Café (R$)']){
+              header.appendChild(document.createElement('th')).textContent=name;
+            }
+            const body=table.createTBody();
+            for (const day of days.filter(d=>d.date>=start && d.date<=end)) {
+              const n=night(data,hotel,day,'SITE Café'), values={};
+              for(const room of categoryKeys(n.proposed)){
+                const price=n.proposed[room], cents=Math.round(price*100);
+                const band=typeof n.band==='object'?n.band[room]:n.band;
+                if (!(cents>0) || band==='Manter' || isConfirmed(day.date,room,price)) continue;
+                values[normalize(room)]=cents;
+                const row=body.insertRow();
+                for(const value of [day.date.split('-').reverse().join('/'),categoryNames[room]||room,format(price)]) row.insertCell().textContent=value;
+              }
+              if(Object.keys(values).length)selection.push({noite:day.date,valores:values});
+            }
+            if(selection.length)detail.append(table);
+          }
+          message.textContent=selection.length?'Envio por categoria, respeitando a capacidade cadastrada no DeskHotel.':'Nenhuma tarifa elegível no período.';
+          send.disabled=!selection.length;
+        }
+        for(const d of dates)d.input.onchange=preview;
+        send.onclick=async()=>{
+          if(writing || !selection.length || !isCurrent())return;
+          writing=true; revision++; send.disabled=close.disabled=update.disabled=true;
+          for(const d of dates)d.input.disabled=true;
+          let pending=0;
+          try{
+            for(const item of selection){
+              if(!isCurrent())break;
+              message.textContent='Atualizando '+item.noite+'…';
+              await request('deskhotel_atualizar',item);
+              const confirmed=()=>Object.entries(item.valores).every(([room,c])=>isConfirmed(item.noite,room,c/100));
+              for(const delay of [0,2000,4000,8000]){
+                if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+                await readStatus(item.noite,item.noite);
+                if(confirmed())break;
+              }
+              if(!confirmed())pending++;
+            }
+            message.textContent=pending?'Envio aceito. Noites aguardando confirmação: '+pending+'.':'Gravação confirmada no DeskHotel.';
+          }catch(error){message.textContent=error.message;}
+          finally{writing=false;close.disabled=false;update.disabled=false;}
+        };
+        modal.replaceChildren(heading,...dates.map(d=>d.wrapper),detail,message,send,close);
+        preview(); modal.showModal();
+      };
       function draw(){
+        cellUpdates.clear();
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
         const head=table.createTHead().insertRow();
@@ -329,10 +366,11 @@ const RmsSimple = (() => {
         for(const day of days){
           const tr=body.insertRow();
           tr.insertCell().textContent=day.date.split('-').reverse().join('/');
-          let siteCafe;
+          let siteCafe,nightPrices;
           const occupancyByRoom = hotel.code === 'PLAZA' ? plazaOccupancy(day) : null;
           for(const g of chosen){
             const n=night(data,hotel,day,g);
+            nightPrices=n.proposed;
             if (g === 'SITE Café') siteCafe = n.proposed;
             renderPrices(tr.insertCell(),n.current);
             if(g===chosen[0] && occupancyByRoom){
@@ -359,26 +397,27 @@ const RmsSimple = (() => {
           }
           for (const channel of channels) {
             const cell = tr.insertCell();
-            if (channel === 'DeskHotel' && ['PLAZA','SEGUNDO_SOL','CABRALIA','PREMIUM','TRANCOSO'].includes(hotel.code) && siteCafe) {
-              if (chosen.length > 1) {
-                const label = document.createElement('span');
-                label.className = 'simple-group-title';
-                label.textContent = 'SITE Café';
-                cell.append(label);
-              }
-              previewButton(cell,day,siteCafe);
-            } else if (channel === 'DeskHotel' && hotel.code === 'CASAS' && siteCafe) {
-              cell.textContent = 'Não se aplica';
-              cell.title = 'Casas Sued’s Arraial oferece somente hospedagem (meal=0).';
-            } else {
-              cell.textContent = '—';
-              cell.title = 'Sem confirmação de atualização para este canal e regime.';
+            const prices=siteCafe || nightPrices;
+            const statuses=categoryKeys(prices).map(room=>{
+              const line=document.createElement('div');
+              line.title=(siteCafe && channel==='DeskHotel'?'SITE Café · ':'')+(categoryNames[room] || room);
+              line.className='channel-status';
+              line.textContent='Pendente';
+              cell.append(line);
+              return {room,line};
+            });
+            if(channel==='DeskHotel' && siteCafe && enabled){
+              const refreshStatus=()=>{for(const {room,line} of statuses)
+                line.textContent=isConfirmed(day.date,room,siteCafe[room])?'OK':'Pendente';};
+              cellUpdates.set(day.date,refreshStatus);
+              refreshStatus();
             }
           }
         }
         refresh?.();
       }
       draw();
+      void loadStatuses();
     }catch(error){if(isCurrent())el('hotelNote').textContent=error.message;}
   }
   return {show,night,project,groups,indexBases};
