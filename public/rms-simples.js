@@ -231,6 +231,8 @@ const RmsSimple = (() => {
         cell.append(prices);
       }
       const confirmations = new Map();
+      const updateTimes = new Map();
+      const localDate = new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Bahia'});
       const channels = ['DeskHotel', 'Omnibees', 'CVC', 'Juniper'];
       const enabled = ['PLAZA','SEGUNDO_SOL','CABRALIA','PREMIUM','TRANCOSO'].includes(hotel.code);
       const modal = el('deskhotelPreview'), update = el('updateDeskhotel');
@@ -261,6 +263,7 @@ const RmsSimple = (() => {
         for (const day of days) {
           if (day.date<first || day.date>last) continue;
           confirmations.set(day.date,result.confirmed[day.date] || {});
+          updateTimes.set(day.date,result.updatedAt?.[day.date] || {});
           cellUpdates.get(day.date)?.();
         }
       }
@@ -407,8 +410,13 @@ const RmsSimple = (() => {
               return {room,line};
             });
             if(channel==='DeskHotel' && siteCafe && enabled){
-              const refreshStatus=()=>{for(const {room,line} of statuses)
-                line.textContent=isConfirmed(day.date,room,siteCafe[room])?'OK':'Pendente';};
+              const refreshStatus=()=>{
+                for(const {room,line} of statuses){
+                  const ok=isConfirmed(day.date,room,siteCafe[room]);
+                  const stamp=updateTimes.get(day.date)?.[normalize(room)];
+                  line.textContent=ok && stamp ? 'OK · '+localDate.format(new Date(stamp)) : ok ? 'OK' : 'Pendente';
+                }
+              };
               cellUpdates.set(day.date,refreshStatus);
               refreshStatus();
             }

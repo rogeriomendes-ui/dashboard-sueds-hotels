@@ -34,6 +34,9 @@ test('DeskHotel exige gravação identificada no café, preserva regras e evita 
   assert.deepEqual([item.pax1,item.pax2,item.pax3,item.pax4],[468,468,655.2,842.4]);
   assert.equal((await call('deskhotel_status')).body.confirmed[date].STANDARD,undefined);
   Object.assign(row,item);
+  assert.equal((await call('deskhotel_status')).body.updatedAt[date].STANDARD,undefined);
+  row.dateTimeChange='2026-11-25 01:30:00';
+  assert.equal((await call('deskhotel_status')).body.updatedAt[date].STANDARD,'2026-11-25T01:30:00Z');
   assert.deepEqual(Array.from((await call('deskhotel_status')).body.confirmed[date].STANDARD),[46800,46800,65520,84240]);
   assert.equal((await call('deskhotel_atualizar')).body.queued,0);
   assert.equal(posts.length,1);
@@ -151,7 +154,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
     insertRow(){const e=new Element('tr');this.append(e);return e;} insertCell(){const e=new Element('td');this.append(e);return e;}
   }
   const ids=new Map(),document={getElementById(id){if(!ids.has(id))ids.set(id,new Element());return ids.get(id)},createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
-  ctx.document=document;ctx.fetch=async(_url,options)=>{if(JSON.parse(options.body).tipo==='deskhotel_status')return {ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86250,86250,120750,155250]}}})};if(JSON.parse(options.body).tipo==='ofertas_consultar')return {ok:true,json:async()=>({ofertas:[]})};assert.equal(JSON.parse(options.body).tipo,'ocupacao_plaza');return {ok:true,json:async()=>({days:[day]})}};
+  ctx.document=document;ctx.fetch=async(_url,options)=>{if(JSON.parse(options.body).tipo==='deskhotel_status')return {ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86250,86250,120750,155250]}},updatedAt:{[day.date]:{STANDARD:"2026-11-25T01:30:00Z"}}})};if(JSON.parse(options.body).tipo==='ofertas_consultar')return {ok:true,json:async()=>({ofertas:[]})};assert.equal(JSON.parse(options.body).tipo,'ocupacao_plaza');return {ok:true,json:async()=>({days:[day]})}};
   const data={...fixture(),today:'2027-01-23',beeHistory:[]};
   await simple.show(data,hotel,()=>true,()=>{});
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
@@ -175,7 +178,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   await new Promise(resolve=>setImmediate(resolve));
   const siteRow=table.children[1].children[0];
   const statuses=cell=>cell.children.map(line=>line.textContent);
-  assert.deepEqual(statuses(siteRow.children.at(-4)),['OK','Pendente','Pendente']);
+  assert.deepEqual(statuses(siteRow.children.at(-4)),['OK · 24/11/2026','Pendente','Pendente']);
   for(const cell of siteRow.children.slice(-3))assert.deepEqual(statuses(cell),['Pendente','Pendente','Pendente']);
   const update=ids.get('updateDeskhotel');
   assert.equal(update.hidden,false);
