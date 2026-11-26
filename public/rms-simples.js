@@ -69,8 +69,11 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
     return Object.fromEntries(rooms.map(room => {
       const matches = (day.roomTypes || []).filter(type => type.code === plazaCodes[room]);
       const type = matches.length === 1 ? matches[0] : {};
-      const kpi = type.apartments > 0 && Number.isInteger(type.occupied)
-        ? type.occupied / type.apartments * 100 : null;
+      const fullyAvailable = type.occupied == null && Number.isInteger(type.apartments) &&
+        type.apartments > 0 && type.available === type.apartments;
+      const occupied = fullyAvailable ? 0 : type.occupied;
+      const kpi = type.apartments > 0 && Number.isInteger(occupied)
+        ? occupied / type.apartments * 100 : null;
       return [room, kpi];
     }));
   }

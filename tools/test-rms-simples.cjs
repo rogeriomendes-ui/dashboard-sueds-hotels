@@ -222,3 +222,15 @@ test('projeção inclui a última noite cadastrada e aplica a oferta sobre a bas
   assert.equal(prices.current.standard,750);
   assert.equal(prices.proposed.standard,450);
 });
+
+test('ocupados vazio equivale a zero somente com disponibilidade integral e inventário positivo',()=>{
+  const reading={...day,roomTypes:[
+    {code:'STD',apartments:89,occupied:null,available:88},
+    {code:'LX',apartments:20,occupied:null,available:20},
+    {code:'MAS',apartments:0,occupied:null,available:0}
+  ]};
+  const rate=simple.night(fixture(),hotel,reading,'WEB Café');
+  assert.equal(rate.current.standard,null);
+  assert.equal(rate.current.luxo,1200);
+  assert.equal(rate.current.suite,null);
+});
