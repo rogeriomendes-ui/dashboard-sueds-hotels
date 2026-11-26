@@ -12,18 +12,21 @@ const day=kpiDay(65);
 test('DeskHotel exige gravação identificada no café, preserva regras e evita reenvio confirmado',async()=>{
   const date=day.date, code='PLAZA', result=(status,body)=>({status,body});
   const row={roomId:'2463',meal:'1',rate_id:null,maxAdt:4,origin:'importacao',minimumStay:3,chd1:50,
+    roomName:'Standard',chd2:null,refundable:null,pet:null,rulesCheckin:null,rulesCheckout:null,
+    ...Object.fromEntries(Array.from({length:8},(_,i)=>['pax'+(i+5),null])),
     pax1:468,pax2:468,pax3:655.2,pax4:842.4};
   const map={...row,rate_id:'2475',meal:'3',origin:'portal-sueds'};
+  const pc={...row,rate_id:'2476',meal:'99',origin:'importacao'};
   const posts=[];
   const sandbox=vm.createContext({module:{exports:{}},process:{env:{CR_API_LOGIN:'test',CR_API_PASSWORD:'test',
     CR_HOTEL_ID:'0557',CR_HOTEL_KEY:'test',CR_PARTNER_ORIGIN:'test'}},URL,URLSearchParams,Buffer,AbortSignal,
     require:()=>({json:(_res,status,body)=>result(status,body)}),fetch:async(_url,options)=>{
       if(options.method==='POST')posts.push(JSON.parse(options.body));
-      return {ok:true,json:async()=>({hotelId:'0557',rates:{[date]:[row,map]}})};
+      return {ok:true,json:async()=>({hotelId:'0557',rates:{[date]:[row,map,pc]}})};
     }});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../lib/rms-deskhotel.js'),'utf8'),sandbox);
   const client={from(){return this},select(){return this},eq(){return this},is(){return this},maybeSingle(){return {data:{id:'hotel'}}}};
-  const call=action=>sandbox.module.exports.preview(client,date,{setHeader(){}},code,action,date,{STANDARD:46800});
+  const call=(action,values={STANDARD:46800})=>sandbox.module.exports.preview(client,date,{setHeader(){}},code,action,date,values);
   assert.equal((await call('deskhotel_status')).body.confirmed[date].STANDARD,undefined);
   assert.equal((await call('deskhotel_atualizar')).body.queued,1);
   assert.equal(posts[0].length,1);
@@ -40,6 +43,13 @@ test('DeskHotel exige gravação identificada no café, preserva regras e evita 
   assert.deepEqual(Array.from((await call('deskhotel_status')).body.confirmed[date].STANDARD),[46800,46800,65520,84240]);
   assert.equal((await call('deskhotel_atualizar')).body.queued,0);
   assert.equal(posts.length,1);
+  const plans=await call('deskhotel_atualizar',{'MAP:STANDARD':60000,'PC:STANDARD':70000});
+  assert.equal(plans.body.queued,2);
+  assert.deepEqual(posts[1].map(i=>[i.roomId,i.pax1,i.pax2,i.pax3,i.pax4,i.chd1]),[
+    ['2475',600,600,840,1080,50],['2476',700,700,980,1260,50]
+  ]);
+  assert.equal((await call('deskhotel_atualizar',{'MAP:LUXO':50000})).status,422);
+  assert.equal(posts.length,2);
 });
 test('esgotamento conserva a tarifa registrada ou exibe a projeção da própria grade com oferta',()=>{
   const d=fixture(), over=kpiDay(110);
