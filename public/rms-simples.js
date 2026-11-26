@@ -74,7 +74,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       return [room, kpi];
     }));
   }
-  function night(data, hotel, day, group) {
+  function night(data, hotel, day, group, previousTariffs) {
     const [channel, meal]=group.split(' ');
     const plan=['Café','MAP','PC'].indexOf(meal);
     const regime=['CAFÉ DA MANHÃ','MEIA PENSÃO','PENSÃO COMPLETA'][plan];
@@ -111,7 +111,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       const byRoom = plazaOccupancy(day);
       for (const room of rooms) {
         const rate = byRoom[room];
-        const target = compareLevel(data.catalog,period,day.date,rate,plan);
+        const target = compareLevel(data.catalog,period,day.date,rate,plan,true);
         const keep = period?.bloqueado || rate >= 100;
         const recorded = currentWeb?.[room] > 0 ? currentWeb[room] : target.reference[room];
         vigenteWeb[room] = keep && (period?.bloqueado || recorded > 0)
@@ -129,7 +129,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
         const baseName=period?.base_origem || baseAliases[hotel.code]?.[period?.nome] || period?.nome;
         const base=baseName&&data.hotelBases?.bases.get(normalize(baseName));
         const rule=rules.band(period,occupancy);
-        const pct=Number(rule?.pct);
+        const pct=Math.max(0,Number(rule?.pct));
         const level=base&&rule&&Number.isFinite(pct)?{
           code:pct===0?base.code:null,
           name:base.name,pct
@@ -148,6 +148,26 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
         (target.base?.name || period.nome)+(target.base?.code || target.level.code?' · '+(target.base?.code || target.level.code):'');
     }
     const roomKeys=trancoso?Object.keys(vigenteWeb||{}):rooms;
+    // Compare WEB prices before channel derivation and before today's offer.
+    const previous = previousTariffs?.['WEB '+meal];
+    if (!trancoso && previous) {
+      const held = roomKeys.filter(room => previous.current?.[room] > 0 &&
+        vigenteWeb?.[room] > 0 && previous.current[room] > vigenteWeb[room]);
+      if (held.length) {
+        vigenteWeb = {...vigenteWeb};
+        const byRoom = value => typeof value === 'object' && value !== null
+          ? {...value} : Object.fromEntries(roomKeys.map(room => [room,value]));
+        levelLabel = byRoom(levelLabel);
+        band = byRoom(band);
+        reason = byRoom(reason);
+        for (const room of held) {
+          vigenteWeb[room] = previous.current[room];
+          levelLabel[room] = byRoom(previous.levelLabel)[room];
+          band[room] = byRoom(previous.band)[room];
+          reason[room] = 'Mantida a última tarifa antes da oferta.';
+        }
+      }
+    }
     function channelPrices(web,discount){
       return Object.fromEntries(roomKeys.map(room=>{
         const price=web?.[room];

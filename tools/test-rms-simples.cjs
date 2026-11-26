@@ -183,3 +183,18 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   update.onclick();
   assert.equal(ids.get('deskhotelPreview').open,true);
 });
+
+test('cancelamento conserva a derivada por categoria antes da oferta vigente',()=>{
+  const data=fixture();
+  const prior={'WEB Café':simple.night(data,hotel,kpiDay(65),'WEB Café')};
+  const lower=kpiDay(40);
+  lower.roomTypes[1]=kpiDay(90).roomTypes[1];
+  const result=simple.night(data,hotel,lower,'SITE Café',prior);
+  assert.equal(result.current.standard,862.5);
+  assert.equal(result.proposed.standard,517.5);
+  assert.equal(result.current.luxo,1170);
+  assert.match(result.levelLabel.standard,/L15/);
+  assert.match(result.levelLabel.luxo,/L30/);
+  data.periods[0].pct0=-10;
+  assert.equal(simple.night(data,hotel,lower,'WEB Café').current.standard,1000);
+});
