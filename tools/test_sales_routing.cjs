@@ -1,5 +1,12 @@
 const assert = require('node:assert/strict');
 const routing = require('../lib/sales-routing');
+for (const cliente of ['BOOKING.COM BRASIL SERVICOS','BOOKING COM BRASIL','DECOLAR. COM LTDA.']) {
+  const capture = {dataVenda:'26/11/2026',origin:'Link Pagamento - Lara Reis',cliente};
+  assert.throws(() => routing.normalizeDeskhotel(capture), /já contabilizada/);
+  assert.equal(routing.isDeskhotelOtaCollection({...capture,origin:'Depto_Reservas - Lara Reis'}),false);
+}
+const collection = {monthKey:'2026-11',source:'DESKHOTEL',roomType:'COBRANÇA RSV BOOKING 123',seller:'Lara Reis'};
+assert.deepEqual(routing.dashboardSources([collection],[collection]),{records:[],otherChannelRecords:[]});
 const { normalizeRecord, buildMetrics, buildManagerPayload, buildOtherChannelsMetrics } = require('../server').__test;
 const row = (code, channel, seller, total, date='08/09/2026') => normalizeRecord({'Data Venda':date,'Codigo Reserva':code,Hotel:'SUEDS PLAZA',Canal:channel,Vendedor:seller,'Valor Total':total,Recebido:total,Status:'Confirmada'});
 for (const channel of ['BE MOBILE','BE MOBILLE','BOOKING ENGINE','Robo','Airbnb','Booking','Decolar','Expedia']) {

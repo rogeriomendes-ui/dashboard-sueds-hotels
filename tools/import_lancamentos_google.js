@@ -349,7 +349,7 @@ function firstEmptyRows(rows, count) {
 async function main() {
   const inputRecords = readInputRecords(INPUT_FILE);
   const exclusions=await require('../lib/sales-exclusions-client.cjs').load();
-  const parsed=inputRecords.filter(record=>!require('../lib/sales-exclusions.cjs').isExcluded(record,exclusions));
+  const parsed=inputRecords.filter(record=>!routing.isDeskhotelOtaCollection(record) && !require('../lib/sales-exclusions.cjs').isExcluded(record,exclusions));
   if(inputRecords.length!==parsed.length)console.error(`Vendas excluidas ignoradas: ${inputRecords.length-parsed.length}`);
   const current = (await sheetsRequest("GET", RANGE)).values || [];
   const other = (await sheetsRequest("GET", "'teste lancamento_vendas'!A2:T5000")).values || [];
