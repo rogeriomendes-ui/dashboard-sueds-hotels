@@ -306,6 +306,9 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
         if (!response.ok) throw Error(result.error || 'Falha ao consultar o DeskHotel.');
         return result;
       }
+      el('generalDeskhotel').onclick=()=>openDeskhotelGeneral({
+        modal,hotels:data.hotels,today:data.today,request,siteGroups,channelKey,normalize
+      });
       let writing=false, revision=0;
       async function readStatus(first,last) {
         const version=revision;
