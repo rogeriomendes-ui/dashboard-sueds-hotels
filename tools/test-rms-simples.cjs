@@ -208,3 +208,17 @@ test('cancelamento conserva a derivada por categoria antes da oferta vigente',()
   data.periods[0].pct0=-10;
   assert.equal(simple.night(data,hotel,lower,'WEB Café').current.standard,1000);
 });
+
+test('projeção inclui a última noite cadastrada e aplica a oferta sobre a base sem KPI',()=>{
+  const data=fixture();
+  const date='2028-02-29';
+  data.periods.push({...data.periods[0],inicio:date,fim:date,base_origem:'Janeiro'});
+  data.catalog.bases[0].name='Janeiro';
+  const days=simple.tariffDays(data,hotel,[day]);
+  const last=days.at(-1);
+  assert.equal(last.date,date);
+  assert.equal(last.rate,null);
+  const prices=simple.night(data,hotel,last,'SITE Café');
+  assert.equal(prices.current.standard,750);
+  assert.equal(prices.proposed.standard,450);
+});

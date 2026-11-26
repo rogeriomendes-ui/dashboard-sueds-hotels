@@ -74,6 +74,24 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       return [room, kpi];
     }));
   }
+  function tariffDays(data,hotel,days) {
+    const dates=new Map(days.filter(day=>day.date>=data.today).map(day=>[day.date,day]));
+    function add(date) {
+      if(date>=data.today && !dates.has(date)) dates.set(date,{date,rate:null,baseProjection:true});
+    }
+    if(hotel.code==='TRANCOSO'){
+      for(const date of data.hotelBases?.calendar.keys() || []) add(date);
+    } else {
+      for(const period of data.periods.filter(p=>p.hotel_id===hotel.id && !p.bloqueio_avulso)){
+        const first=period.inicio>data.today?period.inicio:data.today;
+        for(let ms=Date.parse(first);ms<=Date.parse(period.fim);ms+=86400000){
+          const date=new Date(ms);
+          if(!period.dias || period.dias.includes((date.getUTCDay()+6)%7)) add(date.toISOString().slice(0,10));
+        }
+      }
+    }
+    return [...dates.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  }
   function night(data, hotel, day, group, previousTariffs) {
     const [channel, meal]=group.split(' ');
     const plan=['Café','MAP','PC'].indexOf(meal);
@@ -111,7 +129,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       const byRoom = plazaOccupancy(day);
       for (const room of rooms) {
         const rate = byRoom[room];
-        const target = compareLevel(data.catalog,period,day.date,rate,plan,true);
+        const target = compareLevel(data.catalog,period,day.date,rate,plan,true,day.baseProjection);
         const keep = period?.bloqueado || rate >= 100;
         const recorded = currentWeb?.[room] > 0 ? currentWeb[room] : target.reference[room];
         vigenteWeb[room] = keep && (period?.bloqueado || recorded > 0)
@@ -129,8 +147,8 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
         const baseName=period?.base_origem || baseAliases[hotel.code]?.[period?.nome] || period?.nome;
         const base=baseName&&data.hotelBases?.bases.get(normalize(baseName));
         const rule=rules.band(period,occupancy);
-        const pct=Math.max(0,Number(rule?.pct));
-        const level=base&&rule&&Number.isFinite(pct)?{
+        const pct=day.baseProjection?0:Math.max(0,Number(rule?.pct));
+        const level=base&&(rule||day.baseProjection)&&Number.isFinite(pct)?{
           code:pct===0?base.code:null,
           name:base.name,pct
         }:null;
@@ -213,6 +231,8 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
           if(!response.ok) throw Error('Não foi possível consultar a ocupação.');
           const map=await response.json();days=map.occupancy.find(h=>h.hotel===map.selected.hotel)?.days || [];
         }
+      }
+      if(!published || !published.tariffHorizon){
         const readHotel=async tipo=>{
           const result=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,hotel_id:hotel.id})});
           if(!result.ok) throw Error('Não foi possível consultar os cadastros do hotel.');
@@ -225,17 +245,14 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
           saleTime:new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit'})};
       }
       if(!isCurrent()) return;
-      const byDate=new Map(days.map(d=>[d.date,d]));
-      if(!published && hotel.code==='PLAZA') for(const day of Object.keys(data.rates)) if(!byDate.has(day))byDate.set(day,{date:day,rate:null});
-      for(const day of data.hotelBases?.calendar.keys() || []) if(!byDate.has(day))byDate.set(day,{date:day,rate:null});
-      days=[...byDate.values()].filter(d=>d.date>=data.today&&d.date<='2027-12-31').sort((a,b)=>a.date.localeCompare(b.date));
+      days=published?.tariffHorizon?days.filter(day=>day.date>=data.today):tariffDays(data,hotel,days);
       const stamp=days.map(d=>d.capturedAt).filter(Boolean).sort().at(-1);
       el('hotelNote').textContent=stamp ? 'Ocupação lida em '+new Date(stamp).toLocaleString('pt-BR',{timeZone:'America/Bahia'})+' (Bahia).' : 'Horário da leitura de ocupação não informado.';
       el('ratesStatus').textContent=hotel.code==='PLAZA' ? 'Projeção por nível tarifário para dois adultos.' :
         hotel.code==='TRANCOSO'?'Grade WEB cadastrada para dois adultos. Flutuação desligada.':
         data.hotelBases?.bases.size?'Projeção para dois adultos com os níveis e as ofertas cadastrados no Portal.':'Sem grade tarifária cadastrada para dois adultos.';
       if(published) el('ratesStatus').textContent='Tarifas calculadas após a atualização do mapa KPI.';
-      const simulated=(day,g)=>published?day.tariffs[g]:night(data,hotel,day,g);
+      const simulated=(day,g)=>day.tariffs?day.tariffs[g]:night(data,hotel,day,g);
       let group='WEB Café';
       const tabs=el('simpleGroups');tabs.replaceChildren();
       for(const label of [...groups,'Todos os grupos']) {const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>{group=label;draw();};tabs.append(button);}
@@ -453,7 +470,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       void loadStatuses();
     }catch(error){if(isCurrent())el('hotelNote').textContent=error.message;}
   }
-  return {show,night,project,groups,indexBases};
+  return {show,night,project,groups,indexBases,tariffDays};
 })(
   typeof plazaLevelComparison==='function'?plazaLevelComparison:require('./rms-levels').plazaLevelComparison,
   typeof plazaPrices==='function'?plazaPrices:require('./rms-plaza-tarifas').plazaPrices,
