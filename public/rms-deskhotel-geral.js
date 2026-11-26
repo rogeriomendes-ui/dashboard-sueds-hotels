@@ -49,8 +49,15 @@ function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,
           const snapshot=await request('simulacao_publicada',{hotel:hotel.code,hotel_id:hotel.id});
           const nights=(snapshot?.days||[]).filter(d=>d.date>=start && d.date<=end);
           if(!nights.length)throw Error('Sem tarifas publicadas no período.');
+          let confirmed={},statusEnd='';
           for(const day of nights){
             night=day.date;line.textContent=hotel.name+' · '+night+' · enviando…';
+            if(night>statusEnd){
+              const limit=new Date(Date.parse(night)+30*86400000).toISOString().slice(0,10);
+              statusEnd=limit<end?limit:end;
+              const status=await request('deskhotel_status',{hotel:hotel.code,noite:night,fim:statusEnd});
+              confirmed=status.confirmed;
+            }
             const values={};
             for(const group of siteGroups){
               for(const [room,price] of Object.entries(day.tariffs[group]?.proposed||{})){
@@ -59,6 +66,15 @@ function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,
               }
             }
             if(!Object.keys(values).length){skipped++;continue}
+            for(const [key,cents] of Object.entries(values)){
+              const current=confirmed[night]?.[key];
+              const target=[cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)];
+              if(current?.length>0 && current.length<=target.length && current.every((v,i)=>v===target[i])){
+                delete values[key];
+                unchanged++;
+              }
+            }
+            if(!Object.keys(values).length)continue;
             const body={hotel:hotel.code,noite:night};
             const preview=await request('deskhotel_previa',body);
             const mapped=new Set(Object.entries(preview.prices).filter(([,v])=>Array.isArray(v)).map(([k])=>k.includes(':')?k:normalize(k)));
