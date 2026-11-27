@@ -1,4 +1,4 @@
-function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,normalize}) {
+function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,normalize,matchesDeskhotel,panelStatus,refreshSent}) {
   const make=(tag,text)=>{
     const element=document.createElement(tag);
     if(text)element.textContent=text;
@@ -43,16 +43,25 @@ function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,
     status.replaceChildren();
     try{
       for(const {hotel,input} of checks.filter(c=>c.input.checked)){
-        const line=make('p');status.append(line);
+        const line=make('p',hotel.name+' · conferindo…');status.append(line);
         let queued=0,unchanged=0,skipped=0,night='';
+        let changedFrom='',changedTo='';
+        async function refreshChanges(){
+          if(!changedFrom)return;
+          const first=changedFrom;
+          changedFrom='';
+          await refreshSent(hotel.code,first,changedTo);
+        }
         try{
           const snapshot=await request('simulacao_publicada',{hotel:hotel.code,hotel_id:hotel.id});
           const nights=(snapshot?.days||[]).filter(d=>d.date>=start && d.date<=end);
           if(!nights.length)throw Error('Sem tarifas publicadas no período.');
           let confirmed={},statusEnd='';
           for(const day of nights){
-            night=day.date;line.textContent=hotel.name+' · '+night+' · enviando…';
-            if(night>statusEnd){
+            night=day.date;line.textContent=hotel.name+' · '+night+' · conferindo…';
+            if(changedFrom && Date.parse(night)-Date.parse(changedFrom)>30*86400000)await refreshChanges();
+            const panel=panelStatus(hotel.code,night);
+            if(!panel && night>statusEnd){
               const limit=new Date(Date.parse(night)+30*86400000).toISOString().slice(0,10);
               statusEnd=limit<end?limit:end;
               const status=await request('deskhotel_status',{hotel:hotel.code,noite:night,fim:statusEnd});
@@ -67,9 +76,8 @@ function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,
             }
             if(!Object.keys(values).length){skipped++;continue}
             for(const [key,cents] of Object.entries(values)){
-              const current=confirmed[night]?.[key];
-              const target=[cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)];
-              if(current?.length>0 && current.length<=target.length && current.every((v,i)=>v===target[i])){
+              const current=(panel ?? confirmed[night])?.[key];
+              if(matchesDeskhotel(current,cents)){
                 delete values[key];
                 unchanged++;
               }
@@ -81,11 +89,18 @@ function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,
             for(const key of Object.keys(values))if(!mapped.has(key)){delete values[key];skipped++}
             const count=Object.keys(values).length;
             if(!count)continue;
+            line.textContent=hotel.name+' · '+night+' · enviando…';
+            changedFrom ||= night;
+            changedTo=night;
             const result=await request('deskhotel_atualizar',{...body,valores:values});
             queued+=result.queued;unchanged+=count-result.queued;
           }
           line.textContent=hotel.name+' · '+queued+' tarifas aceitas, '+unchanged+' já vigentes. Itens sem envio: '+skipped+'.';
         }catch(error){line.textContent=hotel.name+' · envio interrompido '+night+'. Tarifas aceitas até então: '+queued+'. '+error.message}
+        finally{
+          try{await refreshChanges();}
+          catch{line.textContent+=' Não foi possível confirmar o status no painel.';}
+        }
       }
     }finally{
       busy=false;fieldset.disabled=close.disabled=false;

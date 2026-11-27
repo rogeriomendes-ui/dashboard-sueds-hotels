@@ -284,6 +284,8 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       const localDate = new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Bahia'});
       const channels = ['DeskHotel', 'Omnibees', 'CVC', 'Juniper'];
       const enabled = hotel.code==='PLAZA';
+      const tracksDeskhotel=enabled || standardOnlyHotels.has(hotel.code) || hotel.code==='TRANCOSO';
+      const failedStatus=new Set();
       const siteGroups = ['SITE Café','SITE MAP','SITE PC'];
       const channelKey = (g,room)=>(g==='SITE Café'?'':g.slice(5)+':')+normalize(room);
       const modal = el('deskhotelPreview'), update = el('updateDeskhotel');
@@ -295,7 +297,9 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       const cellUpdates = new Map();
       function isConfirmed(date,key,price) {
         const read = confirmations.get(date)?.[key];
-        const cents = Math.round(price*100);
+        return matchesDeskhotel(read,Math.round(price*100));
+      }
+      function matchesDeskhotel(read,cents){
         const target = [cents,cents,Math.round(cents*140/100),Math.round(cents*180/100)];
         return cents>0 && read?.length>0 && read.length<=4 && read.every((v,i)=>v===target[i]);
       }
@@ -307,28 +311,46 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
         return result;
       }
       el('generalDeskhotel').onclick=()=>openDeskhotelGeneral({
-        modal,hotels:data.hotels,today:data.today,request,siteGroups,channelKey,normalize
+        modal,hotels:data.hotels,today:data.today,request,siteGroups,channelKey,normalize,matchesDeskhotel,
+        panelStatus:(code,date)=>code===hotel.code && isCurrent()?confirmations.get(date):undefined,
+        refreshSent:async(code,first,last)=>{
+          if(code!==hotel.code || !isCurrent())return;
+          await readStatus(first,last);
+        }
       });
       let writing=false, revision=0;
+      const latestRead=new Map();
       async function readStatus(first,last) {
         const version=revision;
-        const result=await request('deskhotel_status',{noite:first,fim:last});
+        const requested=days.filter(day=>day.date>=first && day.date<=last);
+        const token=Symbol();
+        for(const day of requested)latestRead.set(day.date,token);
+        let result;
+        try{result=await request('deskhotel_status',{noite:first,fim:last});}
+        catch(error){
+          if(isCurrent() && version===revision)for(const day of requested){
+            if(latestRead.get(day.date)!==token)continue;
+            confirmations.delete(day.date);failedStatus.add(day.date);cellUpdates.get(day.date)?.();
+          }
+          throw error;
+        }
         if (!isCurrent() || version!==revision) return;
-        for (const day of days) {
-          if (day.date<first || day.date>last) continue;
+        for (const day of requested) {
+          if(latestRead.get(day.date)!==token)continue;
+          failedStatus.delete(day.date);
           confirmations.set(day.date,result.confirmed[day.date] || {});
           updateTimes.set(day.date,result.updatedAt?.[day.date] || {});
           cellUpdates.get(day.date)?.();
         }
       }
       async function loadStatuses() {
-        if (!enabled) return;
+        if (!tracksDeskhotel) return;
         for (let i=0;i<days.length && isCurrent();) {
           const first=days[i].date;
           let last=first;
           while(i<days.length && Date.parse(days[i].date)-Date.parse(first)<=30*86400000) last=days[i++].date;
           try { await readStatus(first,last); }
-          catch { /* Sem confirmação de leitura, a coluna permanece pendente. */ }
+          catch { /* A falha desta consulta já está indicada nas noites afetadas. */ }
         }
       }
       update.onclick=()=>{
@@ -457,9 +479,13 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
               cell.append(line);
               return {room,line};
             });
-            if(channel==='DeskHotel' && sitePrices.size && enabled){
+            if(channel==='DeskHotel' && sitePrices.size && tracksDeskhotel){
               const refreshStatus=()=>{
                 for(const {room,line} of statuses){
+                  if(!confirmations.has(day.date)){
+                    line.textContent=failedStatus.has(day.date)?'Consulta indisponível':'Conferindo…';
+                    continue;
+                  }
                   const ok=[...sitePrices].every(([g,prices])=>isConfirmed(day.date,channelKey(g,room),prices[room]));
                   const stamp=[...sitePrices.keys()].map(g=>updateTimes.get(day.date)?.[channelKey(g,room)]).filter(Boolean).sort().at(-1);
                   line.textContent=ok && stamp ? 'OK · '+localDate.format(new Date(stamp)) : ok ? 'OK' : 'Pendente';

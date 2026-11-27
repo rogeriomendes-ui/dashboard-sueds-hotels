@@ -192,6 +192,21 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   assert.equal(update.hidden,false);
   update.onclick();
   assert.equal(ids.get('deskhotelPreview').open,true);
+  // O envio geral deve aproveitar a confirmação já carregada no painel.
+  let general;
+  ctx.openDeskhotelGeneral=options=>{general=options;};
+  ids.get('generalDeskhotel').onclick();
+  const read=general.panelStatus('PLAZA',day.date).STANDARD;
+  assert.equal(general.matchesDeskhotel(read,86250),true);
+  assert.equal(general.matchesDeskhotel(read,86251),false);
+  assert.equal(general.matchesDeskhotel([86250,86250,120749,155250],86250),false);
+  assert.equal(general.panelStatus('PREMIUM',day.date),undefined);
+  ctx.fetch=async()=>({ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86251,86251,120751,155252]}}})});
+  await general.refreshSent('PLAZA',day.date,day.date);
+  assert.equal(statuses(siteRow.children.at(-4))[0],'Pendente');
+  ctx.fetch=async()=>{throw Error('offline');};
+  await assert.rejects(general.refreshSent('PLAZA',day.date,day.date));
+  assert.equal(statuses(siteRow.children.at(-4))[0],'Consulta indisponível');
 });
 
 test('cancelamento conserva a derivada por categoria antes da oferta vigente',()=>{
