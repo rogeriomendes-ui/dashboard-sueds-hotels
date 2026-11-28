@@ -9,7 +9,7 @@ const simple=ctx.module.exports;
 const hotel={id:'plaza',code:'PLAZA'};
 const kpiDay=rate=>({date:'2027-01-23',rate,apartments:100,available:rate===null?null:100-rate,roomTypes:['STD','LX','MAS'].map(code=>({code,apartments:100,occupied:rate,available:rate===null?null:100-rate}))});
 const day=kpiDay(65);
-test('DeskHotel exige gravação identificada no café, preserva regras e evita reenvio confirmado',async()=>{
+test('DeskHotel compara preços de qualquer origem, preserva regras e evita reenvio confirmado',async()=>{
   const date=day.date, code='PLAZA', result=(status,body)=>({status,body});
   const row={roomId:'2463',meal:'1',rate_id:null,maxAdt:4,origin:'importacao',minimumStay:3,chd1:50,
     roomName:'Standard',chd2:null,refundable:null,pet:null,rulesCheckin:null,rulesCheckout:null,
@@ -27,7 +27,9 @@ test('DeskHotel exige gravação identificada no café, preserva regras e evita 
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../lib/rms-deskhotel.js'),'utf8'),sandbox);
   const client={from(){return this},select(){return this},eq(){return this},is(){return this},maybeSingle(){return {data:{id:'hotel'}}}};
   const call=(action,values={STANDARD:46800})=>sandbox.module.exports.preview(client,date,{setHeader(){}},code,action,date,values);
-  assert.equal((await call('deskhotel_status')).body.confirmed[date].STANDARD,undefined);
+  assert.deepEqual(Array.from((await call('deskhotel_status')).body.confirmed[date].STANDARD),[46800,46800,65520,84240]);
+  assert.equal((await call('deskhotel_atualizar')).body.queued,0);
+  row.pax2=467;
   assert.equal((await call('deskhotel_atualizar')).body.queued,1);
   assert.equal(posts[0].length,1);
   const item=posts[0][0];
@@ -35,7 +37,7 @@ test('DeskHotel exige gravação identificada no café, preserva regras e evita 
   assert.equal(item.minimumStay,3);
   assert.equal(item.chd1,50);
   assert.deepEqual([item.pax1,item.pax2,item.pax3,item.pax4],[468,468,655.2,842.4]);
-  assert.equal((await call('deskhotel_status')).body.confirmed[date].STANDARD,undefined);
+  assert.equal((await call('deskhotel_status')).body.confirmed[date].STANDARD[1],46700);
   Object.assign(row,item);
   assert.equal((await call('deskhotel_status')).body.updatedAt[date].STANDARD,undefined);
   row.dateTimeChange='2026-11-25 01:30:00';
@@ -164,7 +166,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
     insertRow(){const e=new Element('tr');this.append(e);return e;} insertCell(){const e=new Element('td');this.append(e);return e;}
   }
   const ids=new Map(),document={getElementById(id){if(!ids.has(id))ids.set(id,new Element());return ids.get(id)},createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
-  ctx.document=document;ctx.fetch=async(_url,options)=>{if(JSON.parse(options.body).tipo==='deskhotel_status')return {ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86250,86250,120750,155250]}},updatedAt:{[day.date]:{STANDARD:"2026-11-25T01:30:00Z"}}})};if(JSON.parse(options.body).tipo==='ofertas_consultar')return {ok:true,json:async()=>({ofertas:[]})};assert.equal(JSON.parse(options.body).tipo,'ocupacao_plaza');return {ok:true,json:async()=>({days:[day]})}};
+  ctx.document=document;ctx.fetch=async(_url,options)=>{if(JSON.parse(options.body).tipo==='deskhotel_status')return {ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86250,86250,120750,155250]}},updatedAt:{[day.date]:{STANDARD:"2026-11-25T01:30:00Z"}}})};if(JSON.parse(options.body).tipo==='ofertas_consultar')return {ok:true,json:async()=>({ofertas:[]})};assert.equal(JSON.parse(options.body).tipo,'ocupacao_plaza');return {ok:true,json:async()=>({days:[{...day,omnibeesConfirmations:{'WEB Café':{standard:{cents:115000,updatedAt:"2026-11-26T01:30:00Z"}}}}]})}};
   const data={...fixture(),today:'2027-01-23',beeHistory:[]};
   await simple.show(data,hotel,()=>true,()=>{});
   const tabs=ids.get('simpleGroups');assert.equal(tabs.children.length,10);
@@ -172,7 +174,12 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   const columns=()=>table.children[0].children[0].children.map(cell=>cell.children.at(-1)?.textContent||cell.textContent);
   const expected=['Noite','Vigente após flutuação','Tx. Ocupação\nKPI','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada'];
   const channels=['DeskHotel','Omnibees','CVC','Juniper'];
-  assert.deepEqual(columns(),expected.concat(channels));
+  assert.deepEqual(columns(),expected.concat('Omnibees'));
+  const webStatus=table.children[1].children[0].children.at(-1).children[0].textContent;
+  assert.equal(webStatus,'OK · 25/11/2026');
+  tabs.children[6].onclick();
+  assert.deepEqual(columns(),expected.concat(['Omnibees','CVC','Juniper']));
+  assert.equal(table.children[1].children[0].children.at(-3).children[0].textContent,webStatus);
   tabs.children.at(-1).onclick();
   const row=table.children[1].children[0];
   assert.deepEqual(columns(),expected.concat(...Array(8).fill([expected[1],...expected.slice(3)]),channels));
@@ -186,8 +193,8 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   await new Promise(resolve=>setImmediate(resolve));
   const siteRow=table.children[1].children[0];
   const statuses=cell=>cell.children.map(line=>line.textContent);
-  assert.deepEqual(statuses(siteRow.children.at(-4)),['OK · 24/11/2026','Pendente','Pendente']);
-  for(const cell of siteRow.children.slice(-3))assert.deepEqual(statuses(cell),['Pendente','Pendente','Pendente']);
+  assert.deepEqual(statuses(siteRow.children.at(-1)),['OK · 24/11/2026','—','—']);
+  assert.deepEqual(columns(),expected.concat('DeskHotel'));
   const update=ids.get('updateDeskhotel');
   assert.equal(update.hidden,false);
   update.onclick();
@@ -196,6 +203,9 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   let general;
   ctx.openDeskhotelGeneral=options=>{general=options;};
   ids.get('generalDeskhotel').onclick();
+  const projected=await general.resolveNights(hotel,{days:[]},day.date,day.date);
+  assert.equal(projected[0].date,day.date);
+  assert.equal(projected[0].tariffs['SITE Café'].proposed.standard,862.5);
   const read=general.panelStatus('PLAZA',day.date).STANDARD;
   assert.equal(general.matchesDeskhotel(read,86250),true);
   assert.equal(general.matchesDeskhotel(read,86251),false);
@@ -203,10 +213,10 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   assert.equal(general.panelStatus('PREMIUM',day.date),undefined);
   ctx.fetch=async()=>({ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86251,86251,120751,155252]}}})});
   await general.refreshSent('PLAZA',day.date,day.date);
-  assert.equal(statuses(siteRow.children.at(-4))[0],'Pendente');
+  assert.equal(statuses(siteRow.children.at(-1))[0],'Pendente');
   ctx.fetch=async()=>{throw Error('offline');};
   await assert.rejects(general.refreshSent('PLAZA',day.date,day.date));
-  assert.equal(statuses(siteRow.children.at(-4))[0],'Consulta indisponível');
+  assert.equal(statuses(siteRow.children.at(-1))[0],'Consulta indisponível');
 });
 
 test('cancelamento conserva a derivada por categoria antes da oferta vigente',()=>{

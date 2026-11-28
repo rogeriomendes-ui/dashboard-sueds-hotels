@@ -282,7 +282,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       const confirmations = new Map();
       const updateTimes = new Map();
       const localDate = new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Bahia'});
-      const channels = ['DeskHotel', 'Omnibees', 'CVC', 'Juniper'];
+      const channelsByTariff = {WEB:['Omnibees'],SITE:['DeskHotel'],NET:['Omnibees','CVC','Juniper']};
       const enabled = hotel.code==='PLAZA';
       const tracksDeskhotel=enabled || standardOnlyHotels.has(hotel.code) || hotel.code==='TRANCOSO';
       const failedStatus=new Set();
@@ -312,6 +312,19 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       }
       el('generalDeskhotel').onclick=()=>openDeskhotelGeneral({
         modal,hotels:data.hotels,today:data.today,request,siteGroups,channelKey,normalize,matchesDeskhotel,
+        async resolveNights(selected,snapshot,start,end){
+          const inRange=d=>d.date>=start && d.date<=end;
+          if(snapshot?.tariffHorizon)return snapshot.days.filter(inRange);
+          if(selected.code===hotel.code && isCurrent())return days.filter(inRange)
+            .map(d=>({date:d.date,tariffs:Object.fromEntries(siteGroups.map(g=>[g,simulated(d,g)]))}));
+          if(!snapshot)throw Error('Cálculo do hotel indisponível.');
+          const read=tipo=>request(tipo,{hotel:selected.code,hotel_id:selected.id});
+          const [offers,bases]=await Promise.all([read('ofertas_consultar'),selected.code==='PLAZA'?null:read('bases_consultar')]);
+          const inputs={...data,offers:offers.ofertas.map(row=>row.detalhes),hotelBases:bases?indexBases(bases):null,
+            saleTime:new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit'})};
+          return tariffDays(inputs,selected,snapshot.days).filter(inRange).map(d=>d.tariffs?d:
+            {...d,tariffs:Object.fromEntries(siteGroups.map(g=>[g,night(inputs,selected,d,g)]))});
+        },
         panelStatus:(code,date)=>code===hotel.code && isCurrent()?confirmations.get(date):undefined,
         refreshSent:async(code,first,last)=>{
           if(code!==hotel.code || !isCurrent())return;
@@ -427,6 +440,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
         cellUpdates.clear();
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
         const chosen=group==='Todos os grupos'?groups:[group],table=el('nights');table.replaceChildren();
+        const channels=group==='Todos os grupos'?['DeskHotel','Omnibees','CVC','Juniper']:channelsByTariff[group.split(' ')[0]];
         const head=table.createTHead().insertRow();
         head.appendChild(document.createElement('th')).textContent='Noite';
         const labels=['Vigente após flutuação','Oferta aplicada','Flutuação Omnibees','Tarifa com oferta aplicada'];
@@ -448,12 +462,18 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
           const tr=body.insertRow();
           tr.insertCell().textContent=day.date.split('-').reverse().join('/');
           const sitePrices=new Map();
+          const webPrices=new Map();
           let nightPrices;
           const occupancyByRoom = hotel.code === 'PLAZA' ? plazaOccupancy(day) : null;
           for(const g of chosen){
             const n=simulated(day,g);
             nightPrices=n.proposed;
             if (siteGroups.includes(g)) sitePrices.set(g,n.proposed);
+            if(g.startsWith('WEB '))webPrices.set(g,n.proposed);
+            if(g.startsWith('NET ')){
+              const web=g.replace('NET ','WEB ');
+              if(!webPrices.has(web))webPrices.set(web,simulated(day,web)?.proposed || {});
+            }
             renderPrices(tr.insertCell(),n.current);
             if(g===chosen[0] && occupancyByRoom){
               renderPrices(tr.insertCell(), occupancyByRoom, rate=>Number.isFinite(rate)?Math.round(rate)+'%':'—');
@@ -475,7 +495,22 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
               const line=document.createElement('div');
               line.title=(channel==='DeskHotel' && sitePrices.size?[...sitePrices.keys()].join(', ')+' · ':'')+(categoryNames[room] || room);
               line.className='channel-status';
-              line.textContent='Pendente';
+              line.textContent='—';
+              if(channel!=='DeskHotel'){
+                const records=channel==='Omnibees'?day.omnibeesConfirmations:day.channelConfirmations?.[channel];
+                const priceGroups=channel==='Omnibees'?webPrices:new Map(chosen.filter(g=>g.startsWith('NET ')).map(g=>[g,simulated(day,g).proposed]));
+                const dates=[];
+                let changed=false;
+                for(const [g,prices] of priceGroups){
+                  const record=records?.[g]?.[room];
+                  const cents=Math.round(prices[room]*100);
+                  if(!Number.isSafeInteger(record?.cents) || !(cents>0))continue;
+                  if(record.cents!==cents)changed=true;
+                  if(Number.isFinite(Date.parse(record.updatedAt)))dates.push(Date.parse(record.updatedAt));
+                }
+                if(changed || (dates.length && dates.length===priceGroups.size))
+                  line.textContent=(changed?'Pendente':'OK')+(dates.length?' · '+localDate.format(Math.max(...dates)):'');
+              }
               cell.append(line);
               return {room,line};
             });
@@ -487,8 +522,10 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
                     continue;
                   }
                   const ok=[...sitePrices].every(([g,prices])=>isConfirmed(day.date,channelKey(g,room),prices[room]));
+                  const changed=[...sitePrices].some(([g,prices])=>prices[room]>0 && confirmations.get(day.date)[channelKey(g,room)]?.length &&
+                    !isConfirmed(day.date,channelKey(g,room),prices[room]));
                   const stamp=[...sitePrices.keys()].map(g=>updateTimes.get(day.date)?.[channelKey(g,room)]).filter(Boolean).sort().at(-1);
-                  line.textContent=ok && stamp ? 'OK · '+localDate.format(new Date(stamp)) : ok ? 'OK' : 'Pendente';
+                  line.textContent=(ok?'OK':changed?'Pendente':'—')+(stamp?' · '+localDate.format(new Date(stamp)):'');
                 }
               };
               cellUpdates.set(day.date,refreshStatus);

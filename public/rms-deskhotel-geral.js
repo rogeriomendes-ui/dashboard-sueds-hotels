@@ -1,4 +1,4 @@
-function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,normalize,matchesDeskhotel,panelStatus,refreshSent}) {
+function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,normalize,matchesDeskhotel,panelStatus,refreshSent,resolveNights}) {
   const make=(tag,text)=>{
     const element=document.createElement(tag);
     if(text)element.textContent=text;
@@ -54,7 +54,7 @@ function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,
         }
         try{
           const snapshot=await request('simulacao_publicada',{hotel:hotel.code,hotel_id:hotel.id});
-          const nights=(snapshot?.days||[]).filter(d=>d.date>=start && d.date<=end);
+          const nights=await resolveNights(hotel,snapshot,start,end);
           if(!nights.length)throw Error('Sem tarifas publicadas no período.');
           let confirmed={},statusEnd='';
           for(const day of nights){
@@ -95,7 +95,9 @@ function openDeskhotelGeneral({modal,hotels,today,request,siteGroups,channelKey,
             const result=await request('deskhotel_atualizar',{...body,valores:values});
             queued+=result.queued;unchanged+=count-result.queued;
           }
-          line.textContent=hotel.name+' · '+queued+' tarifas aceitas, '+unchanged+' já vigentes. Itens sem envio: '+skipped+'.';
+          const missing=1+(Date.parse(end)-Date.parse(start))/86400000-new Set(nights.map(d=>d.date)).size;
+          line.textContent=hotel.name+' · '+nights.length+' noites conferidas. '+queued+' tarifas aceitas, '+unchanged+' já vigentes. Itens sem envio: '+skipped+'.'+
+            (missing?' Noites do período sem cálculo no RMS: '+missing+'.':'');
         }catch(error){line.textContent=hotel.name+' · envio interrompido '+night+'. Tarifas aceitas até então: '+queued+'. '+error.message}
         finally{
           try{await refreshChanges();}
