@@ -7,6 +7,7 @@
   const files=[...input.files];if(!files.length||files.length>100||files.reduce((n,f)=>n+f.size,0)>30*1024*1024)throw Error('Selecione um lote completo de até 30 MiB.');
   const chunks=[];for(const f of files){const v=JSON.parse((await f.text()).replace(/^\uFEFF/,''));if(v.version!==1||!Array.isArray(v.chunks))throw Error('Use o formato completo version/chunks.');chunks.push(...v.chunks);}
   if(!chunks.length||chunks.length>100)throw Error('Quantidade de lotes inválida.');
+  const azul=chunks[0].source==='juniper';if(chunks.some(c=>(c.source==='juniper')!==azul))throw Error('Envie um canal por lote.');
   chunks.sort((a,b)=>String(a.hotelId).localeCompare(String(b.hotelId))||String(a.period?.from).localeCompare(String(b.period?.from)));
   const from=chunks.map(c=>c.period?.from).sort()[0],to=chunks.map(c=>c.period?.to).sort().at(-1),parts=[];let group=[];
   const encode=items=>new TextEncoder().encode(JSON.stringify({version:1,chunks:items}));
@@ -17,7 +18,7 @@
   for(let i=0;i<parts.length;i++){message.textContent=`Enviando parte ${i+1} de ${parts.length}…`;let binary='';for(let start=0;start<parts[i].length;start+=8192)binary+=String.fromCharCode(...parts[i].subarray(start,start+8192));await request({action:'file',importId,index:i,data:btoa(binary)});}
   message.textContent='Conferindo cobertura, Stop Sales e atualização do mapa…';const value=await request({action:'complete',importId});
   if(value.status!=='concluido'||value.mode!=='production'||!value.result.verified)throw Error('Publicação ainda não confirmada. Preserve os arquivos.');
-  const r=value.result;message.textContent=`Mapa Omnibees atualizado e conferido. ${r.hotels} hotéis · ${r.days} dias · ${r.found.toLocaleString('pt-BR')} registros · ${r.stopSales} Stop Sales. KPI e Azul/Juniper preservados.`;
+  const r=value.result;message.textContent=`Mapa ${azul?'Azul / Juniper':'Omnibees'} atualizado e conferido. ${r.hotels} hotéis · ${r.days} dias · ${r.found.toLocaleString('pt-BR')} registros · ${r.stopSales} Stop Sales. ${r.minimumStayRows??'—'} combinações de hotel e data com mínimo consolidado.`;
  }catch(e){message.textContent=e.message||'Falha ao enviar. Preserve os arquivos.';}finally{button.disabled=false;input.disabled=false;}});
  Promise.resolve(window.suedsManagerAuthReady).then(profile=>{if(!profile?.roles?.includes('admin_geral')){message.textContent='Acesso restrito aos administradores.';return;}form.hidden=false;message.textContent='Produção: selecione o JSON completo ou todas as partes do mesmo lote.';}).catch(()=>{message.textContent='Entre no Portal para continuar.';});
 })();
