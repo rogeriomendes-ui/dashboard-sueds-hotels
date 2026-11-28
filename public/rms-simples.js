@@ -525,7 +525,11 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
                   const changed=[...sitePrices].some(([g,prices])=>prices[room]>0 && confirmations.get(day.date)[channelKey(g,room)]?.length &&
                     !isConfirmed(day.date,channelKey(g,room),prices[room]));
                   const stamp=[...sitePrices.keys()].map(g=>updateTimes.get(day.date)?.[channelKey(g,room)]).filter(Boolean).sort().at(-1);
-                  line.textContent=(ok?'OK':changed?'Pendente':'—')+(stamp?' · '+localDate.format(new Date(stamp)):'');
+                  line.textContent=ok?'OK':changed?'Pendente':'—';
+                  if(stamp){
+                    const prefix=changed?' · última atualização em ':' · ';
+                    line.textContent+=prefix+localDate.format(new Date(stamp));
+                  }
                 }
               };
               cellUpdates.set(day.date,refreshStatus);

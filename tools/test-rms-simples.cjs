@@ -214,6 +214,10 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   ctx.fetch=async()=>({ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86251,86251,120751,155252]}}})});
   await general.refreshSent('PLAZA',day.date,day.date);
   assert.equal(statuses(siteRow.children.at(-1))[0],'Pendente');
+  ctx.fetch=async()=>({ok:true,json:async()=>({confirmed:{[day.date]:{STANDARD:[86251,86251,120751,155252]}},
+    updatedAt:{[day.date]:{STANDARD:'2026-10-30T12:00:00Z'}}})});
+  await general.refreshSent('PLAZA',day.date,day.date);
+  assert.equal(statuses(siteRow.children.at(-1))[0],'Pendente · última atualização em 30/10/2026');
   ctx.fetch=async()=>{throw Error('offline');};
   await assert.rejects(general.refreshSent('PLAZA',day.date,day.date));
   assert.equal(statuses(siteRow.children.at(-1))[0],'Consulta indisponível');
