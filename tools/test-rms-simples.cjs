@@ -195,10 +195,7 @@ test('painel renderiza nove grupos com a noite na primeira coluna',async()=>{
   const statuses=cell=>cell.children.map(line=>line.textContent);
   assert.deepEqual(statuses(siteRow.children.at(-1)),['OK · 24/11/2026','—','—']);
   assert.deepEqual(columns(),expected.concat('DeskHotel'));
-  const update=ids.get('updateDeskhotel');
-  assert.equal(update.hidden,false);
-  update.onclick();
-  assert.equal(ids.get('deskhotelPreview').open,true);
+  assert.equal(ids.has('updateDeskhotel'),false);
   // O envio geral deve aproveitar a confirmação já carregada no painel.
   let general;
   ctx.openDeskhotelGeneral=options=>{general=options;};

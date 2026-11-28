@@ -288,10 +288,8 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       const failedStatus=new Set();
       const siteGroups = ['SITE Café','SITE MAP','SITE PC'];
       const channelKey = (g,room)=>(g==='SITE Café'?'':g.slice(5)+':')+normalize(room);
-      const modal = el('deskhotelPreview'), update = el('updateDeskhotel');
+      const modal = el('deskhotelPreview');
       if (modal.open) modal.close();
-      update.hidden = !enabled || !days.length;
-      update.disabled = false;
       const categoryNames = {standard:'Standard',luxo:'Luxo',suite:'Suíte'};
       const categoryKeys = values => standardOnlyHotels.has(hotel.code) ? ['standard'] : Object.keys(values);
       const cellUpdates = new Map();
@@ -331,23 +329,21 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
           await readStatus(first,last);
         }
       });
-      let writing=false, revision=0;
       const latestRead=new Map();
       async function readStatus(first,last) {
-        const version=revision;
         const requested=days.filter(day=>day.date>=first && day.date<=last);
         const token=Symbol();
         for(const day of requested)latestRead.set(day.date,token);
         let result;
         try{result=await request('deskhotel_status',{noite:first,fim:last});}
         catch(error){
-          if(isCurrent() && version===revision)for(const day of requested){
+          if(isCurrent())for(const day of requested){
             if(latestRead.get(day.date)!==token)continue;
             confirmations.delete(day.date);failedStatus.add(day.date);cellUpdates.get(day.date)?.();
           }
           throw error;
         }
-        if (!isCurrent() || version!==revision) return;
+        if (!isCurrent()) return;
         for (const day of requested) {
           if(latestRead.get(day.date)!==token)continue;
           failedStatus.delete(day.date);
@@ -366,76 +362,6 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
           catch { /* A falha desta consulta já está indicada nas noites afetadas. */ }
         }
       }
-      update.onclick=()=>{
-        if (writing || !enabled || !isCurrent()) return;
-        const heading=document.createElement('h3');
-        heading.textContent=hotel.name+' · SITE Café, MAP e PC';
-        const dates=['De','Até'].map(label=>{
-          const wrapper=document.createElement('label'),input=document.createElement('input');
-          input.type='date'; input.min=days[0].date; input.max=days.at(-1).date; input.value=days[0].date;
-          wrapper.append(label,input); return {wrapper,input};
-        });
-        const detail=document.createElement('div'), message=document.createElement('p');
-        message.setAttribute('role','status');
-        const send=document.createElement('button'), close=document.createElement('button');
-        send.type=close.type='button'; send.textContent='Enviar tarifas pendentes'; close.textContent='Fechar';
-        close.onclick=()=>modal.close();
-        modal.oncancel=event=>{if(writing)event.preventDefault();};
-        let selection=[];
-        function preview() {
-          detail.replaceChildren(); selection=[];
-          const [start,end]=dates.map(d=>d.input.value);
-          if (start && end && start<=end) {
-            const table=document.createElement('table'), header=table.createTHead().insertRow();
-            for(const name of ['Noite','Regime','Categoria','Tarifa com oferta aplicada (R$)']){
-              header.appendChild(document.createElement('th')).textContent=name;
-            }
-            const body=table.createTBody();
-            for (const day of days.filter(d=>d.date>=start && d.date<=end)) {
-              const values={};
-              for(const g of siteGroups){
-                const prices=simulated(day,g)?.proposed || {};
-                for(const room of categoryKeys(prices)){
-                  const price=prices[room], cents=Math.round(price*100), key=channelKey(g,room);
-                  if (!Number.isSafeInteger(cents) || cents<=0 || isConfirmed(day.date,key,price)) continue;
-                  values[key]=cents;
-                  const row=body.insertRow();
-                  for(const value of [day.date.split('-').reverse().join('/'),g,categoryNames[room]||room,format(price)]) row.insertCell().textContent=value;
-                }
-              }
-              if(Object.keys(values).length)selection.push({noite:day.date,valores:values});
-            }
-            if(selection.length)detail.append(table);
-          }
-          message.textContent=selection.length?'Envio por categoria, respeitando a capacidade cadastrada no DeskHotel.':'Nenhuma tarifa elegível no período.';
-          send.disabled=!selection.length;
-        }
-        for(const d of dates)d.input.onchange=preview;
-        send.onclick=async()=>{
-          if(writing || !selection.length || !isCurrent())return;
-          writing=true; revision++; send.disabled=close.disabled=update.disabled=true;
-          for(const d of dates)d.input.disabled=true;
-          let pending=0;
-          try{
-            for(const item of selection){
-              if(!isCurrent())break;
-              message.textContent='Atualizando '+item.noite+'…';
-              await request('deskhotel_atualizar',item);
-              const confirmed=()=>Object.entries(item.valores).every(([room,c])=>isConfirmed(item.noite,room,c/100));
-              for(const delay of [0,2000,4000,8000]){
-                if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
-                await readStatus(item.noite,item.noite);
-                if(confirmed())break;
-              }
-              if(!confirmed())pending++;
-            }
-            message.textContent=pending?'Envio aceito. Noites aguardando confirmação: '+pending+'.':'Gravação confirmada pela API do DeskHotel.';
-          }catch(error){message.textContent=error.message;}
-          finally{writing=false;close.disabled=false;update.disabled=false;}
-        };
-        modal.replaceChildren(heading,...dates.map(d=>d.wrapper),detail,message,send,close);
-        preview(); modal.showModal();
-      };
       function draw(){
         cellUpdates.clear();
         [...tabs.children].forEach(b=>b.setAttribute('aria-pressed',String(b.textContent===group)));
