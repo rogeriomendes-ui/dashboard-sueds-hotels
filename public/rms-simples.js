@@ -260,6 +260,7 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       el('updateOmnibees').onclick=()=>{
         const dialog=el('omnibeesTest'),next=el('omniNext'),date=el('omniDate');
         el('omniHotel').textContent='Hotel selecionado: '+hotel.name;
+        delete dialog.dataset.stdPax;
         next.hidden=false;date.value='';el('omniSelection').hidden=true;
         el('omniHelp').textContent='';
         next.onclick=()=>{
@@ -272,6 +273,23 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
           el('omniHelp').textContent=days.some(d=>d.date===date.value)
             ? 'Abra a extensão Tarifas Sueds nesta aba para conferir a categoria e o preço no Calendário 360.'
             : 'Escolha uma noite disponível no painel.';
+          delete dialog.dataset.stdPax;
+          const day=days.find(d=>d.date===date.value);
+          if(!day || hotel.code!=='PLAZA' || group!=='WEB Café')return;
+          const tariff=simulated(day,group);
+          const period=RmsRules.forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
+          const catalog=data.catalog;
+          const base=period?.base_origem?catalog?.bases.find(b=>b.name===period.base_origem):catalog?.bases[catalog.periods[period?.inicio]];
+          const level=base?.levels.find(l=>levelDescription(l)===tariff.levelLabel?.standard);
+          const weekday=(new Date(day.date+'T12:00:00Z').getUTCDay()+6)%7;
+          const prices=[1,2,3,4].map(pax=>{
+            const price=catalog?.edits?.[JSON.stringify([base?.name,0,'standard',pax,weekday])] ?? base?.grids[0]?.standard?.[pax-1];
+            return level && price>0 ? Math.round(price*(100+level.pct)) : null;
+          });
+          if(prices.every(c=>Number.isSafeInteger(c)&&c>0) && prices[1]===Math.round(tariff.current.standard*100)){
+            dialog.dataset.stdPax=JSON.stringify(prices);
+            el('omniHelp').textContent='STD · '+prices.map((c,i)=>(i+1)+' Pax: R$ '+format(c/100)).join(' · ')+'. Confira na extensão.';
+          }else el('omniHelp').textContent='Grade de 1 a 4 adultos indisponível para esta tarifa STD.';
         };
         dialog.showModal();
       };
