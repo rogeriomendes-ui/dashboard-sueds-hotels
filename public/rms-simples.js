@@ -257,6 +257,24 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       if(published) el('ratesStatus').textContent='Tarifas calculadas após a atualização do mapa KPI.';
       const simulated=(day,g)=>day.tariffs?day.tariffs[g]:night(data,hotel,day,g);
       let group='WEB Café';
+      el('updateOmnibees').onclick=()=>{
+        const dialog=el('omnibeesTest'),next=el('omniNext'),date=el('omniDate');
+        el('omniHotel').textContent='Hotel selecionado: '+hotel.name;
+        next.hidden=false;date.value='';el('omniSelection').hidden=true;
+        el('omniHelp').textContent='';
+        next.onclick=()=>{
+          if(!group.startsWith('WEB ')){group='WEB Café';draw();}
+          next.hidden=true;el('omniSelection').hidden=false;
+          date.min=days[0]?.date||'';date.max=days.at(-1)?.date||'';
+          date.focus();
+        };
+        date.oninput=()=>{
+          el('omniHelp').textContent=days.some(d=>d.date===date.value)
+            ? 'Abra a extensão Tarifas Sueds nesta aba para conferir a categoria e o preço no Calendário 360.'
+            : 'Escolha uma noite disponível no painel.';
+        };
+        dialog.showModal();
+      };
       const tabs=el('simpleGroups');tabs.replaceChildren();
       for(const label of [...groups,'Todos os grupos']) {const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>{group=label;draw();};tabs.append(button);}
       const format=n=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
