@@ -260,3 +260,18 @@ test('ocupados vazio equivale a zero somente com disponibilidade integral e inve
   assert.equal(rate.current.luxo,1200);
   assert.equal(rate.current.suite,null);
 });
+
+test('lote Omnibees compara somente WEB regular, inclusive mudanças exclusivas de pax',()=>{
+  const sandbox=vm.createContext({module:{exports:{}},require:()=>({})});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../lib/rms-publicacao.js'),'utf8'),sandbox);
+  const changes=sandbox.module.exports.webChanges;
+  const make=(web,pax,offer,site)=>({days:[{date:day.date,tariffs:{
+    'WEB Café':{current:{standard:web},proposed:{standard:offer},adults:{standard:{1:pax,2:web*100}}},
+    'SITE Café':{current:{standard:site}},'NET Café':{current:{standard:site}}
+  }}]});
+  const prior=make(100,10000,90,75);
+  assert.equal(changes(prior,make(100,10000,80,70),day.date).length,0);
+  assert.equal(changes(prior,make(100,11000,90,75),day.date)[0].adults[1],11000);
+  assert.equal(changes(prior,make(105,10000,90,75),day.date)[0].group,'WEB Café');
+  assert.equal(changes(prior,make(105,10000,90,75),'2028-01-01').length,0);
+});

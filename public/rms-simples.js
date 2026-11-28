@@ -27,19 +27,27 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
   const normalize = value=>value.normalize('NFD').replace(/\p{M}/gu,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   const tariffKey = value=>normalize(value).replace(/^TARIFARIO/,'TARIFA');
   function indexBases(payload) {
-    const bases=new Map(),calendar=new Map();
+    const bases=new Map(),calendar=new Map(),adultCalendar=new Map();
     for(const row of payload.rows || []) {
-      if(Number(row.pax)!==2) continue;
+
       const key=normalize(row.base);
       if(!bases.has(key)) bases.set(key,{name:row.base,code:payload.codes?.[row.base],prices:new Map()});
+      bases.get(key).prices.set(`${row.plano}|${row.dia}|${row.quarto}|${row.pax}`,Number(row.valor));
+      if(Number(row.pax)!==2) continue;
       bases.get(key).prices.set(`${row.plano}|${row.dia}|${row.quarto}`,Number(row.valor));
     }
     for(const [date,room,pax,cents] of payload.calendario?.[0]?.grade || []) {
+      const adult=/^(\d+)\s+Pax$/i.exec(pax);
+      if(adult){
+        const key=date+'|'+room;
+        if(!adultCalendar.has(key))adultCalendar.set(key,{});
+        adultCalendar.get(key)[adult[1]]=cents;
+      }
       if(!/^2\s+Pax$/i.test(pax)) continue;
       if(!calendar.has(date)) calendar.set(date,{});
       calendar.get(date)[room]=cents/100;
     }
-    return {bases,calendar};
+    return {bases,calendar,adultCalendar};
   }
   function project(web, rates, group) {
     const result = {};
@@ -76,6 +84,40 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
         ? occupied / type.apartments * 100 : null;
       return [room, kpi];
     }));
+  }
+  function webAdults(data,hotel,date,group,room,tariff){
+    const plan=groups.indexOf(group);
+    if(plan<0||plan>2)return null;
+    const current=Math.round(tariff.current?.[room]*100);
+    const valid=grid=>grid && grid[2]===current && Object.values(grid).every(n=>Number.isSafeInteger(n)&&n>0);
+    if(hotel.code==='TRANCOSO'){
+      const grid=data.hotelBases?.adultCalendar?.get(date+'|'+room);
+      return plan===0 && valid(grid)?grid:null;
+    }
+    const rules=typeof RmsRules!=='undefined'?RmsRules:require('./rms-rules');
+    const period=rules.forNight(data.periods.filter(p=>p.hotel_id===hotel.id),date);
+    if(!period)return null;
+    const weekday=(new Date(date+'T12:00:00Z').getUTCDay()+6)%7;
+    const band=typeof tariff.band==='string'?tariff.band:tariff.band?.[room];
+    const pct=Number(/^\+([\d.]+)%/.exec(band||'')?.[1]);
+    if(!Number.isFinite(pct))return null;
+    const grid={};
+    let read;
+    if(hotel.code==='PLAZA'){
+      const cat=data.catalog;
+      const base=period.base_origem?cat?.bases.find(b=>b.name===period.base_origem):cat?.bases[cat.periods[period.inicio]];
+      if(!base)return null;
+      read=pax=>cat.edits?.[JSON.stringify([base.name,plan,room,pax,weekday])]??base.grids[plan]?.[room]?.[pax-1];
+    }else{
+      const name=period.base_origem||baseAliases[hotel.code]?.[period.nome]||period.nome;
+      const base=data.hotelBases?.bases.get(normalize(name));
+      read=pax=>base?.prices.get(plan+'|'+weekday+'|'+room+'|'+pax);
+    }
+    for(const pax of [1,2,3,4]){
+      const value=read(pax);
+      if(value>0)grid[pax]=Math.round(value*(100+pct));
+    }
+    return valid(grid)?grid:null;
   }
   function tariffDays(data,hotel,days) {
     const dates=new Map(days.filter(day=>day.date>=data.today).map(day=>[day.date,day]));
@@ -199,10 +241,18 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       }));
     }
     const discount=offer?.desconto??0;
-    return {current:channelPrices(vigenteWeb,0),
+    const result={current:channelPrices(vigenteWeb,0),
       proposed:channelPrices(vigenteWeb,discount),offer:offer?(Array.from(offer.nome.matchAll(/(\d+(?:[.,]\d+)?)\s*%/g)).some(m=>Number(m[1].replace(',','.'))===offer.desconto)?offer.nome:offer.nome+' · '+offer.desconto+'%'):'Sem oferta elegível',
       levelLabel,band,
       reason,at:rates?.at};
+    if(channel==='WEB'){
+      result.adults={};
+      for(const room of roomKeys.filter(r=>result.current[r]>0)){
+        const retained=reason?.[room]==='Mantida a última tarifa antes da oferta.';
+        result.adults[room]=(retained && previous?.adults?.[room])||webAdults(data,hotel,day.date,group,room,result);
+      }
+    }
+    return result;
   }
   async function show(data,hotel,isCurrent,refresh) {
     const el=id=>document.getElementById(id);
@@ -257,41 +307,60 @@ const RmsSimple = ((compareLevel,derivePrice,trancosoRules) => {
       if(published) el('ratesStatus').textContent='Tarifas calculadas após a atualização do mapa KPI.';
       const simulated=(day,g)=>day.tariffs?day.tariffs[g]:night(data,hotel,day,g);
       let group='WEB Café';
-      el('updateOmnibees').onclick=()=>{
-        const dialog=el('omnibeesTest'),next=el('omniNext'),date=el('omniDate');
+      el('updateOmnibees').onclick=async()=>{
+        const dialog=el('omnibeesTest'),next=el('omniNext'),msg=el('omniHelp');
+        const options=el('omniDateOptions'),dates=el('omniDates');
+        options.replaceChildren();dates.hidden=true;
+        delete dialog.dataset.lote;
+        next.disabled=true;
         el('omniHotel').textContent='Hotel selecionado: '+hotel.name;
-        delete dialog.dataset.stdPax;
-        next.hidden=false;date.value='';el('omniSelection').hidden=true;
-        el('omniHelp').textContent='';
-        next.onclick=()=>{
-          if(!group.startsWith('WEB ')){group='WEB Café';draw();}
-          next.hidden=true;el('omniSelection').hidden=false;
-          date.min=days[0]?.date||'';date.max=days.at(-1)?.date||'';
-          date.focus();
-        };
-        date.oninput=()=>{
-          el('omniHelp').textContent=days.some(d=>d.date===date.value)
-            ? 'Abra a extensão Tarifas Sueds nesta aba para conferir a categoria e o preço no Calendário 360.'
-            : 'Escolha uma noite disponível no painel.';
-          delete dialog.dataset.stdPax;
-          const day=days.find(d=>d.date===date.value);
-          if(!day || hotel.code!=='PLAZA' || group!=='WEB Café')return;
-          const tariff=simulated(day,group);
-          const period=RmsRules.forNight(data.periods.filter(p=>p.hotel_id===hotel.id),day.date);
-          const catalog=data.catalog;
-          const base=period?.base_origem?catalog?.bases.find(b=>b.name===period.base_origem):catalog?.bases[catalog.periods[period?.inicio]];
-          const level=base?.levels.find(l=>levelDescription(l)===tariff.levelLabel?.standard);
-          const weekday=(new Date(day.date+'T12:00:00Z').getUTCDay()+6)%7;
-          const prices=[1,2,3,4].map(pax=>{
-            const price=catalog?.edits?.[JSON.stringify([base?.name,0,'standard',pax,weekday])] ?? base?.grids[0]?.standard?.[pax-1];
-            return level && price>0 ? Math.round(price*(100+level.pct)) : null;
-          });
-          if(prices.every(c=>Number.isSafeInteger(c)&&c>0) && prices[1]===Math.round(tariff.current.standard*100)){
-            dialog.dataset.stdPax=JSON.stringify(prices);
-            el('omniHelp').textContent='STD · '+prices.map((c,i)=>(i+1)+' Pax: R$ '+format(c/100)).join(' · ')+'. Confira na extensão.';
-          }else el('omniHelp').textContent='Grade de 1 a 4 adultos indisponível para esta tarifa STD.';
-        };
+        msg.textContent='Consultando as alterações WEB na última publicação do RMS…';
         dialog.showModal();
+        try{
+          const read=async tipo=>{
+            const res=await fetch('/api/portal/rms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo,hotel_id:hotel.id})});
+            const value=await res.json();
+            if(!res.ok)throw Error(value.error||'Falha ao consultar as alterações.');
+            return value;
+          };
+          const {items}=await read('omnibees_alteracoes_web');
+          if(!isCurrent()||!dialog.open)return;
+          let inputs=data;
+          if(hotel.code!=='PLAZA' && items.some(i=>!i.adults))
+            inputs={...data,hotelBases:indexBases(await read('bases_consultar'))};
+          if(!isCurrent()||!dialog.open)return;
+          const nights=[...new Set(items.map(i=>i.date))].sort();
+          function updateSelection(){
+            delete dialog.dataset.lote;
+            next.disabled=true;
+            const selected=new Set(Array.from(options.querySelectorAll('input:checked'),input=>input.value));
+            if(!selected.size){
+              msg.textContent=nights.length?'Selecione pelo menos uma noite.':'Nenhuma tarifa WEB alterada na última publicação.';
+              return;
+            }
+            try{
+              const pedidos=items.filter(i=>selected.has(i.date)).map(i=>{
+                const adults=i.adults||webAdults(inputs,hotel,i.date,i.group,i.room,i.tariff);
+                if(!adults)throw Error('Confira a grade por adulto de '+i.date+' · '+i.group+' · '+i.room+'.');
+                const paxs=Object.keys(adults).map(Number);
+                return {hotel:hotel.name,grupo:i.group,noite:i.date.split('-').reverse().join('/'),
+                  quarto:({standard:'STD',luxo:'Luxo',suite:'Suíte'})[i.room]||i.room,paxs,alvos:paxs.map(p=>adults[p])};
+              });
+              dialog.dataset.lote=JSON.stringify(pedidos);
+              next.disabled=false;
+              msg.textContent='Noites selecionadas: '+selected.size+' · Tarifas WEB alteradas: '+pedidos.length+'.';
+            }catch(error){msg.textContent=error.message;}
+          }
+          for(const night of nights){
+            const label=document.createElement('label'),input=document.createElement('input');
+            input.type='checkbox';input.value=night;label.style.display='block';
+            label.append(input,' '+night.split('-').reverse().join('/'));options.append(label);
+          }
+          dates.hidden=!nights.length;
+          options.onchange=updateSelection;
+          updateSelection();
+          next.onclick=()=>{msg.textContent='Abrindo a extensão Tarifas Sueds. Se ela não abrir, instale a versão atualizada e recarregue o painel.';};
+        }catch(error){msg.textContent=error.message;}
       };
       const tabs=el('simpleGroups');tabs.replaceChildren();
       for(const label of [...groups,'Todos os grupos']) {const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=()=>{group=label;draw();};tabs.append(button);}

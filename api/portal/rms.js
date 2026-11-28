@@ -15,6 +15,9 @@ module.exports = async function rms(req, res) {
     const profile = await getProfileFromClient(client);
     if (!profile) return json(res,401,{error:"Login necessário."});
     if (!profile.rms) return json(res,403,{error:"Acesso restrito."});
+    if(req.method==="POST" && req.body?.tipo==="omnibees_alteracoes_web"){
+      return await require("../../lib/rms-publicacao").changes(req.body.hotel_id,res);
+    }
     if(req.method==="POST" && req.body?.tipo==="simulacao_publicada"){
       return await require("../../lib/rms-publicacao").serve(req.body.hotel_id,res);
     }
