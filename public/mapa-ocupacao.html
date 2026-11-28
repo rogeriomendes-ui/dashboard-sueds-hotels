@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#172d3d">
     <title>Mapa de ocupação | Portal SUEDS</title>
     <script src="/manager-auth.js?v=20261007-mapa-ocupacao"></script>
-    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261119-cores">
+    <link rel="stylesheet" href="/mapa-ocupacao.css?v=20261128-tarifas-cvc">
   </head>
   <body>
     <main class="occupancy-page">
@@ -21,8 +21,8 @@
         <label><span>Hotel</span><select id="hotelFilter" name="hotel"><option value="">Todos os hotéis</option></select></label>
         <fieldset class="availability-options"><legend>Filtros</legend>
           <label class="availability-filter"><input id="lowAvailabilityOnly" type="checkbox"><span>5 ou menos aptos disponíveis no KPI</span></label>
-          <label class="availability-filter"><input id="channelEmptyOnly" type="checkbox"><span>Mais de 5 no KPI e zero na Omnibees e/ou Azul</span></label>
-          <label class="availability-filter"><input id="channelOpenOnly" type="checkbox"><span>5 ou menos no KPI e mais de 0 na Omnibees e/ou Azul</span></label>
+          <label class="availability-filter"><input id="channelEmptyOnly" type="checkbox"><span>Mais de 3 no KPI e zero na Omnibees, Azul ou CVC</span></label>
+          <label class="availability-filter"><input id="channelOpenOnly" type="checkbox"><span>5 ou menos no KPI e mais de 0 na Omnibees, Azul ou CVC</span></label>
           <small>Sem marcação: todas as datas. Várias opções: qualquer critério.</small>
         </fieldset>
         <div class="filter-actions"><button class="button primary" type="submit">Aplicar</button><button id="clearFilters" class="button quiet" type="button">Limpar</button></div>
@@ -32,10 +32,10 @@
       <div id="loadingState" class="loading" role="status"><span></span> Carregando mapa…</div>
       <section id="dashboardContent" class="occupancy-section" aria-label="Mapa de ocupação por hotel" hidden>
         <p id="channelStamp" class="channel-note"></p>
-        <p class="channel-note"><span class="channel-key-risk">Vermelho: canal com disponibilidade e KPI zerado.</span> <span class="channel-key-empty">Amarelo: canal zerado e KPI com mais de 5 aptos disponíveis.</span></p>
+        <p class="channel-note"><span class="channel-key-risk">Vermelho: canal com disponibilidade e KPI zerado.</span> <span class="channel-key-empty">Amarelo: canal zerado e KPI com mais de 3 aptos disponíveis.</span></p>
         <div id="occupancyMap"></div>
       </section>
     </main>
-    <script src="/mapa-ocupacao.js?v=20261119-cores"></script>
+    <script src="/mapa-ocupacao.js?v=20261128-tarifas-cvc"></script>
   </body>
 </html>
